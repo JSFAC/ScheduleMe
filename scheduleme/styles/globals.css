@@ -1,0 +1,198 @@
+/* styles/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-neutral-900;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  ::selection {
+    background: #0A84FF20;
+    color: #0A84FF;
+  }
+
+  :focus-visible {
+    outline: 2px solid #0A84FF;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl
+           bg-accent text-white text-sm font-semibold
+           transition-all duration-150 ease-out
+           hover:bg-accent-dark active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl
+           bg-white text-neutral-800 text-sm font-semibold border border-neutral-200
+           transition-all duration-150 ease-out
+           hover:bg-neutral-50 hover:border-neutral-300 active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white
+           text-neutral-900 text-sm placeholder:text-neutral-400
+           transition-all duration-150 ease-out
+           focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
+           disabled:bg-neutral-50 disabled:text-neutral-400;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl border border-neutral-100 shadow-card
+           transition-shadow duration-200 hover:shadow-card-hover;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-urgent {
+    @apply badge bg-red-50 text-red-700;
+  }
+
+  .badge-normal {
+    @apply badge bg-accent-light text-accent;
+  }
+
+  .badge-low {
+    @apply badge bg-neutral-100 text-neutral-600;
+  }
+
+  .section-eyebrow {
+    @apply text-xs font-semibold tracking-widest uppercase text-accent;
+  }
+
+  /* ── Logo ─────────────────────────────────────────────────────── */
+  .logo-text {
+    @apply text-2xl font-black tracking-tight text-neutral-900;
+    letter-spacing: -0.03em;
+  }
+
+  .logo-dot {
+    @apply text-accent;
+  }
+
+  /* ── Scroll animation base states ───────────────────────────── */
+  .scroll-hidden {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  .scroll-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .scroll-hidden-left {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+
+  .scroll-visible-left {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .scroll-hidden-scale {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+
+  .scroll-visible-scale {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@layer utilities {
+  .animate-delay-100 { animation-delay: 100ms; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-300 { animation-delay: 300ms; }
+  .animate-delay-400 { animation-delay: 400ms; }
+  .animate-delay-500 { animation-delay: 500ms; }
+  .opacity-0-init { opacity: 0; }
+
+  /* Stagger delay helpers for scroll animations */
+  .scroll-delay-0   { transition-delay: 0ms; }
+  .scroll-delay-100 { transition-delay: 100ms; }
+  .scroll-delay-150 { transition-delay: 150ms; }
+  .scroll-delay-200 { transition-delay: 200ms; }
+  .scroll-delay-300 { transition-delay: 300ms; }
+  .scroll-delay-400 { transition-delay: 400ms; }
+  .scroll-delay-500 { transition-delay: 500ms; }
+  .scroll-delay-600 { transition-delay: 600ms; }
+}
+
+/* ── Scroll Reveal (Apple-style) ─────────────────────────────────────────── */
+[data-reveal] {
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reveal="hidden"] {
+  opacity: 0;
+  transform: translateY(22px);
+}
+
+[data-reveal="visible"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Variant: slide from left */
+[data-reveal-left="hidden"] {
+  opacity: 0;
+  transform: translateX(-28px);
+}
+[data-reveal-left="visible"] {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Variant: scale-up (for cards) */
+[data-reveal-scale="hidden"] {
+  opacity: 0;
+  transform: scale(0.96) translateY(16px);
+}
+[data-reveal-scale="visible"] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #A3A3A3; }
