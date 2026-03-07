@@ -104,7 +104,7 @@ const Dashboard: NextPage<DashboardProps> = ({ leads }) => {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <Nav variant="business" />
+      <BusinessNav />
 
       <div className="min-h-screen bg-neutral-50 pt-16">
         <main className="mx-auto max-w-7xl px-6 py-8">
