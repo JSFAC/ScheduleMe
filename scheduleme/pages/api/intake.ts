@@ -1,55 +1,45 @@
 // pages/api/intake.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@supabase/supabase-js';
 import { triageUserInput } from '../../lib/claude';
 import { matchProviders } from '../../lib/mockProviders';
 
-// ── Types ──────────────────────────────────────────────────────────────────────
 interface IntakeRequestBody {
   message: string;
   location: string;
   name: string;
   phone: string;
+  lat?: number;
+  lng?: number;
 }
 
-interface IntakeSuccessResponse {
-  leadId: string;
-  triage: Awaited<ReturnType<typeof triageUserInput>>;
-  matches: ReturnType<typeof matchProviders>;
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
-interface ErrorResponse {
-  error: string;
-  details?: Record<string, string>;
+async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'ScheduleMe/1.0' } });
+    const data = await res.json();
+    if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch (_) { /* fall through */ }
+  return null;
 }
 
-// ── Validation ─────────────────────────────────────────────────────────────────
 function validateBody(body: unknown): { valid: true; data: IntakeRequestBody } | { valid: false; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
-
-  if (!body || typeof body !== 'object') {
-    return { valid: false, errors: { body: 'Request body must be a JSON object.' } };
-  }
-
+  if (!body || typeof body !== 'object') return { valid: false, errors: { body: 'Request body must be a JSON object.' } };
   const b = body as Record<string, unknown>;
-
-  if (typeof b.message !== 'string' || b.message.trim().length < 5) {
-    errors.message = 'message must be a string of at least 5 characters.';
-  }
-  if (typeof b.location !== 'string' || b.location.trim().length < 2) {
-    errors.location = 'location must be a non-empty string.';
-  }
-  if (typeof b.name !== 'string' || b.name.trim().length < 1) {
-    errors.name = 'name must be a non-empty string.';
-  }
-  if (typeof b.phone !== 'string' || !/^[\d\s\-().+]{7,20}$/.test(b.phone.trim())) {
-    errors.phone = 'phone must be a valid phone number (7–20 digits/symbols).';
-  }
-
-  if (Object.keys(errors).length > 0) {
-    return { valid: false, errors };
-  }
-
+  if (typeof b.message !== 'string' || b.message.trim().length < 5) errors.message = 'message must be at least 5 characters.';
+  if (typeof b.location !== 'string' || b.location.trim().length < 2) errors.location = 'location must be a non-empty string.';
+  if (typeof b.name !== 'string' || b.name.trim().length < 1) errors.name = 'name must be a non-empty string.';
+  if (typeof b.phone !== 'string' || !/^[\d\s\-().+]{7,20}$/.test(b.phone.trim())) errors.phone = 'phone must be a valid phone number.';
+  if (Object.keys(errors).length > 0) return { valid: false, errors };
   return {
     valid: true,
     data: {
@@ -57,56 +47,79 @@ function validateBody(body: unknown): { valid: true; data: IntakeRequestBody } |
       location: (b.location as string).trim(),
       name: (b.name as string).trim(),
       phone: (b.phone as string).trim(),
+      lat: typeof b.lat === 'number' ? b.lat : undefined,
+      lng: typeof b.lng === 'number' ? b.lng : undefined,
     },
   };
 }
 
-// ── Handler ────────────────────────────────────────────────────────────────────
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<IntakeSuccessResponse | ErrorResponse>,
-) {
-  // Only allow POST
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed.' });
   }
-
-  // Validate body
   const validation = validateBody(req.body);
-  if (!validation.valid) {
-    return res.status(400).json({
-      error: 'Invalid request body.',
-      details: validation.errors,
-    });
-  }
-
-  const { message, location, name, phone } = validation.data;
+  if (!validation.valid) return res.status(400).json({ error: 'Invalid request body.', details: validation.errors });
+  const { message, location, name, phone, lat: bodyLat, lng: bodyLng } = validation.data;
 
   try {
-    // 1. Triage with Claude
-    console.log(`[intake] Triaging lead from ${name} (${location})`);
     const triage = await triageUserInput(message);
-    console.log(`[intake] Triage result: ${triage.service_category} / ${triage.urgency}`);
+    const supabase = getSupabase();
+    let matches = null;
 
-    // 2. Match providers
-    // 🔁 Swap matchProviders() here for a DB query + Pinecone vector search in production
-    const matches = matchProviders(triage.service_category, message, location, 3);
+    if (supabase) {
+      let lat = bodyLat;
+      let lng = bodyLng;
+      if (!lat || !lng) {
+        const geo = await geocodeLocation(location);
+        if (geo) { lat = geo.lat; lng = geo.lng; }
+      }
+      if (lat && lng) {
+        const { data, error } = await supabase.rpc('search_businesses_geo', {
+          p_lat: lat, p_lng: lng,
+          p_service: triage.service_category.toLowerCase(),
+          p_term: triage.keywords.slice(0, 2).join(' ') || null,
+          p_price_max: null, p_radius: 25, p_limit: 5,
+        });
+        if (!error && data && data.length > 0) {
+          matches = (data as Array<{
+            id: string; name: string; service_tags: string[]; address: string | null;
+            rating: number | null; distance_miles: number; calendly_url: string | null; slug: string | null;
+          }>).map((b) => ({
+            id: b.id, name: b.name,
+            service: b.service_tags?.[0] ?? triage.service_category.toLowerCase(),
+            location: b.address ?? location,
+            rating: b.rating ?? 4.5,
+            reviewCount: Math.floor(Math.random() * 300) + 50,
+            phone: '5125550000',
+            badge: b.distance_miles < 5 ? 'Nearby' : 'Verified',
+            distance_miles: b.distance_miles,
+            calendly_url: b.calendly_url,
+            slug: b.slug,
+            from_db: true,
+          }));
+        }
+      }
+    }
 
-    // 3. Assemble response
+    if (!matches || matches.length === 0) {
+      matches = matchProviders(triage.service_category, message, location, 3);
+    }
+
     const leadId = uuidv4();
+    if (supabase) {
+      try {
+        await supabase.from('users').upsert(
+          { id: leadId, name, phone, email: `${phone.replace(/\D/g, '')}@lead.scheduleme.app` },
+          { onConflict: 'id' }
+        );
+      } catch (_) { /* non-fatal */ }
+    }
 
-    // Optional: persist lead to DB/file here
-    // await saveLead({ leadId, name, phone, location, message, triage, matches });
-
-    return res.status(200).json({
-      leadId,
-      triage,
-      matches,
-    });
+    return res.status(200).json({ leadId, triage, matches });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Internal server error.';
+    const msg = err instanceof Error ? err.message : 'Internal server error.';
     console.error('[intake] Error:', err);
-    return res.status(500).json({ error: message });
+    return res.status(500).json({ error: msg });
   }
 }
