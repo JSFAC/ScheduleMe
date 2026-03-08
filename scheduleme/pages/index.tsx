@@ -218,7 +218,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           </div>
         </section>
 
-        {/* Final CTA */
+        {/* Final CTA */}
         <section className="py-24 bg-white" aria-labelledby="final-cta-heading">
           <div className="mx-auto max-w-3xl px-6 text-center js-section">
             <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">Ready to find your pro?</h2>
