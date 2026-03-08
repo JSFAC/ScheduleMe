@@ -10,7 +10,6 @@ export default function Nav({ variant = 'light' }: NavProps) {
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 border-b transition-colors ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/85 backdrop-blur-md border-neutral-100'}`}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Main navigation">
-        {/* Logo — text only, no icon */}
         <Link href="/" className="group" aria-label="ScheduleMe home">
           <span className={`text-2xl font-black tracking-tight transition-opacity group-hover:opacity-70 ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
             ScheduleMe
@@ -22,8 +21,6 @@ export default function Nav({ variant = 'light' }: NavProps) {
             { label: 'Features', href: '/#features' },
             { label: 'How It Works', href: '/#how-it-works' },
             { label: 'Pricing', href: '/pricing' },
-            { label: 'For Businesses', href: '/business' },
-          { label: 'Business Login', href: '/auth/login' },
           ].map((link) => (
             <li key={link.href}>
               <Link href={link.href} className={`px-4 py-2 text-sm rounded-lg transition-colors ${isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'}`}>
@@ -35,7 +32,10 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
         <div className="flex items-center gap-3">
           <Link href="/business" className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
-            List your business
+            For Businesses
+          </Link>
+          <Link href="/auth/login" className={`hidden sm:block text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${isDark ? 'bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700' : 'bg-neutral-900 text-white hover:bg-neutral-700'}`}>
+            Business Login
           </Link>
           <Link href="/demo" className="btn-primary text-sm px-5 py-2.5">Get Started Free</Link>
         </div>

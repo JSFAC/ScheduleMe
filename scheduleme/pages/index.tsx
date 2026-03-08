@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import Nav from '../components/Nav';
 import Hero from '../components/Hero';
 import cms from '../cms_content.json';
+import FaqAccordion from '../components/FaqAccordion';
 
 interface Feature { icon: string; title: string; description: string; }
 interface DemoStep { step: number; title: string; description: string; }
@@ -205,7 +206,19 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           </div>
         </section>
 
-        {/* Final CTA */}
+
+        {/* FAQ */}
+        <section className="py-24 bg-neutral-50" aria-labelledby="faq-heading">
+          <div className="mx-auto max-w-3xl px-6">
+            <div className="text-center mb-14 js-section">
+              <span className="section-eyebrow mb-3 block">FAQ</span>
+              <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-neutral-900">Common questions</h2>
+            </div>
+            <FaqAccordion />
+          </div>
+        </section>
+
+        {/* Final CTA */
         <section className="py-24 bg-white" aria-labelledby="final-cta-heading">
           <div className="mx-auto max-w-3xl px-6 text-center js-section">
             <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">Ready to find your pro?</h2>
