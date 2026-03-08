@@ -1,13 +1,10 @@
 // components/BusinessNav.tsx
 import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { useEffect, useRef } from 'react';
 
 export default function BusinessNav() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800">
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Business navigation">
-        {/* Logo — text only, stacked label */}
         <Link href="/business" className="group flex flex-col leading-none" aria-label="ScheduleMe for Business">
           <span className="text-xl font-black text-white transition-opacity group-hover:opacity-70" style={{ letterSpacing: '-0.03em' }}>
             ScheduleMe
@@ -35,6 +32,9 @@ export default function BusinessNav() {
         <div className="flex items-center gap-3">
           <Link href="/" className="hidden sm:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
             Consumer site →
+          </Link>
+          <Link href="/auth/login" className="hidden sm:block text-sm font-semibold px-4 py-2 rounded-lg bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors">
+            Log In
           </Link>
           <Link href="/business/signup" className="btn-primary text-sm px-5 py-2.5">
             Join for Free

@@ -21,6 +21,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
             { label: 'Features', href: '/#features' },
             { label: 'How It Works', href: '/#how-it-works' },
             { label: 'Pricing', href: '/pricing' },
+            { label: 'FAQ', href: '/#faq' },
           ].map((link) => (
             <li key={link.href}>
               <Link href={link.href} className={`px-4 py-2 text-sm rounded-lg transition-colors ${isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'}`}>
@@ -33,9 +34,6 @@ export default function Nav({ variant = 'light' }: NavProps) {
         <div className="flex items-center gap-3">
           <Link href="/business" className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
             For Businesses
-          </Link>
-          <Link href="/auth/login" className={`hidden sm:block text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${isDark ? 'bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700' : 'bg-neutral-900 text-white hover:bg-neutral-700'}`}>
-            Business Login
           </Link>
           <Link href="/demo" className="btn-primary text-sm px-5 py-2.5">Get Started Free</Link>
         </div>

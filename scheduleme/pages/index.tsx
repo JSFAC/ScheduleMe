@@ -208,7 +208,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
 
 
         {/* FAQ */}
-        <section className="py-24 bg-neutral-50" aria-labelledby="faq-heading">
+        <section className="py-24 bg-neutral-50" id="faq" aria-labelledby="faq-heading">
           <div className="mx-auto max-w-3xl px-6">
             <div className="text-center mb-14 js-section">
               <span className="section-eyebrow mb-3 block">FAQ</span>
