@@ -1,1 +1,46 @@
-(()=>{var e={};e.id=888,e.ids=[888],e.modules={6814:(e,t,r)=>{"use strict";r.r(t),r.d(t,{default:()=>n});var i=r(997),s=r(1163),a=r(6689);function n({Component:e,pageProps:t}){(0,s.useRouter)();let[r,n]=(0,a.useState)(!1),[o,p]=(0,a.useState)(!1),[u,d]=(0,a.useState)(!1);return(0,i.jsxs)(i.Fragment,{children:[r&&(0,i.jsxs)("div",{"aria-hidden":"true",style:{position:"fixed",inset:0,zIndex:200,opacity:o?1:0,transition:"opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)",background:u?"#0a0a0a":"#ffffff",display:"flex",alignItems:"center",justifyContent:"center"},children:[u&&i.jsx("div",{style:{position:"absolute",inset:0,backgroundImage:"linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px)",backgroundSize:"48px 48px"}}),!u&&i.jsx("div",{style:{position:"absolute",inset:0,backgroundImage:"linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)",backgroundSize:"48px 48px"}}),i.jsx("div",{style:{position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:"500px",height:"500px",borderRadius:"50%",background:u?"radial-gradient(ellipse, rgba(10,132,255,0.12) 0%, transparent 70%)":"radial-gradient(ellipse, rgba(10,132,255,0.07) 0%, transparent 70%)",pointerEvents:"none"}}),(0,i.jsxs)("div",{style:{position:"relative",textAlign:"center"},children:[i.jsx("p",{style:{fontSize:"1.75rem",fontWeight:900,color:u?"#ffffff":"#0a0a0a",letterSpacing:"-0.03em",marginBottom:"4px"},children:"ScheduleMe"}),i.jsx("p",{style:{fontSize:"10px",fontWeight:700,letterSpacing:"0.2em",textTransform:"uppercase",color:"#0A84FF"},children:u?"for Business":"for Everyone"})]})]}),i.jsx(e,{...t})]})}r(6764)},6764:()=>{},2785:e=>{"use strict";e.exports=require("next/dist/compiled/next-server/pages.runtime.prod.js")},6689:e=>{"use strict";e.exports=require("react")},6405:e=>{"use strict";e.exports=require("react-dom")},997:e=>{"use strict";e.exports=require("react/jsx-runtime")},2048:e=>{"use strict";e.exports=require("fs")},6162:e=>{"use strict";e.exports=require("stream")},1568:e=>{"use strict";e.exports=require("zlib")}};var t=require("../webpack-runtime.js");t.C(e);var r=e=>t(t.s=e),i=t.X(0,[567,163],()=>r(6814));module.exports=i})();
+"use strict";
+/*
+ * ATTENTION: An "eval-source-map" devtool has been used.
+ * This devtool is neither made for production nor for readable output files.
+ * It uses "eval()" calls to create a separate source file with attached SourceMaps in the browser devtools.
+ * If you are trying to read the output file, select a different devtool (https://webpack.js.org/configuration/devtool/)
+ * or disable the default devtool with "devtool: false".
+ * If you are looking for production-ready output files, see mode: "production" (https://webpack.js.org/configuration/mode/).
+ */
+(() => {
+var exports = {};
+exports.id = "pages/_app";
+exports.ids = ["pages/_app"];
+exports.modules = {
+
+/***/ "react":
+/*!************************!*\
+  !*** external "react" ***!
+  \************************/
+/***/ ((module) => {
+
+module.exports = require("react");
+
+/***/ }),
+
+/***/ "react/jsx-runtime":
+/*!************************************!*\
+  !*** external "react/jsx-runtime" ***!
+  \************************************/
+/***/ ((module) => {
+
+module.exports = require("react/jsx-runtime");
+
+/***/ })
+
+};
+;
+
+// load runtime
+var __webpack_require__ = require("../webpack-runtime.js");
+__webpack_require__.C(exports);
+var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
+var __webpack_exports__ = __webpack_require__.X(0, ["vendor-chunks/next","vendor-chunks/@swc"], () => (__webpack_exec__("./node_modules/next/dist/pages/_app.js")));
+module.exports = __webpack_exports__;
+
+})();
