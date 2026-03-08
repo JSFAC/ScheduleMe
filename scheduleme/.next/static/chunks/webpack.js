@@ -91,6 +91,21 @@
 /******/ 		};
 /******/ 	}();
 /******/ 	
+<<<<<<< HEAD
+=======
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	!function() {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__webpack_require__.n = function(module) {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				function() { return module['default']; } :
+/******/ 				function() { return module; };
+/******/ 			__webpack_require__.d(getter, { a: getter });
+/******/ 			return getter;
+/******/ 		};
+/******/ 	}();
+/******/ 	
+>>>>>>> parent of 3cac9c5 (fix: use BusinessNav in dashboard)
 /******/ 	/* webpack/runtime/define property getters */
 /******/ 	!function() {
 /******/ 		// define getter functions for harmony exports
@@ -119,7 +134,11 @@
 /******/ 	
 /******/ 	/* webpack/runtime/getFullHash */
 /******/ 	!function() {
+<<<<<<< HEAD
 /******/ 		__webpack_require__.h = function() { return "2f0e29abc86ac93d"; }
+=======
+/******/ 		__webpack_require__.h = function() { return "110bf7d70364c563"; }
+>>>>>>> parent of 3cac9c5 (fix: use BusinessNav in dashboard)
 /******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/global */
@@ -1205,6 +1224,14 @@
 /******/ 		chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
 /******/ 	}();
 /******/ 	
+<<<<<<< HEAD
+=======
+/******/ 	/* webpack/runtime/nonce */
+/******/ 	!function() {
+/******/ 		__webpack_require__.nc = undefined;
+/******/ 	}();
+/******/ 	
+>>>>>>> parent of 3cac9c5 (fix: use BusinessNav in dashboard)
 /************************************************************************/
 /******/ 	
 /******/ 	// module cache are used so entry inlining is disabled

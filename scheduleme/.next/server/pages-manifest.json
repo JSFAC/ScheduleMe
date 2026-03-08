@@ -1,5 +1,12 @@
 {
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
+<<<<<<< HEAD
   "/_document": "pages/_document.js"
+=======
+  "/_document": "pages/_document.js",
+  "/business/pricing": "pages/business/pricing.js",
+  "/business": "pages/business.js",
+  "/": "pages/index.js"
+>>>>>>> parent of 3cac9c5 (fix: use BusinessNav in dashboard)
 }
