@@ -228,3 +228,61 @@ create policy "bookings_own"
   on bookings for select using (auth.uid() = user_id);
 create policy "bookings_service_all"
   on bookings for all using (auth.role() = 'service_role');
+
+
+-- ============================================================
+-- v2 ADDITIONS — run after initial schema
+-- ============================================================
+
+-- Add phone column to businesses (if not exists)
+alter table businesses add column if not exists phone text;
+alter table businesses add column if not exists owner_name text;
+alter table businesses add column if not exists owner_email text;
+
+-- Update the search RPC to include phone
+create or replace function search_businesses_geo(
+  p_lat         double precision,
+  p_lng         double precision,
+  p_service     text    default null,
+  p_term        text    default null,
+  p_price_max   integer default null,
+  p_radius      double precision default 25,
+  p_limit       integer default 40
+)
+returns table (
+  id            uuid,
+  name          text,
+  slug          text,
+  description   text,
+  address       text,
+  lat           double precision,
+  lng           double precision,
+  service_tags  text[],
+  price_tier    smallint,
+  rating        numeric,
+  calendly_url  text,
+  phone         text,
+  is_onboarded  boolean,
+  distance_miles double precision
+)
+language sql stable as $$
+  select
+    b.id, b.name, b.slug, b.description, b.address, b.lat, b.lng,
+    b.service_tags, b.price_tier, b.rating, b.calendly_url, b.phone, b.is_onboarded,
+    round((st_distance(b.geog, st_makepoint(p_lng, p_lat)::geography) / 1609.344)::numeric, 2)::double precision as distance_miles
+  from businesses b
+  where
+    b.geog is not null and b.is_onboarded = true
+    and st_dwithin(b.geog, st_makepoint(p_lng, p_lat)::geography, p_radius * 1609.344)
+    and (p_service is null or b.service_tags @> array[lower(p_service)])
+    and (p_term is null or to_tsvector('english', coalesce(b.name,'') || ' ' || coalesce(b.description,'') || ' ' || coalesce(array_to_string(b.keywords,' '),'')) @@ plainto_tsquery('english', p_term))
+    and (p_price_max is null or b.price_tier <= p_price_max)
+  order by distance_miles asc
+  limit p_limit;
+$$;
+
+grant execute on function search_businesses_geo to anon, authenticated;
+
+-- Allow service_role to write users (for lead capture)
+create policy if not exists "users_service_insert"
+  on users for insert using (auth.role() = 'service_role');

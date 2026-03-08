@@ -23,6 +23,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
             { label: 'How It Works', href: '/#how-it-works' },
             { label: 'Pricing', href: '/pricing' },
             { label: 'For Businesses', href: '/business' },
+          { label: 'Business Login', href: '/auth/login' },
           ].map((link) => (
             <li key={link.href}>
               <Link href={link.href} className={`px-4 py-2 text-sm rounded-lg transition-colors ${isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'}`}>
