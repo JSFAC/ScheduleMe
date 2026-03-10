@@ -167,6 +167,7 @@ const BusinessLogin: NextPage = () => {
                   </svg>
                   Continue with Google
                 </button>
+                <p className="text-xs text-neutral-600 text-center -mt-1 pb-1">For returning businesses only — new? <Link href="/business/signup" className="text-accent hover:underline">Apply first →</Link></p>
                 <button onClick={() => setShowEmail(true)}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 transition-colors text-sm font-semibold text-white">
                   <svg className="h-5 w-5 flex-shrink-0 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
