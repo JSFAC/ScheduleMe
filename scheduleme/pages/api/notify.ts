@@ -48,10 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { type, to: _to, name, ...rest } = req.body;
+  const { type, to: userEmail, name, ...rest } = req.body;
 
-  // Always send to ops inbox for now (remove OPS_EMAIL line above when domain is ready)
-  const to = OPS_EMAIL;
+  // Send to the real user email. If no user email, fall back to ops inbox.
+  // OPS_EMAIL always gets a copy via bcc for monitoring.
+  const to = userEmail || OPS_EMAIL;
 
   if (!type) {
     return res.status(400).json({ error: 'Missing required field: type' });
@@ -71,6 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!wantsIt) return res.status(200).json({ skipped: true, reason: 'User opted out' });
         result = await sendBookingConfirmation({
           to,
+          bcc: to !== OPS_EMAIL ? OPS_EMAIL : undefined,
           name: name || 'there',
           service: rest.service || 'Service Request',
           urgency: rest.urgency || 'Standard',
@@ -85,6 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!wantsIt) return res.status(200).json({ skipped: true, reason: 'User opted out' });
         result = await sendStatusUpdate({
           to,
+          bcc: to !== OPS_EMAIL ? OPS_EMAIL : undefined,
           name: name || 'there',
           service: rest.service || 'Service Request',
           status: rest.status || 'updated',
@@ -94,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       case 'welcome': {
-        result = await sendWelcomeEmail({ to, name: name || 'there' });
+        result = await sendWelcomeEmail({ to, bcc: to !== OPS_EMAIL ? OPS_EMAIL : undefined, name: name || 'there' });
         break;
       }
 
