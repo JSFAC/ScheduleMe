@@ -25,6 +25,14 @@ const BusinessLoginPage: NextPage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Read error from query string (set by /auth/callback)
+  useEffect(() => {
+    if (router.query.error === 'not_a_business') {
+      setError('not_a_business');
+      router.replace('/business/auth/login', undefined, { shallow: true });
+    }
+  }, [router.query.error, router]);
   const [success, setSuccess] = useState<string | null>(null);
 
   // On mount: if someone returned from Google OAuth,
@@ -59,11 +67,10 @@ const BusinessLoginPage: NextPage = () => {
 
   async function handleGoogle() {
     const supabase = getSupabase();
-    // We redirect back to THIS page after Google auth
-    // The useEffect above will then check and reject non-business accounts
+    localStorage.setItem('auth_source', 'business');
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/business/auth/login` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   }
 
