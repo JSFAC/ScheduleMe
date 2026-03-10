@@ -1,6 +1,14 @@
 // components/IntakeForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 export interface IntakePayload { message: string; location: string; name: string; phone: string; lat?: number; lng?: number; }
 export interface TriageResult {
@@ -41,6 +49,20 @@ export default function IntakeForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [result, setResult] = useState<IntakeResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        setPayload(p => ({
+          ...p,
+          name: p.name || u.user_metadata?.full_name || '',
+          phone: p.phone || u.user_metadata?.phone || '',
+        }));
+      }
+    });
+  }, []);
 
   function validate(): boolean {
     const e: FormErrors = {};
