@@ -1,4 +1,4 @@
-// pages/auth/login.tsx — Redirects to proper business login
+// pages/auth/login.tsx — Redirects to consumer signin page
 import type { NextPage } from 'next';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 const LoginRedirect: NextPage = () => {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/business/auth/login');
+    router.replace('/signin');
   }, [router]);
   return null;
 };
