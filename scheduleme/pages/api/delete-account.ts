@@ -20,13 +20,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
   if (userError || !user) return res.status(401).json({ error: 'Invalid session' });
 
-  // Use admin client to delete the user
+  // Delete auth account — profiles row auto-deletes via ON DELETE CASCADE
   const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } });
-
-  // Delete from users table first (removes has_seen_welcome and all profile data)
-  await adminClient.from('users').delete().eq('id', user.id);
-
-  // Then delete the auth account
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
   if (deleteError) return res.status(500).json({ error: deleteError.message });
 

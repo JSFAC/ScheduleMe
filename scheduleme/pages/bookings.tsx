@@ -37,14 +37,14 @@ const Bookings: NextPage = () => {
           .toUpperCase()
           .slice(0, 2);
 
-        // Check Supabase flag — only show welcome if they haven't seen it yet
-        const { data: userRow } = await supabase
-          .from('users')
+        // Check profiles table flag — only show welcome if they haven't seen it yet
+        const { data: profile } = await supabase
+          .from('profiles')
           .select('has_seen_welcome')
           .eq('id', session.user.id)
           .maybeSingle();
 
-        const isFirstVisit = userRow !== null && userRow.has_seen_welcome === false;
+        const isFirstVisit = profile !== null && profile.has_seen_welcome === false;
 
         if (!isFirstVisit) {
           router.replace('/account');
@@ -53,7 +53,7 @@ const Bookings: NextPage = () => {
 
         // Mark as seen immediately so refreshing doesn't replay it
         await supabase
-          .from('users')
+          .from('profiles')
           .update({ has_seen_welcome: true })
           .eq('id', session.user.id);
 
