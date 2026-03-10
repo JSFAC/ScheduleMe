@@ -309,6 +309,53 @@ export async function sendStatusUpdate(opts: {
   });
 }
 
+export async function sendBusinessApprovalEmail(opts: {
+  to: string;
+  ownerName: string;
+  businessName: string;
+  magicLink: string;
+}) {
+  const resend = getResend();
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">You&rsquo;re approved! 🎉</h1>
+      <p style="margin:0 0 24px;font-size:16px;color:#64748b;">Hi ${opts.ownerName}, <strong style="color:#0f172a;">${opts.businessName}</strong> has been verified and is ready to go live on ScheduleMe.</p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:12px;margin-bottom:28px;">
+        <tr><td style="padding:20px 24px;">
+          <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">What happens next</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            ${['Set up your account password or connect Google', 'Connect your bank via Stripe to receive payments', 'Your profile goes live — leads start arriving', 'Complete jobs and get paid (we take 12%)'].map((step, i) => `
+            <tr>
+              <td style="padding:6px 0;vertical-align:top;">
+                <span style="display:inline-block;width:22px;height:22px;background:#1d4ed8;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:700;color:#fff;margin-right:12px;">${i + 1}</span>
+              </td>
+              <td style="padding:6px 0;font-size:14px;color:#334155;">${step}</td>
+            </tr>`).join('')}
+          </table>
+        </td></tr>
+      </table>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px;">
+        <tr><td style="background:#1d4ed8;border-radius:12px;text-align:center;">
+          <a href="${opts.magicLink}" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
+            Set Up My Account →
+          </a>
+        </td></tr>
+      </table>
+
+      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">This link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:#1d4ed8;">${SITE_URL}/business/auth/login</a> to request a new one.</p>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Questions? Reply to this email or contact <a href="mailto:hello@usescheduleme.com" style="color:#1d4ed8;">hello@usescheduleme.com</a></p>
+    </td></tr>
+  `;
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `${opts.businessName} is approved on ScheduleMe`,
+    html: layout(`${opts.businessName} is approved`, body, `You're approved! Set up your account and start receiving leads.`),
+  });
+}
+
 export async function sendWelcomeEmail(opts: { to: string; name: string }) {
   const resend = getResend();
   return resend.emails.send({
