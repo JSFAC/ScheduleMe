@@ -25,6 +25,7 @@ const SignIn: NextPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [tabVisible, setTabVisible] = useState(true);
 
   async function handleGoogle() {
     const supabase = getSupabase();
@@ -111,13 +112,17 @@ const SignIn: NextPage = () => {
             <div className="flex rounded-xl bg-neutral-100 p-1 gap-1 mb-6">
               {(['login', 'signup'] as const).map(t => (
                 <button key={t} type="button"
-                  onClick={() => { setTab(t); setShowEmail(false); setShowReset(false); setError(null); }}
+                  onClick={() => {
+                  setTabVisible(false);
+                  setTimeout(() => { setTab(t); setShowEmail(false); setShowReset(false); setError(null); setTabVisible(true); }, 150);
+                }}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>
                   {t === 'login' ? 'Log In' : 'Sign Up'}
                 </button>
               ))}
             </div>
 
+            <div style={{ opacity: tabVisible ? 1 : 0, transform: tabVisible ? 'translateY(0)' : 'translateY(4px)', transition: 'opacity 0.18s ease, transform 0.18s ease' }}>
             {error && (
               <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 mb-5">{error}</div>
             )}
@@ -209,6 +214,7 @@ const SignIn: NextPage = () => {
               </form>
             )}
           </div>
+            </div>
 
           <p className="text-center text-xs text-neutral-400 mt-5">
             By continuing, you agree to our{' '}
