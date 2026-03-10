@@ -148,7 +148,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 )}
               </div>
             ) : (
-              <Link href="/signin" className="btn-primary text-sm px-5 py-2.5">
+              <Link href="/signin" className="btn-primary text-sm px-5 py-2.5" style={{ transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
                 Sign Up / Log In
               </Link>
             )}

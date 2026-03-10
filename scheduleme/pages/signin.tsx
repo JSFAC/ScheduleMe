@@ -114,7 +114,7 @@ const SignIn: NextPage = () => {
                 <button key={t} type="button"
                   onClick={() => {
                   setTabVisible(false);
-                  setTimeout(() => { setTab(t); setShowEmail(false); setShowReset(false); setError(null); setTabVisible(true); }, 150);
+                  setTimeout(() => { setTab(t); setShowEmail(false); setShowReset(false); setError(null); setTabVisible(true); }, 220);
                 }}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>
                   {t === 'login' ? 'Log In' : 'Sign Up'}
@@ -122,7 +122,7 @@ const SignIn: NextPage = () => {
               ))}
             </div>
 
-            <div style={{ opacity: tabVisible ? 1 : 0, transform: tabVisible ? 'translateY(0)' : 'translateY(4px)', transition: 'opacity 0.18s ease, transform 0.18s ease' }}>
+            <div style={{ opacity: tabVisible ? 1 : 0, transform: tabVisible ? 'translateY(0)' : 'translateY(4px)', transition: 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)' }}>
             {error && (
               <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 mb-5">{error}</div>
             )}

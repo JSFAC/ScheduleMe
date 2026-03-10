@@ -26,6 +26,16 @@
     color: #0A84FF;
   }
 
+  /* Apple-like tap feel on all interactive elements */
+  a, button {
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  a:active, button:active {
+    transform: scale(0.97);
+    opacity: 0.8;
+  }
+
   :focus-visible {
     outline: 2px solid #0A84FF;
     outline-offset: 2px;
