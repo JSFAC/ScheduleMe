@@ -27,8 +27,8 @@ const BusinessLoginPage: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // On mount: if someone is already signed in (e.g. returned from Google OAuth),
-  // check if they're a real business — if not, sign them out and show error
+  // On mount: if someone returned from Google OAuth,
+  // check if they're a real business — if not, delete the orphaned auth account and show error
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -41,12 +41,18 @@ const BusinessLoginPage: NextPage = () => {
         .maybeSingle();
 
       if (biz) {
-        // Valid business — send to dashboard
         router.replace('/business/dashboard');
       } else {
-        // Not a business account — sign them out immediately and show error
+        // Not a business — sign out AND delete the orphaned auth account
+        const userId = session.user.id;
+        const email = session.user.email ?? '';
         await supabase.auth.signOut();
-        setError('No business account found for this login. If you applied, please wait for your approval email. If you\'re a consumer, go to the consumer site.');
+        await fetch('/api/cleanup-auth-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, email }),
+        });
+        setError('not_a_business');
       }
     });
   }, [router]);
@@ -136,11 +142,21 @@ const BusinessLoginPage: NextPage = () => {
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8">
             {error && (
               <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 mb-5">
-                <p className="font-semibold mb-1">Access denied</p>
-                <p>{error}</p>
-                <div className="flex flex-col gap-1.5 mt-3">
-                  <Link href="/business/signup" className="text-accent hover:underline text-xs">Apply to join as a business →</Link>
-                  <Link href="/account" className="text-neutral-400 hover:underline text-xs">Go to consumer account →</Link>
+                <p className="font-semibold mb-1 text-red-300">No business account found</p>
+                <p className="text-red-400 leading-relaxed">
+                  {error === 'not_a_business'
+                    ? 'This email is not registered as a ScheduleMe business. If you applied, wait for your approval email. Otherwise choose an option below.'
+                    : error}
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Link href="/business/signup"
+                    className="flex items-center justify-center px-3 py-2 rounded-lg bg-accent/20 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/30 transition-colors text-center">
+                    Apply as a Business
+                  </Link>
+                  <Link href="/signin"
+                    className="flex items-center justify-center px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs font-semibold hover:bg-neutral-700 transition-colors text-center">
+                    Consumer Sign In
+                  </Link>
                 </div>
               </div>
             )}
