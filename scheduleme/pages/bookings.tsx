@@ -42,8 +42,10 @@ const Bookings: NextPage = () => {
         setUserInitials(initials);
         setPhase('welcome');
 
-        // Send welcome email on first sign-in (non-blocking)
-        if (session.user.email) {
+        // Only send welcome email if account was just created (within last 60s = new signup)
+        const createdAt = session.user.created_at ? new Date(session.user.created_at).getTime() : 0;
+        const isNewAccount = Date.now() - createdAt < 60_000;
+        if (isNewAccount && session.user.email) {
           maybeSendWelcomeEmail(session.user.email, fullName);
         }
 
