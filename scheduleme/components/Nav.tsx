@@ -35,7 +35,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           <Link href="/business" className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
             For Businesses
           </Link>
-          <Link href="/demo" className="btn-primary text-sm px-5 py-2.5">Get Started Free</Link>
+          <Link href="/signin" className="btn-primary text-sm px-5 py-2.5">Get Started Free</Link>
         </div>
       </nav>
     </header>
