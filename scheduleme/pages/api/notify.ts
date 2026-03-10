@@ -7,10 +7,6 @@ import {
   sendWelcomeEmail,
 } from '../../lib/email';
 
-// ─── Temporary: redirect all emails to ops inbox until custom domain is set up
-// When you have a verified domain, remove this line and emails go to real users.
-const OPS_EMAIL = 'imjoshuasf@gmail.com';
-
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -41,21 +37,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Allow frontend pages to call this without a secret.
-  // Only reject if a secret IS provided but doesn't match (prevents accidental misuse).
   const secret = req.headers['x-notify-secret'];
   if (process.env.NOTIFY_SECRET && secret && secret !== process.env.NOTIFY_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { type, to: userEmail, name, ...rest } = req.body;
+  const { type, to, name, ...rest } = req.body;
 
-  // Send to the real user email. If no user email, fall back to ops inbox.
-  // OPS_EMAIL always gets a copy via bcc for monitoring.
-  const to = userEmail || OPS_EMAIL;
-
-  if (!type) {
-    return res.status(400).json({ error: 'Missing required field: type' });
+  if (!type || !to) {
+    return res.status(400).json({ error: 'Missing required fields: type, to' });
   }
 
   if (!process.env.RESEND_API_KEY) {
@@ -68,11 +58,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     switch (type) {
       case 'booking_confirmation': {
-        const wantsIt = await userWantsNotif(userEmail, 'bookingConfirmed');
+        const wantsIt = await userWantsNotif(to, 'bookingConfirmed');
         if (!wantsIt) return res.status(200).json({ skipped: true, reason: 'User opted out' });
         result = await sendBookingConfirmation({
           to,
-          bcc: to !== OPS_EMAIL ? OPS_EMAIL : undefined,
           name: name || 'there',
           service: rest.service || 'Service Request',
           urgency: rest.urgency || 'Standard',
@@ -83,11 +72,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       case 'status_update': {
-        const wantsIt = await userWantsNotif(userEmail, 'statusUpdates');
+        const wantsIt = await userWantsNotif(to, 'statusUpdates');
         if (!wantsIt) return res.status(200).json({ skipped: true, reason: 'User opted out' });
         result = await sendStatusUpdate({
           to,
-          bcc: to !== OPS_EMAIL ? OPS_EMAIL : undefined,
           name: name || 'there',
           service: rest.service || 'Service Request',
           status: rest.status || 'updated',
@@ -97,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       case 'welcome': {
-        result = await sendWelcomeEmail({ to, bcc: to !== OPS_EMAIL ? OPS_EMAIL : undefined, name: name || 'there' });
+        result = await sendWelcomeEmail({ to, name: name || 'there' });
         break;
       }
 
