@@ -213,7 +213,7 @@ export function welcomeHtml(opts: { name: string }) {
 
 // ─── Send helpers ─────────────────────────────────────────────────────────────
 
-const FROM = 'ScheduleMe <notifications@usescheduleme.com>';
+const FROM = 'ScheduleMe <onboarding@resend.dev>';
 
 export async function sendBookingConfirmation(opts: {
   to: string;
