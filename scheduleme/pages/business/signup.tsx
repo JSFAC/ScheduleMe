@@ -1,4 +1,4 @@
-// pages/business/signup.tsx — connects to Supabase via /api/business-signup
+// pages/business/signup.tsx — commission model signup, no plan picker
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -9,11 +9,13 @@ type Step = 'form' | 'submitting' | 'success';
 interface FormData {
   businessName: string; ownerName: string; email: string; phone: string;
   serviceCategory: string; otherCategory: string; city: string; radiusMiles: string;
-  licenseNumber: string; yearsInBusiness: string; plan: 'starter' | 'pro';
-  calendlyUrl: string; agree: boolean;
+  licenseNumber: string; yearsInBusiness: string; calendlyUrl: string; agree: boolean;
 }
 
-const SERVICE_CATEGORIES = ['Plumbing','HVAC','Electrical','Automotive','Home Repair / Handyman','Cleaning','Salon / Beauty','Landscaping','Pest Control','Other'];
+const SERVICE_CATEGORIES = [
+  'Plumbing','HVAC','Electrical','Automotive','Home Repair / Handyman',
+  'Cleaning','Salon / Beauty','Landscaping','Pest Control','Moving','Painting','Other'
+];
 const RADIUS_OPTIONS = ['5 miles','10 miles','15 miles','25 miles','50 miles','100 miles'];
 
 const SignupPage: NextPage = () => {
@@ -21,8 +23,7 @@ const SignupPage: NextPage = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>({
     businessName:'', ownerName:'', email:'', phone:'', serviceCategory:'', otherCategory:'',
-    city:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'',
-    plan:'starter', calendlyUrl:'', agree:false,
+    city:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', calendlyUrl:'', agree:false,
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
@@ -54,7 +55,7 @@ const SignupPage: NextPage = () => {
       const res = await fetch('/api/business-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, plan: 'commission' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed');
@@ -65,100 +66,94 @@ const SignupPage: NextPage = () => {
     }
   }
 
-  if (step === 'submitting') {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="text-center" role="status" aria-live="polite">
-          <div className="relative h-16 w-16 mx-auto mb-6">
-            <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+  if (step === 'submitting') return (
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+      <div className="text-center" role="status" aria-live="polite">
+        <div className="relative h-16 w-16 mx-auto mb-6">
+          <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+        </div>
+        <p className="text-white font-semibold text-lg">Submitting your application…</p>
+        <p className="text-neutral-500 text-sm mt-2">Just a moment</p>
+      </div>
+    </div>
+  );
+
+  if (step === 'success') return (
+    <>
+      <Head><title>Application Submitted — ScheduleMe for Business</title></Head>
+      <BusinessNav />
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-24">
+        <div className="max-w-md w-full text-center">
+          <div className="h-20 w-20 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center mx-auto mb-6">
+            <svg className="h-10 w-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
           </div>
-          <p className="text-white font-semibold text-lg">Submitting your application…</p>
-          <p className="text-neutral-500 text-sm mt-2">Just a moment</p>
+          <h1 className="text-3xl font-bold text-white mb-3">Application received!</h1>
+          <p className="text-neutral-400 leading-relaxed mb-8">
+            Thanks, <strong className="text-white">{form.ownerName}</strong>. We will review{' '}
+            <strong className="text-white">{form.businessName}</strong> and send approval to{' '}
+            <strong className="text-white">{form.email}</strong> within 24 hours.
+          </p>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 text-left space-y-4 mb-8">
+            <p className="text-xs font-semibold text-neutral-500 uppercase tracking-widest">What happens next</p>
+            {[
+              'We verify your license and business details (up to 24 hrs)',
+              'You receive a welcome email with your dashboard login',
+              'Connect your bank account via Stripe to receive payments',
+              'First job requests start arriving once your profile is live',
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <span className="h-6 w-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                <p className="text-sm text-neutral-300">{item}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-3">
+            <Link href="/business/auth/login" className="btn-primary w-full justify-center">Log In to Dashboard</Link>
+            <Link href="/business" className="inline-flex items-center justify-center w-full px-6 py-3 rounded-xl border border-neutral-700 text-neutral-300 text-sm font-semibold hover:bg-neutral-800 transition-colors">
+              Back to Business Home
+            </Link>
+          </div>
         </div>
       </div>
-    );
-  }
-
-  if (step === 'success') {
-    return (
-      <>
-        <Head><title>Application Submitted — ScheduleMe for Business</title></Head>
-        <BusinessNav />
-        <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-24">
-          <div className="max-w-md w-full text-center">
-            <div className="h-20 w-20 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center mx-auto mb-6">
-              <svg className="h-10 w-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-3">Application received!</h1>
-            <p className="text-neutral-400 leading-relaxed mb-8">
-              Thanks, <strong className="text-white">{form.ownerName}</strong>. We&apos;ll review <strong className="text-white">{form.businessName}</strong> and send approval + onboarding details to <strong className="text-white">{form.email}</strong> within 24 hours.
-            </p>
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 text-left space-y-3 mb-8">
-              <p className="text-xs font-semibold text-neutral-500 uppercase tracking-widest mb-4">What happens next</p>
-              {['License & background verification (up to 24 hrs)','Welcome email with dashboard access link','First leads start arriving once profile is live'].map((item, i) => (
-                <div key={item} className="flex items-start gap-3">
-                  <span className="h-6 w-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
-                  <p className="text-sm text-neutral-300">{item}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3">
-              <Link href="/auth/login" className="btn-primary w-full justify-center">Log In to Dashboard</Link>
-              <Link href="/business" className="btn-secondary w-full justify-center border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700">Back to Business Home</Link>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
+    </>
+  );
 
   return (
     <>
       <Head>
         <title>Join ScheduleMe — Create Your Business Profile</title>
-        <meta name="description" content="Sign up as a service professional on ScheduleMe." />
+        <meta name="description" content="Join ScheduleMe as a service professional. Free to join, 12% only on completed jobs." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <BusinessNav />
       <div className="min-h-screen bg-neutral-950 pt-28 pb-20 px-6">
         <div className="mx-auto max-w-2xl">
-          <div className="text-center mb-10">
-            <span className="section-eyebrow mb-3 block">Business Signup</span>
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">Create your business profile</h1>
-            <p className="text-neutral-400">Takes about 5 minutes. No credit card required to start.</p>
-          </div>
-
-          {/* Plan picker */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            {[
-              { key: 'starter' as const, label: 'Starter', price: 'Free', sub: '+ $8/lead', tag: '' },
-              { key: 'pro' as const, label: 'Pro', price: '$79/mo', sub: 'Unlimited leads', tag: 'Most Popular' },
-            ].map(plan => (
-              <button key={plan.key} type="button" onClick={() => set('plan', plan.key)}
-                className={`rounded-2xl border p-5 text-left transition-all ${form.plan === plan.key ? 'border-accent bg-accent/10 ring-2 ring-accent/40' : 'border-neutral-800 bg-neutral-900 hover:border-neutral-700'}`}
-                aria-pressed={form.plan === plan.key}>
-                <div className="flex items-start justify-between mb-2">
-                  <p className="text-sm font-semibold text-neutral-300 uppercase tracking-widest">{plan.label}</p>
-                  {plan.tag && <span className="badge bg-accent text-white text-[10px]">{plan.tag}</span>}
+          <div className="text-center mb-8">
+            <span className="section-eyebrow mb-3 block">Business Application</span>
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ letterSpacing: '-0.02em' }}>
+              Create your business profile
+            </h1>
+            <p className="text-neutral-400 mb-6">Takes about 5 minutes. Free to join — we only take 12% when you get paid.</p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {[{icon:'🔒',label:'SSL Encrypted'},{icon:'✓',label:'Verified Platform'},{icon:'$0',label:'Free to Join'},{icon:'12%',label:'Only on Earnings'}].map(b => (
+                <div key={b.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-400">
+                  <span className="text-accent font-bold">{b.icon}</span>{b.label}
                 </div>
-                <p className="text-2xl font-black text-white" style={{ letterSpacing: '-0.02em' }}>{plan.price}</p>
-                <p className="text-xs text-neutral-500 mt-0.5">{plan.sub}</p>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {apiError && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 mb-6">{apiError}</div>
-          )}
+          {apiError && <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 mb-6">{apiError}</div>}
 
           <form onSubmit={handleSubmit} noValidate>
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 space-y-6">
-              {/* Business info */}
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 space-y-8">
+
+              {/* Step 1: Business Info */}
               <fieldset>
-                <legend className="text-sm font-semibold text-neutral-200 mb-4 flex items-center gap-2">
+                <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
                   <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">1</span>
                   Business Information
                 </legend>
@@ -171,7 +166,7 @@ const SignupPage: NextPage = () => {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Your name *</label>
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Owner / contact name *</label>
                       <input type="text" className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.ownerName ? 'ring-2 ring-red-400' : ''}`}
                         placeholder="Mike Rodriguez" value={form.ownerName} onChange={e => set('ownerName', e.target.value)} />
                       {errors.ownerName && <p className="mt-1 text-xs text-red-400">{errors.ownerName}</p>}
@@ -185,9 +180,11 @@ const SignupPage: NextPage = () => {
                 </div>
               </fieldset>
 
-              {/* Contact */}
+              <div className="h-px bg-neutral-800" />
+
+              {/* Step 2: Contact */}
               <fieldset>
-                <legend className="text-sm font-semibold text-neutral-200 mb-4 flex items-center gap-2">
+                <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
                   <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">2</span>
                   Contact Details
                 </legend>
@@ -207,9 +204,11 @@ const SignupPage: NextPage = () => {
                 </div>
               </fieldset>
 
-              {/* Service & Location */}
+              <div className="h-px bg-neutral-800" />
+
+              {/* Step 3: Service & Location */}
               <fieldset>
-                <legend className="text-sm font-semibold text-neutral-200 mb-4 flex items-center gap-2">
+                <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
                   <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">3</span>
                   Service & Location
                 </legend>
@@ -253,11 +252,13 @@ const SignupPage: NextPage = () => {
                 </div>
               </fieldset>
 
-              {/* Calendly — optional */}
+              <div className="h-px bg-neutral-800" />
+
+              {/* Step 4: Calendly */}
               <fieldset>
-                <legend className="text-sm font-semibold text-neutral-200 mb-4 flex items-center gap-2">
+                <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
                   <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">4</span>
-                  Online Booking <span className="text-neutral-600 font-normal text-xs">(optional)</span>
+                  Online Booking <span className="text-neutral-600 font-normal text-xs ml-1">(optional)</span>
                 </legend>
                 <div>
                   <label className="block text-sm font-medium text-neutral-400 mb-1.5">Calendly URL</label>
@@ -267,13 +268,34 @@ const SignupPage: NextPage = () => {
                 </div>
               </fieldset>
 
+              <div className="h-px bg-neutral-800" />
+
+              {/* Commission reminder */}
+              <div className="rounded-xl bg-accent/5 border border-accent/20 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white mb-1">How payments work</p>
+                    <p className="text-sm text-neutral-400">
+                      Joining is completely free. ScheduleMe takes a <strong className="text-accent">12% commission</strong> only when a customer pays you for a completed job. No monthly fees, no per-lead charges.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Agreement */}
               <div className={`rounded-xl border p-4 ${errors.agree ? 'border-red-500/40 bg-red-500/5' : 'border-neutral-800'}`}>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-accent focus:ring-accent"
                     checked={form.agree} onChange={e => set('agree', e.target.checked)} />
                   <span className="text-sm text-neutral-400">
-                    I agree to the <a href="/terms" className="text-accent hover:underline">Terms of Service</a> and <a href="/privacy" className="text-accent hover:underline">Privacy Policy</a>.
+                    I agree to the <a href="/terms" className="text-accent hover:underline">Terms of Service</a>,{' '}
+                    <a href="/privacy" className="text-accent hover:underline">Privacy Policy</a>, and the{' '}
+                    <strong className="text-neutral-300">12% commission structure</strong> on completed jobs.
                   </span>
                 </label>
                 {errors.agree && <p className="mt-2 text-xs text-red-400 ml-7">{errors.agree}</p>}
@@ -284,7 +306,7 @@ const SignupPage: NextPage = () => {
               Submit Application →
             </button>
             <p className="text-center text-xs text-neutral-600 mt-4">
-              We&apos;ll verify your info and email you within 24 hours.
+              We will verify your info and email you within 24 hours. No credit card needed.
             </p>
           </form>
         </div>
