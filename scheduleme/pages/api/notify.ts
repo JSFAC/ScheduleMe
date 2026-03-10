@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     switch (type) {
       case 'booking_confirmation': {
-        const wantsIt = await userWantsNotif(_to, 'bookingConfirmed');
+        const wantsIt = await userWantsNotif(userEmail, 'bookingConfirmed');
         if (!wantsIt) return res.status(200).json({ skipped: true, reason: 'User opted out' });
         result = await sendBookingConfirmation({
           to,
@@ -83,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       case 'status_update': {
-        const wantsIt = await userWantsNotif(_to, 'statusUpdates');
+        const wantsIt = await userWantsNotif(userEmail, 'statusUpdates');
         if (!wantsIt) return res.status(200).json({ skipped: true, reason: 'User opted out' });
         result = await sendStatusUpdate({
           to,
