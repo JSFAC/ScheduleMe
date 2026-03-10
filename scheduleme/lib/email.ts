@@ -182,7 +182,7 @@ export function welcomeHtml(opts: { name: string }) {
 
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
         ${[
-          ['1', 'Describe your issue', 'Tell us what's wrong in plain language.'],
+          ['1', 'Describe your issue', 'Tell us what&apos;s wrong in plain language.'],
           ['2', 'We match you', 'Our AI identifies the service type and finds local pros.'],
           ['3', 'Get contacted', 'Matched pros reach out to schedule and quote.'],
         ].map(([num, title, desc]) => `
