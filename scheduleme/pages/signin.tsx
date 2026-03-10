@@ -46,7 +46,13 @@ const SignIn: NextPage = () => {
     setLoading(true); setError(null);
     const supabase = getSupabase();
     try {
-      if (mode === 'signup') {
+      if (mode === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/reset`,
+        });
+        if (error) throw error;
+        setSent(true);
+      } else if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setSent(true);
@@ -173,14 +179,30 @@ const SignIn: NextPage = () => {
                   <input type="email" required className="form-input" placeholder="you@example.com"
                     value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Password</label>
-                  <input type="password" required className="form-input" placeholder="••••••••"
-                    value={password} onChange={e => setPassword(e.target.value)} />
-                </div>
+                {mode !== 'reset' && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">Password</label>
+                    <input type="password" required className="form-input" placeholder="••••••••"
+                      value={password} onChange={e => setPassword(e.target.value)} />
+                  </div>
+                )}
                 <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-                  {loading ? 'Please wait…' : mode === 'login' ? 'Log In' : 'Create Account'}
+                  {loading ? 'Please wait…' : mode === 'reset' ? 'Send Reset Email' : mode === 'login' ? 'Log In' : 'Create Account'}
                 </button>
+                {mode === 'login' && (
+                  <div className="text-center">
+                    <button type="button" onClick={() => setMode('reset')}
+                      className="text-xs text-neutral-400 hover:text-accent transition-colors">
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+                {mode === 'reset' && (
+                  <button type="button" onClick={() => setMode('login')}
+                    className="w-full text-center text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+                    ← Back to log in
+                  </button>
+                )}
               </form>
             )}
           </div>
