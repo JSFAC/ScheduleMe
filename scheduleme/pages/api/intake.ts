@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 import { triageUserInput } from '../../lib/claude';
 import { matchProviders } from '../../lib/mockProviders';
+import { rateLimit } from '../../lib/rateLimit';
 
 interface IntakeRequestBody {
   message: string;
@@ -58,6 +59,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed.' });
   }
+  // Rate limit: 5 requests per minute per IP
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] ?? req.socket.remoteAddress ?? 'unknown';
+  const { allowed, remaining } = rateLimit(ip, 5, 60_000);
+  res.setHeader('X-RateLimit-Remaining', String(remaining));
+  if (!allowed) return res.status(429).json({ error: 'Too many requests. Please wait a moment before trying again.' });
+
   const validation = validateBody(req.body);
   if (!validation.valid) return res.status(400).json({ error: 'Invalid request body.', details: validation.errors });
   const { message, location, name, phone, lat: bodyLat, lng: bodyLng } = validation.data;
