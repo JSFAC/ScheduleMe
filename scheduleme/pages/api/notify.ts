@@ -9,7 +9,7 @@ import {
 
 // ─── Temporary: redirect all emails to ops inbox until custom domain is set up
 // When you have a verified domain, remove this line and emails go to real users.
-const OPS_EMAIL = 'imjoshuasf@gmail.com';
+const OPS_EMAIL = 'usescheduleme@gmail.com';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
