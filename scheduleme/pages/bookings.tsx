@@ -21,6 +21,7 @@ const Bookings: NextPage = () => {
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
   const [fadeIn, setFadeIn] = useState(false);
+  const [isNewAccount, setIsNewAccount] = useState(false);
 
   useEffect(() => {
     const isOAuthCallback =
@@ -38,14 +39,24 @@ const Bookings: NextPage = () => {
           .join('')
           .toUpperCase()
           .slice(0, 2);
+
+        // Detect new vs returning user (new = created within last 60s)
+        const createdAt = session.user.created_at ? new Date(session.user.created_at).getTime() : 0;
+        const newAccount = Date.now() - createdAt < 60_000;
+        setIsNewAccount(newAccount);
+
+        // Returning users: skip welcome screen, go straight to account
+        if (!newAccount) {
+          router.replace('/account');
+          return;
+        }
+
         setUserName(firstName);
         setUserInitials(initials);
         setPhase('welcome');
 
-        // Only send welcome email if account was just created (within last 60s = new signup)
-        const createdAt = session.user.created_at ? new Date(session.user.created_at).getTime() : 0;
-        const isNewAccount = Date.now() - createdAt < 60_000;
-        if (isNewAccount && session.user.email) {
+        // Send welcome email for new signups only
+        if (session.user.email) {
           maybeSendWelcomeEmail(session.user.email, fullName);
         }
 
