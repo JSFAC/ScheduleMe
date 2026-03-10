@@ -9,7 +9,7 @@ import {
 
 // ─── Temporary: redirect all emails to ops inbox until custom domain is set up
 // When you have a verified domain, remove this line and emails go to real users.
-const OPS_EMAIL = 'usescheduleme@gmail.com';
+const OPS_EMAIL = 'imjoshuasf@gmail.com';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -41,8 +41,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // Allow frontend pages to call this without a secret.
+  // Only reject if a secret IS provided but doesn't match (prevents accidental misuse).
   const secret = req.headers['x-notify-secret'];
-  if (secret !== process.env.NOTIFY_SECRET && process.env.NODE_ENV === 'production') {
+  if (process.env.NOTIFY_SECRET && secret && secret !== process.env.NOTIFY_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
