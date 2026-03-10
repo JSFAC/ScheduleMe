@@ -16,7 +16,7 @@ function getSupabase() {
 
 const SignIn: NextPage = () => {
   const router = useRouter();
-  const { next = '/demo' } = router.query;
+  const { next = '/bookings' } = router.query;
   const [showEmail, setShowEmail] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +29,7 @@ const SignIn: NextPage = () => {
     const supabase = getSupabase();
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}${next}` },
+      options: { redirectTo: `${window.location.origin}/bookings?welcome=1` },
     });
   }
 
@@ -52,7 +52,7 @@ const SignIn: NextPage = () => {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push(next as string);
+        router.push('/bookings');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
