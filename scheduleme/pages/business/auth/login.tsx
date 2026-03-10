@@ -1,4 +1,5 @@
-// pages/business/auth/login.tsx — Business-only login with consumer redirect popup
+// pages/business/auth/login.tsx — Business-only login
+// Blocks consumer/new accounts from accessing business dashboard
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -16,7 +17,7 @@ function getSupabase() {
 
 type Mode = 'login' | 'reset';
 
-const BusinessLogin: NextPage = () => {
+const BusinessLoginPage: NextPage = () => {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [showEmail, setShowEmail] = useState(false);
@@ -25,33 +26,38 @@ const BusinessLogin: NextPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [consumerPopup, setConsumerPopup] = useState(false);
 
-  // Check if logged-in user is a consumer (not a business) and show redirect popup
+  // On mount: if someone is already signed in (e.g. returned from Google OAuth),
+  // check if they're a real business — if not, sign them out and show error
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return;
-      // Check if this user has a business record
-      const { data: business } = await supabase
+
+      const { data: biz } = await supabase
         .from('businesses')
         .select('id')
         .eq('owner_email', session.user.email)
-        .single();
-      if (!business) {
-        // Logged in but no business account — show consumer redirect popup
-        setConsumerPopup(true);
+        .maybeSingle();
+
+      if (biz) {
+        // Valid business — send to dashboard
+        router.replace('/business/dashboard');
       } else {
-        router.push('/business/dashboard');
+        // Not a business account — sign them out immediately and show error
+        await supabase.auth.signOut();
+        setError('No business account found for this login. If you applied, please wait for your approval email. If you\'re a consumer, go to the consumer site.');
       }
     });
   }, [router]);
 
   async function handleGoogle() {
     const supabase = getSupabase();
+    // We redirect back to THIS page after Google auth
+    // The useEffect above will then check and reject non-business accounts
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/business/dashboard` },
+      options: { redirectTo: `${window.location.origin}/business/auth/login` },
     });
   }
 
@@ -61,25 +67,43 @@ const BusinessLogin: NextPage = () => {
     const supabase = getSupabase();
     try {
       if (mode === 'reset') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/business/auth/reset`,
-        });
-        if (error) throw error;
-        setSuccess('Check your email for a password reset link.');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        // Check if they have a business account
-        const { data: business } = await supabase
+        // Only send reset if they actually have a business account
+        const { data: biz } = await supabase
           .from('businesses')
           .select('id')
           .eq('owner_email', email)
-          .single();
-        if (!business) {
-          setConsumerPopup(true);
+          .maybeSingle();
+
+        if (!biz) {
+          setError('No business account found for this email.');
           setLoading(false);
           return;
         }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/business/dashboard`,
+        });
+        if (error) throw error;
+        setSuccess('Check your email for a reset link.');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        // Check business account
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('owner_email', email)
+          .maybeSingle();
+
+        if (!biz) {
+          // Sign them back out — not a business account
+          await supabase.auth.signOut();
+          setError('No business account found for this email. If you applied, please wait for your approval email.');
+          setLoading(false);
+          return;
+        }
+
         router.push('/business/dashboard');
       }
     } catch (err) {
@@ -93,35 +117,9 @@ const BusinessLogin: NextPage = () => {
     <>
       <Head><title>Business Login — ScheduleMe for Business</title></Head>
       <BusinessNav />
-
-      {/* Consumer redirect popup */}
-      {consumerPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6 bg-black/70 backdrop-blur-sm">
-          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div className="h-14 w-14 rounded-full bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center mx-auto mb-4">
-              <svg className="h-7 w-7 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h2 className="text-lg font-bold text-white mb-2">Consumer account detected</h2>
-            <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
-              This login is for service businesses. Your account appears to be a consumer account. Would you like to go to the consumer site instead?
-            </p>
-            <div className="flex flex-col gap-3">
-              <a href="/account" className="btn-primary w-full justify-center">
-                Go to Consumer Account →
-              </a>
-              <button onClick={() => { setConsumerPopup(false); getSupabase().auth.signOut(); }}
-                className="w-full text-sm text-neutral-500 hover:text-neutral-300 transition-colors py-2">
-                Sign out and try a different account
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-20 pb-16">
         <div className="w-full max-w-sm">
+
           <div className="text-center mb-8">
             <div className="flex flex-col leading-none items-center mb-4">
               <span className="text-2xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
@@ -131,18 +129,29 @@ const BusinessLogin: NextPage = () => {
               {mode === 'reset' ? 'Reset your password' : 'Welcome back'}
             </h1>
             <p className="text-neutral-500 text-sm">
-              {mode === 'reset' ? "We'll email you a reset link" : 'Log in to your business dashboard'}
+              {mode === 'reset' ? "We'll email you a reset link" : 'Sign in to your business dashboard'}
             </p>
           </div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8">
-            {error && <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 mb-5">{error}</div>}
-            {success && <div className="rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3 text-sm text-green-400 mb-5">{success}</div>}
+            {error && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 mb-5">
+                <p className="font-semibold mb-1">Access denied</p>
+                <p>{error}</p>
+                <div className="flex flex-col gap-1.5 mt-3">
+                  <Link href="/business/signup" className="text-accent hover:underline text-xs">Apply to join as a business →</Link>
+                  <Link href="/account" className="text-neutral-400 hover:underline text-xs">Go to consumer account →</Link>
+                </div>
+              </div>
+            )}
+            {success && (
+              <div className="rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3 text-sm text-green-400 mb-5">{success}</div>
+            )}
 
             {mode === 'reset' ? (
               <form onSubmit={handleEmail} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Email</label>
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business email</label>
                   <input type="email" required
                     className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                     placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
@@ -167,7 +176,14 @@ const BusinessLogin: NextPage = () => {
                   </svg>
                   Continue with Google
                 </button>
-                <p className="text-xs text-neutral-600 text-center -mt-1 pb-1">For returning businesses only — new? <Link href="/business/signup" className="text-accent hover:underline">Apply first →</Link></p>
+                <p className="text-xs text-neutral-600 text-center -mt-1">For approved businesses only</p>
+
+                <div className="flex items-center gap-3 my-1">
+                  <div className="flex-1 h-px bg-neutral-800" />
+                  <span className="text-xs text-neutral-600">or</span>
+                  <div className="flex-1 h-px bg-neutral-800" />
+                </div>
+
                 <button onClick={() => setShowEmail(true)}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 transition-colors text-sm font-semibold text-white">
                   <svg className="h-5 w-5 flex-shrink-0 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -175,8 +191,9 @@ const BusinessLogin: NextPage = () => {
                   </svg>
                   Continue with Email
                 </button>
-                <p className="text-center text-xs text-neutral-600 pt-2">
-                  No account?{' '}
+
+                <p className="text-center text-xs text-neutral-600 pt-1">
+                  New business?{' '}
                   <Link href="/business/signup" className="text-accent hover:underline">Apply to join →</Link>
                 </p>
               </div>
@@ -190,7 +207,7 @@ const BusinessLogin: NextPage = () => {
                   Back
                 </button>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Email</label>
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business email</label>
                   <input type="email" required
                     className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                     placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
@@ -213,8 +230,9 @@ const BusinessLogin: NextPage = () => {
           </div>
 
           <p className="text-center text-xs text-neutral-600 mt-5">
-            Looking for the consumer site?{' '}
-            <a href="/signin" className="hover:text-neutral-400 text-accent">Sign in here →</a>
+            By continuing, you agree to our{' '}
+            <Link href="/terms" className="hover:text-neutral-400">Terms</Link> and{' '}
+            <Link href="/privacy" className="hover:text-neutral-400">Privacy Policy</Link>.
           </p>
         </div>
       </div>
@@ -222,4 +240,4 @@ const BusinessLogin: NextPage = () => {
   );
 };
 
-export default BusinessLogin;
+export default BusinessLoginPage;
