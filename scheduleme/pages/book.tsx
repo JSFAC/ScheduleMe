@@ -1,9 +1,22 @@
-// pages/book.tsx — Booking page with Calendly embed + DB booking creation
+// pages/book.tsx — Booking page, auto-fills from logged-in user session
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+
+// Check if a string is a valid UUID (real DB record) vs a mock ID like "r-001"
+function isUUID(str: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
 
 interface Provider {
   id: string;
@@ -13,11 +26,10 @@ interface Provider {
   rating: number;
   phone: string;
   calendly_url?: string;
-  slug?: string;
   from_db?: boolean;
 }
 
-type BookingStep = 'details' | 'calendly' | 'confirm' | 'done';
+type BookingStep = 'details' | 'calendly' | 'done';
 
 const BookPage: NextPage = () => {
   const router = useRouter();
@@ -29,7 +41,7 @@ const BookPage: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Provider data passed via query string or sessionStorage
+    // Load provider from query or sessionStorage
     const stored = sessionStorage.getItem('scheduleme_booking_provider');
     if (stored) {
       try { setProvider(JSON.parse(stored)); } catch (_) {}
@@ -48,18 +60,55 @@ const BookPage: NextPage = () => {
       setProvider(p);
       setForm(f => ({ ...f, service: p.service }));
     }
+
+    // Auto-fill form from logged-in session
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        setForm(f => ({
+          ...f,
+          name: f.name || u.user_metadata?.full_name || '',
+          phone: f.phone || u.user_metadata?.phone || '',
+          email: f.email || u.email || '',
+        }));
+      }
+    });
   }, [router.query]);
 
   async function createBooking() {
     setLoading(true);
     setError(null);
     try {
+      // If this is a mock provider (non-UUID id), skip the DB insert and go straight to done
+      if (!provider?.id || !isUUID(provider.id)) {
+        // Still send confirmation email
+        if (form.email) {
+          fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'booking_confirmation',
+              to: form.email,
+              name: form.name,
+              service: form.service || provider?.service,
+              urgency: 'Standard',
+              location: provider?.location || '',
+              matches: [{ name: provider?.name }],
+            }),
+          }).catch(() => {});
+        }
+        setStep(provider?.calendly_url ? 'calendly' : 'done');
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          business_id: provider?.id,
-          service: form.service || provider?.service,
+          business_id: provider.id,
+          service: form.service || provider.service,
           user_name: form.name,
           user_phone: form.phone,
           user_email: form.email,
@@ -68,7 +117,25 @@ const BookPage: NextPage = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Booking failed');
       setBookingId(data.booking?.id);
-      setStep(provider?.calendly_url ? 'calendly' : 'done');
+
+      // Send confirmation email
+      if (form.email) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'booking_confirmation',
+            to: form.email,
+            name: form.name,
+            service: form.service || provider.service,
+            urgency: 'Standard',
+            location: provider.location,
+            matches: [{ name: provider.name, rating: provider.rating }],
+          }),
+        }).catch(() => {});
+      }
+
+      setStep(provider.calendly_url ? 'calendly' : 'done');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -83,7 +150,7 @@ const BookPage: NextPage = () => {
         <div className="min-h-screen bg-neutral-50 flex items-center justify-center pt-20">
           <div className="text-center">
             <p className="text-neutral-500 mb-4">No provider selected.</p>
-            <a href="/demo" className="btn-primary">Find a Pro</a>
+            <a href="/bookings" className="btn-primary">Find a Pro</a>
           </div>
         </div>
       </>
@@ -101,6 +168,7 @@ const BookPage: NextPage = () => {
       <Nav />
       <main className="min-h-screen bg-neutral-50 pt-20 pb-16 px-6">
         <div className="mx-auto max-w-lg">
+
           {/* Provider card */}
           <div className="card p-6 mb-6">
             <div className="flex items-center gap-4">
@@ -120,7 +188,8 @@ const BookPage: NextPage = () => {
 
           {step === 'details' && (
             <div className="card p-6">
-              <h2 className="text-lg font-semibold text-neutral-900 mb-5">Your details</h2>
+              <h2 className="text-lg font-semibold text-neutral-900 mb-1">Your details</h2>
+              <p className="text-sm text-neutral-400 mb-5">Pre-filled from your account — update if needed.</p>
               {error && (
                 <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 mb-4">{error}</div>
               )}
@@ -182,18 +251,18 @@ const BookPage: NextPage = () => {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-neutral-900 mb-2">Booking requested!</h2>
-              <p className="text-neutral-500 mb-2">
-                {provider.name} will confirm shortly.
-              </p>
-              {bookingId && (
-                <p className="text-xs text-neutral-400 mb-6">Booking ID: {bookingId}</p>
+              <p className="text-neutral-500 mb-2">{provider.name} will confirm shortly.</p>
+              {form.email && (
+                <p className="text-sm text-neutral-400 mb-2">A confirmation email was sent to {form.email}</p>
               )}
+              {bookingId && <p className="text-xs text-neutral-400 mb-6">Booking ID: {bookingId}</p>}
               <div className="flex flex-col gap-3">
                 <a href={`tel:${provider.phone}`} className="btn-primary">Call {provider.name}</a>
-                <a href="/demo" className="btn-secondary">Find another pro</a>
+                <a href="/bookings" className="btn-secondary">Find another pro</a>
               </div>
             </div>
           )}
+
         </div>
       </main>
     </>
