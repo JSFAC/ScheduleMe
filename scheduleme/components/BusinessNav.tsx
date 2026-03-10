@@ -33,7 +33,7 @@ export default function BusinessNav() {
           <Link href="/" className="hidden sm:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
             Consumer site →
           </Link>
-          <Link href="/auth/login" className="hidden sm:block text-sm font-semibold px-4 py-2 rounded-lg bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors">
+          <Link href="/business/auth/login" className="hidden sm:block text-sm font-semibold px-4 py-2 rounded-lg bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors">
             Log In
           </Link>
           <Link href="/business/signup" className="btn-primary text-sm px-5 py-2.5">
