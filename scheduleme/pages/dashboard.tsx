@@ -109,7 +109,7 @@ const Dashboard: NextPage = () => {
     return (
       <>
         <Head><title>Dashboard — ScheduleMe</title></Head>
-        <Nav variant="dark" />
+        <Nav variant="business" />
         <div className="min-h-screen bg-neutral-50 pt-20 flex items-center justify-center px-6">
           <div className="text-center max-w-sm">
             <div className="h-16 w-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-5">
@@ -138,7 +138,7 @@ const Dashboard: NextPage = () => {
       <Head>
         <title>{business?.name ?? 'Dashboard'} — ScheduleMe</title>
       </Head>
-      <Nav variant="dark" />
+      <Nav variant="business" />
       <div className="min-h-screen bg-neutral-50 pt-16">
         <main className="mx-auto max-w-7xl px-6 py-8">
           {/* Header */}
