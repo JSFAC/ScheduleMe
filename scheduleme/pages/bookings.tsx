@@ -24,12 +24,9 @@ const Bookings: NextPage = () => {
   const [isNewAccount, setIsNewAccount] = useState(false);
 
   useEffect(() => {
-    const isOAuthCallback =
-      window.location.hash.includes('access_token') || router.query.welcome === '1';
-
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user && isOAuthCallback) {
+      if (session?.user) {
         const fullName =
           session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
         const firstName = fullName.split(' ')[0];

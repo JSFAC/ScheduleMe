@@ -56,7 +56,7 @@ const AuthCallback: NextPage = () => {
           const isNewUser = !userRow || userRow.has_seen_welcome === false;
 
           if (isNewUser) {
-            router.replace('/bookings?welcome=1');
+            router.replace('/bookings');
           } else {
             router.replace('/account');
           }
