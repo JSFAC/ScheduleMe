@@ -1,4 +1,4 @@
-// pages/signin.tsx — Consumer sign in / guest continue
+// pages/signin.tsx — Consumer sign in / sign up
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -16,51 +16,48 @@ function getSupabase() {
 
 const SignIn: NextPage = () => {
   const router = useRouter();
-  const { next = '/bookings' } = router.query;
+  const { next } = router.query;
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [showEmail, setShowEmail] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login');
+  const [showReset, setShowReset] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
   async function handleGoogle() {
     const supabase = getSupabase();
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/bookings?welcome=1` },
-    });
+    const redirectTo = tab === 'signup'
+      ? `${window.location.origin}/bookings?welcome=1`
+      : `${window.location.origin}/account`;
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
   }
-
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setError(null);
     const supabase = getSupabase();
     try {
-      if (mode === 'reset') {
+      if (showReset) {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/reset`,
         });
         if (error) throw error;
         setSent(true);
-      } else if (mode === 'signup') {
+      } else if (tab === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setSent(true);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-          // Detect Google-linked account trying to sign in with email
           if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('credentials')) {
-            // Check if this email exists as a Google OAuth user
-            const msg = `This email is linked to a Google account. Please use "Continue with Google" to sign in.`;
-            throw new Error(msg);
+            throw new Error('This email is linked to a Google account. Please use "Continue with Google" to sign in.');
           }
           throw error;
         }
-        router.push('/account');
+        router.push((next as string) || '/account');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -81,8 +78,14 @@ const SignIn: NextPage = () => {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-neutral-900 mb-2">Check your email</h1>
-            <p className="text-neutral-500 mb-6">We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.</p>
-            <button onClick={() => setSent(false)} className="text-accent text-sm hover:underline">Use a different email</button>
+            <p className="text-neutral-500 mb-6">
+              {showReset
+                ? <>We sent a password reset link to <strong>{email}</strong>.</>
+                : <>We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.</>}
+            </p>
+            <button onClick={() => { setSent(false); setShowReset(false); }} className="text-accent text-sm hover:underline">
+              Use a different email
+            </button>
           </div>
         </div>
       </>
@@ -92,26 +95,35 @@ const SignIn: NextPage = () => {
   return (
     <>
       <Head>
-        <title>Sign In — ScheduleMe</title>
+        <title>{tab === 'login' ? 'Log In' : 'Sign Up'} — ScheduleMe</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav />
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-6 pt-20 pb-16">
         <div className="w-full max-w-sm">
-          {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-neutral-900 mb-1">Welcome to ScheduleMe</h1>
             <p className="text-neutral-500 text-sm">Sign in to track your bookings and requests</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-neutral-200 p-8 shadow-card">
+            {/* Tab switcher — always visible */}
+            <div className="flex rounded-xl bg-neutral-100 p-1 gap-1 mb-6">
+              {(['login', 'signup'] as const).map(t => (
+                <button key={t} type="button"
+                  onClick={() => { setTab(t); setShowEmail(false); setShowReset(false); setError(null); }}
+                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>
+                  {t === 'login' ? 'Log In' : 'Sign Up'}
+                </button>
+              ))}
+            </div>
+
             {error && (
               <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 mb-5">{error}</div>
             )}
 
             {!showEmail ? (
               <div className="space-y-3">
-                {/* Google */}
                 <button onClick={handleGoogle}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-sm font-semibold text-neutral-700">
                   <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -120,27 +132,24 @@ const SignIn: NextPage = () => {
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
-                  Continue with Google
+                  {tab === 'login' ? 'Continue with Google' : 'Sign up with Google'}
                 </button>
 
-                {/* Email */}
                 <button onClick={() => setShowEmail(true)}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-sm font-semibold text-neutral-700">
                   <svg className="h-5 w-5 flex-shrink-0 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                   </svg>
-                  Continue with Email
+                  {tab === 'login' ? 'Continue with Email' : 'Sign up with Email'}
                 </button>
 
-                {/* Divider */}
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-neutral-100" /></div>
                   <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-neutral-400">or</span></div>
                 </div>
 
-                {/* Guest */}
                 <div className="text-center">
-                  <Link href={next as string} className="text-sm text-accent hover:underline font-medium">
+                  <Link href={(next as string) || '/bookings'} className="text-sm text-accent hover:underline font-medium">
                     Continue as guest →
                   </Link>
                   <p className="text-xs text-neutral-400 mt-1">No account needed to find a pro</p>
@@ -148,7 +157,7 @@ const SignIn: NextPage = () => {
               </div>
             ) : (
               <form onSubmit={handleEmail} className="space-y-4">
-                <button type="button" onClick={() => setShowEmail(false)}
+                <button type="button" onClick={() => { setShowEmail(false); setShowReset(false); setError(null); }}
                   className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800 mb-2 transition-colors">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -156,44 +165,46 @@ const SignIn: NextPage = () => {
                   Back
                 </button>
 
-                {/* Login / Signup toggle */}
-                <div className="flex rounded-xl bg-neutral-100 p-1 gap-1 mb-2">
-                  {(['login', 'signup'] as const).map(m => (
-                    <button key={m} type="button" onClick={() => setMode(m)}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${mode === m ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>
-                      {m === 'login' ? 'Log In' : 'Sign Up'}
+                {showReset ? (
+                  <>
+                    <p className="text-sm text-neutral-600 mb-1">Enter your email and we'll send a reset link.</p>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
+                      <input type="email" required className="form-input" placeholder="you@example.com"
+                        value={email} onChange={e => setEmail(e.target.value)} />
+                    </div>
+                    <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+                      {loading ? 'Sending…' : 'Send Reset Email'}
                     </button>
-                  ))}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
-                  <input type="email" required className="form-input" placeholder="you@example.com"
-                    value={email} onChange={e => setEmail(e.target.value)} />
-                </div>
-                {mode !== 'reset' && (
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">Password</label>
-                    <input type="password" required className="form-input" placeholder="••••••••"
-                      value={password} onChange={e => setPassword(e.target.value)} />
-                  </div>
-                )}
-                <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-                  {loading ? 'Please wait…' : mode === 'reset' ? 'Send Reset Email' : mode === 'login' ? 'Log In' : 'Create Account'}
-                </button>
-                {mode === 'login' && (
-                  <div className="text-center">
-                    <button type="button" onClick={() => setMode('reset')}
-                      className="text-xs text-neutral-400 hover:text-accent transition-colors">
-                      Forgot password?
+                    <button type="button" onClick={() => setShowReset(false)}
+                      className="w-full text-center text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+                      ← Back to log in
                     </button>
-                  </div>
-                )}
-                {mode === 'reset' && (
-                  <button type="button" onClick={() => setMode('login')}
-                    className="w-full text-center text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
-                    ← Back to log in
-                  </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
+                      <input type="email" required className="form-input" placeholder="you@example.com"
+                        value={email} onChange={e => setEmail(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Password</label>
+                      <input type="password" required className="form-input" placeholder="••••••••"
+                        value={password} onChange={e => setPassword(e.target.value)} />
+                    </div>
+                    <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+                      {loading ? 'Please wait…' : tab === 'login' ? 'Log In' : 'Create Account'}
+                    </button>
+                    {tab === 'login' && (
+                      <div className="text-center">
+                        <button type="button" onClick={() => setShowReset(true)}
+                          className="text-xs text-neutral-400 hover:text-accent transition-colors">
+                          Forgot password?
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </form>
             )}
@@ -204,7 +215,6 @@ const SignIn: NextPage = () => {
             <Link href="/terms" className="hover:underline">Terms</Link> and{' '}
             <Link href="/privacy" className="hover:underline">Privacy Policy</Link>.
           </p>
-
           <p className="text-center mt-4">
             <Link href="/auth/login" className="text-xs text-neutral-500 hover:text-neutral-700">
               Are you a business? Log in here →
