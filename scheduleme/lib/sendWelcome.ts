@@ -1,17 +1,13 @@
-// lib/sendWelcome.ts — Call once after a user's first sign-in to send welcome email
-// Tracks with localStorage so we only send it once per browser
+// lib/sendWelcome.ts — Sends welcome email once per user
+// Gating is handled upstream via has_seen_welcome in Supabase — this just fires the email
 
 export async function maybeSendWelcomeEmail(email: string, name: string) {
-  const key = `welcome_sent_${email}`;
-  if (typeof window !== 'undefined' && localStorage.getItem(key)) return;
-
   try {
     await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'welcome', to: email, name }),
     });
-    if (typeof window !== 'undefined') localStorage.setItem(key, '1');
   } catch {
     // Non-fatal
   }

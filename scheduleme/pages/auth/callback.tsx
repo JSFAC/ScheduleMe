@@ -46,9 +46,14 @@ const AuthCallback: NextPage = () => {
             router.replace('/business/auth/login?error=not_a_business');
           }
         } else {
-          // Consumer flow — check if account was just created (within last 30 seconds)
-          const accountAgeMs = Date.now() - new Date(session.user.created_at).getTime();
-          const isNewUser = accountAgeMs < 30000;
+          // Consumer flow — check if they've seen the welcome screen before
+          const { data: userRow } = await supabase
+            .from('users')
+            .select('has_seen_welcome')
+            .eq('id', userId)
+            .maybeSingle();
+
+          const isNewUser = !userRow || userRow.has_seen_welcome === false;
 
           if (isNewUser) {
             router.replace('/bookings?welcome=1');
