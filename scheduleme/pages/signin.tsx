@@ -29,10 +29,11 @@ const SignIn: NextPage = () => {
 
   async function handleGoogle() {
     const supabase = getSupabase();
-    const redirectTo = tab === 'signup'
-      ? `${window.location.origin}/bookings?welcome=1`
-      : `${window.location.origin}/account`;
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+    localStorage.setItem('auth_source', 'consumer');
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
   }
 
   async function handleEmail(e: React.FormEvent) {
