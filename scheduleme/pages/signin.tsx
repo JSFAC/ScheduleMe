@@ -51,7 +51,15 @@ const SignIn: NextPage = () => {
         setSent(true);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          // Detect Google-linked account trying to sign in with email
+          if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('credentials')) {
+            // Check if this email exists as a Google OAuth user
+            const msg = `This email is linked to a Google account. Please use "Continue with Google" to sign in.`;
+            throw new Error(msg);
+          }
+          throw error;
+        }
         router.push('/bookings');
       }
     } catch (err) {

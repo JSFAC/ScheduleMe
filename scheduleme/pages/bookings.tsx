@@ -6,6 +6,7 @@ import { useEffect, useState, useRef } from 'react';
 import Nav from '../components/Nav';
 import IntakeForm from '../components/IntakeForm';
 import { createClient } from '@supabase/supabase-js';
+import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 
 function getSupabase() {
   return createClient(
@@ -40,6 +41,11 @@ const Bookings: NextPage = () => {
         setUserName(firstName);
         setUserInitials(initials);
         setPhase('welcome');
+
+        // Send welcome email on first sign-in (non-blocking)
+        if (session.user.email) {
+          maybeSendWelcomeEmail(session.user.email, fullName);
+        }
 
         // Sequence: hold for 2.4s, then transition out over 0.7s
         setTimeout(() => {
