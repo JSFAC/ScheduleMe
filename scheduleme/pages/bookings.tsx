@@ -28,7 +28,7 @@ const Bookings: NextPage = () => {
       window.location.hash.includes('access_token') || router.query.welcome === '1';
 
     const supabase = getSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user && isOAuthCallback) {
         const fullName =
           session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
@@ -40,22 +40,32 @@ const Bookings: NextPage = () => {
           .toUpperCase()
           .slice(0, 2);
 
-        // Detect new vs returning user (new = created within last 60s)
-        const createdAt = session.user.created_at ? new Date(session.user.created_at).getTime() : 0;
-        const newAccount = Date.now() - createdAt < 60_000;
-        setIsNewAccount(newAccount);
+        // Check Supabase flag — only show welcome if they haven't seen it yet
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('has_seen_welcome')
+          .eq('id', session.user.id)
+          .maybeSingle();
 
-        // Returning users: skip welcome screen, go straight to account
-        if (!newAccount) {
+        const isFirstVisit = !userRow || userRow.has_seen_welcome === false;
+
+        if (!isFirstVisit) {
           router.replace('/account');
           return;
         }
 
+        // Mark as seen immediately so refreshing doesn't replay it
+        await supabase
+          .from('users')
+          .update({ has_seen_welcome: true })
+          .eq('id', session.user.id);
+
+        setIsNewAccount(true);
         setUserName(firstName);
         setUserInitials(initials);
         setPhase('welcome');
 
-        // Send welcome email for new signups only
+        // Send welcome email once — now Supabase-gated not localStorage-gated
         if (session.user.email) {
           maybeSendWelcomeEmail(session.user.email, fullName);
         }
