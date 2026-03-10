@@ -265,10 +265,22 @@ const Account: NextPage = () => {
   async function handleDeleteAccount() {
     setDeleting(true);
     const supabase = getSupabase();
-    // Sign out first — full delete requires a server-side admin call
-    await supabase.auth.signOut();
-    // In production you'd call an API route that uses the admin client to delete
-    router.push('/?deleted=1');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + session.access_token },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      await supabase.auth.signOut();
+      router.push('/?deleted=1');
+    } catch (err) {
+      console.error('Delete account error:', err);
+      setDeleting(false);
+      alert(err instanceof Error ? err.message : 'Failed to delete account. Please try again.');
+    }
   }
 
   function handleSignOut() {
