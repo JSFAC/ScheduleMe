@@ -116,6 +116,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch (_) { /* non-fatal */ }
     }
 
+    // Send confirmation email if user provided an email
+    const userEmail = (req.body as any).email;
+    if (userEmail && typeof userEmail === 'string') {
+      try {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        await fetch(`${siteUrl}/api/notify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-notify-secret': process.env.NOTIFY_SECRET || '',
+          },
+          body: JSON.stringify({
+            type: 'booking_confirmation',
+            to: userEmail,
+            name,
+            service: triage.service_category,
+            urgency: triage.urgency,
+            location,
+            matches: (matches || []).map((m: any) => ({
+              name: m.name,
+              rating: m.rating,
+              distance_miles: m.distance_miles,
+            })),
+          }),
+        });
+      } catch (emailErr) {
+        console.warn('[intake] Failed to send confirmation email:', emailErr);
+      }
+    }
+
     return res.status(200).json({ leadId, triage, matches });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Internal server error.';
