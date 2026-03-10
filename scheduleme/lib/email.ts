@@ -227,8 +227,8 @@ export function welcomeHtml(opts: { name: string }) {
 
   const body = `
     <tr><td style="background:linear-gradient(160deg,#1e40af 0%,#2563eb 100%);padding:40px 32px;text-align:center;">
-      <h1 style="margin:0 0 8px;font-size:23px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">Welcome to ScheduleMe</h1>
-      <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.8);">Good to have you, ${opts.name}.</p>
+      <h1 style="margin:0 0 8px;font-size:23px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">You're all set, ${opts.name}</h1>
+      <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.8);">Your account has been created.</p>
     </td></tr>
     <tr><td style="padding:32px;">
       <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">
@@ -268,8 +268,8 @@ export function welcomeHtml(opts: { name: string }) {
       </td></tr></table>
     </td></tr>`;
 
-  return layout('Welcome to ScheduleMe', body,
-    `Hi ${opts.name}, welcome to ScheduleMe. Find trusted local professionals in minutes.`);
+  return layout('Your ScheduleMe account is ready', body,
+    `Your account is set up. Here is how to find a trusted local professional in minutes.`);
 }
 
 // ─── Send helpers ─────────────────────────────────────────────────────────────
@@ -314,7 +314,7 @@ export async function sendWelcomeEmail(opts: { to: string; name: string }) {
   return resend.emails.send({
     from: FROM,
     to: opts.to,
-    subject: `Welcome to ScheduleMe, ${opts.name}`,
+    subject: `Your ScheduleMe account is ready`,
     html: welcomeHtml({ name: opts.name }),
   });
 }
