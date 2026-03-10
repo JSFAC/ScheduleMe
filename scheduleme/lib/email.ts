@@ -213,10 +213,11 @@ export function welcomeHtml(opts: { name: string }) {
 
 // ─── Send helpers ─────────────────────────────────────────────────────────────
 
-const FROM = 'ScheduleMe <onboarding@resend.dev>';
+const FROM = 'ScheduleMe <notifications@usescheduleme.com>';
 
 export async function sendBookingConfirmation(opts: {
   to: string;
+  bcc?: string;
   name: string;
   service: string;
   urgency: string;
@@ -227,6 +228,7 @@ export async function sendBookingConfirmation(opts: {
   return resend.emails.send({
     from: FROM,
     to: opts.to,
+    ...(opts.bcc ? { bcc: opts.bcc } : {}),
     subject: `✅ Your request is in — we're finding you a pro`,
     html: bookingConfirmationHtml(opts),
   });
@@ -234,6 +236,7 @@ export async function sendBookingConfirmation(opts: {
 
 export async function sendStatusUpdate(opts: {
   to: string;
+  bcc?: string;
   name: string;
   service: string;
   status: string;
@@ -243,16 +246,18 @@ export async function sendStatusUpdate(opts: {
   return resend.emails.send({
     from: FROM,
     to: opts.to,
+    ...(opts.bcc ? { bcc: opts.bcc } : {}),
     subject: `🔔 Booking update: ${opts.status} — ${opts.service}`,
     html: statusUpdateHtml(opts),
   });
 }
 
-export async function sendWelcomeEmail(opts: { to: string; name: string }) {
+export async function sendWelcomeEmail(opts: { to: string; bcc?: string; name: string }) {
   const resend = getResend();
   return resend.emails.send({
     from: FROM,
     to: opts.to,
+    ...(opts.bcc ? { bcc: opts.bcc } : {}),
     subject: `Welcome to ScheduleMe, ${opts.name}! 👋`,
     html: welcomeHtml({ name: opts.name }),
   });
