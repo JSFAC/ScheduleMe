@@ -94,7 +94,7 @@ export function bookingConfirmationHtml(opts: {
     </tr>`).join('');
 
   const body = `
-    <tr><td style="background:linear-gradient(160deg,#1e40af 0%,#2563eb 100%);padding:36px 32px;text-align:center;">
+    <tr><td style="background:#1d4ed8;padding:36px 32px;text-align:center;">
       <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:50%;margin:0 auto 16px;text-align:center;line-height:48px;">
         <span style="font-size:22px;color:#ffffff;">&#10003;</span>
       </div>
@@ -226,7 +226,7 @@ export function welcomeHtml(opts: { name: string }) {
   ];
 
   const body = `
-    <tr><td style="background:linear-gradient(160deg,#1e40af 0%,#2563eb 100%);padding:40px 32px;text-align:center;">
+    <tr><td style="background:#1d4ed8;padding:40px 32px;text-align:center;">
       <h1 style="margin:0 0 8px;font-size:23px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">You're all set, ${opts.name}</h1>
       <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.8);">Your account has been created.</p>
     </td></tr>

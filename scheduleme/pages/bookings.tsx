@@ -44,7 +44,7 @@ const Bookings: NextPage = () => {
           .eq('id', session.user.id)
           .maybeSingle();
 
-        const isFirstVisit = !userRow || userRow.has_seen_welcome === false;
+        const isFirstVisit = userRow !== null && userRow.has_seen_welcome === false;
 
         if (!isFirstVisit) {
           router.replace('/account');
