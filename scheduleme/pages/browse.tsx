@@ -148,7 +148,7 @@ function NominateInline() {
 
   if (sent) return (
     <div className="mt-2 rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center">
-      <p className="text-sm font-semibold text-green-800">Thanks — we'll reach out to {bizName}.</p>
+      <p className="text-sm font-semibold text-green-800">Referral received — we'll reach out to {bizName}.</p>
     </div>
   );
 
@@ -161,11 +161,11 @@ function NominateInline() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-neutral-800">Don't see who you're looking for?</p>
-        <p className="text-xs text-neutral-500 mt-0.5">Nominate a local pro you trust and we'll invite them.</p>
+        <p className="text-xs text-neutral-500 mt-0.5">Refer a local business you trust and we'll invite them.</p>
       </div>
       <button onClick={() => setOpen(true)}
-        className="shrink-0 text-xs font-semibold text-accent bg-blue-50 border border-blue-100 px-3.5 py-2 rounded-xl hover:bg-blue-100 transition-colors">
-        Nominate
+        className="shrink-0 text-xs font-bold text-accent bg-blue-50 border border-blue-100 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors uppercase tracking-wide">
+        Refer a Business
       </button>
     </div>
   );
@@ -173,7 +173,7 @@ function NominateInline() {
   return (
     <div className="mt-2 rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-neutral-900">Nominate a pro</p>
+        <p className="text-sm font-semibold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
       </div>
       <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
@@ -181,7 +181,7 @@ function NominateInline() {
         className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
       <button disabled={!bizName.trim()} onClick={() => { if (bizName.trim()) setSent(true); }}
         className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${bizName.trim() ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'}`}>
-        Submit
+        Submit referral
       </button>
     </div>
   );
@@ -247,24 +247,13 @@ const BrowsePage: NextPage = () => {
   return (
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="flex flex-col h-screen overflow-hidden page-grid">
         <Nav />
 
-        {/* Sticky filter bar — signature grid header */}
-        <div className="flex-shrink-0 bg-white border-b border-neutral-100 mt-[72px]" style={{ position: 'relative', overflow: 'hidden' }}>
-          {/* Signature grid */}
-          <div aria-hidden="true" style={{
-            pointerEvents: 'none', position: 'absolute', inset: 0,
-            backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.03) 1px,transparent 1px)',
-            backgroundSize: '48px 48px',
-            maskImage: 'radial-gradient(ellipse 80% 120% at 50% 0%,black 20%,transparent 100%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 120% at 50% 0%,black 20%,transparent 100%)',
-          }} />
-          {/* Blue glow */}
-          <div aria-hidden="true" style={{ pointerEvents: 'none', position: 'absolute', width: 400, height: 200, top: -100, left: '40%', transform: 'translateX(-50%)', background: 'radial-gradient(ellipse,rgba(10,132,255,0.06) 0%,transparent 70%)', borderRadius: '50%' }} />
-          {/* 1px accent line at top */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#0A84FF 30%,#0A84FF 70%,transparent)', opacity: 0.5 }} />
-
+        {/* Sticky filter bar */}
+        <div className="flex-shrink-0 bg-white border-b border-neutral-100 mt-[72px]" style={{ position: 'relative' }}>
+          {/* Thin blue accent line at top */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent 0%,#0A84FF 20%,#0A84FF 80%,transparent 100%)', opacity: 0.45 }} />
           <div className="relative mx-auto max-w-6xl px-6 py-3.5">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1 relative">
