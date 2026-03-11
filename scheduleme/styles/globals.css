@@ -7,7 +7,6 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    scroll-behavior: smooth;
   }
 
   body {
@@ -26,14 +25,9 @@
     color: #0A84FF;
   }
 
-  /* Apple-like tap feel on all interactive elements */
+  /* Suppress tap highlight on mobile */
   a, button {
     -webkit-tap-highlight-color: transparent;
-    transition: opacity 0.18s ease, transform 0.18s ease;
-  }
-  a:active, button:active {
-    transform: scale(0.97);
-    opacity: 0.8;
   }
 
   :focus-visible {
@@ -48,7 +42,7 @@
     @apply inline-flex items-center justify-center px-6 py-3 rounded-xl
            bg-accent text-white text-sm font-semibold
            transition-all duration-150 ease-out
-           hover:bg-accent-dark active:scale-[0.98]
+           hover:bg-accent-dark
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
@@ -57,7 +51,7 @@
     @apply inline-flex items-center justify-center px-6 py-3 rounded-xl
            bg-white text-neutral-800 text-sm font-semibold border border-neutral-200
            transition-all duration-150 ease-out
-           hover:bg-neutral-50 hover:border-neutral-300 active:scale-[0.98]
+           hover:bg-neutral-50 hover:border-neutral-300
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2;
   }
 

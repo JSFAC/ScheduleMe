@@ -1,31 +1,34 @@
 // pages/_app.tsx
 import type { AppProps } from 'next/app';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import '../styles/globals.css';
 
 const isBiz = (url: string) => url.startsWith('/business') || url.startsWith('/auth');
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  // Page-level fade
-  const [pageVisible, setPageVisible] = useState(false);
-  // Business/consumer splash overlay
+  const [visible, setVisible] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayFade, setOverlayFade] = useState(false);
   const [toBusiness, setToBusiness] = useState(false);
+  // We track scroll position and restore it ourselves so Next's
+  // built-in scroll-restoration doesn't cause the jarring jump.
+  const scrollRef = useRef(0);
 
   // Fade in on first mount
   useEffect(() => {
-    requestAnimationFrame(() => requestAnimationFrame(() => setPageVisible(true)));
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   useEffect(() => {
-    const onStart = (url: string) => {
-      // Fade out current page
-      setPageVisible(false);
+    // Disable Next.js default scroll restoration so we control it
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
-      // If crossing consumer/business boundary, show splash
+    const onStart = (url: string) => {
+      scrollRef.current = window.scrollY;
+      setVisible(false);
       if (isBiz(router.asPath) !== isBiz(url)) {
         setToBusiness(isBiz(url));
         setShowOverlay(true);
@@ -35,20 +38,16 @@ export default function App({ Component, pageProps }: AppProps) {
     };
 
     const onDone = () => {
-      // Fade in new page
-      requestAnimationFrame(() => requestAnimationFrame(() => setPageVisible(true)));
-
-      // Dismiss overlay
+      // Scroll to top instantly (no smooth) so there's no visible position jump
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
       setTimeout(() => {
         setOverlayFade(false);
-        setTimeout(() => setShowOverlay(false), 400);
-      }, 480);
+        setTimeout(() => setShowOverlay(false), 350);
+      }, 450);
     };
 
-    const onError = () => {
-      setPageVisible(true);
-      setShowOverlay(false);
-    };
+    const onError = () => { setVisible(true); setShowOverlay(false); };
 
     router.events.on('routeChangeStart', onStart);
     router.events.on('routeChangeComplete', onDone);
@@ -62,50 +61,33 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <>
-      {/* Splash overlay for business/consumer boundary */}
       {showOverlay && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 200,
-            opacity: overlayFade ? 1 : 0,
-            transition: 'opacity 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
-            background: toBusiness ? '#0a0a0a' : '#ffffff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
+        <div aria-hidden="true" style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          opacity: overlayFade ? 1 : 0,
+          transition: 'opacity 0.32s ease',
+          background: toBusiness ? '#0a0a0a' : '#ffffff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: toBusiness
-              ? 'linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px)'
-              : 'linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)',
+              ? 'linear-gradient(to right,rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.02) 1px,transparent 1px)'
+              : 'linear-gradient(to right,rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.03) 1px,transparent 1px)',
             backgroundSize: '48px 48px',
           }} />
-          <div style={{
-            position: 'absolute', left: '50%', top: '50%',
-            transform: 'translate(-50%,-50%)',
-            width: '500px', height: '500px', borderRadius: '50%',
-            background: toBusiness
-              ? 'radial-gradient(ellipse, rgba(10,132,255,0.12) 0%, transparent 70%)'
-              : 'radial-gradient(ellipse, rgba(10,132,255,0.07) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }} />
           <div style={{ position: 'relative', textAlign: 'center' }}>
-            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toBusiness ? '#ffffff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: '4px' }}>
-              ScheduleMe
-            </p>
-            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0A84FF' }}>
+            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toBusiness ? '#fff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: 4 }}>ScheduleMe</p>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0A84FF' }}>
               {toBusiness ? 'for Business' : 'for Everyone'}
             </p>
           </div>
         </div>
       )}
 
-      {/* Page fade wrapper — opacity only, no translate to avoid layout shift */}
-      <div style={{
-        opacity: pageVisible ? 1 : 0,
-        transition: 'opacity 0.18s ease',
-      }}>
+      {/* Pure opacity fade — absolutely no transform/translate */}
+      <div style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.15s ease' }}>
         <Component {...pageProps} />
       </div>
     </>

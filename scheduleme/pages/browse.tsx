@@ -202,8 +202,8 @@ const BrowsePage: NextPage = () => {
       <div className="flex flex-col h-screen overflow-hidden">
         <Nav />
 
-        {/* Sticky filter bar */}
-        <div className="flex-shrink-0 bg-white border-b border-neutral-100 px-6 py-3.5 mt-[72px]">
+        {/* Sticky filter bar — blue top accent */}
+        <div className="flex-shrink-0 bg-white border-b border-neutral-100 px-6 py-3.5 mt-[72px]" style={{ borderTop: '3px solid #0A84FF' }}>
           <div className="mx-auto max-w-6xl">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1 relative">
@@ -238,7 +238,7 @@ const BrowsePage: NextPage = () => {
               {CATEGORIES.map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)}
                   className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    activeCategory === cat ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                    activeCategory === cat ? 'bg-accent text-white border-accent' : 'bg-white text-neutral-600 border-neutral-200 hover:border-accent hover:text-accent'
                   }`}>
                   {cat}
                 </button>
@@ -248,7 +248,7 @@ const BrowsePage: NextPage = () => {
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto bg-[#f9f9f9]">
+        <div className="flex-1 overflow-y-auto bg-[#f4f6fb]">
           <div className="mx-auto max-w-6xl px-6 py-5">
             <p className="text-xs text-neutral-400 mb-4 font-medium">{filtered.length} businesses</p>
 

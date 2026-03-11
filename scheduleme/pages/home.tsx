@@ -7,10 +7,15 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import BusinessProfile from '../components/BusinessProfile';
-import { SPONSORED, INDEPENDENT, NEARBY, getBizById, type Business } from '../lib/mockBusinesses';
+import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+}
+
+function timeOfDay() {
+  const h = new Date().getHours();
+  return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
 function Stars({ rating }: { rating: number }) {
@@ -25,8 +30,22 @@ function Stars({ rating }: { rating: number }) {
 }
 
 function Price({ tier }: { tier: number }) {
-  return <span className="text-xs font-medium text-neutral-400">{'$'.repeat(tier)}<span className="opacity-25">{'$'.repeat(3 - tier)}</span></span>;
+  return (
+    <span className="text-xs font-medium text-neutral-400">
+      {'$'.repeat(tier)}<span className="opacity-25">{'$'.repeat(3 - tier)}</span>
+    </span>
+  );
 }
+
+const CATEGORIES = [
+  { label: 'Plumbing', icon: '🔧' },
+  { label: 'Cleaning', icon: '🧹' },
+  { label: 'Electrical', icon: '⚡' },
+  { label: 'HVAC', icon: '❄️' },
+  { label: 'Landscaping', icon: '🌿' },
+  { label: 'Painting', icon: '🖌️' },
+  { label: 'Handyman', icon: '🔨' },
+];
 
 const HomePage: NextPage = () => {
   const router = useRouter();
@@ -63,13 +82,13 @@ const HomePage: NextPage = () => {
     <>
       <Head><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen bg-[#f9f9f9] pt-[72px]">
+      <div className="min-h-screen bg-[#f4f6fb] pt-[72px]">
 
-        {/* Search bar */}
-        <div className="bg-white border-b border-neutral-100 px-6 py-8">
+        {/* Hero search — blue gradient */}
+        <div style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #0055CC 100%)' }} className="px-6 pt-10 pb-12">
           <div className="mx-auto max-w-xl">
-            <p className="text-sm text-neutral-400 mb-1">Good {timeOfDay()}, {userName}</p>
-            <h1 className="text-2xl font-bold text-neutral-900 mb-5" style={{ letterSpacing: '-0.02em' }}>
+            <p className="text-blue-200 text-sm mb-1">Good {timeOfDay()}, {userName}</p>
+            <h1 className="text-3xl font-black text-white mb-6" style={{ letterSpacing: '-0.025em' }}>
               Find a local professional
             </h1>
             <form onSubmit={handleSearch} className="flex gap-2">
@@ -77,12 +96,30 @@ const HomePage: NextPage = () => {
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
-                <input type="text" placeholder='Try "leaking pipe" or "deep clean"'
-                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-neutral-200 text-sm bg-neutral-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all" />
+                <input
+                  type="text"
+                  placeholder='Try "leaking pipe" or "deep clean"'
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border-0 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg"
+                />
               </div>
-              <button type="submit" className="btn-primary px-5 py-3 text-sm">Search</button>
+              <button type="submit"
+                className="flex-shrink-0 bg-white text-accent font-bold text-sm px-5 py-3 rounded-xl shadow-lg hover:bg-blue-50 transition-colors">
+                Search
+              </button>
             </form>
+
+            {/* Category pills */}
+            <div className="flex gap-2 mt-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {CATEGORIES.map(cat => (
+                <Link key={cat.label} href={`/browse?category=${encodeURIComponent(cat.label)}`} scroll={false}
+                  className="flex-shrink-0 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20 transition-colors">
+                  <span>{cat.icon}</span>
+                  {cat.label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -91,16 +128,19 @@ const HomePage: NextPage = () => {
           {/* Featured */}
           <section>
             <div className="flex items-baseline justify-between mb-4">
-              <h2 className="text-base font-bold text-neutral-900">Featured</h2>
-              <Link href="/browse" className="text-sm text-accent font-medium">See all</Link>
+              <div>
+                <h2 className="text-base font-bold text-neutral-900">Featured</h2>
+                <p className="text-xs text-neutral-400 mt-0.5">Top-rated pros in your area</p>
+              </div>
+              <Link href="/browse" scroll={false} className="text-sm text-accent font-semibold">See all →</Link>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {SPONSORED.map(biz => (
                 <button key={biz.id} onClick={() => setActiveBiz(biz)}
-                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200">
+                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg hover:border-blue-100 transition-all duration-200">
                   <div className="relative h-32 bg-neutral-100 overflow-hidden">
                     <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                     <div className="absolute top-2.5 left-2.5">
                       <span className="text-[9px] font-bold tracking-widest uppercase text-white/90 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full">Sponsored</span>
                     </div>
@@ -116,7 +156,6 @@ const HomePage: NextPage = () => {
                     <h3 className="text-sm font-semibold text-neutral-900 mt-0.5 truncate">{biz.name}</h3>
                     <p className="text-xs text-neutral-500 mt-1 leading-relaxed line-clamp-2">{biz.tagline}</p>
                   </div>
-                  {/* Preview thumbnails */}
                   <div className="flex gap-1.5 px-3.5 my-2.5">
                     {biz.allImages.slice(1, 3).map((url, i) => (
                       <div key={i} className="h-12 flex-1 rounded-lg overflow-hidden bg-neutral-100">
@@ -137,42 +176,46 @@ const HomePage: NextPage = () => {
             </div>
           </section>
 
-          {/* Small & Independent */}
+          {/* Small & Independent — blue-tinted section */}
           <section>
-            <div className="flex items-baseline justify-between mb-1">
-              <h2 className="text-base font-bold text-neutral-900">Small &amp; Independent</h2>
-              <Link href="/browse" className="text-sm text-accent font-medium">See all</Link>
-            </div>
-            <p className="text-xs text-neutral-400 mb-4">Local sole traders and small teams — your booking helps them grow</p>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {INDEPENDENT.map(biz => (
-                <button key={biz.id} onClick={() => setActiveBiz(biz)}
-                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200">
-                  <div className="relative h-28 bg-neutral-100 overflow-hidden">
-                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
-                    {biz.badge && (
-                      <div className="absolute top-2 left-2">
-                        <span className="text-[9px] font-bold text-white bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">{biz.badge}</span>
+            <div className="rounded-2xl overflow-hidden border border-blue-100" style={{ background: 'linear-gradient(135deg, #f0f6ff 0%, #e8f1ff 100%)' }}>
+              <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-accent uppercase tracking-wider">Community Pick</span>
+                  </div>
+                  <h2 className="text-base font-bold text-neutral-900">Small &amp; Independent</h2>
+                  <p className="text-xs text-neutral-500 mt-0.5">Local sole traders &amp; small teams — your booking helps them grow</p>
+                </div>
+                <Link href="/browse" scroll={false} className="flex-shrink-0 text-sm text-accent font-semibold">See all →</Link>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 pb-4">
+                {INDEPENDENT.map(biz => (
+                  <button key={biz.id} onClick={() => setActiveBiz(biz)}
+                    className="group text-left bg-white rounded-xl overflow-hidden border border-blue-100 hover:shadow-md hover:border-blue-200 transition-all duration-200">
+                    <div className="relative h-24 bg-neutral-100 overflow-hidden">
+                      <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                      <div className="absolute bottom-1.5 right-1.5">
+                        <span className="text-[8px] font-bold text-white/90 bg-accent/80 backdrop-blur-sm px-1.5 py-0.5 rounded-full">Independent</span>
                       </div>
-                    )}
-                    <div className="absolute bottom-2 right-2">
-                      <span className="text-[9px] font-semibold text-white/90 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full">Independent</span>
+                      {biz.badge && (
+                        <div className="absolute top-1.5 left-1.5">
+                          <span className="text-[8px] font-bold text-white bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-full">{biz.badge}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="px-3.5 py-3">
-                    <p className="text-[11px] font-medium text-neutral-400">{biz.category}</p>
-                    <h3 className="text-sm font-semibold text-neutral-900 mt-0.5 truncate">{biz.name}</h3>
-                    <p className="text-xs text-neutral-500 mt-1 line-clamp-2 leading-relaxed">{biz.tagline}</p>
-                    <div className="flex items-center gap-2 mt-2.5">
-                      <Stars rating={biz.rating} />
-                      <span className="text-xs text-neutral-400">({biz.reviews})</span>
-                      <span className="text-neutral-200">·</span>
-                      <span className="text-xs text-neutral-400">{biz.distance}</span>
+                    <div className="px-3 py-2.5">
+                      <p className="text-[10px] font-medium text-neutral-400">{biz.category}</p>
+                      <h3 className="text-xs font-semibold text-neutral-900 mt-0.5 truncate">{biz.name}</h3>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <Stars rating={biz.rating} />
+                        <span className="text-[10px] text-neutral-400">({biz.reviews})</span>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
 
@@ -180,12 +223,12 @@ const HomePage: NextPage = () => {
           <section>
             <div className="flex items-baseline justify-between mb-4">
               <h2 className="text-base font-bold text-neutral-900">More near you</h2>
-              <Link href="/browse" className="text-sm text-accent font-medium">See all</Link>
+              <Link href="/browse" scroll={false} className="text-sm text-accent font-semibold">See all →</Link>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {NEARBY.map(biz => (
                 <button key={biz.id} onClick={() => setActiveBiz(biz)}
-                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200">
+                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg hover:border-blue-100 transition-all duration-200">
                   <div className="relative h-28 bg-neutral-100 overflow-hidden">
                     <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
@@ -207,15 +250,17 @@ const HomePage: NextPage = () => {
 
           {/* Blue CTA */}
           <section className="rounded-2xl px-8 py-9 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5"
-            style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #0066CC 100%)' }}>
+            style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #0055CC 100%)' }}>
             <div>
               <h2 className="text-lg font-bold text-white mb-1">Need something done today?</h2>
-              <p className="text-sm text-blue-100/80">Describe your issue and get matched with a pro.</p>
+              <p className="text-sm text-blue-200">Describe your issue and get matched with a pro.</p>
             </div>
-            <Link href="/bookings" className="flex-shrink-0 bg-white text-accent font-semibold text-sm px-6 py-3 rounded-xl hover:bg-blue-50 transition-colors">
+            <Link href="/bookings" scroll={false}
+              className="flex-shrink-0 bg-white text-accent font-bold text-sm px-6 py-3 rounded-xl hover:bg-blue-50 transition-colors shadow-lg">
               Book a Service
             </Link>
           </section>
+
         </div>
       </div>
 
@@ -223,12 +268,5 @@ const HomePage: NextPage = () => {
     </>
   );
 };
-
-function timeOfDay() {
-  const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
-}
 
 export default HomePage;

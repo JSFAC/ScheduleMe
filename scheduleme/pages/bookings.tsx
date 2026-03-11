@@ -118,50 +118,100 @@ function ProgressBar({ status }: { status: string }) {
   );
 }
 
-function DetailSheet({ booking, onClose }: { booking: Booking; onClose: () => void }) {
+function DetailSheet({ booking, originRect, onClose, onCancel }: {
+  booking: Booking;
+  originRect: DOMRect | null;
+  onClose: () => void;
+  onCancel: (id: string) => void;
+}) {
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
-  function close() { setClosing(true); setTimeout(onClose, 200); }
+
+  function close() { setClosing(true); setTimeout(onClose, 220); }
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, []);
+
+  async function handleCancel() {
+    setCancelling(true);
+    await new Promise(r => setTimeout(r, 600));
+    onCancel(booking.id);
+    close();
+  }
+
   const ready = mounted && !closing;
+
+  // Compute morph origin: where on screen the card was
+  const origin = originRect;
+  const vpW = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const vpH = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+  // Target modal: centered, max-w-lg (~512px), max-h 88vh
+  const modalW = Math.min(512, vpW - 32);
+  const modalH = Math.min(vpH * 0.88, 640);
+  const targetX = (vpW - modalW) / 2;
+  const targetY = (vpH - modalH) / 2;
+
+  // Origin card position
+  const fromX = origin ? origin.left : targetX;
+  const fromY = origin ? origin.top : targetY;
+  const fromW = origin ? origin.width : modalW;
+  const fromH = origin ? origin.height : modalH;
+
+  // Scale to go from card size → modal size
+  const scaleX = ready ? 1 : fromW / modalW;
+  const scaleY = ready ? 1 : fromH / modalH;
+  // Translation from card center to modal center
+  const cardCX = origin ? fromX + fromW / 2 : vpW / 2;
+  const cardCY = origin ? fromY + fromH / 2 : vpH / 2;
+  const modalCX = vpW / 2;
+  const modalCY = vpH / 2;
+  const tx = ready ? 0 : cardCX - modalCX;
+  const ty = ready ? 0 : cardCY - modalCY;
+
   return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
-        style={{ background: `rgba(0,0,0,${ready ? 0.45 : 0})`, backdropFilter: `blur(${ready ? 5 : 0}px)`, transition: 'background 0.2s ease, backdrop-filter 0.2s ease' }}
-        onClick={close}>
-      {/* Modal — grows from center */}
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto"
-        style={{ opacity: ready ? 1 : 0, transform: ready ? 'scale(1)' : 'scale(0.94)', transition: 'opacity 0.2s ease, transform 0.2s ease' }}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{
+        background: `rgba(0,0,0,${ready ? 0.45 : 0})`,
+        backdropFilter: `blur(${ready ? 5 : 0}px)`,
+        transition: 'background 0.22s ease, backdrop-filter 0.22s ease',
+      }}
+      onClick={close}>
+
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-y-auto"
+        style={{
+          maxHeight: '88vh',
+          opacity: ready ? 1 : 0.3,
+          transform: `translate(${tx}px, ${ty}px) scaleX(${scaleX}) scaleY(${scaleY})`,
+          transformOrigin: 'center center',
+          transition: ready
+            ? 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.34,1.56,0.64,1)'
+            : 'none',
+        }}
         onClick={e => e.stopPropagation()}>
 
-        {/* Close button */}
+        {/* Close */}
         <button onClick={close} className="absolute top-4 right-4 z-10 h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
           <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
-        <div className="px-6 pb-10 pt-3 max-w-xl mx-auto">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-3 mb-6">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-neutral-900 leading-snug">{booking.service}</h2>
-              <p className="text-xs text-neutral-400 mt-1">Submitted {formatDate(booking.created_at)}</p>
-            </div>
-            <button onClick={onClose} className="flex-shrink-0 h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
-              <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div className="px-6 pb-8 pt-6 max-w-xl mx-auto">
+          <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service}</h2>
+          <p className="text-xs text-neutral-400 mt-1 mb-5">Submitted {formatDate(booking.created_at)}</p>
 
-          {/* Status + progress */}
           <StatusBadge status={booking.status} />
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <ProgressBar status={booking.status} />
@@ -169,12 +219,11 @@ function DetailSheet({ booking, onClose }: { booking: Booking; onClose: () => vo
 
           <div className="h-px bg-neutral-100 my-6" />
 
-          {/* Details grid */}
           <div className="space-y-5">
             {booking.scheduled_at && (
               <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                  <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
                   </svg>
                 </div>
@@ -187,8 +236,8 @@ function DetailSheet({ booking, onClose }: { booking: Booking; onClose: () => vo
 
             {booking.address && (
               <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                  <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                   </svg>
                 </div>
@@ -201,8 +250,8 @@ function DetailSheet({ booking, onClose }: { booking: Booking; onClose: () => vo
 
             {booking.business_name && (
               <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                  <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
                   </svg>
                 </div>
@@ -251,31 +300,38 @@ function DetailSheet({ booking, onClose }: { booking: Booking; onClose: () => vo
 
             {booking.amount_cents && (
               <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                  <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <div className="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Amount</p>
+                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Amount Paid</p>
                   <p className="text-sm font-bold text-neutral-900 mt-0.5">${(booking.amount_cents / 100).toFixed(2)}</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Actions */}
+          {/* Cancel action */}
           {['pending', 'confirmed'].includes(booking.status) && (
             <div className="mt-8 pt-5 border-t border-neutral-100">
-              <button className="w-full py-3 rounded-xl border border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 transition-colors">
-                Cancel Request
-              </button>
+              {cancelling ? (
+                <div className="flex items-center justify-center gap-2 py-3">
+                  <div className="h-4 w-4 rounded-full border-2 border-red-300 border-t-red-500 animate-spin" />
+                  <span className="text-sm text-red-500">Cancelling...</span>
+                </div>
+              ) : (
+                <button onClick={handleCancel}
+                  className="w-full py-3 rounded-xl border-2 border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 hover:border-red-300 transition-colors">
+                  Cancel Request
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -291,6 +347,16 @@ const BookingsPage: NextPage = () => {
   const [tab, setTab] = useState<Tab>('new');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [originRect, setOriginRect] = useState<DOMRect | null>(null);
+
+  function openBooking(b: Booking, e: React.MouseEvent) {
+    setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());
+    setSelectedBooking(b);
+  }
+
+  function cancelBooking(id: string) {
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
+  }
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -414,7 +480,7 @@ const BookingsPage: NextPage = () => {
                         {activeBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
-                            <button key={b.id} onClick={() => setSelectedBooking(b)}
+                            <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-md hover:border-neutral-200 transition-all group">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
@@ -446,7 +512,7 @@ const BookingsPage: NextPage = () => {
                         {pastBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.completed;
                           return (
-                            <button key={b.id} onClick={() => setSelectedBooking(b)}
+                            <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-sm hover:border-neutral-200 transition-all group opacity-60 hover:opacity-100">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
@@ -479,7 +545,7 @@ const BookingsPage: NextPage = () => {
 
       {/* Detail sheet */}
       {selectedBooking && (
-        <DetailSheet booking={selectedBooking} onClose={() => setSelectedBooking(null)} />
+        <DetailSheet booking={selectedBooking} originRect={originRect} onClose={() => setSelectedBooking(null)} onCancel={cancelBooking} />
       )}
     </>
   );
