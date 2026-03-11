@@ -250,9 +250,22 @@ const BrowsePage: NextPage = () => {
       <div className="flex flex-col h-screen overflow-hidden">
         <Nav />
 
-        {/* Sticky filter bar — blue top accent */}
-        <div className="flex-shrink-0 bg-white border-b border-neutral-100 px-6 py-3.5 mt-[72px]" style={{ borderTop: '3px solid #0A84FF' }}>
-          <div className="mx-auto max-w-6xl">
+        {/* Sticky filter bar — signature grid header */}
+        <div className="flex-shrink-0 bg-white border-b border-neutral-100 mt-[72px]" style={{ position: 'relative', overflow: 'hidden' }}>
+          {/* Signature grid */}
+          <div aria-hidden="true" style={{
+            pointerEvents: 'none', position: 'absolute', inset: 0,
+            backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.03) 1px,transparent 1px)',
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse 80% 120% at 50% 0%,black 20%,transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 80% 120% at 50% 0%,black 20%,transparent 100%)',
+          }} />
+          {/* Blue glow */}
+          <div aria-hidden="true" style={{ pointerEvents: 'none', position: 'absolute', width: 400, height: 200, top: -100, left: '40%', transform: 'translateX(-50%)', background: 'radial-gradient(ellipse,rgba(10,132,255,0.06) 0%,transparent 70%)', borderRadius: '50%' }} />
+          {/* 1px accent line at top */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#0A84FF 30%,#0A84FF 70%,transparent)', opacity: 0.5 }} />
+
+          <div className="relative mx-auto max-w-6xl px-6 py-3.5">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1 relative">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -300,7 +313,7 @@ const BrowsePage: NextPage = () => {
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto bg-[#f4f6fb]">
+        <div className="flex-1 overflow-y-auto bg-[#f8f8f8]">
           <div className="mx-auto max-w-6xl px-6 py-5">
             <p className="text-xs text-neutral-400 mb-4 font-medium">{filtered.length} businesses</p>
 
