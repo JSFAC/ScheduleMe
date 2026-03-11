@@ -1,4 +1,4 @@
-// components/Nav.tsx — Smart nav: marketing links for logged-out, app links for logged-in
+// components/Nav.tsx
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
@@ -7,10 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 interface NavProps { variant?: 'light' | 'dark'; }
 
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
 export default function Nav({ variant = 'light' }: NavProps) {
@@ -24,20 +21,17 @@ export default function Nav({ variant = 'light' }: NavProps) {
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({
-          email: session.user.email,
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-        });
-      }
+      setUser(session?.user ? {
+        email: session.user.email,
+        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+      } : null);
       setLoaded(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({ email: session.user.email, name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] });
-      } else {
-        setUser(null);
-      }
+      setUser(session?.user ? {
+        email: session.user.email,
+        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+      } : null);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -78,22 +72,28 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const navLinks = user ? appLinks : marketingLinks;
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-40 border-b transition-colors ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/85 backdrop-blur-md border-neutral-100'}`}>
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Main navigation">
-        <Link href={user ? '/home' : '/'} scroll={false} className="group" aria-label="ScheduleMe home">
-          <span className={`text-2xl font-black tracking-tight transition-opacity group-hover:opacity-70 ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
-            ScheduleMe
-          </span>
-        </Link>
+    <header className={`fixed top-0 left-0 right-0 z-40 border-b transition-colors ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/90 backdrop-blur-md border-neutral-100'}`}>
+      {/* Fixed height, items-center — logo never shifts */}
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between h-[72px]" aria-label="Main navigation">
 
-        <ul className="hidden md:flex items-center gap-1" role="list">
+        {/* Logo — fixed width so center links don't shift it */}
+        <div className="flex-1 flex items-center">
+          <Link href={user ? '/home' : '/'} scroll={false} className="group shrink-0" aria-label="ScheduleMe home">
+            <span className={`text-xl font-black tracking-tight transition-opacity group-hover:opacity-70 ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
+              ScheduleMe
+            </span>
+          </Link>
+        </div>
+
+        {/* Center nav links */}
+        <ul className="hidden md:flex items-center gap-1 shrink-0" role="list">
           {navLinks.map((link) => {
             const isActive = router.pathname === link.href || router.pathname === link.href.split('#')[0];
             return (
               <li key={link.href}>
                 <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${
                   isActive
-                    ? isDark ? 'text-white bg-neutral-800' : 'text-neutral-900 bg-neutral-100'
+                    ? isDark ? 'text-white bg-neutral-800' : 'text-accent bg-blue-50'
                     : isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
                 }`}>
                   {link.label}
@@ -103,27 +103,29 @@ export default function Nav({ variant = 'light' }: NavProps) {
           })}
         </ul>
 
-        <div className="flex items-center gap-3">
+        {/* Right side — fixed width so it never causes layout shift */}
+        <div className="flex-1 flex items-center justify-end gap-3">
           {!user && (
             <Link href="/business" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
               For Businesses
             </Link>
           )}
 
-          {loaded && (
-            user ? (
+          {/* Always render a fixed-size container to prevent layout shift during auth load */}
+          <div className="w-[120px] flex items-center justify-end">
+            {!loaded ? (
+              // Invisible placeholder — exact same size as the sign-in button
+              <div className="h-9 w-[120px] rounded-xl bg-transparent" />
+            ) : user ? (
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-all"
+                  className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
                   aria-label="Account menu"
                 >
                   <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {initials}
                   </div>
-                  <span className="text-sm font-medium text-neutral-700 hidden sm:block max-w-[120px] truncate">
-                    {user.name}
-                  </span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
@@ -156,11 +158,11 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 )}
               </div>
             ) : (
-              <Link href="/signin" scroll={false} className="btn-primary text-sm px-5 py-2.5">
+              <Link href="/signin" scroll={false} className="btn-primary text-sm px-5 py-2.5 w-full text-center">
                 Sign Up / Log In
               </Link>
-            )
-          )}
+            )}
+          </div>
         </div>
       </nav>
     </header>
