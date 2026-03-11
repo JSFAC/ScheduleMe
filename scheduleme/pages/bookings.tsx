@@ -206,7 +206,6 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
               ? 'opacity 0.35s ease, transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
               : 'none',
         }}
-        }}
         onClick={e => e.stopPropagation()}>
 
         {/* Close */}
