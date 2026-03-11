@@ -512,12 +512,21 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className={`min-h-screen bg-[#f9f9f9] pt-[72px] transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Header */}
-        <div className="bg-white border-b border-neutral-100">
-          <div className="mx-auto max-w-2xl px-6 pt-8 pb-5">
-            <h1 className="text-2xl font-bold text-neutral-900 mb-0.5" style={{ letterSpacing: '-0.01em' }}>My Bookings</h1>
-            <p className="text-sm text-neutral-400">Track and manage your service requests</p>
+      <div className={`min-h-screen bg-[#f8f8f8] pt-[72px] transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+        {/* Header — signature grid */}
+        <div className="relative bg-white border-b border-neutral-100 overflow-hidden">
+          <div aria-hidden="true" style={{
+            pointerEvents: 'none', position: 'absolute', inset: 0,
+            backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.03) 1px,transparent 1px)',
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse 80% 100% at 50% 0%,black 20%,transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 80% 100% at 50% 0%,black 20%,transparent 100%)',
+          }} />
+          <div aria-hidden="true" style={{ pointerEvents: 'none', position: 'absolute', width: 350, height: 200, top: -100, right: '10%', background: 'radial-gradient(ellipse,rgba(10,132,255,0.06) 0%,transparent 70%)', borderRadius: '50%' }} />
+          <div className="relative mx-auto max-w-2xl px-6 pt-8 pb-6">
+            <span className="sm-eyebrow mb-3 block">Your bookings</span>
+            <h1 className="text-2xl font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>My Bookings</h1>
+            <p className="text-sm text-neutral-400 mt-1">Track and manage your service requests</p>
           </div>
         </div>
 
