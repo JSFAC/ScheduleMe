@@ -257,40 +257,47 @@ const HomePage: NextPage = () => {
       {/* page-grid covers the entire page — the signature 48px grid */}
       <div className="min-h-screen bg-[#f8f8f8] pt-[72px] page-grid">
 
-        {/* AI Search header — white panel sits on top of the grid */}
+        {/* AI Search header */}
         <div className="relative bg-white border-b border-neutral-100 overflow-hidden">
-          {/* Blue glow behind the input */}
-          <div className="sm-glow" style={{ width: 600, height: 500, top: -250, left: '50%', transform: 'translateX(-50%)' }} />
+          {/* Glow anchored behind the heading text (top-left of content area) */}
+          <div className="sm-glow" style={{ width: 560, height: 380, top: -60, left: -80 }} />
           <div className="relative mx-auto max-w-6xl px-6 pt-10 pb-10">
             <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
           </div>
         </div>
 
-        {/* Content — sections float on the grid background */}
-        <div className="mx-auto max-w-6xl px-6 py-10 space-y-14">
+        {/* Content */}
+        <div className="mx-auto max-w-6xl px-6 py-10 space-y-5">
 
-          {/* Featured */}
+          {/* Featured — white card panel like Community Pick */}
           <section className="js-section">
-            <div className="flex items-end justify-between mb-5">
-              <div>
-                <span className="sm-eyebrow">Featured</span>
-                <h2 className="text-[15px] font-bold text-neutral-900 mt-2" style={{ letterSpacing: '-0.015em' }}>Top-rated near you</h2>
+            <div className="relative rounded-2xl overflow-hidden bg-white border border-neutral-150" style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
+              <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.028) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.028) 1px,transparent 1px)',
+                backgroundSize: '32px 32px',
+              }} />
+              <div className="sm-glow" style={{ width: 350, height: 350, top: -175, right: 0 }} />
+              <div className="relative px-5 pt-5 pb-4 flex items-start justify-between gap-4">
+                <div>
+                  <span className="sm-eyebrow">Featured</span>
+                  <h2 className="text-[15px] font-bold text-neutral-900 mt-2" style={{ letterSpacing: '-0.015em' }}>Top-rated near you</h2>
+                  <p className="text-xs text-neutral-400 mt-0.5">Available now and highly reviewed</p>
+                </div>
+                <Link href="/browse" scroll={false} className="shrink-0 text-sm font-semibold text-accent">See all →</Link>
               </div>
-              <Link href="/browse" scroll={false} className="text-sm font-semibold text-accent">See all →</Link>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {SPONSORED.map(biz => (
-                <div key={biz.id} className="js-biz-card"><BizCard biz={biz} onClick={() => setActiveBiz(biz)} /></div>
-              ))}
+              <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 pb-4">
+                {SPONSORED.map(biz => (
+                  <div key={biz.id} className="js-biz-card"><BizCard biz={biz} onClick={() => setActiveBiz(biz)} /></div>
+                ))}
+              </div>
             </div>
           </section>
 
-          {/* Small & Independent */}
+          {/* Small & Independent — blue-tinted inner grid */}
           <section className="js-section">
             <div className="relative rounded-2xl overflow-hidden bg-white border border-blue-100">
-              {/* Inner grid — blue-tinted, partial mask from left */}
               <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
-                backgroundImage: 'linear-gradient(to right,rgba(10,132,255,0.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(10,132,255,0.06) 1px,transparent 1px)',
+                backgroundImage: 'linear-gradient(to right,rgba(10,132,255,0.055) 1px,transparent 1px),linear-gradient(to bottom,rgba(10,132,255,0.055) 1px,transparent 1px)',
                 backgroundSize: '32px 32px',
               }} />
               <div className="sm-glow" style={{ width: 400, height: 400, top: -200, right: -100 }} />
@@ -310,19 +317,27 @@ const HomePage: NextPage = () => {
             </div>
           </section>
 
-          {/* More near you */}
+          {/* More near you — same white card treatment */}
           <section className="js-section">
-            <div className="flex items-end justify-between mb-5">
-              <div>
-                <span className="sm-eyebrow">Nearby</span>
-                <h2 className="text-[15px] font-bold text-neutral-900 mt-2" style={{ letterSpacing: '-0.015em' }}>More near you</h2>
+            <div className="relative rounded-2xl overflow-hidden bg-white border" style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
+              <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.028) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.028) 1px,transparent 1px)',
+                backgroundSize: '32px 32px',
+              }} />
+              <div className="sm-glow" style={{ width: 300, height: 300, top: -150, left: '20%' }} />
+              <div className="relative px-5 pt-5 pb-4 flex items-start justify-between gap-4">
+                <div>
+                  <span className="sm-eyebrow">Nearby</span>
+                  <h2 className="text-[15px] font-bold text-neutral-900 mt-2" style={{ letterSpacing: '-0.015em' }}>More near you</h2>
+                  <p className="text-xs text-neutral-400 mt-0.5">Local pros ready to take on your job</p>
+                </div>
+                <Link href="/browse" scroll={false} className="shrink-0 text-sm font-semibold text-accent">See all →</Link>
               </div>
-              <Link href="/browse" scroll={false} className="text-sm font-semibold text-accent">See all →</Link>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {NEARBY.map(biz => (
-                <div key={biz.id} className="js-biz-card"><BizCard biz={biz} onClick={() => setActiveBiz(biz)} /></div>
-              ))}
+              <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 pb-4">
+                {NEARBY.map(biz => (
+                  <div key={biz.id} className="js-biz-card"><BizCard biz={biz} onClick={() => setActiveBiz(biz)} /></div>
+                ))}
+              </div>
             </div>
           </section>
 

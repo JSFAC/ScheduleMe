@@ -513,9 +513,13 @@ const BookingsPage: NextPage = () => {
       <Nav />
 
       <div className={`min-h-screen bg-[#f8f8f8] pt-[72px] page-grid transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Header */}
+        {/* Header — premium panel */}
         <div className="relative bg-white border-b border-neutral-100 overflow-hidden">
-          <div className="sm-glow" style={{ width: 400, height: 300, top: -150, right: '5%' }} />
+          <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.028) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.028) 1px,transparent 1px)',
+            backgroundSize: '32px 32px',
+          }} />
+          <div className="sm-glow" style={{ width: 450, height: 320, top: -160, right: '-5%' }} />
           <div className="relative mx-auto max-w-2xl px-6 pt-8 pb-6">
             <span className="sm-eyebrow mb-3 block">Your activity</span>
             <h1 className="text-2xl font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>My Bookings</h1>
@@ -545,7 +549,7 @@ const BookingsPage: NextPage = () => {
                         {activeBookings.map(b => {
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-md hover:border-neutral-200 transition-all group">
+                              className="w-full text-left sm-card p-5 group">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2 group-hover:text-accent transition-colors">{b.service}</h3>
@@ -575,7 +579,7 @@ const BookingsPage: NextPage = () => {
                       <div className="space-y-2.5">
                         {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
-                            className="w-full text-left bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-sm hover:border-neutral-200 transition-all group opacity-60 hover:opacity-100">
+                            className="w-full text-left sm-card p-5 group opacity-60 hover:opacity-100">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2">{b.service}</h3>
