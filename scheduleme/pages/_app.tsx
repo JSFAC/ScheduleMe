@@ -101,11 +101,10 @@ export default function App({ Component, pageProps }: AppProps) {
         </div>
       )}
 
-      {/* Page fade wrapper */}
+      {/* Page fade wrapper — opacity only, no translate to avoid layout shift */}
       <div style={{
         opacity: pageVisible ? 1 : 0,
-        transform: pageVisible ? 'translateY(0)' : 'translateY(6px)',
-        transition: 'opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'opacity 0.18s ease',
       }}>
         <Component {...pageProps} />
       </div>
