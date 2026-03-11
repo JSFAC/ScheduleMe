@@ -223,7 +223,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           <div className="mx-auto max-w-3xl px-6 text-center js-section">
             <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">Ready to find your pro?</h2>
             <p className="text-neutral-500 mb-8 text-lg">Free for users. Always. Describe your issue and get matched in seconds.</p>
-            <Link href="/bookings" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Get Started for Free</Link>
+            <Link href="/bookings" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Get Started — No Account Needed</Link>
           </div>
         </section>
       </main>

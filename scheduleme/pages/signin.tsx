@@ -26,6 +26,7 @@ const SignIn: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
+  const [businessRedirecting, setBusinessRedirecting] = useState(false);
 
   async function handleGoogle() {
     const supabase = getSupabase();
@@ -223,9 +224,24 @@ const SignIn: NextPage = () => {
             <Link href="/privacy" className="hover:underline">Privacy Policy</Link>.
           </p>
           <p className="text-center mt-4">
-            <a href="/business/auth/login" className="text-xs text-neutral-500 hover:text-neutral-700">
-              Are you a business? Log in here →
-            </a>
+            {businessRedirecting ? (
+              <span className="inline-flex items-center gap-2 text-xs text-neutral-500">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-accent" />
+                </span>
+                Loading business portal…
+              </span>
+            ) : (
+              <button
+                onClick={() => {
+                  setBusinessRedirecting(true);
+                  setTimeout(() => { window.location.href = '/business/auth/login'; }, 1200);
+                }}
+                className="text-xs text-neutral-500 hover:text-accent transition-colors">
+                Are you a business? Log in here →
+              </button>
+            )}
           </p>
         </div>
       </div>
