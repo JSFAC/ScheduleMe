@@ -247,14 +247,18 @@ const BrowsePage: NextPage = () => {
   return (
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
-      <div className="flex flex-col h-screen overflow-hidden page-grid">
+      <div className="flex flex-col h-screen page-grid" style={{ overflow: 'visible' }}>
         <Nav />
 
-        {/* Sticky filter bar */}
-        <div className="flex-shrink-0 bg-white border-b border-neutral-100 mt-[72px]" style={{ position: 'relative' }}>
-          {/* Thin blue accent line at top */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent 0%,#0A84FF 20%,#0A84FF 80%,transparent 100%)', opacity: 0.45 }} />
-          <div className="relative mx-auto max-w-6xl px-6 py-3.5">
+        {/* Filter bar — premium panel matching home sections */}
+        <div className="flex-shrink-0 bg-white border-b border-neutral-100 mt-[72px]" style={{ position: 'relative', overflow: 'hidden' }}>
+          {/* Inner grid + glow like home sections */}
+          <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.028) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.028) 1px,transparent 1px)',
+            backgroundSize: '32px 32px',
+          }} />
+          <div className="sm-glow" style={{ width: 400, height: 300, top: -150, right: '10%' }} />
+          <div className="relative mx-auto max-w-6xl px-6 pt-4 pb-3.5">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1 relative">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -262,7 +266,7 @@ const BrowsePage: NextPage = () => {
                 </svg>
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 text-sm bg-neutral-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all" />
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all shadow-[0_1px_4px_rgba(0,0,0,0.04)]" />
               </div>
               <select value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}
                 className="pl-3 pr-8 py-2.5 rounded-xl border border-neutral-200 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-accent bg-white appearance-none flex-shrink-0">
@@ -314,7 +318,7 @@ const BrowsePage: NextPage = () => {
                     <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
                   </div>
                 ) : filtered.map(biz => (
-                  <div key={biz.id} className="group bg-white rounded-2xl border border-neutral-100 overflow-hidden hover:shadow-md transition-all duration-200">
+                  <div key={biz.id} className="sm-card overflow-hidden cursor-pointer" onClick={() => setActiveBiz(biz)}>
                     <BizCardImage biz={biz} onCardClick={() => setActiveBiz(biz)} />
                   </div>
                 ))}
