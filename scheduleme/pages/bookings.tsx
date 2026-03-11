@@ -185,19 +185,27 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
       style={{
         background: `rgba(0,0,0,${ready ? 0.45 : 0})`,
         backdropFilter: `blur(${ready ? 5 : 0}px)`,
-        transition: 'background 0.22s ease, backdrop-filter 0.22s ease',
+        transition: closing
+          ? 'background 0.22s ease, backdrop-filter 0.22s ease'
+          : 'background 0.35s ease, backdrop-filter 0.35s ease',
       }}
       onClick={close}>
 
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-y-auto"
         style={{
           maxHeight: '88vh',
-          opacity: ready ? 1 : 0.3,
-          transform: `translate(${tx}px, ${ty}px) scaleX(${scaleX}) scaleY(${scaleY})`,
+          // Opening: morph from card. Closing: fade out only (no scale) so text stays legible
+          opacity: ready ? 1 : closing ? 0 : 0.15,
+          transform: closing
+            ? 'scale(1)'
+            : `translate(${tx}px, ${ty}px) scaleX(${scaleX}) scaleY(${scaleY})`,
           transformOrigin: 'center center',
-          transition: ready
-            ? 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.34,1.56,0.64,1)'
-            : 'none',
+          transition: closing
+            ? 'opacity 0.22s ease'
+            : ready
+              ? 'opacity 0.35s ease, transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+              : 'none',
+        }}
         }}
         onClick={e => e.stopPropagation()}>
 
@@ -335,6 +343,86 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
   );
 }
 
+function CantFindThem() {
+  const [bizName, setBizName] = useState('');
+  const [bizCategory, setBizCategory] = useState('');
+  const [bizLocation, setBizLocation] = useState('');
+  const [note, setNote] = useState('');
+  const [sent, setSent] = useState(false);
+
+  if (sent) return (
+    <div className="bg-white rounded-2xl border border-neutral-100 p-8 text-center">
+      <div className="h-14 w-14 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center mx-auto mb-4">
+        <svg className="h-7 w-7 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+      </div>
+      <h3 className="text-base font-bold text-neutral-900 mb-1">Request received</h3>
+      <p className="text-sm text-neutral-500 max-w-xs mx-auto">We'll reach out to {bizName || 'them'} and let you know if they join ScheduleMe. Keep an eye on your email.</p>
+      <button onClick={() => { setSent(false); setBizName(''); setBizCategory(''); setBizLocation(''); setNote(''); }}
+        className="mt-6 text-sm text-accent font-medium hover:underline">
+        Submit another request
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Explainer */}
+      <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+        <h2 className="text-base font-bold text-neutral-900 mb-1">Know a business we should add?</h2>
+        <p className="text-sm text-neutral-500 leading-relaxed">
+          If you already have a plumber, cleaner, or other pro you trust — tell us about them. We'll invite them to join ScheduleMe so you can book through us, and they can grow their business with new clients.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-neutral-100 p-6 space-y-4">
+        <div>
+          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Business name <span className="text-red-400">*</span></label>
+          <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
+            placeholder="e.g. Joe's Plumbing, Maria's Cleaning Service"
+            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Category</label>
+            <select value={bizCategory} onChange={e => setBizCategory(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-accent appearance-none bg-white">
+              <option value="">Select one</option>
+              {['Plumbing','House Cleaning','Electrical','HVAC','Landscaping','Painting','Handyman','Roofing','Moving','Other'].map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Their area</label>
+            <input type="text" value={bizLocation} onChange={e => setBizLocation(e.target.value)}
+              placeholder="e.g. Mission District"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Why do you recommend them?</label>
+          <textarea value={note} onChange={e => setNote(e.target.value)}
+            placeholder="What did they do for you? How was the experience? Any contact info you have is helpful..."
+            rows={3}
+            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" />
+        </div>
+        <button
+          disabled={!bizName.trim()}
+          onClick={() => { if (bizName.trim()) setSent(true); }}
+          className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${
+            bizName.trim() ? 'text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+          }`}
+          style={bizName.trim() ? { background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' } : {}}>
+          Submit recommendation
+        </button>
+        <p className="text-center text-xs text-neutral-400">We'll contact them on your behalf. Your name won't be shared.</p>
+      </div>
+    </div>
+  );
+}
+
 type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
 type Tab = 'new' | 'history';
 
@@ -436,9 +524,9 @@ const BookingsPage: NextPage = () => {
         <div className="bg-white border-b border-neutral-100">
           <div className="mx-auto max-w-2xl px-6 pt-8 pb-0">
             <h1 className="text-2xl font-bold text-neutral-900 mb-1" style={{ letterSpacing: '-0.01em' }}>Bookings</h1>
-            <p className="text-sm text-neutral-400 mb-5">Book a service or track your jobs</p>
+            <p className="text-sm text-neutral-400 mb-5">Track your jobs or refer a business you trust</p>
             <div className="flex gap-0 border-b border-neutral-100 -mb-px">
-              {([['new', 'Book a Service'], ['history', 'My Bookings']] as const).map(([t, label]) => (
+              {([['new', "Can't find them?"], ['history', 'My Bookings']] as const).map(([t, label]) => (
                 <button key={t} onClick={() => setTab(t)}
                   className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
                     tab === t ? 'border-accent text-accent' : 'border-transparent text-neutral-400 hover:text-neutral-600'
@@ -455,9 +543,7 @@ const BookingsPage: NextPage = () => {
 
         <div className="mx-auto max-w-2xl px-6 py-8">
           {tab === 'new' ? (
-            <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
-              <IntakeForm />
-            </div>
+            <CantFindThem />
           ) : (
             <div className="space-y-6">
               {bookings.length === 0 ? (
@@ -469,7 +555,7 @@ const BookingsPage: NextPage = () => {
                   </div>
                   <p className="font-semibold text-neutral-700">No bookings yet</p>
                   <p className="text-neutral-400 text-sm mt-1 mb-5">Your requests will appear here once submitted</p>
-                  <button onClick={() => setTab('new')} className="btn-primary px-6 py-2.5 text-sm">Book a Service</button>
+                  <button onClick={() => setTab('new')} className="btn-primary px-6 py-2.5 text-sm">Request a business</button>
                 </div>
               ) : (
                 <>

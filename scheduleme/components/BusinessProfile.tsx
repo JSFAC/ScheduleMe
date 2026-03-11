@@ -2,6 +2,21 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Business } from '../lib/mockBusinesses';
 
+/* ─── PureBtn: bypasses global button active-scale ─── */
+function PureBtn({ onClick, className, children, style, disabled }: {
+  onClick: () => void; className?: string; children: React.ReactNode;
+  style?: React.CSSProperties; disabled?: boolean;
+}) {
+  return (
+    <button type="button" onPointerDown={e => { if (!disabled) { e.preventDefault(); onClick(); } }}
+      disabled={disabled}
+      className={className} style={{ WebkitTapHighlightColor: 'transparent', ...(style || {}) }}>
+      {children}
+    </button>
+  );
+}
+
+/* ─── Stars ─── */
 function Stars({ rating }: { rating: number }) {
   return (
     <span className="flex items-center gap-1">
@@ -13,49 +28,30 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-// Use onPointerDown + preventDefault to bypass the global button active:scale transform
-function PureBtn({ onClick, className, children, style }: {
-  onClick: () => void;
-  className?: string;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <button
-      type="button"
-      onPointerDown={e => { e.preventDefault(); onClick(); }}
-      className={className}
-      style={{ WebkitTapHighlightColor: 'transparent', ...(style || {}) }}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ── Calendar ──────────────────────────────────── */
-const TIME_SLOTS = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+/* ─── Mini calendar ─── */
+const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
 function MiniCalendar({ selected, onSelect }: { selected: Date | null; onSelect: (d: Date) => void }) {
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const [vm, setVm] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const y = vm.getFullYear(), m = vm.getMonth();
   const firstDay = new Date(y, m, 1).getDay();
-  const daysInMonth = new Date(y, m+1, 0).getDate();
-  const cells: (Date|null)[] = Array(firstDay).fill(null);
-  for (let d=1; d<=daysInMonth; d++) cells.push(new Date(y,m,d));
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const cells: (Date | null)[] = Array(firstDay).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(y, m, d));
   while (cells.length % 7) cells.push(null);
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   return (
     <div className="select-none">
       <div className="flex items-center justify-between mb-3">
-        <PureBtn onClick={() => setVm(new Date(y,m-1,1))}
-          className="h-7 w-7 rounded-full hover:bg-white flex items-center justify-center transition-colors text-neutral-500">
+        <PureBtn onClick={() => setVm(new Date(y, m - 1, 1))}
+          className="h-7 w-7 rounded-full hover:bg-neutral-200 flex items-center justify-center transition-colors text-neutral-500">
           <svg className="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
         </PureBtn>
         <p className="text-sm font-bold text-neutral-900">{MONTHS[m]} {y}</p>
-        <PureBtn onClick={() => setVm(new Date(y,m+1,1))}
-          className="h-7 w-7 rounded-full hover:bg-white flex items-center justify-center transition-colors text-neutral-500">
+        <PureBtn onClick={() => setVm(new Date(y, m + 1, 1))}
+          className="h-7 w-7 rounded-full hover:bg-neutral-200 flex items-center justify-center transition-colors text-neutral-500">
           <svg className="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
         </PureBtn>
       </div>
@@ -74,7 +70,7 @@ function MiniCalendar({ selected, onSelect }: { selected: Date | null; onSelect:
                 isSel ? 'bg-accent text-white' :
                 isToday ? 'border-2 border-accent text-accent hover:bg-blue-50' :
                 isPast ? 'text-neutral-300 cursor-not-allowed' :
-                'text-neutral-700 hover:bg-white'
+                'text-neutral-700 hover:bg-neutral-100'
               }`}>
               {date.getDate()}
             </PureBtn>
@@ -85,11 +81,22 @@ function MiniCalendar({ selected, onSelect }: { selected: Date | null; onSelect:
   );
 }
 
-/* ── Booking sub-view ──────────────────────────── */
+/* ─── Booking sub-view ─── */
+const SERVICES_CONTEXT = [
+  'General consultation / estimate',
+  'Emergency / urgent repair',
+  'Routine maintenance',
+  'New installation',
+  'Inspection only',
+  'Quote for larger project',
+];
+
 function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
-  const [date, setDate] = useState<Date|null>(null);
-  const [slot, setSlot] = useState<string|null>(null);
+  const [date, setDate] = useState<Date | null>(null);
+  const [slot, setSlot] = useState<string | null>(null);
+  const [serviceType, setServiceType] = useState<string>('');
   const [note, setNote] = useState('');
+  const [address, setAddress] = useState('');
   const [done, setDone] = useState(false);
 
   if (done) return (
@@ -100,19 +107,22 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
         </svg>
       </div>
       <h3 className="text-lg font-bold text-neutral-900 mb-1">Request sent!</h3>
-      <p className="text-sm text-neutral-500 mb-1">{biz.name} will confirm shortly.</p>
+      <p className="text-sm text-neutral-500 mb-1">{biz.name} will confirm your appointment.</p>
       {date && slot && (
-        <p className="text-xs text-neutral-400">{date.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' })} at {slot}</p>
+        <p className="text-xs text-neutral-400 mt-1">{date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {slot}</p>
       )}
-      <button onClick={onBack} className="mt-8 text-sm text-accent font-medium hover:underline">
+      <p className="text-xs text-neutral-400 mt-3 max-w-xs">You'll receive a confirmation once the business accepts. Check My Bookings to track your request.</p>
+      <button onClick={onBack} className="mt-8 text-sm text-accent font-semibold hover:underline">
         Back to business info
       </button>
     </div>
   );
 
+  const canSubmit = date && slot && note.trim().length > 5 && address.trim().length > 3;
+
   return (
     <div>
-      {/* Back bar */}
+      {/* Sticky back bar */}
       <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-100 bg-white sticky top-0 z-10">
         <PureBtn onClick={onBack}
           className="h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
@@ -120,31 +130,62 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
         </PureBtn>
-        <div>
-          <p className="text-sm font-bold text-neutral-900">Book {biz.name}</p>
-          <p className="text-xs text-neutral-400">{biz.category}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-neutral-900 truncate">Book {biz.name}</p>
+          <p className="text-xs text-neutral-400">{biz.category} · {biz.address}</p>
         </div>
       </div>
 
-      <div className="px-6 py-5 space-y-5">
+      <div className="px-6 py-5 space-y-6">
+
+        {/* Pricing reference */}
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
+          <p className="text-xs font-bold text-accent uppercase tracking-wide mb-2">Typical pricing</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {biz.services.slice(0, 4).map(s => (
+              <div key={s.name} className="flex items-start justify-between gap-2">
+                <span className="text-xs text-neutral-600 leading-snug">{s.name}</span>
+                <span className="text-xs font-semibold text-neutral-800 whitespace-nowrap flex-shrink-0">{s.price}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-neutral-400 mt-2">Final price confirmed after visit · Free to request</p>
+        </div>
+
+        {/* Type of service */}
+        <div>
+          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2.5">What do you need?</p>
+          <div className="grid grid-cols-2 gap-2">
+            {SERVICES_CONTEXT.map(s => (
+              <PureBtn key={s} onClick={() => setServiceType(s)}
+                className={`py-2.5 px-3 rounded-xl text-xs font-medium text-left border transition-colors ${
+                  serviceType === s ? 'bg-accent text-white border-accent' : 'bg-white text-neutral-700 border-neutral-200 hover:border-accent hover:text-accent'
+                }`}>
+                {s}
+              </PureBtn>
+            ))}
+          </div>
+        </div>
+
         {/* Calendar */}
-        <div className="bg-neutral-50 rounded-2xl p-4">
-          <MiniCalendar selected={date} onSelect={d => { setDate(d); setSlot(null); }} />
+        <div>
+          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2.5">Preferred date</p>
+          <div className="bg-neutral-50 rounded-2xl p-4">
+            <MiniCalendar selected={date} onSelect={d => { setDate(d); setSlot(null); }} />
+          </div>
         </div>
 
         {/* Time slots */}
         {date && (
           <div>
             <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2.5">
-              {date.toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' })}
+              Available times — {date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </p>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {TIME_SLOTS.map(s => (
                 <PureBtn key={s} onClick={() => setSlot(s)}
-                  className={`py-2 rounded-xl text-xs font-semibold text-center border transition-colors ${
-                    slot === s
-                      ? 'bg-accent text-white border-accent'
-                      : 'bg-white text-neutral-700 border-neutral-200 hover:border-accent hover:text-accent'
+                  className={`py-2.5 rounded-xl text-xs font-semibold text-center border transition-colors ${
+                    slot === s ? 'bg-accent text-white border-accent' : 'bg-white text-neutral-700 border-neutral-200 hover:border-accent hover:text-accent'
                   }`}>
                   {s}
                 </PureBtn>
@@ -153,41 +194,68 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
           </div>
         )}
 
-        {/* Note */}
-        {slot && (
+        {/* Service address */}
+        <div>
+          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2">Service address</p>
+          <input
+            type="text"
+            value={address}
+            onChange={e => setAddress(e.target.value)}
+            placeholder="Your address or unit where work is needed"
+            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+          />
+        </div>
+
+        {/* Description */}
+        <div>
+          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2">Describe the job</p>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder={`e.g. My ${biz.category.toLowerCase()} needs attention — describe the issue, how long it's been happening, and anything else helpful...`}
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+          />
+          <p className="text-[11px] text-neutral-400 mt-1.5">The more detail, the faster they can prepare.</p>
+        </div>
+
+        {/* Hours reminder */}
+        <div className="bg-neutral-50 rounded-xl px-4 py-3 flex items-start gap-3">
+          <svg className="h-4 w-4 text-neutral-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           <div>
-            <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2">Describe what you need</p>
-            <textarea value={note} onChange={e => setNote(e.target.value)}
-              placeholder="e.g. Kitchen faucet leaking under the sink, constant drip..."
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
-            />
+            <p className="text-xs font-semibold text-neutral-700 mb-0.5">Business hours</p>
+            {biz.hours.map(h => (
+              <p key={h.day} className="text-xs text-neutral-500">{h.day}: {h.time}</p>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Submit */}
         <button type="button"
-          disabled={!date || !slot}
-          onClick={() => { if (date && slot) setDone(true); }}
+          disabled={!canSubmit}
+          onClick={() => { if (canSubmit) setDone(true); }}
           className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-colors ${
-            date && slot ? 'bg-accent text-white hover:bg-accent-dark' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-          }`}>
-          {date && slot
-            ? `Request ${date.toLocaleDateString('en-US',{month:'short',day:'numeric'})} at ${slot}`
-            : 'Select a date and time'}
+            canSubmit ? 'text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+          }`}
+          style={canSubmit ? { background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' } : {}}>
+          {canSubmit
+            ? `Request ${date!.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${slot}`
+            : 'Fill in the details above to continue'}
         </button>
-        <p className="text-center text-xs text-neutral-400 -mt-2">Free to request · No payment now</p>
+        <p className="text-center text-xs text-neutral-400 -mt-3">Free to request · No payment required now · Cancel anytime</p>
       </div>
     </div>
   );
 }
 
-/* ── Main ──────────────────────────────────────── */
+/* ─── Main modal ─── */
 export default function BusinessProfile({ biz, onClose }: { biz: Business; onClose: () => void }) {
   const [activeImg, setActiveImg] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [view, setView] = useState<'info'|'book'>('info');
+  const [view, setView] = useState<'info' | 'book'>('info');
   const thumbsRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -197,7 +265,11 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  function close() { setClosing(true); setTimeout(onClose, 200); }
+  function close() {
+    setClosing(true);
+    // Fade out only — no scale on close so text doesn't shrink visibly
+    setTimeout(onClose, 250);
+  }
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
@@ -205,11 +277,11 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
     return () => document.removeEventListener('keydown', h);
   }, []);
 
-  function goImg(dir: 1|-1) {
+  function goImg(dir: 1 | -1) {
     setActiveImg(cur => {
       const next = (cur + dir + biz.allImages.length) % biz.allImages.length;
       setTimeout(() => {
-        (thumbsRef.current?.children[next] as HTMLElement)?.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+        (thumbsRef.current?.children[next] as HTMLElement)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       }, 0);
       return next;
     });
@@ -218,7 +290,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
   function pickThumb(i: number) {
     if (isDragging.current) return;
     setActiveImg(i);
-    (thumbsRef.current?.children[i] as HTMLElement)?.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+    (thumbsRef.current?.children[i] as HTMLElement)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }
 
   const ready = mounted && !closing;
@@ -228,17 +300,24 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
       style={{
         background: `rgba(0,0,0,${ready ? 0.5 : 0})`,
         backdropFilter: `blur(${ready ? 6 : 0}px)`,
-        transition: 'background 0.2s ease, backdrop-filter 0.2s ease',
+        // On close: fade backdrop, but don't scale the modal (to avoid shrinking text)
+        transition: closing
+          ? 'background 0.25s ease, backdrop-filter 0.25s ease'
+          : 'background 0.2s ease, backdrop-filter 0.2s ease',
       }}
       onClick={close}>
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col"
+      <div
+        onClick={e => e.stopPropagation()}
+        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col"
         style={{
           opacity: ready ? 1 : 0,
-          transform: ready ? 'scale(1)' : 'scale(0.95)',
-          transition: 'opacity 0.2s ease, transform 0.2s ease',
+          // Open: scale in. Close: fade out only (no scale) so content stays readable
+          transform: !closing && !ready ? 'scale(0.96)' : 'scale(1)',
+          transition: closing
+            ? 'opacity 0.25s ease'
+            : 'opacity 0.2s ease, transform 0.2s ease',
         }}
-        onClick={e => e.stopPropagation()}>
-
+      >
         {/* Gallery */}
         <div className="relative flex-shrink-0 bg-neutral-900" style={{ height: 220 }}>
           <img key={activeImg} src={biz.allImages[activeImg]} alt={biz.name}
@@ -263,30 +342,22 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
             </>
           )}
 
-          {/* Draggable scrollable thumbnail carousel */}
+          {/* Draggable thumbnail carousel */}
           <div ref={thumbsRef}
             className="absolute bottom-2.5 left-3 flex gap-1.5 overflow-x-auto"
-            style={{ maxWidth:'calc(100% - 52px)', scrollbarWidth:'none', cursor:'grab', WebkitOverflowScrolling:'touch' } as React.CSSProperties}
+            style={{ maxWidth: 'calc(100% - 52px)', scrollbarWidth: 'none', cursor: 'grab' } as React.CSSProperties}
             onMouseDown={e => {
               const el = e.currentTarget;
-              const startX = e.pageX - el.scrollLeft;
               isDragging.current = false;
-              const onMove = (ev: MouseEvent) => {
-                isDragging.current = true;
-                el.scrollLeft = startX - ev.pageX + el.scrollLeft + (ev.pageX - (e.pageX - el.scrollLeft));
-                // simpler:
-                el.scrollLeft -= ev.movementX;
-              };
+              const onMove = (ev: MouseEvent) => { isDragging.current = true; el.scrollLeft -= ev.movementX; };
               const onUp = () => { setTimeout(() => { isDragging.current = false; }, 50); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
               document.addEventListener('mousemove', onMove);
               document.addEventListener('mouseup', onUp);
             }}>
             {biz.allImages.map((url, i) => (
-              <button key={i} type="button"
-                onPointerDown={e => e.preventDefault()}
-                onClick={() => pickThumb(i)}
+              <button key={i} type="button" onPointerDown={e => e.preventDefault()} onClick={() => pickThumb(i)}
                 className="flex-shrink-0 h-10 w-14 rounded-lg overflow-hidden transition-all"
-                style={{ border: `2px solid ${i === activeImg ? '#fff' : 'transparent'}`, opacity: i === activeImg ? 1 : 0.65 }}>
+                style={{ border: `2px solid ${i === activeImg ? '#fff' : 'transparent'}`, opacity: i === activeImg ? 1 : 0.6 }}>
                 <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" />
               </button>
             ))}
@@ -306,20 +377,20 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
           </div>
         </div>
 
-        {/* Content */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto">
           {view === 'book' ? <BookingView biz={biz} onBack={() => setView('info')} /> : (
             <>
               <div className="px-6 pt-5 pb-4 border-b border-neutral-100">
                 <p className="text-xs font-medium text-neutral-400 mb-0.5">{biz.category}</p>
-                <h2 className="text-xl font-bold text-neutral-900" style={{ letterSpacing:'-0.02em' }}>{biz.name}</h2>
+                <h2 className="text-xl font-bold text-neutral-900" style={{ letterSpacing: '-0.02em' }}>{biz.name}</h2>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   <Stars rating={biz.rating} />
                   <span className="text-sm text-neutral-500">{biz.reviews} reviews</span>
                   <span className="text-neutral-200">·</span>
                   <span className="text-sm text-neutral-500">{biz.distance}</span>
-                  <span className="text-sm font-medium text-neutral-400">{'$'.repeat(biz.price_tier)}<span className="opacity-25">{'$'.repeat(3-biz.price_tier)}</span></span>
-                  {biz.badge && <span className="text-xs font-semibold text-accent">{biz.badge}</span>}
+                  <span className="text-sm font-medium text-neutral-400">{'$'.repeat(biz.price_tier)}<span className="opacity-25">{'$'.repeat(3 - biz.price_tier)}</span></span>
+                  {biz.badge && <span className="text-xs font-semibold text-accent bg-blue-50 px-2 py-0.5 rounded-full">{biz.badge}</span>}
                 </div>
                 <p className="text-sm text-neutral-500 mt-3 leading-relaxed">{biz.description}</p>
               </div>
@@ -369,8 +440,8 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
 
               <div className="px-6 py-5">
                 <button type="button" onClick={() => setView('book')}
-                  className="w-full py-3.5 rounded-xl font-semibold text-sm transition-colors"
-                  style={{ background:'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)', color:'#fff' }}>
+                  className="w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-colors"
+                  style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' }}>
                   Book {biz.name}
                 </button>
                 <p className="text-center text-xs text-neutral-400 mt-2">Free to request · No commitment</p>

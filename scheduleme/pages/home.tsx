@@ -38,13 +38,7 @@ function Price({ tier }: { tier: number }) {
 }
 
 const CATEGORIES = [
-  { label: 'Plumbing', icon: '🔧' },
-  { label: 'Cleaning', icon: '🧹' },
-  { label: 'Electrical', icon: '⚡' },
-  { label: 'HVAC', icon: '❄️' },
-  { label: 'Landscaping', icon: '🌿' },
-  { label: 'Painting', icon: '🖌️' },
-  { label: 'Handyman', icon: '🔨' },
+  'Plumbing', 'Cleaning', 'Electrical', 'HVAC', 'Landscaping', 'Painting', 'Handyman',
 ];
 
 const HomePage: NextPage = () => {
@@ -82,13 +76,13 @@ const HomePage: NextPage = () => {
     <>
       <Head><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen bg-[#f4f6fb] pt-[72px]">
+      <div className="min-h-screen bg-[#f9f9f9] pt-[72px]">
 
-        {/* Hero search — blue gradient */}
-        <div style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #0055CC 100%)' }} className="px-6 pt-10 pb-12">
+        {/* Search header — clean white, single blue accent line */}
+        <div className="bg-white border-b border-neutral-100 px-6 pt-8 pb-6" style={{ borderBottom: '1px solid #e5e7eb' }}>
           <div className="mx-auto max-w-xl">
-            <p className="text-blue-200 text-sm mb-1">Good {timeOfDay()}, {userName}</p>
-            <h1 className="text-3xl font-black text-white mb-6" style={{ letterSpacing: '-0.025em' }}>
+            <p className="text-sm text-neutral-400 mb-1">Good {timeOfDay()}, {userName}</p>
+            <h1 className="text-2xl font-bold text-neutral-900 mb-5" style={{ letterSpacing: '-0.02em' }}>
               Find a local professional
             </h1>
             <form onSubmit={handleSearch} className="flex gap-2">
@@ -101,22 +95,18 @@ const HomePage: NextPage = () => {
                   placeholder='Try "leaking pipe" or "deep clean"'
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border-0 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-neutral-200 text-sm bg-neutral-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
                 />
               </div>
-              <button type="submit"
-                className="flex-shrink-0 bg-white text-accent font-bold text-sm px-5 py-3 rounded-xl shadow-lg hover:bg-blue-50 transition-colors">
-                Search
-              </button>
+              <button type="submit" className="btn-primary px-5 py-3 text-sm">Search</button>
             </form>
 
-            {/* Category pills */}
-            <div className="flex gap-2 mt-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {/* Category pills — no emojis */}
+            <div className="flex gap-2 mt-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
               {CATEGORIES.map(cat => (
-                <Link key={cat.label} href={`/browse?category=${encodeURIComponent(cat.label)}`} scroll={false}
-                  className="flex-shrink-0 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20 transition-colors">
-                  <span>{cat.icon}</span>
-                  {cat.label}
+                <Link key={cat} href={`/browse?category=${encodeURIComponent(cat)}`} scroll={false}
+                  className="flex-shrink-0 text-xs font-semibold text-neutral-600 bg-neutral-100 hover:bg-blue-50 hover:text-accent px-3.5 py-1.5 rounded-full border border-neutral-200 hover:border-accent/30 transition-colors">
+                  {cat}
                 </Link>
               ))}
             </div>

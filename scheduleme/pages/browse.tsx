@@ -13,7 +13,7 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
-const CATEGORIES = ['All', 'Plumbing', 'House Cleaning', 'Electrical', 'HVAC', 'Landscaping', 'Painting', 'Handyman'];
+const CATEGORIES = ['All', 'Independent', 'Plumbing', 'House Cleaning', 'Electrical', 'HVAC', 'Landscaping', 'Painting', 'Handyman'];
 type ViewMode = 'list' | 'map';
 type SortMode = 'distance' | 'rating' | 'reviews';
 
@@ -173,7 +173,8 @@ const BrowsePage: NextPage = () => {
   }, [router.query.biz]);
 
   const filtered = ALL_BUSINESSES.filter(b => {
-    const matchCat = activeCategory === 'All' || b.category === activeCategory;
+    const matchCat = activeCategory === 'All'
+      || (activeCategory === 'Independent' ? b.independent === true : b.category === activeCategory);
     const matchSearch = !searchQuery
       || b.name.toLowerCase().includes(searchQuery.toLowerCase())
       || b.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -238,9 +239,13 @@ const BrowsePage: NextPage = () => {
               {CATEGORIES.map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)}
                   className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    activeCategory === cat ? 'bg-accent text-white border-accent' : 'bg-white text-neutral-600 border-neutral-200 hover:border-accent hover:text-accent'
+                    activeCategory === cat
+                      ? cat === 'Independent' ? 'bg-accent text-white border-accent' : 'bg-accent text-white border-accent'
+                      : cat === 'Independent'
+                        ? 'bg-blue-50 text-accent border-blue-200 hover:bg-accent hover:text-white hover:border-accent'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-accent hover:text-accent'
                   }`}>
-                  {cat}
+                  {cat === 'Independent' ? 'Independent' : cat}
                 </button>
               ))}
             </div>
