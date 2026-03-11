@@ -1,8 +1,8 @@
-// pages/bookings.tsx — Consumer intake form with cinematic login animation
+// pages/bookings.tsx — New booking + booking history
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
 import IntakeForm from '../components/IntakeForm';
 import { createClient } from '@supabase/supabase-js';
@@ -15,265 +15,264 @@ function getSupabase() {
   );
 }
 
-const Bookings: NextPage = () => {
+interface Booking {
+  id: string;
+  service: string;
+  status: string;
+  created_at: string;
+  business_name?: string;
+}
+
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; icon: string }> = {
+  pending:         { label: 'Pending',          bg: 'bg-amber-50 border-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-400',  icon: '⏳' },
+  confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50 border-blue-100',    text: 'text-blue-700',   dot: 'bg-blue-500',   icon: '✅' },
+  payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100',text: 'text-violet-700', dot: 'bg-violet-500', icon: '💳' },
+  paid:            { label: 'Paid',              bg: 'bg-green-50 border-green-100',  text: 'text-green-700',  dot: 'bg-green-500',  icon: '💰' },
+  completed:       { label: 'Completed',         bg: 'bg-green-50 border-green-100',  text: 'text-green-700',  dot: 'bg-green-500',  icon: '🎉' },
+  cancelled:       { label: 'Cancelled',         bg: 'bg-red-50 border-red-100',      text: 'text-red-600',    dot: 'bg-red-400',    icon: '❌' },
+  payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50 border-red-100',      text: 'text-red-600',    dot: 'bg-red-400',    icon: '⚠️' },
+};
+
+const MOCK_BOOKINGS: Booking[] = [
+  { id: '1', service: 'Leaking kitchen faucet repair', status: 'confirmed', created_at: new Date(Date.now() - 3600000).toISOString(), business_name: 'Pacific Plumbing Co.' },
+  { id: '2', service: 'Deep clean 2BR apartment', status: 'completed', created_at: new Date(Date.now() - 86400000 * 3).toISOString(), business_name: 'Sparkle Clean SF' },
+  { id: '3', service: 'Electrical panel inspection', status: 'pending', created_at: new Date(Date.now() - 86400000 * 7).toISOString(), business_name: undefined },
+];
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffHrs = diffMs / 3600000;
+  const diffDays = diffMs / 86400000;
+  if (diffHrs < 1) return 'Just now';
+  if (diffHrs < 24) return `${Math.floor(diffHrs)}h ago`;
+  if (diffDays < 7) return `${Math.floor(diffDays)}d ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
+type Tab = 'new' | 'history';
+
+const BookingsPage: NextPage = () => {
   const router = useRouter();
-  const [phase, setPhase] = useState<'loading' | 'welcome' | 'transitioning' | 'done'>('loading');
+  const [phase, setPhase] = useState<Phase>('loading');
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
   const [fadeIn, setFadeIn] = useState(false);
-  const [isNewAccount, setIsNewAccount] = useState(false);
+  const [tab, setTab] = useState<Tab>('new');
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        const fullName =
-          session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
+        const fullName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
         const firstName = fullName.split(' ')[0];
-        const initials = fullName
-          .split(' ')
-          .map((n: string) => n[0])
-          .join('')
-          .toUpperCase()
-          .slice(0, 2);
+        const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
-        // Check profiles table flag — only show welcome if they haven't seen it yet
+        // Check welcome flag
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('has_seen_welcome')
-          .eq('id', session.user.id)
-          .maybeSingle();
+          .from('profiles').select('has_seen_welcome').eq('id', session.user.id).maybeSingle();
 
         const isFirstVisit = profile !== null && profile.has_seen_welcome === false;
 
-        if (!isFirstVisit) {
-          router.replace('/account');
-          return;
-        }
-
-        // Mark as seen immediately so refreshing doesn't replay it
-        await supabase
-          .from('profiles')
-          .update({ has_seen_welcome: true })
-          .eq('id', session.user.id);
-
-        setIsNewAccount(true);
-        setUserName(firstName);
-        setUserInitials(initials);
-        setPhase('welcome');
-
-        // Send welcome email once — now Supabase-gated not localStorage-gated
-        if (session.user.email) {
-          maybeSendWelcomeEmail(session.user.email, fullName);
-        }
-
-        // Sequence: hold for 2.4s, then transition out over 0.7s
-        setTimeout(() => {
-          setPhase('transitioning');
+        if (isFirstVisit) {
+          // Mark as seen
+          await supabase.from('profiles').update({ has_seen_welcome: true }).eq('id', session.user.id);
+          setUserName(firstName);
+          setUserInitials(initials);
+          setPhase('welcome');
+          if (session.user.email) maybeSendWelcomeEmail(session.user.email, fullName);
           setTimeout(() => {
-            setPhase('done');
-            setFadeIn(true);
-          }, 700);
-        }, 2400);
+            setPhase('transitioning');
+            setTimeout(() => { setPhase('done'); setFadeIn(true); }, 700);
+          }, 2400);
+        } else {
+          setPhase('done');
+          setTimeout(() => setFadeIn(true), 60);
+        }
+
+        // Load bookings (use mock for now)
+        setBookings(MOCK_BOOKINGS);
       } else {
         setPhase('done');
         setTimeout(() => setFadeIn(true), 60);
       }
     });
+  }, []);
+
+  // Set initial tab based on query
+  useEffect(() => {
+    if (router.query.tab === 'history') setTab('history');
   }, [router.query]);
 
   const showOverlay = phase === 'welcome' || phase === 'transitioning';
   const overlayFadingOut = phase === 'transitioning';
 
+  const activeBookings = bookings.filter(b => !['completed', 'cancelled'].includes(b.status));
+  const pastBookings = bookings.filter(b => ['completed', 'cancelled'].includes(b.status));
+
   return (
     <>
-      <Head>
-        <title>Find Your Pro — ScheduleMe</title>
-        <meta name="description" content="Describe your service issue and get instantly matched with vetted local professionals." />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
+      <Head><title>Bookings — ScheduleMe</title></Head>
 
-      <style>{`
-        @keyframes avatarPop {
-          0%   { opacity: 0; transform: scale(0.5) translateY(16px); }
-          60%  { transform: scale(1.08) translateY(-2px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes textSlideUp {
-          from { opacity: 0; transform: translateY(14px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes subtitleFade {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes ringPulse {
-          0%   { transform: scale(1);   opacity: 0.5; }
-          70%  { transform: scale(2.4); opacity: 0; }
-          100% { transform: scale(2.4); opacity: 0; }
-        }
-        @keyframes checkDraw {
-          from { stroke-dashoffset: 40; opacity: 0; }
-          to   { stroke-dashoffset: 0;  opacity: 1; }
-        }
-        @keyframes overlayOut {
-          0%   { opacity: 1; transform: scale(1); }
-          50%  { opacity: 0.8; transform: scale(1.02); }
-          100% { opacity: 0; transform: scale(1.05); }
-        }
-        @keyframes overlayIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes progressBar {
-          from { width: 0%; }
-          to   { width: 100%; }
-        }
-        @keyframes pageIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .welcome-overlay {
-          animation: overlayIn 0.35s ease forwards;
-        }
-        .welcome-overlay.out {
-          animation: overlayOut 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-        .avatar-pop {
-          animation: avatarPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
-        }
-        .ring-pulse {
-          animation: ringPulse 1.6s ease-out 0.5s infinite;
-        }
-        .text-slide {
-          animation: textSlideUp 0.45s ease 0.55s both;
-        }
-        .subtitle-fade {
-          animation: subtitleFade 0.4s ease 0.9s both;
-        }
-        .check-draw {
-          stroke-dasharray: 40;
-          animation: checkDraw 0.35s ease 0.4s both;
-        }
-        .progress-bar {
-          animation: progressBar 2.2s cubic-bezier(0.4, 0, 0.2, 1) 1.1s both;
-        }
-      `}</style>
-
-      {/* Cinematic Welcome Overlay */}
+      {/* Welcome overlay */}
       {showOverlay && (
-        <div
-          className={`welcome-overlay fixed inset-0 z-[200] flex items-center justify-center ${overlayFadingOut ? 'out' : ''}`}
-          style={{ background: 'linear-gradient(160deg, #f8faff 0%, #eef2ff 50%, #f8faff 100%)' }}
-        >
-          {/* Subtle dot grid */}
-          <div style={{
-            position: 'absolute', inset: 0, opacity: 0.04,
-            backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }} />
-
-          <div className="relative flex flex-col items-center text-center px-8" style={{ zIndex: 1 }}>
-            {/* Avatar with pulse ring */}
-            <div className="relative mb-8">
-              <div
-                className="ring-pulse absolute inset-0 rounded-full"
-                style={{ background: 'rgba(59,130,246,0.2)' }}
-              />
-              <div
-                className="avatar-pop relative h-24 w-24 rounded-full flex items-center justify-center text-white text-2xl font-bold"
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  boxShadow: '0 20px 60px rgba(59,130,246,0.35), 0 8px 20px rgba(59,130,246,0.2)',
-                }}
-              >
+        <style>{`
+          .welcome-overlay { opacity: 1; transition: opacity 0.7s ease; }
+          .welcome-overlay.out { opacity: 0; }
+        `}</style>
+      )}
+      {showOverlay && (
+        <div className={`welcome-overlay fixed inset-0 z-[200] flex items-center justify-center ${overlayFadingOut ? 'out' : ''}`}
+          style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+          <div className="text-center px-6">
+            <div className="relative mx-auto mb-6" style={{ width: 80, height: 80 }}>
+              <div className="absolute inset-0 rounded-2xl bg-accent/20 animate-ping" style={{ animationDuration: '2s' }} />
+              <div className="relative h-full w-full rounded-2xl bg-accent flex items-center justify-center text-white text-2xl font-black" style={{ letterSpacing: '-0.03em' }}>
                 {userInitials}
-                {/* Green check badge */}
-                <div
-                  className="absolute -bottom-1.5 -right-1.5 h-9 w-9 rounded-full bg-white flex items-center justify-center"
-                  style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" fill="#22c55e" />
-                    <path
-                      className="check-draw"
-                      d="M7.5 12.5l3 3 6-6"
-                      stroke="white"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
               </div>
             </div>
-
-            {/* Welcome text */}
-            <h1
-              className="text-slide font-black mb-2"
-              style={{
-                fontSize: 'clamp(28px, 5vw, 44px)',
-                letterSpacing: '-0.03em',
-                color: '#0f172a',
-                lineHeight: 1.1,
-              }}
-            >
-              Welcome, {userName}! 👋
+            <h1 className="text-3xl font-black text-white mb-2" style={{ letterSpacing: '-0.02em' }}>
+              Welcome, {userName}!
             </h1>
-
-            <p
-              className="subtitle-fade text-base"
-              style={{ color: '#64748b', marginTop: '8px' }}
-            >
-              You're signed in. Let's find you the right pro.
-            </p>
-
-            {/* Progress bar */}
-            <div
-              className="subtitle-fade mt-8 rounded-full overflow-hidden"
-              style={{ width: '140px', height: '3px', background: '#e2e8f0' }}
-            >
-              <div
-                className="progress-bar h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, #3b82f6, #6366f1)' }}
-              />
+            <p className="text-neutral-400 text-base">You&apos;re all set. Let&apos;s find you a pro.</p>
+            <div className="flex justify-center gap-1.5 mt-8">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="h-1.5 w-1.5 rounded-full bg-accent/40 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
+              ))}
             </div>
           </div>
         </div>
       )}
 
       <Nav />
+      <div className={`min-h-screen bg-neutral-50 pt-[72px] transition-opacity duration-500 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
 
-      <main
-        className="bg-neutral-50"
-        style={{
-          minHeight: '100dvh',
-          paddingTop: '72px',
-          display: 'flex',
-          flexDirection: 'column',
-          opacity: fadeIn ? 1 : 0,
-          transition: 'opacity 0.5s ease',
-          animation: fadeIn ? 'pageIn 0.5s ease both' : 'none',
-        }}
-      >
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '3rem 1.5rem' }}>
-          <div className="mx-auto w-full" style={{ maxWidth: '560px' }}>
-            <div className="text-center mb-10">
-              <span className="section-eyebrow mb-3 block">AI-Powered Triage</span>
-              <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">
-                Describe your issue
-              </h1>
-              <p className="text-neutral-500 leading-relaxed">
-                Tell us what's wrong in plain language — our AI will identify the service type,
-                urgency, and match you with the best local pros.
-              </p>
+        {/* Header with tabs */}
+        <div className="bg-white border-b border-neutral-100">
+          <div className="mx-auto max-w-3xl px-6 pt-8 pb-0">
+            <h1 className="text-2xl font-bold text-neutral-900 mb-1">Bookings</h1>
+            <p className="text-neutral-500 text-sm mb-5">Book a service or track your existing jobs</p>
+            <div className="flex gap-1">
+              {([['new', 'Book a Service'], ['history', 'My Bookings']] as const).map(([t, label]) => (
+                <button key={t} onClick={() => setTab(t)}
+                  className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+                    tab === t ? 'border-accent text-accent' : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                  }`}>
+                  {label}
+                  {t === 'history' && activeBookings.length > 0 && (
+                    <span className="ml-2 bg-accent text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeBookings.length}</span>
+                  )}
+                </button>
+              ))}
             </div>
-            <IntakeForm />
           </div>
         </div>
-      </main>
+
+        <div className="mx-auto max-w-3xl px-6 py-8">
+          {tab === 'new' ? (
+            <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+              <IntakeForm />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {bookings.length === 0 ? (
+                <div className="text-center py-20">
+                  <p className="text-4xl mb-4">📋</p>
+                  <p className="font-semibold text-neutral-700">No bookings yet</p>
+                  <p className="text-neutral-400 text-sm mt-1 mb-5">Book your first service to get started</p>
+                  <button onClick={() => setTab('new')} className="btn-primary px-6 py-2.5 text-sm">
+                    Book a Service
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {activeBookings.length > 0 && (
+                    <div>
+                      <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wide mb-3">Active</h2>
+                      <div className="space-y-3">
+                        {activeBookings.map(booking => {
+                          const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
+                          return (
+                            <div key={booking.id} className="bg-white rounded-2xl border border-neutral-100 p-5">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-neutral-900 truncate">{booking.service}</h3>
+                                  {booking.business_name && (
+                                    <p className="text-sm text-neutral-400 mt-0.5">{booking.business_name}</p>
+                                  )}
+                                  <p className="text-xs text-neutral-400 mt-1">{formatDate(booking.created_at)}</p>
+                                </div>
+                                <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${cfg.bg} ${cfg.text}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                                  {cfg.label}
+                                </span>
+                              </div>
+                              {/* Status timeline */}
+                              <div className="mt-4 flex items-center gap-0">
+                                {['pending', 'confirmed', 'paid', 'completed'].map((s, i, arr) => {
+                                  const statuses = ['pending', 'confirmed', 'paid', 'completed'];
+                                  const currentIdx = statuses.indexOf(booking.status);
+                                  const isDone = i <= currentIdx;
+                                  const isLast = i === arr.length - 1;
+                                  return (
+                                    <div key={s} className="flex items-center flex-1 last:flex-none">
+                                      <div className={`h-2 w-2 rounded-full flex-shrink-0 ${isDone ? 'bg-accent' : 'bg-neutral-200'}`} />
+                                      {!isLast && <div className={`h-0.5 flex-1 ${i < currentIdx ? 'bg-accent' : 'bg-neutral-200'}`} />}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex justify-between mt-1">
+                                {['Submitted', 'Confirmed', 'Paid', 'Done'].map(l => (
+                                  <span key={l} className="text-[10px] text-neutral-400">{l}</span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {pastBookings.length > 0 && (
+                    <div>
+                      <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wide mb-3">Past</h2>
+                      <div className="space-y-3">
+                        {pastBookings.map(booking => {
+                          const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.completed;
+                          return (
+                            <div key={booking.id} className="bg-white rounded-2xl border border-neutral-100 p-5 opacity-70">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-neutral-900 truncate">{booking.service}</h3>
+                                  {booking.business_name && (
+                                    <p className="text-sm text-neutral-400 mt-0.5">{booking.business_name}</p>
+                                  )}
+                                  <p className="text-xs text-neutral-400 mt-1">{formatDate(booking.created_at)}</p>
+                                </div>
+                                <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${cfg.bg} ${cfg.text}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                                  {cfg.label}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 };
 
-export default Bookings;
+export default BookingsPage;

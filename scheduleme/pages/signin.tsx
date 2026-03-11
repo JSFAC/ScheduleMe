@@ -60,7 +60,7 @@ const SignIn: NextPage = () => {
           }
           throw error;
         }
-        router.push((next as string) || '/account');
+        router.push((next as string) || '/home');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');

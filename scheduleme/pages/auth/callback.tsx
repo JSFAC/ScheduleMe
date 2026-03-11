@@ -58,7 +58,7 @@ const AuthCallback: NextPage = () => {
           if (isNewUser) {
             router.replace('/bookings');
           } else {
-            router.replace('/account');
+            router.replace('/home');
           }
         }
       }
