@@ -1,12 +1,10 @@
-// components/Nav.tsx
+// components/Nav.tsx — Smart nav: marketing links for logged-out, app links for logged-in
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-interface NavProps {
-  variant?: 'light' | 'dark';
-}
+interface NavProps { variant?: 'light' | 'dark'; }
 
 function getSupabase() {
   return createClient(
@@ -20,6 +18,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const router = useRouter();
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,13 +30,11 @@ export default function Nav({ variant = 'light' }: NavProps) {
           name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
         });
       }
+      setLoaded(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({
-          email: session.user.email,
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-        });
+        setUser({ email: session.user.email, name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] });
       } else {
         setUser(null);
       }
@@ -47,9 +44,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -67,37 +62,56 @@ export default function Nav({ variant = 'light' }: NavProps) {
     ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     : '?';
 
-  return (
-    <>
-      <header className={`fixed top-0 left-0 right-0 z-40 border-b transition-colors ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/85 backdrop-blur-md border-neutral-100'}`}>
-        <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Main navigation">
-          <Link href="/" className="group" aria-label="ScheduleMe home">
-            <span className={`text-2xl font-black tracking-tight transition-opacity group-hover:opacity-70 ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
-              ScheduleMe
-            </span>
-          </Link>
+  const appLinks = [
+    { label: 'Home', href: '/home' },
+    { label: 'Browse', href: '/browse' },
+    { label: 'Bookings', href: '/bookings' },
+  ];
 
-          <ul className="hidden md:flex items-center gap-1" role="list">
-            {[
-              { label: 'Features', href: '/#features' },
-              { label: 'How It Works', href: '/#how-it-works' },
-              { label: 'Pricing', href: '/pricing' },
-              { label: 'FAQ', href: '/#faq' },
-            ].map((link) => (
+  const marketingLinks = [
+    { label: 'Features', href: '/#features' },
+    { label: 'How It Works', href: '/#how-it-works' },
+    { label: 'Pricing', href: '/pricing' },
+    { label: 'FAQ', href: '/#faq' },
+  ];
+
+  const navLinks = user ? appLinks : marketingLinks;
+
+  return (
+    <header className={`fixed top-0 left-0 right-0 z-40 border-b transition-colors ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/85 backdrop-blur-md border-neutral-100'}`}>
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Main navigation">
+        <Link href={user ? '/home' : '/'} className="group" aria-label="ScheduleMe home">
+          <span className={`text-2xl font-black tracking-tight transition-opacity group-hover:opacity-70 ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
+            ScheduleMe
+          </span>
+        </Link>
+
+        <ul className="hidden md:flex items-center gap-1" role="list">
+          {navLinks.map((link) => {
+            const isActive = router.pathname === link.href || router.pathname === link.href.split('#')[0];
+            return (
               <li key={link.href}>
-                <Link href={link.href} className={`px-4 py-2 text-sm rounded-lg transition-colors ${isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'}`}>
+                <Link href={link.href} className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${
+                  isActive
+                    ? isDark ? 'text-white bg-neutral-800' : 'text-neutral-900 bg-neutral-100'
+                    : isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+                }`}>
                   {link.label}
                 </Link>
               </li>
-            ))}
-          </ul>
+            );
+          })}
+        </ul>
 
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
+          {!user && (
             <Link href="/business" className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
               For Businesses
             </Link>
+          )}
 
-            {user ? (
+          {loaded && (
+            user ? (
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
@@ -118,6 +132,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 {menuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-neutral-50">
+                      <p className="text-xs font-medium text-neutral-700 truncate">{user.name}</p>
                       <p className="text-xs text-neutral-400 truncate">{user.email}</p>
                     </div>
                     <div className="p-1.5">
@@ -127,13 +142,6 @@ export default function Nav({ variant = 'light' }: NavProps) {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                         </svg>
                         My Account
-                      </Link>
-                      <Link href="/bookings" onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
-                        <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                        </svg>
-                        My Bookings
                       </Link>
                       <div className="h-px bg-neutral-100 mx-3 my-1" />
                       <button onClick={handleSignOut}
@@ -148,13 +156,13 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 )}
               </div>
             ) : (
-              <Link href="/signin" className="btn-primary text-sm px-5 py-2.5" style={{ transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
+              <Link href="/signin" className="btn-primary text-sm px-5 py-2.5">
                 Sign Up / Log In
               </Link>
-            )}
-          </div>
-        </nav>
-      </header>
-    </>
+            )
+          )}
+        </div>
+      </nav>
+    </header>
   );
 }
