@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const {
     businessName, ownerName, email, phone, serviceCategory, otherCategory,
-    city, radiusMiles, licenseNumber, yearsInBusiness, plan, calendlyUrl,
+    city, radiusMiles, licenseNumber, yearsInBusiness, calendlyUrl, website, instagram,
   } = req.body;
 
   if (!businessName || !email || !city || !serviceCategory) {
@@ -53,13 +53,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       lng: geo?.lng ?? null,
       service_tags: [category.toLowerCase().replace(/\s+/g, '_')],
       keywords: [category.toLowerCase(), ownerName?.toLowerCase()].filter(Boolean),
-      price_tier: plan === 'pro' ? 2 : 1,
       rating: 0,
       calendly_url: calendlyUrl || null,
+      website: website || null,
+      instagram: instagram || null,
       phone: phone,
       owner_name: ownerName,
       owner_email: email,
-      is_onboarded: false, // set to true after manual verification
+      is_onboarded: false, // set to true after manual approval
     }).select('id').single();
 
     if (error) {
