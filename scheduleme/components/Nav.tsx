@@ -80,7 +80,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   return (
     <header className={`fixed top-0 left-0 right-0 z-40 border-b transition-colors ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/85 backdrop-blur-md border-neutral-100'}`}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Main navigation">
-        <Link href={user ? '/home' : '/'} className="group" aria-label="ScheduleMe home">
+        <Link href={user ? '/home' : '/'} scroll={false} className="group" aria-label="ScheduleMe home">
           <span className={`text-2xl font-black tracking-tight transition-opacity group-hover:opacity-70 ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
             ScheduleMe
           </span>
@@ -91,7 +91,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
             const isActive = router.pathname === link.href || router.pathname === link.href.split('#')[0];
             return (
               <li key={link.href}>
-                <Link href={link.href} className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${
+                <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${
                   isActive
                     ? isDark ? 'text-white bg-neutral-800' : 'text-neutral-900 bg-neutral-100'
                     : isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
@@ -105,7 +105,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
         <div className="flex items-center gap-3">
           {!user && (
-            <Link href="/business" className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
+            <Link href="/business" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
               For Businesses
             </Link>
           )}
@@ -136,7 +136,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                       <p className="text-xs text-neutral-400 truncate">{user.email}</p>
                     </div>
                     <div className="p-1.5">
-                      <Link href="/account" onClick={() => setMenuOpen(false)}
+                      <Link href="/account" scroll={false} onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
                         <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -156,7 +156,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 )}
               </div>
             ) : (
-              <Link href="/signin" className="btn-primary text-sm px-5 py-2.5">
+              <Link href="/signin" scroll={false} className="btn-primary text-sm px-5 py-2.5">
                 Sign Up / Log In
               </Link>
             )
