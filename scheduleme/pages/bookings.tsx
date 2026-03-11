@@ -512,17 +512,19 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className={`min-h-screen bg-[#f8f8f8] pt-[72px] page-grid transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Header — premium panel */}
-        <div className="relative bg-white border-b border-neutral-100 overflow-hidden">
+      <div className={`min-h-screen bg-neutral-50 pt-[72px] transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+        {/* Header — sm-panel matches home/browse */}
+        <div className="sm-panel border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
           <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
             backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.028) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.028) 1px,transparent 1px)',
-            backgroundSize: '32px 32px',
+            backgroundSize: '40px 40px',
+            maskImage: 'radial-gradient(ellipse 100% 100% at 80% 0%,black 20%,transparent 80%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 100% 100% at 80% 0%,black 20%,transparent 80%)',
           }} />
-          <div className="sm-glow" style={{ width: 450, height: 320, top: -160, right: '-5%' }} />
+          <div className="sm-glow" style={{ width: 400, height: 300, top: -150, right: '0%' }} />
           <div className="relative mx-auto max-w-2xl px-6 pt-8 pb-6">
             <span className="sm-eyebrow mb-3 block">Your activity</span>
-            <h1 className="text-2xl font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>My Bookings</h1>
+            <h1 className="text-2xl font-bold text-neutral-900" style={{ letterSpacing: '-0.025em' }}>My Bookings</h1>
             <p className="text-sm text-neutral-400 mt-1">Track and manage your service requests</p>
           </div>
         </div>
@@ -530,13 +532,13 @@ const BookingsPage: NextPage = () => {
         <div className="mx-auto max-w-2xl px-6 py-8">
           <div className="space-y-6">
               {bookings.length === 0 ? (
-                <div className="text-center py-20">
-                  <div className="h-14 w-14 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="h-7 w-7 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="sm-panel rounded-2xl border text-center py-16 px-6" style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
+                  <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                    <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
                     </svg>
                   </div>
-                  <p className="font-semibold text-neutral-700">No bookings yet</p>
+                  <p className="font-bold text-neutral-700 mb-1" style={{ letterSpacing: '-0.01em' }}>No bookings yet</p>
                   <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
                   <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
                 </div>
@@ -544,28 +546,33 @@ const BookingsPage: NextPage = () => {
                 <>
                   {activeBookings.length > 0 && (
                     <div>
-                      <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-3">Active</h2>
+                      <h2 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-3">Active</h2>
                       <div className="space-y-2.5">
                         {activeBookings.map(b => {
+                          const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left sm-card p-5 group">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2 group-hover:text-accent transition-colors">{b.service}</h3>
-                                  {b.business_name
-                                    ? <p className="text-xs text-neutral-400 mt-0.5">{b.business_name}</p>
-                                    : <p className="text-xs text-neutral-300 mt-0.5">Awaiting business match</p>}
-                                  <p className="text-xs text-neutral-300 mt-1">{formatDate(b.created_at)}</p>
+                              className="w-full text-left booking-card group overflow-hidden">
+                              {/* Status color strip at top */}
+                              <div className="h-1 w-full" style={{ background: cfg.barColor }} />
+                              <div className="p-5">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-neutral-900 text-sm line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em' }}>{b.service}</h3>
+                                    {b.business_name
+                                      ? <p className="text-xs text-neutral-500 mt-0.5 font-medium">{b.business_name}</p>
+                                      : <p className="text-xs text-neutral-300 mt-0.5">Awaiting business match</p>}
+                                    <p className="text-xs text-neutral-300 mt-1">{formatDate(b.created_at)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <StatusBadge status={b.status} />
+                                    <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <StatusBadge status={b.status} />
-                                  <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                  </svg>
-                                </div>
+                                <ProgressBar status={b.status} />
                               </div>
-                              <ProgressBar status={b.status} />
                             </button>
                           );
                         })}
@@ -575,16 +582,25 @@ const BookingsPage: NextPage = () => {
 
                   {pastBookings.length > 0 && (
                     <div>
-                      <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-3">Past</h2>
+                      <h2 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-3">Past</h2>
                       <div className="space-y-2.5">
                         {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
-                            className="w-full text-left sm-card p-5 group opacity-60 hover:opacity-100">
-                            <div className="flex items-start justify-between gap-3">
+                            className="w-full text-left booking-card group overflow-hidden opacity-55 hover:opacity-100">
+                            <div className="h-0.5 w-full bg-neutral-200" />
+                            <div className="p-5 flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2">{b.service}</h3>
-                                {b.business_name && <p className="text-xs text-neutral-400 mt-0.5">{b.business_name}</p>}
-                                <p className="text-xs text-neutral-300 mt-1">{formatDate(b.created_at)}</p>
+                                <h3 className="font-bold text-neutral-900 text-sm line-clamp-2" style={{ letterSpacing: '-0.01em' }}>{b.service}</h3>
+                                {b.business_name && <p className="text-xs text-neutral-500 mt-0.5 font-medium">{b.business_name}</p>}
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  <p className="text-xs text-neutral-300">{formatDate(b.created_at)}</p>
+                                  {b.amount_cents && (
+                                    <>
+                                      <span className="text-neutral-200">·</span>
+                                      <p className="text-xs font-bold text-neutral-600">${(b.amount_cents / 100).toFixed(2)} paid</p>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <StatusBadge status={b.status} />
@@ -593,9 +609,6 @@ const BookingsPage: NextPage = () => {
                                 </svg>
                               </div>
                             </div>
-                            {b.amount_cents && (
-                              <p className="text-xs font-semibold text-neutral-500 mt-3">${(b.amount_cents / 100).toFixed(2)} paid</p>
-                            )}
                           </button>
                         ))}
                       </div>

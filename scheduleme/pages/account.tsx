@@ -37,7 +37,7 @@ function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
   const [confirmText, setConfirmText] = useState('');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-      <div className="sm-card p-7 max-w-md w-full shadow-2xl">
+      <div className="bg-white rounded-2xl border border-neutral-100 p-7 max-w-md w-full shadow-2xl">
         <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
           <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -222,15 +222,11 @@ const Account: NextPage = () => {
         .tab-panel { animation: tabIn 0.22s ease both; }
       `}</style>
 
-      <div className="min-h-screen bg-[#f8f8f8] pt-[72px] page-grid"
+      <div className="min-h-screen bg-neutral-50 pt-[72px]"
         style={{ opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
 
-        {/* Premium header panel — matches home/bookings/browse */}
-        <div className="relative bg-white border-b border-neutral-100 overflow-hidden">
-          <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.028) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.028) 1px,transparent 1px)',
-            backgroundSize: '32px 32px',
-          }} />
+        {/* Premium header — sm-panel */}
+        <div className="sm-panel border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
           <div className="sm-glow" style={{ width: 500, height: 350, top: -175, right: '-5%' }} />
           <div className="relative mx-auto max-w-5xl px-6 pt-8 pb-6 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -263,7 +259,7 @@ const Account: NextPage = () => {
               { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length, icon: 'M4.5 12.75l6 6 9-13.5', color: 'text-green-600', bg: 'bg-green-50' },
               { label: 'Saved Addresses', value: addresses.length, icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z', color: 'text-accent', bg: 'bg-blue-50' },
             ].map(s => (
-              <div key={s.label} className="sm-card p-4 flex items-center gap-3">
+              <div key={s.label} className="bg-white rounded-2xl border border-neutral-100 p-4 flex items-center gap-3">
                 <div className={`h-9 w-9 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
                   <svg className={`h-4 w-4 ${s.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
@@ -278,7 +274,7 @@ const Account: NextPage = () => {
           </div>
 
           {/* Tab bar */}
-          <div className="sm-card p-1.5 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div className="bg-white rounded-2xl border border-neutral-100 p-1.5 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {TABS.map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-[14px] text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
@@ -295,7 +291,7 @@ const Account: NextPage = () => {
           {tab === 'addresses' && (
             <div className="tab-panel space-y-3">
               {addresses.length === 0 && !showAddressForm && (
-                <div className="sm-card p-10 text-center">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-10 text-center">
                   <div className="h-12 w-12 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-3">
                     <svg className="h-6 w-6 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
@@ -308,7 +304,7 @@ const Account: NextPage = () => {
               )}
 
               {addresses.map(addr => (
-                <div key={addr.id} className="sm-card px-5 py-4 flex items-center gap-4">
+                <div key={addr.id} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4 flex items-center gap-4">
                   <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                     <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
@@ -334,7 +330,7 @@ const Account: NextPage = () => {
               ))}
 
               {showAddressForm ? (
-                <div className="sm-card p-6">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                   <h3 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Add Address</h3>
                   <div className="space-y-3">
                     <div>
@@ -368,7 +364,7 @@ const Account: NextPage = () => {
           {/* ── NOTIFICATIONS ── */}
           {tab === 'notifications' && (
             <div className="tab-panel space-y-3">
-              <div className="sm-card p-6">
+              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                 <div className="flex items-center justify-between mb-1">
                   <div>
                     <span className="sm-eyebrow mb-2 block">Activity</span>
@@ -396,7 +392,7 @@ const Account: NextPage = () => {
                 </div>
               </div>
 
-              <div className="sm-card p-6">
+              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                 <span className="sm-eyebrow mb-2 block">Channels</span>
                 <h2 className="font-bold text-neutral-900 mb-1" style={{ letterSpacing: '-0.01em' }}>Delivery Method</h2>
                 <p className="text-sm text-neutral-400 mb-5 mt-1">How you'd like to receive notifications.</p>
@@ -433,7 +429,7 @@ const Account: NextPage = () => {
           {tab === 'security' && (
             <div className="tab-panel space-y-3">
               {isGoogleAuth ? (
-                <div className="sm-card p-6">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                   <span className="sm-eyebrow mb-2 block">Authentication</span>
                   <h2 className="font-bold text-neutral-900 mb-3" style={{ letterSpacing: '-0.01em' }}>Password</h2>
                   <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
@@ -450,7 +446,7 @@ const Account: NextPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className="sm-card p-6">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                   <span className="sm-eyebrow mb-2 block">Authentication</span>
                   <div className="flex items-center justify-between mb-1">
                     <h2 className="font-bold text-neutral-900" style={{ letterSpacing: '-0.01em' }}>Password</h2>
@@ -482,7 +478,7 @@ const Account: NextPage = () => {
                 </div>
               )}
 
-              <div className="sm-card p-6">
+              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                 <span className="sm-eyebrow mb-2 block">Sign-in</span>
                 <h2 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Connected Method</h2>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-neutral-50 border border-neutral-100">
@@ -518,7 +514,7 @@ const Account: NextPage = () => {
           {/* ── PROFILE SETTINGS ── */}
           {tab === 'settings' && (
             <div className="tab-panel grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="sm-card p-6">
+              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                 <span className="sm-eyebrow mb-2 block">Personal</span>
                 <h2 className="font-bold text-neutral-900 mb-5" style={{ letterSpacing: '-0.01em' }}>Your Info</h2>
                 <form onSubmit={handleSaveProfile} className="space-y-4">
@@ -544,7 +540,7 @@ const Account: NextPage = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="sm-card p-6">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                   <span className="sm-eyebrow mb-2 block">Preferences</span>
                   <h2 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Service Settings</h2>
                   <div className="space-y-3">
@@ -562,7 +558,7 @@ const Account: NextPage = () => {
                   </div>
                 </div>
 
-                <div className="sm-card p-6">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                   <span className="sm-eyebrow mb-2 block">Account</span>
                   <h2 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Manage</h2>
                   <div className="space-y-2">

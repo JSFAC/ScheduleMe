@@ -138,38 +138,47 @@
 
 /* ── ScheduleMe Signature Visual System ───────────────────────────────────── */
 
-/* Full-page grid — applied to the outermost page wrapper.
-   Matches the Hero grid exactly: 48px cells, same line color.
-   No mask — covers the full page. Subtle but clearly visible. */
-.page-grid {
+/* Section panel — white card with the EXACT same grid as the Hero.
+   #f5f5f5 lines on white = barely-there, sophisticated.
+   Radial mask fades it so it doesn't repeat to infinity. */
+.sm-panel {
   position: relative;
+  background: white;
+  overflow: hidden;
 }
-.page-grid::before {
+.sm-panel::before {
   content: '';
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(to right, rgba(0,0,0,0.055) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,0.055) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(to right, #f0f0f0 1px, transparent 1px),
+    linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 20%, transparent 80%);
   z-index: 0;
 }
-.page-grid > * { position: relative; z-index: 1; }
+/* Blue-tinted variant for Community/Independent panel */
+.sm-panel-blue::before {
+  background-image:
+    linear-gradient(to right, rgba(10,132,255,0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(10,132,255,0.07) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.sm-panel > * { position: relative; z-index: 1; }
+.sm-panel-blue > * { position: relative; z-index: 1; }
 
-/* White section that sits ON TOP of the grid (header panels, cards) */
-/* These naturally cover the grid — nothing needed */
-
-/* Blue accent glow orb — drop as an absolute div anywhere */
+/* Blue glow orb — positioned by parent */
 .sm-glow {
   pointer-events: none;
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(10,132,255,0.09) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(10,132,255,0.07) 0%, transparent 65%);
   z-index: 0;
 }
 
-/* Section eyebrow label — pulsing dot + small caps */
+/* Section eyebrow label */
 .sm-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -191,17 +200,31 @@
   animation: pulseDot 2.2s ease-in-out infinite;
 }
 
-/* Card with blue hover glow — drop-in replacement for .card on consumer pages */
-.sm-card {
+/* Business card — full-bleed image with text overlay */
+.biz-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.06);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  cursor: pointer;
+}
+.biz-card:hover {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  transform: translateY(-2px);
+}
+
+/* Booking status cards */
+.booking-card {
   background: white;
   border-radius: 18px;
-  border: 1px solid rgba(0,0,0,0.07);
-  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  border: 1px solid rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
 }
-.sm-card:hover {
-  box-shadow: 0 8px 40px rgba(10,132,255,0.1), 0 2px 8px rgba(0,0,0,0.05);
-  border-color: rgba(10,132,255,0.18);
-  transform: translateY(-1px);
+.booking-card:hover {
+  box-shadow: 0 6px 28px rgba(0,0,0,0.08);
+  border-color: rgba(0,0,0,0.1);
 }
 
 @layer utilities {
