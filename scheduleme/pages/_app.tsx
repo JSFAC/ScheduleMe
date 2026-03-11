@@ -86,8 +86,8 @@ export default function App({ Component, pageProps }: AppProps) {
         </div>
       )}
 
-      {/* Pure opacity fade — absolutely no transform/translate */}
-      <div style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.15s ease' }}>
+      {/* Premium fade — pure opacity, no translate. 280ms feels considered, not instant */}
+      <div style={{ opacity: visible ? 1 : 0, transition: visible ? 'opacity 0.28s ease' : 'opacity 0.18s ease' }}>
         <Component {...pageProps} />
       </div>
     </>

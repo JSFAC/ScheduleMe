@@ -10,28 +10,49 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
+// Cache key — avoids async flash that causes the nav layout shift/shake
+const AUTH_CACHE_KEY = 'sm_nav_user';
+
+function readCache(): { email?: string; name?: string } | null {
+  if (typeof window === 'undefined') return null;
+  try { return JSON.parse(sessionStorage.getItem(AUTH_CACHE_KEY) || 'null'); } catch { return null; }
+}
+function writeCache(u: { email?: string; name?: string } | null) {
+  if (typeof window === 'undefined') return;
+  if (u) sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(u));
+  else sessionStorage.removeItem(AUTH_CACHE_KEY);
+}
+
 export default function Nav({ variant = 'light' }: NavProps) {
   const isDark = variant === 'dark';
   const router = useRouter();
-  const [user, setUser] = useState<{ email?: string; name?: string } | null>(null);
+  // Initialise from cache synchronously — no layout shift on mount
+  const [user, setUser] = useState<{ email?: string; name?: string } | null>(readCache);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
+    // Verify cache against real session (silently, no re-render if same)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ? {
+      const u = session?.user ? {
         email: session.user.email,
         name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-      } : null);
-      setLoaded(true);
+      } : null;
+      writeCache(u);
+      // Only trigger re-render if value actually changed
+      setUser(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(u)) return prev;
+        return u;
+      });
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? {
+      const u = session?.user ? {
         email: session.user.email,
         name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-      } : null);
+      } : null;
+      writeCache(u);
+      setUser(u);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -47,6 +68,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   async function handleSignOut() {
     const supabase = getSupabase();
     await supabase.auth.signOut();
+    writeCache(null);
     setUser(null);
     setMenuOpen(false);
     router.push('/');
@@ -61,37 +83,34 @@ export default function Nav({ variant = 'light' }: NavProps) {
     { label: 'Browse', href: '/browse' },
     { label: 'Bookings', href: '/bookings' },
   ];
-
   const marketingLinks = [
     { label: 'Features', href: '/#features' },
     { label: 'How It Works', href: '/#how-it-works' },
     { label: 'Pricing', href: '/pricing' },
     { label: 'FAQ', href: '/#faq' },
   ];
-
   const navLinks = user ? appLinks : marketingLinks;
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-40 border-b transition-colors ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/90 backdrop-blur-md border-neutral-100'}`}>
-      {/* Fixed height, items-center — logo never shifts */}
+    <header className={`fixed top-0 left-0 right-0 z-40 border-b ${isDark ? 'bg-neutral-900/90 backdrop-blur-md border-neutral-800' : 'bg-white/90 backdrop-blur-md border-neutral-100'}`}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between h-[72px]" aria-label="Main navigation">
 
-        {/* Logo — fixed width so center links don't shift it */}
-        <div className="flex-1 flex items-center">
+        {/* Logo — left-anchored in flex-1 so center links never push it */}
+        <div className="flex-1 flex items-center min-w-0">
           <Link href={user ? '/home' : '/'} scroll={false} className="group shrink-0" aria-label="ScheduleMe home">
-            <span className={`text-xl font-black tracking-tight transition-opacity group-hover:opacity-70 ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
-              ScheduleMe
+            <span className={`text-xl font-black tracking-tight group-hover:opacity-70 transition-opacity ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
+              Schedule<span className="text-accent">Me</span>
             </span>
           </Link>
         </div>
 
-        {/* Center nav links */}
+        {/* Center nav */}
         <ul className="hidden md:flex items-center gap-1 shrink-0" role="list">
           {navLinks.map((link) => {
             const isActive = router.pathname === link.href || router.pathname === link.href.split('#')[0];
             return (
               <li key={link.href}>
-                <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${
+                <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
                   isActive
                     ? isDark ? 'text-white bg-neutral-800' : 'text-accent bg-blue-50'
                     : isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
@@ -103,38 +122,30 @@ export default function Nav({ variant = 'light' }: NavProps) {
           })}
         </ul>
 
-        {/* Right side — fixed width so it never causes layout shift */}
+        {/* Right — fixed width, renders synchronously from cache (no layout shift) */}
         <div className="flex-1 flex items-center justify-end gap-3">
           {!user && (
             <Link href="/business" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
               For Businesses
             </Link>
           )}
-
-          {/* Always render a fixed-size container to prevent layout shift during auth load */}
-          <div className="w-[120px] flex items-center justify-end">
-            {!loaded ? (
-              // Invisible placeholder — exact same size as the sign-in button
-              <div className="h-9 w-[120px] rounded-xl bg-transparent" />
-            ) : user ? (
+          <div className="w-[116px] flex items-center justify-end">
+            {user ? (
               <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
-                  aria-label="Account menu"
-                >
-                  <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                <button onClick={() => setMenuOpen(!menuOpen)}
+                  className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
+                  aria-label="Account menu">
+                  <div className="h-7 w-7 rounded-full bg-accent flex items-center justify-center text-white text-[11px] font-bold shrink-0">
                     {initials}
                   </div>
-                  <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 </button>
-
                 {menuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-neutral-50">
-                      <p className="text-xs font-medium text-neutral-700 truncate">{user.name}</p>
+                      <p className="text-xs font-semibold text-neutral-700 truncate">{user.name}</p>
                       <p className="text-xs text-neutral-400 truncate">{user.email}</p>
                     </div>
                     <div className="p-1.5">
@@ -158,8 +169,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 )}
               </div>
             ) : (
-              <Link href="/signin" scroll={false} className="btn-primary text-sm px-5 py-2.5 w-full text-center">
-                Sign Up / Log In
+              <Link href="/signin" scroll={false} className="btn-primary text-sm px-4 py-2.5 w-full text-center whitespace-nowrap">
+                Sign up
               </Link>
             )}
           </div>

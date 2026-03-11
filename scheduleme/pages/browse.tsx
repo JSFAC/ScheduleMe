@@ -141,6 +141,53 @@ function BizCardImage({ biz, onCardClick }: { biz: Business; onCardClick: () => 
   );
 }
 
+function NominateInline() {
+  const [open, setOpen] = useState(false);
+  const [bizName, setBizName] = useState('');
+  const [sent, setSent] = useState(false);
+
+  if (sent) return (
+    <div className="mt-2 rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center">
+      <p className="text-sm font-semibold text-green-800">Thanks — we'll reach out to {bizName}.</p>
+    </div>
+  );
+
+  if (!open) return (
+    <div className="mt-2 rounded-2xl border border-dashed border-neutral-200 bg-white px-5 py-4 flex items-center gap-4">
+      <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+        <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-neutral-800">Don't see who you're looking for?</p>
+        <p className="text-xs text-neutral-500 mt-0.5">Nominate a local pro you trust and we'll invite them.</p>
+      </div>
+      <button onClick={() => setOpen(true)}
+        className="shrink-0 text-xs font-semibold text-accent bg-blue-50 border border-blue-100 px-3.5 py-2 rounded-xl hover:bg-blue-100 transition-colors">
+        Nominate
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="mt-2 rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-neutral-900">Nominate a pro</p>
+        <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
+      </div>
+      <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
+        placeholder="Their name or business name"
+        className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+      <button disabled={!bizName.trim()} onClick={() => { if (bizName.trim()) setSent(true); }}
+        className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${bizName.trim() ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'}`}>
+        Submit
+      </button>
+    </div>
+  );
+}
+
+
 const BrowsePage: NextPage = () => {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -269,6 +316,11 @@ const BrowsePage: NextPage = () => {
                     <BizCardImage biz={biz} onCardClick={() => setActiveBiz(biz)} />
                   </div>
                 ))}
+
+                {/* Nominate a business — bottom of list */}
+                {filtered.length > 0 && (
+                  <NominateInline />
+                )}
               </div>
             ) : (
               <div className="flex gap-4" style={{ height: 'calc(100vh - 230px)' }}>
