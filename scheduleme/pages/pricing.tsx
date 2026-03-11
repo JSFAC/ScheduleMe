@@ -106,7 +106,7 @@ const Pricing: NextPage = () => {
           <div className="mx-auto max-w-3xl text-center js-psec">
             <h2 className="text-2xl font-bold text-neutral-900 mb-4">Ready to get started?</h2>
             <p className="text-neutral-500 mb-6">No account needed. Describe your issue and find a pro in seconds.</p>
-            <Link href="/demo" className="btn-primary px-10 py-4 text-base shadow-lg shadow-accent/20">Get Started Free →</Link>
+            <Link href="/bookings" className="btn-primary px-10 py-4 text-base shadow-lg shadow-accent/20">Get Started for Free →</Link>
           </div>
         </section>
       </main>

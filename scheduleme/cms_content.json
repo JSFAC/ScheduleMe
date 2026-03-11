@@ -2,18 +2,36 @@
   "nav": {
     "logo": "ScheduleMe",
     "links": [
-      { "label": "Features", "href": "#features" },
-      { "label": "How It Works", "href": "#how-it-works" },
-      { "label": "For Businesses", "href": "/dashboard" }
+      {
+        "label": "Features",
+        "href": "#features"
+      },
+      {
+        "label": "How It Works",
+        "href": "#how-it-works"
+      },
+      {
+        "label": "For Businesses",
+        "href": "/dashboard"
+      }
     ],
-    "cta": { "label": "Try the Demo", "href": "/demo" }
+    "cta": {
+      "label": "Try the Demo",
+      "href": "/demo"
+    }
   },
   "hero": {
     "eyebrow": "AI-Powered Scheduling",
     "headline": "Book the right pro,\nin seconds.",
     "subheadline": "Describe your problem. Our AI instantly triages your request and connects you with the best local service professionals.",
-    "cta_primary": { "label": "Get Started Free", "href": "/demo" },
-    "cta_secondary": { "label": "See how it works", "href": "#how-it-works" },
+    "cta_primary": {
+      "label": "Get Started for Free",
+      "href": "/bookings"
+    },
+    "cta_secondary": {
+      "label": "See how it works",
+      "href": "#how-it-works"
+    },
     "trust_line": "Trusted by 2,400+ local businesses"
   },
   "features": [
@@ -30,7 +48,7 @@
     {
       "icon": "calendar",
       "title": "One-Click Booking",
-      "description": "See real availability and book directly — no phone tag, no back-and-forth emails."
+      "description": "See real availability and book directly \u2014 no phone tag, no back-and-forth emails."
     },
     {
       "icon": "shield",
@@ -42,7 +60,7 @@
     {
       "step": 1,
       "title": "Describe Your Issue",
-      "description": "Type what's wrong in plain English — as if texting a friend."
+      "description": "Type what's wrong in plain English \u2014 as if texting a friend."
     },
     {
       "step": 2,
@@ -58,10 +76,19 @@
   "footer": {
     "tagline": "Making local service booking effortless.",
     "links": [
-      { "label": "Privacy", "href": "/privacy" },
-      { "label": "Terms", "href": "/terms" },
-      { "label": "Contact", "href": "mailto:hello@scheduleme.com" }
+      {
+        "label": "Privacy",
+        "href": "/privacy"
+      },
+      {
+        "label": "Terms",
+        "href": "/terms"
+      },
+      {
+        "label": "Contact",
+        "href": "mailto:hello@scheduleme.com"
+      }
     ],
-    "copyright": "© 2025 ScheduleMe, Inc."
+    "copyright": "\u00a9 2025 ScheduleMe, Inc."
   }
 }

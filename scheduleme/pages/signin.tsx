@@ -223,9 +223,9 @@ const SignIn: NextPage = () => {
             <Link href="/privacy" className="hover:underline">Privacy Policy</Link>.
           </p>
           <p className="text-center mt-4">
-            <Link href="/auth/login" className="text-xs text-neutral-500 hover:text-neutral-700">
+            <a href="/business/auth/login" className="text-xs text-neutral-500 hover:text-neutral-700">
               Are you a business? Log in here →
-            </Link>
+            </a>
           </p>
         </div>
       </div>
