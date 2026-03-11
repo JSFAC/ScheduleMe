@@ -14,7 +14,7 @@ function getSupabase() {
   );
 }
 
-type Tab = 'bookings' | 'addresses' | 'notifications' | 'security' | 'settings';
+type Tab = 'addresses' | 'notifications' | 'security' | 'settings';
 
 interface Booking {
   id: string;
@@ -102,7 +102,6 @@ function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
 }
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: 'bookings',      label: 'Bookings',      icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg> },
   { key: 'addresses',     label: 'Addresses',     icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg> },
   { key: 'notifications', label: 'Notifications', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg> },
   { key: 'security',      label: 'Security',      icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg> },
@@ -111,7 +110,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 
 const Account: NextPage = () => {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('bookings');
+  const [tab, setTab] = useState<Tab>('addresses');
   const [user, setUser] = useState<any>(null);
   const [authProvider, setAuthProvider] = useState<string>('email');
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -354,10 +353,9 @@ const Account: NextPage = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             {[
-              { label: 'Total Bookings', value: bookings.length },
-              { label: 'Completed',      value: bookings.filter(b => b.status === 'completed').length },
+              { label: 'Completed Jobs', value: bookings.filter(b => b.status === 'completed').length },
               { label: 'Saved Addresses', value: addresses.length },
             ].map(s => (
               <div key={s.label} className="bg-white rounded-2xl border border-neutral-200 p-4 text-center">
@@ -381,41 +379,6 @@ const Account: NextPage = () => {
               </button>
             ))}
           </div>
-
-          {/* ── BOOKINGS ── */}
-          {tab === 'bookings' && (
-            <div className="tab-panel space-y-3">
-              {bookings.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-neutral-200 p-14 text-center">
-                  <div className="h-14 w-14 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="h-7 w-7 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
-                    </svg>
-                  </div>
-                  <p className="font-semibold text-neutral-700 mb-1">No bookings yet</p>
-                  <p className="text-neutral-400 text-sm mb-6">Your service requests will appear here once submitted.</p>
-                  <Link href="/bookings" className="btn-primary text-sm px-6 py-2.5">Find a Pro →</Link>
-                </div>
-              ) : bookings.map(b => {
-                const s = STATUS_STYLES[b.status] || STATUS_STYLES.pending;
-                return (
-                  <div key={b.id} className="bg-white rounded-2xl border border-neutral-200 px-6 py-5 flex items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-neutral-900 mb-0.5">{b.service || 'Service Request'}</p>
-                      <p className="text-sm text-neutral-400">
-                        {b.business_name && <span className="text-neutral-600 font-medium mr-2">{b.business_name}</span>}
-                        {new Date(b.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-                    <span className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full capitalize flex-shrink-0 ${s.bg} ${s.text}`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                      {b.status}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
 
           {/* ── ADDRESSES ── */}
           {tab === 'addresses' && (
