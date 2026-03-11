@@ -78,62 +78,93 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
   );
 }
 
-// Card image with thumbnail swap
+// Category → color accent (matches home page)
+const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
+  'Plumbing':      { bg: '#EFF6FF', text: '#1D4ED8' },
+  'House Cleaning':{ bg: '#F0FDF4', text: '#166534' },
+  'Electrical':    { bg: '#FFFBEB', text: '#92400E' },
+  'Landscaping':   { bg: '#F0FDF4', text: '#14532D' },
+  'HVAC':          { bg: '#FFF1F2', text: '#9F1239' },
+  'Painting':      { bg: '#FDF4FF', text: '#6B21A8' },
+  'Handyman':      { bg: '#F8FAFC', text: '#334155' },
+};
+
+// Premium horizontal list card for browse
 function BizCardImage({ biz, onCardClick }: { biz: Business; onCardClick: () => void }) {
   const [activeImg, setActiveImg] = useState(0);
+  const cat = CATEGORY_COLORS[biz.category] || { bg: '#F8FAFC', text: '#334155' };
+
   return (
-    <div className="flex items-start gap-0">
-      <div className="relative w-32 sm:w-40 flex-shrink-0 self-stretch overflow-hidden bg-neutral-100 cursor-pointer" onClick={onCardClick}>
+    <div className="flex items-stretch gap-0 cursor-pointer" onClick={onCardClick}>
+      {/* Left image — tall, square, with gradient overlay */}
+      <div className="relative w-36 sm:w-44 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ minHeight: 148 }}>
         <img src={biz.allImages[activeImg]} alt={biz.name}
-          className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500 min-h-[130px]" />
+          className="w-full h-full object-cover hover:scale-[1.04] transition-transform duration-500" />
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(to right, rgba(0,0,0,0.15) 0%, transparent 60%)'
+        }} />
         {biz.available ? (
-          <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full px-1.5 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0" />
-            <span className="text-[9px] font-bold text-green-700">Open</span>
+          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-full px-2 py-0.5 shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+            <span className="text-[9px] font-black text-green-800 uppercase tracking-wide">Open</span>
           </div>
         ) : (
-          <div className="absolute bottom-2 left-2 bg-black/40 backdrop-blur-sm rounded-full px-1.5 py-0.5">
+          <div className="absolute bottom-2.5 left-2.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">
             <span className="text-[9px] font-bold text-white/80">Busy</span>
           </div>
         )}
       </div>
 
-      <div className="flex-1 min-w-0 p-4">
-        <div className="flex items-start justify-between gap-3" onClick={onCardClick} style={{ cursor: 'pointer' }}>
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-neutral-400">{biz.category} · {biz.distance}</p>
-            <h3 className="font-semibold text-neutral-900 mt-0.5 text-[15px] group-hover:text-accent transition-colors">{biz.name}</h3>
+      {/* Right content */}
+      <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
+        <div>
+          <div className="flex items-start justify-between gap-3 mb-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
+                style={{ background: cat.bg, color: cat.text }}>
+                {biz.category}
+              </span>
+              <span className="text-[10px] text-neutral-400 font-medium">{biz.distance}</span>
+            </div>
+            {biz.badge && (
+              <span className="flex-shrink-0 text-[9px] font-black tracking-wide text-accent bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase">{biz.badge}</span>
+            )}
           </div>
-          {biz.badge && (
-            <span className="flex-shrink-0 text-[10px] font-semibold text-accent bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">{biz.badge}</span>
-          )}
+          <h3 className="font-bold text-neutral-900 text-[15px]" style={{ letterSpacing: '-0.015em' }}>{biz.name}</h3>
+          <p className="text-xs text-neutral-500 mt-1.5 line-clamp-2 leading-relaxed">{biz.tagline}</p>
         </div>
 
-        <p className="text-sm text-neutral-500 mt-1.5 line-clamp-2 leading-relaxed cursor-pointer" onClick={onCardClick}>{biz.description}</p>
-
-        {/* Swappable preview thumbnails */}
-        <div className="flex gap-1.5 mt-3">
+        {/* Photo thumbnails */}
+        <div className="flex gap-1.5 mt-3" onClick={e => e.stopPropagation()}>
           {biz.allImages.slice(0, 4).map((url, i) => (
             <button key={i} onClick={() => setActiveImg(i)}
-              className={`h-14 w-[60px] rounded-lg overflow-hidden bg-neutral-100 flex-shrink-0 border-2 transition-all ${
-                activeImg === i ? 'border-accent scale-105' : 'border-transparent hover:border-neutral-300'
+              className={`h-11 w-[48px] rounded-lg overflow-hidden bg-neutral-100 flex-shrink-0 border-2 transition-all ${
+                activeImg === i ? 'border-accent' : 'border-transparent hover:border-neutral-300'
               }`}>
               <img src={url} alt="" className="w-full h-full object-cover" />
             </button>
           ))}
         </div>
 
-        {/* Meta + book */}
+        {/* Rating + price + CTA */}
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-2">
-            <Stars rating={biz.rating} />
+            <div className="flex gap-0.5">
+              {[1,2,3,4,5].map(i => (
+                <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-neutral-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              ))}
+            </div>
+            <span className="text-xs font-bold text-neutral-700">{biz.rating}</span>
+            <span className="text-neutral-300">·</span>
             <span className="text-xs text-neutral-400">({biz.reviews})</span>
-            <span className="text-neutral-200">·</span>
-            <Price tier={biz.price_tier} />
+            <span className="text-neutral-300">·</span>
+            <span className="text-xs font-medium text-neutral-400">{'$'.repeat(biz.price_tier)}<span className="opacity-25">{'$'.repeat(3 - biz.price_tier)}</span></span>
           </div>
-          <button onClick={onCardClick}
-            className="btn-primary text-xs px-4 py-2 flex-shrink-0">
-            View &amp; Book
+          <button onClick={e => { e.stopPropagation(); onCardClick(); }}
+            className="text-[11px] font-black text-accent border border-accent/25 bg-blue-50 hover:bg-blue-100 px-3.5 py-1.5 rounded-xl transition-colors flex-shrink-0 uppercase tracking-wide">
+            Book
           </button>
         </div>
       </div>
@@ -247,17 +278,12 @@ const BrowsePage: NextPage = () => {
   return (
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
-      <div className="flex flex-col h-screen page-grid" style={{ overflow: 'visible' }}>
+      <div className="flex flex-col h-screen" style={{ overflow: 'visible' }}>
         <Nav />
 
-        {/* Filter bar — premium panel matching home sections */}
-        <div className="flex-shrink-0 bg-white border-b border-neutral-100 mt-[72px]" style={{ position: 'relative', overflow: 'hidden' }}>
-          {/* Inner grid + glow like home sections */}
-          <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: 'linear-gradient(to right,rgba(0,0,0,0.028) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.028) 1px,transparent 1px)',
-            backgroundSize: '32px 32px',
-          }} />
-          <div className="sm-glow" style={{ width: 400, height: 300, top: -150, right: '10%' }} />
+        {/* Filter bar — sm-panel treatment matches home */}
+        <div className="sm-panel flex-shrink-0 border-b mt-[72px]" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+          <div className="sm-glow" style={{ width: 350, height: 250, top: -125, right: '5%' }} />
           <div className="relative mx-auto max-w-6xl px-6 pt-4 pb-3.5">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1 relative">
@@ -306,19 +332,19 @@ const BrowsePage: NextPage = () => {
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto bg-[#f8f8f8]">
+        <div className="flex-1 overflow-y-auto bg-neutral-50">
           <div className="mx-auto max-w-6xl px-6 py-5">
-            <p className="text-xs text-neutral-400 mb-4 font-medium">{filtered.length} businesses</p>
+            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-4">{filtered.length} businesses</p>
 
             {viewMode === 'list' ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {filtered.length === 0 ? (
                   <div className="text-center py-24">
                     <p className="text-neutral-500 font-semibold">No results found</p>
                     <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
                   </div>
                 ) : filtered.map(biz => (
-                  <div key={biz.id} className="sm-card overflow-hidden cursor-pointer" onClick={() => setActiveBiz(biz)}>
+                  <div key={biz.id} className="biz-card overflow-hidden">
                     <BizCardImage biz={biz} onCardClick={() => setActiveBiz(biz)} />
                   </div>
                 ))}
