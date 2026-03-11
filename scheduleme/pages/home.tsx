@@ -1,4 +1,4 @@
-// pages/home.tsx — Logged-in home feed. Clean, image-led, Apple/Yelp feel.
+// pages/home.tsx
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -6,64 +6,12 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import BusinessProfile from '../components/BusinessProfile';
+import { SPONSORED, INDEPENDENT, NEARBY, getBizById, type Business } from '../lib/mockBusinesses';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
-
-const SPONSORED = [
-  {
-    id: 's1', name: 'Pacific Plumbing Co.', category: 'Plumbing',
-    rating: 4.9, reviews: 127, distance: '0.8 mi', price_tier: 2, available: true,
-    tagline: 'Same-day emergency service. Licensed & insured.',
-    coverUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=75',
-    previewUrls: [
-      'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=200&q=70',
-      'https://images.unsplash.com/photo-1585704032915-c3400305e979?w=200&q=70',
-    ],
-  },
-  {
-    id: 's2', name: 'Sparkle Clean SF', category: 'House Cleaning',
-    rating: 4.8, reviews: 89, distance: '1.2 mi', price_tier: 1, available: true,
-    tagline: 'Deep cleans, recurring service, eco-friendly products.',
-    coverUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=75',
-    previewUrls: [
-      'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=200&q=70',
-      'https://images.unsplash.com/photo-1563453392212-326f5e854473?w=200&q=70',
-    ],
-  },
-  {
-    id: 's3', name: 'Bay Area Electric', category: 'Electrical',
-    rating: 4.7, reviews: 203, distance: '2.1 mi', price_tier: 2, available: true,
-    tagline: 'Panel upgrades, EV charger installation, 24/7 service.',
-    coverUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&q=75',
-    previewUrls: [
-      'https://images.unsplash.com/photo-1558002038-1055907df827?w=200&q=70',
-      'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=200&q=70',
-    ],
-  },
-  {
-    id: 's4', name: 'Green Thumb Gardens', category: 'Landscaping',
-    rating: 5.0, reviews: 44, distance: '0.5 mi', price_tier: 1, available: true,
-    tagline: 'Lawn care, garden design, and seasonal maintenance.',
-    coverUrl: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&q=75',
-    previewUrls: [
-      'https://images.unsplash.com/photo-1558904541-efa843a96f01?w=200&q=70',
-      'https://images.unsplash.com/photo-1585320806297-9794b3e4aaae?w=200&q=70',
-    ],
-  },
-];
-
-const NEARBY = [
-  { id: 'n1', name: 'Summit HVAC', category: 'HVAC', rating: 4.6, reviews: 156, distance: '3.4 mi', price_tier: 3,
-    coverUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400&q=70' },
-  { id: 'n2', name: 'Canvas & Coat', category: 'Painting', rating: 4.9, reviews: 71, distance: '1.8 mi', price_tier: 2,
-    coverUrl: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=400&q=70' },
-  { id: 'n3', name: 'HandyPro Services', category: 'Handyman', rating: 4.7, reviews: 88, distance: '1.1 mi', price_tier: 1,
-    coverUrl: 'https://images.unsplash.com/photo-1609220136736-443140cfeaa8?w=400&q=70' },
-  { id: 'n4', name: 'Rapid Response Plumbing', category: 'Plumbing', rating: 4.8, reviews: 312, distance: '2.5 mi', price_tier: 2,
-    coverUrl: 'https://images.unsplash.com/photo-1573588028698-f4759befb09a?w=400&q=70' },
-];
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -85,6 +33,7 @@ const HomePage: NextPage = () => {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeBiz, setActiveBiz] = useState<Business | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -128,13 +77,9 @@ const HomePage: NextPage = () => {
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
-                <input
-                  type="text"
-                  placeholder='Try "leaking pipe" or "deep clean"'
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-neutral-200 text-sm bg-neutral-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
-                />
+                <input type="text" placeholder='Try "leaking pipe" or "deep clean"'
+                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-neutral-200 text-sm bg-neutral-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all" />
               </div>
               <button type="submit" className="btn-primary px-5 py-3 text-sm">Search</button>
             </form>
@@ -143,33 +88,21 @@ const HomePage: NextPage = () => {
 
         <div className="mx-auto max-w-6xl px-6 py-10 space-y-12">
 
-          {/* Sponsored */}
+          {/* Featured */}
           <section>
             <div className="flex items-baseline justify-between mb-4">
-              <div>
-                <h2 className="text-base font-bold text-neutral-900">Featured near you</h2>
-              </div>
+              <h2 className="text-base font-bold text-neutral-900">Featured</h2>
               <Link href="/browse" className="text-sm text-accent font-medium">See all</Link>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {SPONSORED.map(biz => (
-                <Link
-                  key={biz.id}
-                  href={`/browse?q=${encodeURIComponent(biz.name)}`}
-                  className="group bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200"
-                >
-                  {/* Cover image */}
+                <button key={biz.id} onClick={() => setActiveBiz(biz)}
+                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200">
                   <div className="relative h-32 bg-neutral-100 overflow-hidden">
-                    <img
-                      src={biz.coverUrl}
-                      alt={biz.name}
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                    />
+                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
                     <div className="absolute top-2.5 left-2.5">
-                      <span className="text-[9px] font-bold tracking-widest uppercase text-white/90 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                        Sponsored
-                      </span>
+                      <span className="text-[9px] font-bold tracking-widest uppercase text-white/90 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full">Sponsored</span>
                     </div>
                     {biz.available && (
                       <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 bg-white/95 rounded-full px-2 py-0.5 shadow-sm">
@@ -178,38 +111,72 @@ const HomePage: NextPage = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* Info */}
                   <div className="px-3.5 pt-3 pb-1">
                     <p className="text-xs font-medium text-neutral-400">{biz.category}</p>
                     <h3 className="text-sm font-semibold text-neutral-900 mt-0.5 truncate">{biz.name}</h3>
                     <p className="text-xs text-neutral-500 mt-1 leading-relaxed line-clamp-2">{biz.tagline}</p>
                   </div>
-
-                  {/* Preview images */}
+                  {/* Preview thumbnails */}
                   <div className="flex gap-1.5 px-3.5 my-2.5">
-                    {biz.previewUrls.map((url, i) => (
+                    {biz.allImages.slice(1, 3).map((url, i) => (
                       <div key={i} className="h-12 flex-1 rounded-lg overflow-hidden bg-neutral-100">
                         <img src={url} alt="" className="w-full h-full object-cover" />
                       </div>
                     ))}
                   </div>
-
-                  {/* Meta */}
                   <div className="flex items-center gap-2 px-3.5 pb-3.5">
                     <Stars rating={biz.rating} />
                     <span className="text-xs text-neutral-400">({biz.reviews})</span>
-                    <span className="text-neutral-200 text-xs">·</span>
+                    <span className="text-neutral-200">·</span>
                     <span className="text-xs text-neutral-400">{biz.distance}</span>
-                    <span className="text-neutral-200 text-xs">·</span>
+                    <span className="text-neutral-200">·</span>
                     <Price tier={biz.price_tier} />
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           </section>
 
-          {/* Nearby */}
+          {/* Small & Independent */}
+          <section>
+            <div className="flex items-baseline justify-between mb-1">
+              <h2 className="text-base font-bold text-neutral-900">Small &amp; Independent</h2>
+              <Link href="/browse" className="text-sm text-accent font-medium">See all</Link>
+            </div>
+            <p className="text-xs text-neutral-400 mb-4">Local sole traders and small teams — your booking helps them grow</p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {INDEPENDENT.map(biz => (
+                <button key={biz.id} onClick={() => setActiveBiz(biz)}
+                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200">
+                  <div className="relative h-28 bg-neutral-100 overflow-hidden">
+                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+                    {biz.badge && (
+                      <div className="absolute top-2 left-2">
+                        <span className="text-[9px] font-bold text-white bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">{biz.badge}</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 right-2">
+                      <span className="text-[9px] font-semibold text-white/90 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full">Independent</span>
+                    </div>
+                  </div>
+                  <div className="px-3.5 py-3">
+                    <p className="text-[11px] font-medium text-neutral-400">{biz.category}</p>
+                    <h3 className="text-sm font-semibold text-neutral-900 mt-0.5 truncate">{biz.name}</h3>
+                    <p className="text-xs text-neutral-500 mt-1 line-clamp-2 leading-relaxed">{biz.tagline}</p>
+                    <div className="flex items-center gap-2 mt-2.5">
+                      <Stars rating={biz.rating} />
+                      <span className="text-xs text-neutral-400">({biz.reviews})</span>
+                      <span className="text-neutral-200">·</span>
+                      <span className="text-xs text-neutral-400">{biz.distance}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* More near you */}
           <section>
             <div className="flex items-baseline justify-between mb-4">
               <h2 className="text-base font-bold text-neutral-900">More near you</h2>
@@ -217,17 +184,10 @@ const HomePage: NextPage = () => {
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {NEARBY.map(biz => (
-                <Link
-                  key={biz.id}
-                  href={`/browse?q=${encodeURIComponent(biz.name)}`}
-                  className="group bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200"
-                >
+                <button key={biz.id} onClick={() => setActiveBiz(biz)}
+                  className="group text-left bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:shadow-lg transition-all duration-200">
                   <div className="relative h-28 bg-neutral-100 overflow-hidden">
-                    <img
-                      src={biz.coverUrl}
-                      alt={biz.name}
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                    />
+                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
                   <div className="px-3.5 py-3">
@@ -236,27 +196,30 @@ const HomePage: NextPage = () => {
                     <div className="flex items-center gap-2 mt-2">
                       <Stars rating={biz.rating} />
                       <span className="text-xs text-neutral-400">({biz.reviews})</span>
-                      <span className="text-neutral-200 text-xs">·</span>
+                      <span className="text-neutral-200">·</span>
                       <span className="text-xs text-neutral-400">{biz.distance}</span>
                     </div>
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           </section>
 
-          {/* CTA */}
-          <section className="rounded-2xl bg-neutral-900 px-8 py-9 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+          {/* Blue CTA */}
+          <section className="rounded-2xl px-8 py-9 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5"
+            style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #0066CC 100%)' }}>
             <div>
               <h2 className="text-lg font-bold text-white mb-1">Need something done today?</h2>
-              <p className="text-sm text-neutral-400">Describe your issue and get matched with a pro.</p>
+              <p className="text-sm text-blue-100/80">Describe your issue and get matched with a pro.</p>
             </div>
-            <Link href="/bookings" className="flex-shrink-0 bg-white text-neutral-900 font-semibold text-sm px-6 py-3 rounded-xl hover:bg-neutral-100 transition-colors">
+            <Link href="/bookings" className="flex-shrink-0 bg-white text-accent font-semibold text-sm px-6 py-3 rounded-xl hover:bg-blue-50 transition-colors">
               Book a Service
             </Link>
           </section>
         </div>
       </div>
+
+      {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
     </>
   );
 };

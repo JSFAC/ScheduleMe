@@ -120,19 +120,32 @@ function ProgressBar({ status }: { status: string }) {
 
 function DetailSheet({ booking, onClose }: { booking: Booking; onClose: () => void }) {
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
+  const [mounted, setMounted] = useState(false);
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+  function close() { setClosing(true); setTimeout(onClose, 200); }
+  const ready = mounted && !closing;
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={onClose} />
-      {/* Sheet */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
-        style={{ animation: 'slideUp 0.28s cubic-bezier(0.32,0.72,0,1)' }}>
-        <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
+        style={{ background: `rgba(0,0,0,${ready ? 0.45 : 0})`, backdropFilter: `blur(${ready ? 5 : 0}px)`, transition: 'background 0.2s ease, backdrop-filter 0.2s ease' }}
+        onClick={close}>
+      {/* Modal — grows from center */}
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto"
+        style={{ opacity: ready ? 1 : 0, transform: ready ? 'scale(1)' : 'scale(0.94)', transition: 'opacity 0.2s ease, transform 0.2s ease' }}
+        onClick={e => e.stopPropagation()}>
 
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-neutral-200" />
-        </div>
+        {/* Close button */}
+        <button onClick={close} className="absolute top-4 right-4 z-10 h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
+          <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
 
         <div className="px-6 pb-10 pt-3 max-w-xl mx-auto">
           {/* Header */}
@@ -261,6 +274,7 @@ function DetailSheet({ booking, onClose }: { booking: Booking; onClose: () => vo
           )}
         </div>
       </div>
+      </div>
     </>
   );
 }
@@ -331,7 +345,7 @@ const BookingsPage: NextPage = () => {
 
       {/* Welcome overlay */}
       {showOverlay && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-700"
+        <div className="fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-300"
           style={{ opacity: overlayOut ? 0 : 1, background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
           <div className="text-center px-6">
             <div className="relative mx-auto mb-6 h-20 w-20">
@@ -351,7 +365,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className={`min-h-screen bg-[#f9f9f9] pt-[72px] transition-opacity duration-500 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`min-h-screen bg-[#f9f9f9] pt-[72px] transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
         {/* Tab header */}
         <div className="bg-white border-b border-neutral-100">
           <div className="mx-auto max-w-2xl px-6 pt-8 pb-0">
@@ -361,7 +375,7 @@ const BookingsPage: NextPage = () => {
               {([['new', 'Book a Service'], ['history', 'My Bookings']] as const).map(([t, label]) => (
                 <button key={t} onClick={() => setTab(t)}
                   className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
-                    tab === t ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-400 hover:text-neutral-600'
+                    tab === t ? 'border-accent text-accent' : 'border-transparent text-neutral-400 hover:text-neutral-600'
                   }`}>
                   {label}
                   {t === 'history' && activeBookings.length > 0 && (
