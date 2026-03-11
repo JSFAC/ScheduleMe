@@ -1,12 +1,12 @@
 // pages/bookings.tsx — Book a service + booking history with clickable detail sheets
 import type { NextPage } from 'next';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
-import IntakeForm from '../components/IntakeForm';
-import { createClient } from '@supabase/supabase-js';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
+import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -423,7 +423,6 @@ function CantFindThem() {
 }
 
 type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
-type Tab = 'new' | 'history';
 
 const BookingsPage: NextPage = () => {
   const router = useRouter();
@@ -431,7 +430,6 @@ const BookingsPage: NextPage = () => {
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
   const [fadeIn, setFadeIn] = useState(false);
-  const [tab, setTab] = useState<Tab>('new');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
@@ -483,10 +481,6 @@ const BookingsPage: NextPage = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (router.query.tab === 'history') setTab('history');
-  }, [router.query]);
-
   const showOverlay = phase === 'welcome' || phase === 'transitioning';
   const overlayOut = phase === 'transitioning';
   const activeBookings = bookings.filter(b => !['completed', 'cancelled'].includes(b.status));
@@ -519,32 +513,16 @@ const BookingsPage: NextPage = () => {
       <Nav />
 
       <div className={`min-h-screen bg-[#f9f9f9] pt-[72px] transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Tab header */}
+        {/* Header */}
         <div className="bg-white border-b border-neutral-100">
-          <div className="mx-auto max-w-2xl px-6 pt-8 pb-0">
-            <h1 className="text-2xl font-bold text-neutral-900 mb-1" style={{ letterSpacing: '-0.01em' }}>Bookings</h1>
-            <p className="text-sm text-neutral-400 mb-5">Track your jobs or refer a business you trust</p>
-            <div className="flex gap-0 border-b border-neutral-100 -mb-px">
-              {([['new', "Can't find them?"], ['history', 'My Bookings']] as const).map(([t, label]) => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
-                    tab === t ? 'border-accent text-accent' : 'border-transparent text-neutral-400 hover:text-neutral-600'
-                  }`}>
-                  {label}
-                  {t === 'history' && activeBookings.length > 0 && (
-                    <span className="ml-2 bg-accent text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeBookings.length}</span>
-                  )}
-                </button>
-              ))}
-            </div>
+          <div className="mx-auto max-w-2xl px-6 pt-8 pb-5">
+            <h1 className="text-2xl font-bold text-neutral-900 mb-0.5" style={{ letterSpacing: '-0.01em' }}>My Bookings</h1>
+            <p className="text-sm text-neutral-400">Track and manage your service requests</p>
           </div>
         </div>
 
         <div className="mx-auto max-w-2xl px-6 py-8">
-          {tab === 'new' ? (
-            <CantFindThem />
-          ) : (
-            <div className="space-y-6">
+          <div className="space-y-6">
               {bookings.length === 0 ? (
                 <div className="text-center py-20">
                   <div className="h-14 w-14 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4">
@@ -553,8 +531,8 @@ const BookingsPage: NextPage = () => {
                     </svg>
                   </div>
                   <p className="font-semibold text-neutral-700">No bookings yet</p>
-                  <p className="text-neutral-400 text-sm mt-1 mb-5">Your requests will appear here once submitted</p>
-                  <button onClick={() => setTab('new')} className="btn-primary px-6 py-2.5 text-sm">Request a business</button>
+                  <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
+                  <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
                 </div>
               ) : (
                 <>
@@ -563,7 +541,6 @@ const BookingsPage: NextPage = () => {
                       <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-3">Active</h2>
                       <div className="space-y-2.5">
                         {activeBookings.map(b => {
-                          const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-md hover:border-neutral-200 transition-all group">
@@ -575,7 +552,7 @@ const BookingsPage: NextPage = () => {
                                     : <p className="text-xs text-neutral-300 mt-0.5">Awaiting business match</p>}
                                   <p className="text-xs text-neutral-300 mt-1">{formatDate(b.created_at)}</p>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-2 shrink-0">
                                   <StatusBadge status={b.status} />
                                   <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -594,37 +571,33 @@ const BookingsPage: NextPage = () => {
                     <div>
                       <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-3">Past</h2>
                       <div className="space-y-2.5">
-                        {pastBookings.map(b => {
-                          const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.completed;
-                          return (
-                            <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-sm hover:border-neutral-200 transition-all group opacity-60 hover:opacity-100">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2">{b.service}</h3>
-                                  {b.business_name && <p className="text-xs text-neutral-400 mt-0.5">{b.business_name}</p>}
-                                  <p className="text-xs text-neutral-300 mt-1">{formatDate(b.created_at)}</p>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  <StatusBadge status={b.status} />
-                                  <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                  </svg>
-                                </div>
+                        {pastBookings.map(b => (
+                          <button key={b.id} onClick={e => openBooking(b, e)}
+                            className="w-full text-left bg-white rounded-2xl border border-neutral-100 p-5 hover:shadow-sm hover:border-neutral-200 transition-all group opacity-60 hover:opacity-100">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2">{b.service}</h3>
+                                {b.business_name && <p className="text-xs text-neutral-400 mt-0.5">{b.business_name}</p>}
+                                <p className="text-xs text-neutral-300 mt-1">{formatDate(b.created_at)}</p>
                               </div>
-                              {b.amount_cents && (
-                                <p className="text-xs font-semibold text-neutral-500 mt-3">${(b.amount_cents / 100).toFixed(2)} paid</p>
-                              )}
-                            </button>
-                          );
-                        })}
+                              <div className="flex items-center gap-2 shrink-0">
+                                <StatusBadge status={b.status} />
+                                <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                </svg>
+                              </div>
+                            </div>
+                            {b.amount_cents && (
+                              <p className="text-xs font-semibold text-neutral-500 mt-3">${(b.amount_cents / 100).toFixed(2)} paid</p>
+                            )}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   )}
                 </>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
