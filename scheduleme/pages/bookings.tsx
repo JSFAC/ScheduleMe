@@ -708,9 +708,10 @@ const BookingsPage: NextPage = () => {
                       <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 60%)' }} />
                       {biz.available && (
-                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full px-1.5 py-0.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                          <span className="text-[9px] font-bold text-neutral-800">Open</span>
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full px-1.5 py-0.5"
+                          style={{ background: 'rgba(255,255,255,0.95)' }}>
+                          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: '#FF6B4A' }} />
+                          <span className="text-[9px] font-black" style={{ color: '#FF6B4A' }}>Open</span>
                         </div>
                       )}
                     </div>

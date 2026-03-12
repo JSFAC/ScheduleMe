@@ -12,48 +12,13 @@ import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusine
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
-
 function timeOfDay() {
   const h = new Date().getHours();
   return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
-function useScrollReveal(selector: string, delay = 70) {
-  useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
-    els.forEach((el, i) => {
-      el.setAttribute('data-reveal', 'hidden');
-      el.style.transitionDelay = `${i * delay}ms`;
-    });
-    const io = new IntersectionObserver(
-      entries => entries.forEach(e => {
-        if (e.isIntersecting) { e.target.setAttribute('data-reveal', 'visible'); io.unobserve(e.target); }
-      }),
-      { threshold: 0.06, rootMargin: '0px 0px -24px 0px' }
-    );
-    els.forEach(el => io.observe(el));
-    return () => io.disconnect();
-  }, [selector, delay]);
-}
-
-// Uniform blue pill — consistent, clean, not cheap multicolor
+const CORAL = '#FF6B4A';
 const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
-
-function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center gap-0.5">
-        {[1,2,3,4,5].map(i => (
-          <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(rating) ? 'text-amber-400' : 'text-neutral-200'}`} fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-        ))}
-      </div>
-      <span className="text-[10px] font-bold text-neutral-700">{rating}</span>
-      <span className="text-[10px] text-neutral-400">({reviews})</span>
-    </div>
-  );
-}
 
 const AI_SUGGESTIONS = [
   'Leaking pipe under my sink',
@@ -62,6 +27,15 @@ const AI_SUGGESTIONS = [
   'Repaint two rooms',
   'Electrical panel noise',
   'Lawn completely overgrown',
+];
+
+const QUICK_CATS = [
+  { label: 'Plumbing',   d: 'M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z' },
+  { label: 'Cleaning',   d: 'M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5' },
+  { label: 'Electrical', d: 'M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z' },
+  { label: 'HVAC',       d: 'M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z' },
+  { label: 'Handyman',   d: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z' },
+  { label: 'Painting',   d: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
 ];
 
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {
@@ -81,10 +55,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
       <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-3">
         Good {timeOfDay()}, {userName}
       </p>
-      <h1 className="text-[2.1rem] font-bold text-neutral-900 mb-6" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+      <h1 className="text-[2.4rem] font-bold text-neutral-900 mb-6" style={{ letterSpacing: '-0.03em', lineHeight: 1.08 }}>
         What do you need<br />done today?
       </h1>
-
       <div className={`relative bg-white rounded-2xl border transition-all duration-200 ${
         focused
           ? 'border-accent shadow-[0_0_0_4px_rgba(10,132,255,0.10),0_4px_24px_rgba(0,0,0,0.07)]'
@@ -97,11 +70,8 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           <span className="text-[10px] font-black text-accent uppercase tracking-[0.14em]">AI Matching</span>
         </div>
         <textarea
-          ref={inputRef}
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(query); } }}
           placeholder="Describe your issue — 'my kitchen pipe has been dripping for a week'"
           rows={4}
@@ -123,7 +93,6 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           </button>
         </div>
       </div>
-
       <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
         {AI_SUGGESTIONS.map(s => (
           <button key={s} onClick={() => { setQuery(s); setTimeout(() => inputRef.current?.focus(), 0); }}
@@ -136,65 +105,96 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
   );
 }
 
-// Full-bleed image card — the real premium treatment
-function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
+// Card — bigger, bolder. featured = first card in a row, slightly taller + wider
+function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => void; featured?: boolean }) {
   return (
-    <button onClick={onClick} className="biz-card group w-full text-left">
-      {/* Image — tall, fills the card */}
-      <div className="relative h-[148px] overflow-hidden bg-neutral-100">
+    <button onClick={onClick} className="biz-card group text-left flex-shrink-0"
+      style={{ width: featured ? 272 : 210 }}>
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: featured ? 216 : 172 }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.06]" />
-        {/* Gradient overlay — bottom up */}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
         <div className="absolute inset-0" style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)'
+          background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
         }} />
-        {/* Open/Busy status — top left */}
         {biz.available ? (
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span className="text-[10px] font-bold text-neutral-800 tracking-wide">Open</span>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
+            style={{ background: 'rgba(255,255,255,0.95)' }}>
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: CORAL }} />
+            <span className="text-[10px] font-black tracking-wide" style={{ color: CORAL }}>Open</span>
           </div>
         ) : (
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2.5 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
-            <span className="text-[10px] font-bold text-white/70 tracking-wide">Busy</span>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
+            <span className="h-2 w-2 rounded-full bg-neutral-400 shrink-0" />
+            <span className="text-[10px] font-bold text-white/60 tracking-wide">Busy</span>
           </div>
         )}
         {biz.badge && (
-          <div className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wide">
+          <div className="absolute top-3 right-3 text-white text-[9px] font-black px-2.5 py-1 rounded-full tracking-wide"
+            style={{ background: 'rgba(0,0,0,0.58)', backdropFilter: 'blur(8px)' }}>
             {biz.badge}
           </div>
         )}
-        {/* Name + rating — bottom of image */}
-        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
-          <p className="text-white font-bold text-[13px] leading-snug" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
+        <div className="absolute bottom-0 left-0 right-0 px-3.5 pb-3.5">
+          <p className="text-white font-black leading-snug" style={{
+            fontSize: featured ? 15 : 13,
+            letterSpacing: '-0.01em',
+            textShadow: '0 1px 8px rgba(0,0,0,0.6)'
+          }}>
             {biz.name}
           </p>
           <div className="flex items-center gap-1.5 mt-1">
             <div className="flex gap-0.5">
               {[1,2,3,4,5].map(i => (
-                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/25'}`} fill="currentColor" viewBox="0 0 20 20">
+                <svg key={i} className={`${featured ? 'h-3 w-3' : 'h-2.5 w-2.5'} ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/20'}`} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-white/85 text-[10px] font-semibold">{biz.rating}</span>
+            <span className="text-white/90 font-semibold" style={{ fontSize: featured ? 11 : 10 }}>{biz.rating}</span>
             <span className="text-white/40 text-[10px]">·</span>
             <span className="text-white/65 text-[10px]">{biz.distance}</span>
           </div>
         </div>
       </div>
-      {/* Category + arrow row */}
-      <div className="px-3 py-2.5 flex items-center justify-between">
-        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-          style={PILL_STYLE}>
-          {biz.category}
-        </span>
-        <svg className="h-3.5 w-3.5 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <div className="px-3.5 pt-2.5 pb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>
+            {biz.category}
+          </span>
+          {featured && (
+            <p className="text-[11px] text-neutral-400 mt-1.5 leading-snug line-clamp-1">{biz.tagline}</p>
+          )}
+        </div>
+        <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
         </svg>
       </div>
     </button>
+  );
+}
+
+function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
+  title: string; subtitle: string; href: string;
+  businesses: Business[]; onBizClick: (b: Business) => void;
+}) {
+  return (
+    <section>
+      <div className="flex items-end justify-between mb-4 px-6">
+        <div>
+          <h2 className="text-[1.2rem] font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{title}</h2>
+          <p className="text-[12px] text-neutral-400 mt-0.5">{subtitle}</p>
+        </div>
+        <Link href={href} scroll={false}
+          className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0 mb-0.5">
+          See all →
+        </Link>
+      </div>
+      <div className="flex gap-3.5 overflow-x-auto pl-6 pr-6 pb-2" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+        {businesses.map((biz, i) => (
+          <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} featured={i === 0} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -204,14 +204,13 @@ function ReferCard() {
   const [sent, setSent] = useState(false);
 
   if (sent) return (
-    <div className="rounded-2xl border border-green-100 bg-green-50 px-6 py-5 text-center">
+    <div className="mx-6 rounded-2xl border border-green-100 bg-green-50 px-6 py-5 text-center">
       <p className="text-sm font-bold text-green-800">Referral received — thanks.</p>
       <p className="text-xs text-green-600 mt-1">We'll reach out to {bizName} and let you know if they join.</p>
     </div>
   );
-
   if (!open) return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+    <div className="mx-6 rounded-2xl border border-neutral-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
       <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -219,7 +218,7 @@ function ReferCard() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-neutral-900">Know a great local business?</p>
-        <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">Refer a plumber, cleaner, or tradesperson you trust. We'll reach out and invite them to join.</p>
+        <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">Refer a plumber, cleaner, or tradesperson you trust.</p>
       </div>
       <button onClick={() => setOpen(true)}
         className="shrink-0 text-xs font-black text-accent border border-accent/25 bg-blue-50 hover:bg-blue-100 px-4 py-2.5 rounded-xl transition-colors tracking-widest uppercase">
@@ -227,9 +226,8 @@ function ReferCard() {
       </button>
     </div>
   );
-
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3">
+    <div className="mx-6 rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
@@ -245,39 +243,11 @@ function ReferCard() {
   );
 }
 
-// Section panel component — white card with hero-matching grid
-function SectionPanel({ eyebrow, title, subtitle, blue, href, hrefLabel, children }: {
-  eyebrow: string; title: string; subtitle: string;
-  blue?: boolean; href: string; hrefLabel: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={`sm-panel rounded-2xl border ${blue ? 'sm-panel-blue border-blue-100' : 'border-neutral-150'}`}
-      style={!blue ? { border: '1px solid rgba(0,0,0,0.07)' } : undefined}>
-      <div className="sm-glow" style={{ width: 400, height: 320, top: -160, right: blue ? -60 : 0 }} />
-      <div className="relative px-5 pt-5 pb-4 flex items-start justify-between gap-4">
-        <div>
-          <span className="sm-eyebrow">{eyebrow}</span>
-          <h2 className="text-base font-bold text-neutral-900 mt-2" style={{ letterSpacing: '-0.02em' }}>{title}</h2>
-          <p className="text-xs text-neutral-400 mt-0.5">{subtitle}</p>
-        </div>
-        <Link href={href} scroll={false} className="shrink-0 text-[11px] font-black text-accent uppercase tracking-widest mt-1">See all →</Link>
-      </div>
-      <div className="relative px-4 pb-4">
-        {children}
-      </div>
-    </div>
-  );
-}
-
 const HomePage: NextPage = () => {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
-
-  useScrollReveal('.js-biz-card', 55);
-  useScrollReveal('.js-section', 0);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -302,77 +272,57 @@ const HomePage: NextPage = () => {
     <>
       <Head><title>Home — ScheduleMe</title></Head>
       <Nav />
-
       <div className="min-h-screen bg-neutral-50 pt-[72px]">
 
-        {/* AI Search header — neutral-50 so it separates cleanly from the white nav */}
+        {/* Search header */}
         <div className="bg-neutral-50 border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          {/* Glow blooms behind/under the heading */}
-          <div className="sm-glow" style={{ width: 600, height: 440, top: -80, left: -100 }} />
-          <div className="relative mx-auto max-w-6xl px-6 pt-10 pb-10">
+          <div className="mx-auto max-w-6xl px-6 pt-10 pb-10">
             <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
           </div>
         </div>
 
-        {/* Content */}
-        <div className="mx-auto max-w-6xl px-6 py-6 space-y-4">
+        {/* Category quick-links */}
+        <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.05)' }}>
+          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
+            {QUICK_CATS.map(cat => (
+              <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
+                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-50 hover:bg-blue-50 border border-neutral-200 hover:border-accent/30 transition-all group">
+                <svg className="h-4 w-4 text-neutral-400 group-hover:text-accent transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
+                </svg>
+                <span className="text-[12px] font-semibold text-neutral-600 group-hover:text-accent transition-colors whitespace-nowrap">{cat.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
 
-          <SectionPanel
-            eyebrow="Featured"
+        {/* Scrollable business rows */}
+        <div className="py-8 space-y-10">
+          <ScrollSection
             title="Top-rated near you"
-            subtitle="Available now and highly reviewed"
+            subtitle="Available now — highly reviewed"
             href="/browse"
-            hrefLabel="See all"
-          >
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {SPONSORED.map(biz => (
-                <div key={biz.id} className="js-biz-card">
-                  <BizCard biz={biz} onClick={() => setActiveBiz(biz)} />
-                </div>
-              ))}
-            </div>
-          </SectionPanel>
-
-          <SectionPanel
-            eyebrow="Community Pick"
+            businesses={[...SPONSORED, ...NEARBY].slice(0, 6)}
+            onBizClick={setActiveBiz}
+          />
+          <ScrollSection
             title="Small & Independent"
             subtitle="Solo tradespeople — your booking helps them grow"
-            blue
             href="/browse?category=Independent"
-            hrefLabel="See all"
-          >
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {INDEPENDENT.map(biz => (
-                <div key={biz.id} className="js-biz-card">
-                  <BizCard biz={biz} onClick={() => setActiveBiz(biz)} />
-                </div>
-              ))}
-            </div>
-          </SectionPanel>
-
-          <SectionPanel
-            eyebrow="Nearby"
-            title="More near you"
-            subtitle="Local pros ready to take on your job"
+            businesses={[...INDEPENDENT, ...SPONSORED.slice(0, 2)].slice(0, 6)}
+            onBizClick={setActiveBiz}
+          />
+          <ScrollSection
+            title="Quick response"
+            subtitle="Pros that pick up jobs fast"
             href="/browse"
-            hrefLabel="See all"
-          >
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {NEARBY.map(biz => (
-                <div key={biz.id} className="js-biz-card">
-                  <BizCard biz={biz} onClick={() => setActiveBiz(biz)} />
-                </div>
-              ))}
-            </div>
-          </SectionPanel>
-
-          <section className="js-section pb-4">
-            <ReferCard />
-          </section>
-
+            businesses={[...NEARBY, ...INDEPENDENT].slice(0, 6)}
+            onBizClick={setActiveBiz}
+          />
+          <ReferCard />
         </div>
-      </div>
 
+      </div>
       {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
     </>
   );

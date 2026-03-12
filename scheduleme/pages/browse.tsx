@@ -66,61 +66,64 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
 }
 
 // Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
-function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
+const CORAL = '#FF6B4A';
+
+// Standard card used in grid view
+function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; hero?: boolean }) {
   return (
-    <button onClick={onClick} className="biz-card group w-full text-left">
-      {/* Image */}
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 156 }}>
+    <button onClick={onClick} className={`biz-card group w-full text-left ${hero ? 'col-span-2' : ''}`}>
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: hero ? 240 : 172 }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
         <div className="absolute inset-0" style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)'
+          background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 52%, transparent 100%)'
         }} />
         {biz.available ? (
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span className="text-[10px] font-bold text-neutral-800 tracking-wide">Open</span>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
+            style={{ background: 'rgba(255,255,255,0.96)' }}>
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: CORAL }} />
+            <span className="text-[10px] font-black tracking-wide" style={{ color: CORAL }}>Open</span>
           </div>
         ) : (
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2.5 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
-            <span className="text-[10px] font-bold text-white/70 tracking-wide">Busy</span>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/52 backdrop-blur-sm rounded-full px-2.5 py-1">
+            <span className="h-2 w-2 rounded-full bg-neutral-400 shrink-0" />
+            <span className="text-[10px] font-bold text-white/60 tracking-wide">Busy</span>
           </div>
         )}
         {biz.badge && (
-          <div className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wide">
+          <div className="absolute top-3 right-3 text-white text-[9px] font-black px-2.5 py-1 rounded-full tracking-wide"
+            style={{ background: 'rgba(0,0,0,0.58)', backdropFilter: 'blur(8px)' }}>
             {biz.badge}
           </div>
         )}
-        <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-          <p className="text-white font-bold text-[13px] leading-snug" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+          <p className="text-white font-black leading-snug" style={{
+            fontSize: hero ? 17 : 13,
+            letterSpacing: '-0.01em',
+            textShadow: '0 1px 8px rgba(0,0,0,0.55)'
+          }}>
             {biz.name}
           </p>
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex items-center gap-1.5 mt-1">
             <div className="flex gap-0.5">
               {[1,2,3,4,5].map(i => (
-                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/25'}`} fill="currentColor" viewBox="0 0 20 20">
+                <svg key={i} className={`${hero ? 'h-3 w-3' : 'h-2.5 w-2.5'} ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/20'}`} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-white/85 text-[10px] font-semibold">{biz.rating}</span>
-            <span className="text-white/40 text-[10px]">·</span>
+            <span className="text-white/90 font-semibold" style={{ fontSize: hero ? 11 : 10 }}>{biz.rating}</span>
+            <span className="text-white/35 text-[10px]">·</span>
             <span className="text-white/55 text-[10px]">{biz.reviews} reviews</span>
-            <span className="text-white/40 text-[10px]">·</span>
+            <span className="text-white/35 text-[10px]">·</span>
             <span className="text-white/65 text-[10px]">{biz.distance}</span>
           </div>
         </div>
       </div>
-
-      {/* Card body — tagline + photo strip + pill */}
-      <div className="px-3 pt-3 pb-3.5">
-        {/* Tagline — slightly more weight than before */}
+      {/* Card body */}
+      <div className="px-3.5 pt-3 pb-3.5">
         <p className="text-[11.5px] text-neutral-500 font-medium leading-snug line-clamp-1 mb-3">{biz.tagline}</p>
-
-        {/* Bottom row: overlapping photo previews + category pill */}
         <div className="flex items-center justify-between">
-          {/* Photo strip — overlapping circles */}
           <div className="flex" style={{ gap: 0 }}>
             {biz.allImages.slice(1, 4).map((url, i) => (
               <div key={i} className="h-7 w-7 rounded-full overflow-hidden bg-neutral-100 border-2 border-white shadow-sm flex-shrink-0"
@@ -313,9 +316,10 @@ const BrowsePage: NextPage = () => {
                   <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {filtered.map(biz => (
-                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} />
+                /* Asymmetric grid — first card is a hero spanning 2 cols */
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-auto">
+                  {filtered.map((biz, i) => (
+                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} hero={i === 0} />
                   ))}
                 </div>
               ) : (
@@ -330,9 +334,10 @@ const BrowsePage: NextPage = () => {
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" style={{ minHeight: 120 }} />
                         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 60%, rgba(0,0,0,0.18) 100%)' }} />
                         {biz.available ? (
-                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2 py-0.5 shadow-sm">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                            <span className="text-[9px] font-bold text-neutral-800 tracking-wide">Open</span>
+                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-0.5 shadow-sm"
+                            style={{ background: 'rgba(255,255,255,0.96)' }}>
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: CORAL }} />
+                            <span className="text-[9px] font-black tracking-wide" style={{ color: CORAL }}>Open</span>
                           </div>
                         ) : (
                           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2 py-0.5">
