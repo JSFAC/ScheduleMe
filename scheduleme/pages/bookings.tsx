@@ -434,6 +434,7 @@ const BookingsPage: NextPage = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());
@@ -483,8 +484,9 @@ const BookingsPage: NextPage = () => {
 
   const showOverlay = phase === 'welcome' || phase === 'transitioning';
   const overlayOut = phase === 'transitioning';
-  const activeBookings = bookings.filter(b => !['completed', 'cancelled'].includes(b.status));
-  const pastBookings   = bookings.filter(b => ['completed', 'cancelled'].includes(b.status));
+  const filteredBookings = activeCategory ? bookings.filter(b => b.category === activeCategory) : bookings;
+  const activeBookings = filteredBookings.filter(b => !['completed', 'cancelled'].includes(b.status));
+  const pastBookings   = filteredBookings.filter(b => ['completed', 'cancelled'].includes(b.status));
 
   return (
     <>
@@ -546,18 +548,30 @@ const BookingsPage: NextPage = () => {
               ))}
             </div>
 
-            {/* Dynamic category shortcuts — only categories from past bookings */}
+            {/* Dynamic category filter — only categories from existing bookings */}
             {bookings.length > 0 && (() => {
               const usedCategories = [...new Set(bookings.map(b => b.category).filter(Boolean))];
               return usedCategories.length > 0 ? (
                 <div>
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-2">Book again</p>
+                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-2">Filter by</p>
                   <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+                    <button onClick={() => setActiveCategory(null)}
+                      className={`shrink-0 text-[11px] font-semibold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap border ${
+                        activeCategory === null
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-white border-neutral-200 text-neutral-500 hover:border-accent/40 hover:text-accent'
+                      }`}>
+                      All
+                    </button>
                     {usedCategories.map(cat => (
-                      <Link key={cat} href={`/browse?category=${cat}`} scroll={false}
-                        className="shrink-0 bg-white border border-neutral-200 hover:border-accent/40 hover:bg-blue-50 text-neutral-600 hover:text-accent text-[11px] font-semibold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap">
+                      <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
+                        className={`shrink-0 text-[11px] font-semibold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap border ${
+                          activeCategory === cat
+                            ? 'bg-accent text-white border-accent'
+                            : 'bg-white border-neutral-200 text-neutral-600 hover:border-accent/40 hover:text-accent'
+                        }`}>
                         {cat}
-                      </Link>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -578,6 +592,13 @@ const BookingsPage: NextPage = () => {
                   <p className="font-bold text-neutral-700 mb-1" style={{ letterSpacing: '-0.01em' }}>No bookings yet</p>
                   <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
                   <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
+                </div>
+              ) : activeBookings.length === 0 && pastBookings.length === 0 ? (
+                <div className="rounded-2xl border border-neutral-100 bg-white text-center py-10 px-6">
+                  <p className="font-semibold text-neutral-600 text-sm">No {activeCategory} bookings</p>
+                  <button onClick={() => setActiveCategory(null)} className="text-xs text-accent font-semibold mt-2 hover:opacity-70 transition-opacity">
+                    Clear filter
+                  </button>
                 </div>
               ) : (
                 <>
