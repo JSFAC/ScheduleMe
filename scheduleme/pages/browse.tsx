@@ -72,9 +72,9 @@ const CORAL = '#FF6B4A';
 function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; hero?: boolean }) {
   return (
     <button onClick={onClick} className={`biz-card group w-full text-left ${hero ? 'col-span-2' : ''}`}>
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: hero ? 240 : 172 }}>
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 200 }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 52%, transparent 100%)'
         }} />
@@ -98,7 +98,7 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
         )}
         <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
           <p className="text-white font-black leading-snug" style={{
-            fontSize: hero ? 17 : 13,
+            fontSize: hero ? 16 : 13,
             letterSpacing: '-0.01em',
             textShadow: '0 1px 8px rgba(0,0,0,0.55)'
           }}>
@@ -122,12 +122,15 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
       </div>
       {/* Card body */}
       <div className="px-3.5 pt-3 pb-3.5">
-        <p className="text-[11.5px] text-neutral-500 font-medium leading-snug line-clamp-1 mb-3">{biz.tagline}</p>
+        <p className="text-[11.5px] text-neutral-500 leading-snug line-clamp-2 mb-2">{biz.tagline}</p>
+        {biz.topReview && (
+          <p className="text-[10.5px] text-neutral-400 leading-snug line-clamp-2 mb-2.5 italic">{biz.topReview}</p>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex" style={{ gap: 0 }}>
             {biz.allImages.slice(1, 4).map((url, i) => (
-              <div key={i} className="h-7 w-7 rounded-full overflow-hidden bg-neutral-100 border-2 border-white shadow-sm flex-shrink-0"
-                style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i }}>
+              <div key={i} className="h-6 w-6 rounded-full overflow-hidden bg-neutral-100 border-2 border-white shadow-sm flex-shrink-0"
+                style={{ marginLeft: i === 0 ? 0 : -5, zIndex: 3 - i }}>
                 <img src={url} alt="" className="w-full h-full object-cover" />
               </div>
             ))}
@@ -252,7 +255,7 @@ const BrowsePage: NextPage = () => {
 
         {/* Hero header — blue gradient, matches home + bookings */}
         <div className="relative overflow-hidden border-b" style={{
-          background: 'linear-gradient(135deg, #1a6fd4 0%, #0A84FF 45%, #3b9eff 100%)',
+          background: 'linear-gradient(160deg, #2563eb 0%, #3b82f6 40%, #7ab8f5 80%, #c7e2ff 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
           <div className="absolute inset-0 pointer-events-none" style={{

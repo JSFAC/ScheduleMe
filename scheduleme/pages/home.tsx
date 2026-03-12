@@ -279,7 +279,7 @@ const HomePage: NextPage = () => {
 
         {/* Search hero — full-bleed blue gradient, fills all the dead space */}
         <div className="relative overflow-hidden border-b" style={{
-          background: 'linear-gradient(135deg, #1a6fd4 0%, #0A84FF 45%, #3b9eff 100%)',
+          background: 'linear-gradient(160deg, #2563eb 0%, #3b82f6 40%, #7ab8f5 80%, #c7e2ff 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
           {/* Subtle grid overlay */}
@@ -294,7 +294,7 @@ const HomePage: NextPage = () => {
           <div className="absolute bottom-[-60px] left-[5%] w-[400px] h-[400px] rounded-full pointer-events-none" style={{
             background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%)'
           }} />
-          <div className="relative mx-auto max-w-6xl px-6 pt-12 pb-12">
+          <div className="relative mx-auto max-w-6xl px-6 pt-9 pb-9">
             <div className="flex items-start gap-16">
               {/* Search — takes up left side */}
               <div className="flex-1 min-w-0">
@@ -305,8 +305,8 @@ const HomePage: NextPage = () => {
                 {QUICK_CATS.map((cat) => (
                   <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
                     className="flex flex-col items-center gap-2 rounded-2xl px-3 py-4 transition-all hover:scale-[1.03]"
-                    style={{ background: 'rgba(255,255,255,0.13)', border: '1px solid rgba(255,255,255,0.18)' }}>
-                    <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.18)' }}>
+                    style={{ background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.35)' }}>
+                    <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.30)' }}>
                       <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                       </svg>

@@ -517,7 +517,7 @@ const BookingsPage: NextPage = () => {
       <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
         {/* Header — blue gradient like home hero */}
         <div className="relative overflow-hidden border-b" style={{
-          background: 'linear-gradient(135deg, #1a6fd4 0%, #0A84FF 45%, #3b9eff 100%)',
+          background: 'linear-gradient(160deg, #2563eb 0%, #3b82f6 40%, #7ab8f5 80%, #c7e2ff 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
           <div className="absolute inset-0 pointer-events-none" style={{
