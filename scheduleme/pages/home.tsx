@@ -36,16 +36,8 @@ function useScrollReveal(selector: string, delay = 70) {
   }, [selector, delay]);
 }
 
-// Category → color accent for variety
-const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  'Plumbing':      { bg: '#EFF6FF', text: '#1D4ED8' },
-  'House Cleaning':{ bg: '#F0FDF4', text: '#166534' },
-  'Electrical':    { bg: '#FFFBEB', text: '#92400E' },
-  'Landscaping':   { bg: '#F0FDF4', text: '#14532D' },
-  'HVAC':          { bg: '#FFF1F2', text: '#9F1239' },
-  'Painting':      { bg: '#FDF4FF', text: '#6B21A8' },
-  'Handyman':      { bg: '#F8FAFC', text: '#334155' },
-};
+// Uniform blue pill — consistent, clean, not cheap multicolor
+const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
 function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
   return (
@@ -146,52 +138,56 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 
 // Full-bleed image card — the real premium treatment
 function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
-  const cat = CATEGORY_COLORS[biz.category] || { bg: '#F8FAFC', text: '#334155' };
   return (
     <button onClick={onClick} className="biz-card group w-full text-left">
       {/* Image — tall, fills the card */}
-      <div className="relative h-[140px] overflow-hidden bg-neutral-100">
+      <div className="relative h-[148px] overflow-hidden bg-neutral-100">
         <img src={biz.coverUrl} alt={biz.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.06]" />
         {/* Gradient overlay — bottom up */}
         <div className="absolute inset-0" style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 50%, transparent 100%)'
+          background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)'
         }} />
-        {/* Status pill — floating on image */}
-        {biz.available && (
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-full px-2 py-0.5 shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[9px] font-black text-green-800 uppercase tracking-wide">Open now</span>
+        {/* Open/Busy status — top left */}
+        {biz.available ? (
+          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-[10px] font-bold text-neutral-800 tracking-wide">Open</span>
+          </div>
+        ) : (
+          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2.5 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
+            <span className="text-[10px] font-bold text-white/70 tracking-wide">Busy</span>
           </div>
         )}
         {biz.badge && (
-          <div className="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+          <div className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wide">
             {biz.badge}
           </div>
         )}
         {/* Name + rating — bottom of image */}
         <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
-          <p className="text-white font-bold text-sm leading-tight" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+          <p className="text-white font-bold text-[13px] leading-snug" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
             {biz.name}
           </p>
           <div className="flex items-center gap-1.5 mt-1">
             <div className="flex gap-0.5">
               {[1,2,3,4,5].map(i => (
-                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/30'}`} fill="currentColor" viewBox="0 0 20 20">
+                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/25'}`} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-white/90 text-[10px] font-semibold">{biz.rating}</span>
-            <span className="text-white/50 text-[10px]">·</span>
-            <span className="text-white/70 text-[10px]">{biz.distance}</span>
+            <span className="text-white/85 text-[10px] font-semibold">{biz.rating}</span>
+            <span className="text-white/40 text-[10px]">·</span>
+            <span className="text-white/65 text-[10px]">{biz.distance}</span>
           </div>
         </div>
       </div>
-      {/* Category tag */}
+      {/* Category + arrow row */}
       <div className="px-3 py-2.5 flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
-          style={{ background: cat.bg, color: cat.text }}>
+        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+          style={PILL_STYLE}>
           {biz.category}
         </span>
         <svg className="h-3.5 w-3.5 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -309,8 +305,8 @@ const HomePage: NextPage = () => {
 
       <div className="min-h-screen bg-neutral-50 pt-[72px]">
 
-        {/* AI Search header — sm-panel treatment */}
-        <div className="sm-panel border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+        {/* AI Search header — neutral-50 so it separates cleanly from the white nav */}
+        <div className="bg-neutral-50 border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
           {/* Glow blooms behind/under the heading */}
           <div className="sm-glow" style={{ width: 600, height: 440, top: -80, left: -100 }} />
           <div className="relative mx-auto max-w-6xl px-6 pt-10 pb-10">

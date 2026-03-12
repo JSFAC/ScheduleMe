@@ -79,38 +79,28 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
 }
 
 // Category → color accent (matches home page)
-const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  'Plumbing':      { bg: '#EFF6FF', text: '#1D4ED8' },
-  'House Cleaning':{ bg: '#F0FDF4', text: '#166534' },
-  'Electrical':    { bg: '#FFFBEB', text: '#92400E' },
-  'Landscaping':   { bg: '#F0FDF4', text: '#14532D' },
-  'HVAC':          { bg: '#FFF1F2', text: '#9F1239' },
-  'Painting':      { bg: '#FDF4FF', text: '#6B21A8' },
-  'Handyman':      { bg: '#F8FAFC', text: '#334155' },
-};
+// Uniform blue pill — consistent, not cheap multicolor
+const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
 // Premium horizontal list card for browse
 function BizCardImage({ biz, onCardClick }: { biz: Business; onCardClick: () => void }) {
   const [activeImg, setActiveImg] = useState(0);
-  const cat = CATEGORY_COLORS[biz.category] || { bg: '#F8FAFC', text: '#334155' };
 
   return (
     <div className="flex items-stretch gap-0 cursor-pointer" onClick={onCardClick}>
-      {/* Left image — tall, square, with gradient overlay */}
-      <div className="relative w-36 sm:w-44 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ minHeight: 148 }}>
+      {/* Left image — wider, not skinny */}
+      <div className="relative w-44 sm:w-52 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ minHeight: 172 }}>
         <img src={biz.allImages[activeImg]} alt={biz.name}
           className="w-full h-full object-cover hover:scale-[1.04] transition-transform duration-500" />
-        <div className="absolute inset-0" style={{
-          background: 'linear-gradient(to right, rgba(0,0,0,0.15) 0%, transparent 60%)'
-        }} />
         {biz.available ? (
-          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-full px-2 py-0.5 shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-            <span className="text-[9px] font-black text-green-800 uppercase tracking-wide">Open</span>
+          <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-[10px] font-bold text-neutral-800 tracking-wide">Open</span>
           </div>
         ) : (
-          <div className="absolute bottom-2.5 left-2.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">
-            <span className="text-[9px] font-bold text-white/80">Busy</span>
+          <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2.5 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
+            <span className="text-[10px] font-bold text-white/70 tracking-wide">Busy</span>
           </div>
         )}
       </div>
@@ -118,16 +108,15 @@ function BizCardImage({ biz, onCardClick }: { biz: Business; onCardClick: () => 
       {/* Right content */}
       <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
         <div>
-          <div className="flex items-start justify-between gap-3 mb-1.5">
+          <div className="flex items-start justify-between gap-3 mb-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
-                style={{ background: cat.bg, color: cat.text }}>
+              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>
                 {biz.category}
               </span>
-              <span className="text-[10px] text-neutral-400 font-medium">{biz.distance}</span>
+              <span className="text-[11px] text-neutral-400 font-medium">{biz.distance}</span>
             </div>
             {biz.badge && (
-              <span className="flex-shrink-0 text-[9px] font-black tracking-wide text-accent bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase">{biz.badge}</span>
+              <span className="flex-shrink-0 text-[9px] font-bold tracking-wide text-accent bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase">{biz.badge}</span>
             )}
           </div>
           <h3 className="font-bold text-neutral-900 text-[15px]" style={{ letterSpacing: '-0.015em' }}>{biz.name}</h3>
@@ -160,10 +149,10 @@ function BizCardImage({ biz, onCardClick }: { biz: Business; onCardClick: () => 
             <span className="text-neutral-300">·</span>
             <span className="text-xs text-neutral-400">({biz.reviews})</span>
             <span className="text-neutral-300">·</span>
-            <span className="text-xs font-medium text-neutral-400">{'$'.repeat(biz.price_tier)}<span className="opacity-25">{'$'.repeat(3 - biz.price_tier)}</span></span>
+            <span className="text-xs font-medium text-neutral-400">{"$".repeat(biz.price_tier)}<span className="opacity-25">{"$".repeat(3 - biz.price_tier)}</span></span>
           </div>
           <button onClick={e => { e.stopPropagation(); onCardClick(); }}
-            className="text-[11px] font-black text-accent border border-accent/25 bg-blue-50 hover:bg-blue-100 px-3.5 py-1.5 rounded-xl transition-colors flex-shrink-0 uppercase tracking-wide">
+            className="text-[11px] font-bold text-accent border border-accent/20 bg-blue-50 hover:bg-blue-100 px-3.5 py-1.5 rounded-xl transition-colors flex-shrink-0">
             Book
           </button>
         </div>
@@ -171,6 +160,7 @@ function BizCardImage({ biz, onCardClick }: { biz: Business; onCardClick: () => 
     </div>
   );
 }
+
 
 function NominateInline() {
   const [open, setOpen] = useState(false);
