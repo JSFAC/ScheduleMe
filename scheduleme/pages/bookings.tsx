@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 import { createClient } from '@supabase/supabase-js';
+import { SPONSORED } from '../lib/mockBusinesses';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -15,6 +16,7 @@ function getSupabase() {
 interface Booking {
   id: string;
   service: string;
+  category: string;
   status: string;
   created_at: string;
   scheduled_at?: string;
@@ -41,7 +43,7 @@ const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Done'];
 
 const MOCK_BOOKINGS: Booking[] = [
   {
-    id: '1', service: 'Leaking kitchen faucet — under sink dripping badly', status: 'confirmed',
+    id: '1', service: 'Leaking kitchen faucet — under sink dripping badly', category: 'Plumbing', status: 'confirmed',
     created_at: new Date(Date.now() - 3600000).toISOString(),
     scheduled_at: new Date(Date.now() + 86400000).toISOString(),
     address: '421 Hayes St, San Francisco, CA 94102',
@@ -50,7 +52,7 @@ const MOCK_BOOKINGS: Booking[] = [
     amount_cents: undefined,
   },
   {
-    id: '2', service: 'Deep clean 2BR apartment before move-out', status: 'completed',
+    id: '2', service: 'Deep clean 2BR apartment before move-out', category: 'House Cleaning', status: 'completed',
     created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
     scheduled_at: new Date(Date.now() - 86400000 * 2).toISOString(),
     address: '140 New Montgomery St, San Francisco, CA 94105',
@@ -58,7 +60,7 @@ const MOCK_BOOKINGS: Booking[] = [
     amount_cents: 29000,
   },
   {
-    id: '3', service: 'Electrical panel inspection — circuit keeps tripping', status: 'pending',
+    id: '3', service: 'Electrical panel inspection — circuit keeps tripping', category: 'Electrical', status: 'pending',
     created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
     address: '1 Ferry Building, San Francisco, CA 94111',
     notes: 'Circuit for the kitchen has been tripping every few days.',
@@ -429,7 +431,6 @@ const BookingsPage: NextPage = () => {
   const [phase, setPhase] = useState<Phase>('loading');
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
-  const [fadeIn, setFadeIn] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
@@ -466,11 +467,11 @@ const BookingsPage: NextPage = () => {
           }
           setTimeout(() => {
             setPhase('transitioning');
-            setTimeout(() => { setPhase('done'); setFadeIn(true); }, 700);
+            setTimeout(() => { setPhase('done'); }, 700);
           }, 2400);
         } else {
           setPhase('done');
-          setTimeout(() => setFadeIn(true), 60);
+
         }
 
         setBookings(MOCK_BOOKINGS);
@@ -512,11 +513,11 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className={`min-h-screen bg-neutral-50 pt-[72px] transition-opacity duration-200 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+      <div className="min-h-screen bg-neutral-50 pt-[72px]">
         {/* Header — richer, with new request CTA + quick stats */}
         <div className="sm-panel border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
           <div className="sm-glow" style={{ width: 500, height: 360, top: -180, right: '-5%' }} />
-          <div className="relative mx-auto max-w-2xl px-6 pt-8 pb-7">
+          <div className="relative mx-auto max-w-3xl px-6 pt-8 pb-7">
             <span className="sm-eyebrow mb-3 block">Your activity</span>
             <div className="flex items-end justify-between gap-4 mb-5">
               <div>
@@ -531,27 +532,42 @@ const BookingsPage: NextPage = () => {
                 New request
               </Link>
             </div>
-            {/* Quick service shortcuts */}
-            <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+
+            {/* Stats row */}
+            <div className="flex gap-3 mb-5">
               {[
-                { label: 'Plumbing', icon: '🔧' },
-                { label: 'Cleaning', icon: '🧹' },
-                { label: 'Electrical', icon: '⚡' },
-                { label: 'HVAC', icon: '❄️' },
-                { label: 'Handyman', icon: '🪛' },
-                { label: 'Painting', icon: '🖌️' },
+                { label: 'Total', value: bookings.length },
+                { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
+                { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
-                <Link key={s.label} href={`/browse?category=${s.label}`} scroll={false}
-                  className="shrink-0 flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-accent/40 hover:bg-blue-50 text-neutral-600 hover:text-accent text-xs font-semibold px-3 py-1.5 rounded-full transition-all">
-                  <span className="text-sm">{s.icon}</span>
-                  {s.label}
-                </Link>
+                <div key={s.label} className="flex-1 bg-white rounded-xl border px-3 py-2.5 text-center" style={{ borderColor: 'rgba(10,132,255,0.1)' }}>
+                  <p className="text-lg font-bold text-neutral-900" style={{ letterSpacing: '-0.02em' }}>{s.value}</p>
+                  <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide mt-0.5">{s.label}</p>
+                </div>
               ))}
             </div>
+
+            {/* Dynamic category shortcuts — only categories from past bookings */}
+            {bookings.length > 0 && (() => {
+              const usedCategories = [...new Set(bookings.map(b => b.category).filter(Boolean))];
+              return usedCategories.length > 0 ? (
+                <div>
+                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-2">Book again</p>
+                  <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+                    {usedCategories.map(cat => (
+                      <Link key={cat} href={`/browse?category=${cat}`} scroll={false}
+                        className="shrink-0 bg-white border border-neutral-200 hover:border-accent/40 hover:bg-blue-50 text-neutral-600 hover:text-accent text-[11px] font-semibold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap">
+                        {cat}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
           </div>
         </div>
 
-        <div className="mx-auto max-w-2xl px-6 py-6">
+        <div className="mx-auto max-w-3xl px-6 py-6">
           <div className="space-y-5">
               {bookings.length === 0 ? (
                 <div className="sm-panel rounded-2xl border text-center py-16 px-6" style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
@@ -590,7 +606,6 @@ const BookingsPage: NextPage = () => {
                                         <>
                                           <span className="text-neutral-200">·</span>
                                           <span className="text-[10px] font-semibold" style={{ color: cfg.barColor }}>
-                                            {new Date(b.scheduled_at) > new Date() ? '📅 ' : ''}
                                             {new Date(b.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                           </span>
                                         </>
@@ -649,6 +664,53 @@ const BookingsPage: NextPage = () => {
                   )}
                 </>
               )}
+
+          {/* Nearby pros — real business cards give the page real density */}
+          <div className="sm-panel rounded-2xl border overflow-hidden" style={{ border: '1px solid rgba(10,132,255,0.10)' }}>
+            <div className="sm-glow" style={{ width: 300, height: 220, top: -110, right: 0 }} />
+            <div className="relative px-5 pt-5 pb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="sm-eyebrow mb-1 block">Nearby</span>
+                  <h3 className="text-sm font-bold text-neutral-900" style={{ letterSpacing: '-0.015em' }}>Available near you</h3>
+                </div>
+                <Link href="/browse" scroll={false}
+                  className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity">
+                  See all →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {SPONSORED.slice(0, 4).map(biz => (
+                  <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
+                    className="group block rounded-xl overflow-hidden border bg-white transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(10,132,255,0.1)]"
+                    style={{ borderColor: 'rgba(10,132,255,0.10)' }}>
+                    <div className="relative h-[88px] overflow-hidden bg-neutral-100">
+                      <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 60%)' }} />
+                      {biz.available && (
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full px-1.5 py-0.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                          <span className="text-[9px] font-bold text-neutral-800">Open</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="px-2.5 py-2">
+                      <p className="text-xs font-bold text-neutral-900 line-clamp-1" style={{ letterSpacing: '-0.01em' }}>{biz.name}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <svg className="h-2.5 w-2.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span className="text-[10px] font-semibold text-neutral-700">{biz.rating}</span>
+                        <span className="text-neutral-300 text-[10px]">·</span>
+                        <span className="text-[10px] text-neutral-400">{biz.distance}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+
           </div>
         </div>
       </div>

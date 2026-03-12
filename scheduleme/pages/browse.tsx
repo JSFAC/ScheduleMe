@@ -14,23 +14,10 @@ function getSupabase() {
 }
 
 const CATEGORIES = ['All', 'Independent', 'Plumbing', 'House Cleaning', 'Electrical', 'HVAC', 'Landscaping', 'Painting', 'Handyman'];
-type ViewMode = 'list' | 'map';
 type SortMode = 'distance' | 'rating' | 'reviews';
 
-function Stars({ rating }: { rating: number }) {
-  return (
-    <span className="flex items-center gap-1">
-      <svg className="h-3 w-3 text-amber-400 fill-current flex-shrink-0" viewBox="0 0 20 20">
-        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-      </svg>
-      <span className="text-xs font-semibold text-neutral-700 tabular-nums">{rating}</span>
-    </span>
-  );
-}
-
-function Price({ tier }: { tier: number }) {
-  return <span className="text-xs font-medium text-neutral-400">{'$'.repeat(tier)}<span className="opacity-25">{'$'.repeat(3 - tier)}</span></span>;
-}
+// Uniform blue pill — same as home
+const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
 function MapPlaceholder({ businesses, selected, onSelect }: {
   businesses: Business[]; selected: string | null; onSelect: (id: string) => void;
@@ -78,103 +65,93 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
   );
 }
 
-// Category → color accent (matches home page)
-// Uniform blue pill — consistent, not cheap multicolor
-const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
-
-// Premium horizontal list card for browse
-function BizCardImage({ biz, onCardClick }: { biz: Business; onCardClick: () => void }) {
-  const [activeImg, setActiveImg] = useState(0);
-
+// Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
+function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
   return (
-    <div className="flex items-stretch gap-0 cursor-pointer" onClick={onCardClick}>
-      {/* Left image — wider, not skinny */}
-      <div className="relative w-44 sm:w-52 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ minHeight: 172 }}>
-        <img src={biz.allImages[activeImg]} alt={biz.name}
-          className="w-full h-full object-cover hover:scale-[1.04] transition-transform duration-500" />
+    <button onClick={onClick} className="biz-card group w-full text-left">
+      {/* Image */}
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 156 }}>
+        <img src={biz.coverUrl} alt={biz.name}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)'
+        }} />
         {biz.available ? (
-          <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
+          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
             <span className="text-[10px] font-bold text-neutral-800 tracking-wide">Open</span>
           </div>
         ) : (
-          <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2.5 py-1">
+          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2.5 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
             <span className="text-[10px] font-bold text-white/70 tracking-wide">Busy</span>
           </div>
         )}
-      </div>
-
-      {/* Right content */}
-      <div className="flex-1 min-w-0 p-4 flex flex-col justify-between">
-        <div>
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>
-                {biz.category}
-              </span>
-              <span className="text-[11px] text-neutral-400 font-medium">{biz.distance}</span>
-            </div>
-            {biz.badge && (
-              <span className="flex-shrink-0 text-[9px] font-bold tracking-wide text-accent bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase">{biz.badge}</span>
-            )}
+        {biz.badge && (
+          <div className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wide">
+            {biz.badge}
           </div>
-          <h3 className="font-bold text-neutral-900 text-[15px]" style={{ letterSpacing: '-0.015em' }}>{biz.name}</h3>
-          <p className="text-xs text-neutral-500 mt-1.5 line-clamp-2 leading-relaxed">{biz.tagline}</p>
-        </div>
-
-        {/* Photo thumbnails */}
-        <div className="flex gap-1.5 mt-3" onClick={e => e.stopPropagation()}>
-          {biz.allImages.slice(0, 4).map((url, i) => (
-            <button key={i} onClick={() => setActiveImg(i)}
-              className={`h-11 w-[48px] rounded-lg overflow-hidden bg-neutral-100 flex-shrink-0 border-2 transition-all ${
-                activeImg === i ? 'border-accent' : 'border-transparent hover:border-neutral-300'
-              }`}>
-              <img src={url} alt="" className="w-full h-full object-cover" />
-            </button>
-          ))}
-        </div>
-
-        {/* Rating + price + CTA */}
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-2">
+        )}
+        <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
+          <p className="text-white font-bold text-[13px] leading-snug" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
+            {biz.name}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
             <div className="flex gap-0.5">
               {[1,2,3,4,5].map(i => (
-                <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-neutral-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/25'}`} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-xs font-bold text-neutral-700">{biz.rating}</span>
-            <span className="text-neutral-300">·</span>
-            <span className="text-xs text-neutral-400">({biz.reviews})</span>
-            <span className="text-neutral-300">·</span>
-            <span className="text-xs font-medium text-neutral-400">{"$".repeat(biz.price_tier)}<span className="opacity-25">{"$".repeat(3 - biz.price_tier)}</span></span>
+            <span className="text-white/85 text-[10px] font-semibold">{biz.rating}</span>
+            <span className="text-white/40 text-[10px]">·</span>
+            <span className="text-white/55 text-[10px]">{biz.reviews} reviews</span>
+            <span className="text-white/40 text-[10px]">·</span>
+            <span className="text-white/65 text-[10px]">{biz.distance}</span>
           </div>
-          <button onClick={e => { e.stopPropagation(); onCardClick(); }}
-            className="text-[11px] font-bold text-accent border border-accent/20 bg-blue-50 hover:bg-blue-100 px-3.5 py-1.5 rounded-xl transition-colors flex-shrink-0">
-            Book
-          </button>
         </div>
       </div>
-    </div>
+
+      {/* Card body — tagline + photo strip + pill */}
+      <div className="px-3 pt-3 pb-3.5">
+        {/* Tagline — slightly more weight than before */}
+        <p className="text-[11.5px] text-neutral-500 font-medium leading-snug line-clamp-1 mb-3">{biz.tagline}</p>
+
+        {/* Bottom row: overlapping photo previews + category pill */}
+        <div className="flex items-center justify-between">
+          {/* Photo strip — overlapping circles */}
+          <div className="flex" style={{ gap: 0 }}>
+            {biz.allImages.slice(1, 4).map((url, i) => (
+              <div key={i} className="h-7 w-7 rounded-full overflow-hidden bg-neutral-100 border-2 border-white shadow-sm flex-shrink-0"
+                style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i }}>
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+            <span className="ml-2 text-[10px] text-neutral-400 font-medium self-center">{biz.reviews} reviews</span>
+          </div>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={PILL_STYLE}>
+            {biz.category}
+          </span>
+        </div>
+      </div>
+    </button>
   );
 }
 
-
-function NominateInline() {
+function ReferInline() {
   const [open, setOpen] = useState(false);
   const [bizName, setBizName] = useState('');
   const [sent, setSent] = useState(false);
 
   if (sent) return (
-    <div className="mt-2 rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center">
+    <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center">
       <p className="text-sm font-semibold text-green-800">Referral received — we'll reach out to {bizName}.</p>
     </div>
   );
 
   if (!open) return (
-    <div className="mt-2 rounded-2xl border border-dashed border-neutral-200 bg-white px-5 py-4 flex items-center gap-4">
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-4">
       <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -192,7 +169,7 @@ function NominateInline() {
   );
 
   return (
-    <div className="mt-2 rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3">
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
@@ -208,16 +185,15 @@ function NominateInline() {
   );
 }
 
-
 const BrowsePage: NextPage = () => {
   const router = useRouter();
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [sortMode, setSortMode] = useState<SortMode>('distance');
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMapBiz, setSelectedMapBiz] = useState<string | null>(null);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -232,7 +208,6 @@ const BrowsePage: NextPage = () => {
     if (router.query.q) setSearchQuery(router.query.q as string);
   }, [router.query]);
 
-  // Open profile from biz_id query param (e.g. from bookings redirect)
   useEffect(() => {
     if (router.query.biz) {
       const biz = ALL_BUSINESSES.find(b => b.id === router.query.biz);
@@ -257,10 +232,10 @@ const BrowsePage: NextPage = () => {
   const selectedMapBizData = ALL_BUSINESSES.find(b => b.id === selectedMapBiz) ?? null;
 
   if (loading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="relative h-7 w-7">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+      <div className="relative h-6 w-6">
         <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-neutral-900 animate-spin" />
+        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
       </div>
     </div>
   );
@@ -268,33 +243,35 @@ const BrowsePage: NextPage = () => {
   return (
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
-      <div className="flex flex-col h-screen" style={{ overflow: 'visible' }}>
+
+      <div className="min-h-screen bg-neutral-50 pt-[72px]">
         <Nav />
 
-        {/* Filter bar — sm-panel treatment matches home */}
-        <div className="sm-panel flex-shrink-0 border-b mt-[72px]" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <div className="sm-glow" style={{ width: 350, height: 250, top: -125, right: '5%' }} />
-          <div className="relative mx-auto max-w-6xl px-6 pt-4 pb-3.5">
-            <div className="flex items-center gap-3 mb-3">
+        {/* Filter header — same sm-panel treatment as home */}
+        <div className="sm-panel border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+          <div className="sm-glow" style={{ width: 400, height: 280, top: -140, right: '8%' }} />
+          <div className="relative mx-auto max-w-6xl px-6 pt-5 pb-4">
+            {/* Row 1: search + controls */}
+            <div className="flex items-center gap-3 mb-3.5">
               <div className="flex-1 relative">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all shadow-[0_1px_4px_rgba(0,0,0,0.04)]" />
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all" />
               </div>
               <select value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}
-                className="pl-3 pr-8 py-2.5 rounded-xl border border-neutral-200 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-accent bg-white appearance-none flex-shrink-0">
+                className="pl-3 pr-8 py-2.5 rounded-xl border border-neutral-200 text-sm text-neutral-600 focus:outline-none focus:ring-2 focus:ring-accent bg-white appearance-none flex-shrink-0">
                 <option value="distance">Nearest</option>
                 <option value="rating">Top Rated</option>
                 <option value="reviews">Most Reviewed</option>
               </select>
               <div className="flex items-center bg-neutral-100 rounded-xl p-1 flex-shrink-0">
-                {([['list','List','M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
-                  ['map','Map','M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z']] as const)
-                  .map(([mode,label,d]) => (
-                    <button key={mode} onClick={() => setViewMode(mode as ViewMode)}
+                {([['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
+                  ['map', 'Map', 'M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z']] as const)
+                  .map(([mode, label, d]) => (
+                    <button key={mode} onClick={() => setViewMode(mode as 'grid' | 'map')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === mode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}>
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={d} />
@@ -304,97 +281,89 @@ const BrowsePage: NextPage = () => {
                   ))}
               </div>
             </div>
+            {/* Row 2: category pills — same style as home chips */}
             <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
               {CATEGORIES.map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)}
-                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
                     activeCategory === cat
-                      ? cat === 'Independent' ? 'bg-accent text-white border-accent' : 'bg-accent text-white border-accent'
-                      : cat === 'Independent'
-                        ? 'bg-blue-50 text-accent border-blue-200 hover:bg-accent hover:text-white hover:border-accent'
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-accent hover:text-accent'
+                      ? 'bg-accent text-white'
+                      : 'bg-white text-neutral-600 border border-neutral-200 hover:border-accent/40 hover:text-accent'
                   }`}>
-                  {cat === 'Independent' ? 'Independent' : cat}
+                  {cat}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto bg-neutral-50">
-          <div className="mx-auto max-w-6xl px-6 py-5">
-            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-4">{filtered.length} businesses</p>
-
-            {viewMode === 'list' ? (
-              <div className="space-y-2.5">
-                {filtered.length === 0 ? (
-                  <div className="text-center py-24">
-                    <p className="text-neutral-500 font-semibold">No results found</p>
-                    <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
-                  </div>
-                ) : filtered.map(biz => (
-                  <div key={biz.id} className="biz-card overflow-hidden">
-                    <BizCardImage biz={biz} onCardClick={() => setActiveBiz(biz)} />
-                  </div>
-                ))}
-
-                {/* Nominate a business — bottom of list */}
-                {filtered.length > 0 && (
-                  <NominateInline />
-                )}
-              </div>
-            ) : (
-              <div className="flex gap-4" style={{ height: 'calc(100vh - 230px)' }}>
-                <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'none' }}>
+        {/* Content */}
+        <div className="mx-auto max-w-6xl px-6 py-6">
+          {viewMode === 'grid' ? (
+            <>
+              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-4">
+                {filtered.length} {filtered.length === 1 ? 'business' : 'businesses'}
+              </p>
+              {filtered.length === 0 ? (
+                <div className="text-center py-24">
+                  <p className="text-neutral-500 font-semibold">No results found</p>
+                  <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {filtered.map(biz => (
-                    <button key={biz.id} onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
-                      className={`w-full text-left rounded-xl border overflow-hidden transition-all ${
-                        selectedMapBiz === biz.id ? 'border-neutral-900 shadow-md' : 'bg-white border-neutral-100 hover:border-neutral-200'
-                      }`}>
-                      <div className="flex items-start">
-                        <div className="w-16 flex-shrink-0 self-stretch overflow-hidden">
-                          <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover min-h-[64px]" />
-                        </div>
-                        <div className="flex-1 min-w-0 p-2.5 bg-white">
-                          <p className={`text-sm font-semibold truncate ${selectedMapBiz === biz.id ? 'text-neutral-900' : 'text-neutral-800'}`}>{biz.name}</p>
-                          <p className="text-[11px] text-neutral-400 mt-0.5">{biz.category} · {biz.distance}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <Stars rating={biz.rating} />
-                            <span className="text-[11px] text-neutral-400">({biz.reviews})</span>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} />
                   ))}
                 </div>
-
-                <div className="flex-1 relative rounded-2xl overflow-hidden border border-neutral-200">
-                  <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} />
-                  {selectedMapBizData && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-80 bg-white rounded-2xl border border-neutral-200 shadow-2xl overflow-hidden">
-                      <div className="h-28 relative overflow-hidden bg-neutral-100">
-                        <img src={selectedMapBizData.coverUrl} alt={selectedMapBizData.name} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+              )}
+              {filtered.length > 0 && (
+                <div className="mt-5">
+                  <ReferInline />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex gap-4" style={{ height: 'calc(100vh - 260px)' }}>
+              <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'none' }}>
+                {filtered.map(biz => (
+                  <button key={biz.id} onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
+                    className={`w-full text-left rounded-xl border overflow-hidden transition-all ${
+                      selectedMapBiz === biz.id ? 'border-neutral-900 shadow-md' : 'bg-white border-neutral-100 hover:border-neutral-200'
+                    }`}>
+                    <div className="flex items-start">
+                      <div className="w-16 flex-shrink-0 self-stretch overflow-hidden">
+                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover min-h-[64px]" />
                       </div>
-                      <div className="p-4">
-                        <p className="text-xs text-neutral-400">{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
-                        <h3 className="font-semibold text-neutral-900 mt-0.5">{selectedMapBizData.name}</h3>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <Stars rating={selectedMapBizData.rating} />
-                          <span className="text-xs text-neutral-400">({selectedMapBizData.reviews})</span>
-                        </div>
-                        <button onClick={() => setActiveBiz(selectedMapBizData)}
-                          className="btn-primary w-full mt-3 text-sm py-2.5">
-                          View &amp; Book
-                        </button>
+                      <div className="flex-1 min-w-0 p-2.5 bg-white">
+                        <p className={`text-sm font-semibold truncate ${selectedMapBiz === biz.id ? 'text-neutral-900' : 'text-neutral-800'}`}>{biz.name}</p>
+                        <p className="text-[11px] text-neutral-400 mt-0.5">{biz.category} · {biz.distance}</p>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
+
+              <div className="flex-1 relative rounded-2xl overflow-hidden border border-neutral-200">
+                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} />
+                {selectedMapBizData && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-80 bg-white rounded-2xl border border-neutral-200 shadow-2xl overflow-hidden">
+                    <div className="h-28 relative overflow-hidden bg-neutral-100">
+                      <img src={selectedMapBizData.coverUrl} alt={selectedMapBizData.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-4">
+                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>{selectedMapBizData.category}</span>
+                      <h3 className="font-bold text-neutral-900 mt-2 mb-0.5" style={{ letterSpacing: '-0.015em' }}>{selectedMapBizData.name}</h3>
+                      <p className="text-xs text-neutral-400">{selectedMapBizData.distance}</p>
+                      <button onClick={() => setActiveBiz(selectedMapBizData)}
+                        className="btn-primary w-full mt-3 text-sm py-2.5">
+                        View &amp; Book
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
