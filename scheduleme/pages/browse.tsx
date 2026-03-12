@@ -193,7 +193,7 @@ const BrowsePage: NextPage = () => {
   const [selectedMapBiz, setSelectedMapBiz] = useState<string | null>(null);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -268,10 +268,13 @@ const BrowsePage: NextPage = () => {
                 <option value="reviews">Most Reviewed</option>
               </select>
               <div className="flex items-center bg-neutral-100 rounded-xl p-1 flex-shrink-0">
-                {([['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
-                  ['map', 'Map', 'M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z']] as const)
+                {([
+                  ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
+                  ['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
+                  ['map', 'Map', 'M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z'],
+                ] as const)
                   .map(([mode, label, d]) => (
-                    <button key={mode} onClick={() => setViewMode(mode as 'grid' | 'map')}
+                    <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === mode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}>
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={d} />
@@ -299,7 +302,7 @@ const BrowsePage: NextPage = () => {
 
         {/* Content */}
         <div className="mx-auto max-w-6xl px-6 py-6">
-          {viewMode === 'grid' ? (
+          {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-4">
                 {filtered.length} {filtered.length === 1 ? 'business' : 'businesses'}
@@ -309,10 +312,65 @@ const BrowsePage: NextPage = () => {
                   <p className="text-neutral-500 font-semibold">No results found</p>
                   <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
                 </div>
-              ) : (
+              ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {filtered.map(biz => (
                     <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} />
+                  ))}
+                </div>
+              ) : (
+                /* List view — horizontal card, photo left, info right */
+                <div className="space-y-2.5">
+                  {filtered.map(biz => (
+                    <button key={biz.id} onClick={() => setActiveBiz(biz)}
+                      className="biz-card group w-full text-left flex overflow-hidden">
+                      {/* Photo */}
+                      <div className="relative w-40 sm:w-48 flex-shrink-0 overflow-hidden bg-neutral-100">
+                        <img src={biz.coverUrl} alt={biz.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" style={{ minHeight: 120 }} />
+                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 60%, rgba(0,0,0,0.18) 100%)' }} />
+                        {biz.available ? (
+                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full px-2 py-0.5 shadow-sm">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            <span className="text-[9px] font-bold text-neutral-800 tracking-wide">Open</span>
+                          </div>
+                        ) : (
+                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2 py-0.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
+                            <span className="text-[9px] font-bold text-white/70 tracking-wide">Busy</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0 px-4 py-3.5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className="font-bold text-neutral-900 text-sm leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em' }}>{biz.name}</h3>
+                            {biz.badge && (
+                              <span className="shrink-0 text-[9px] font-bold bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full tracking-wide uppercase">{biz.badge}</span>
+                            )}
+                          </div>
+                          <p className="text-[11.5px] text-neutral-400 font-medium leading-snug line-clamp-2">{biz.tagline}</p>
+                        </div>
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-0.5">
+                              {[1,2,3,4,5].map(i => (
+                                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-neutral-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              ))}
+                            </div>
+                            <span className="text-[11px] font-semibold text-neutral-700">{biz.rating}</span>
+                            <span className="text-neutral-200 text-[11px]">·</span>
+                            <span className="text-[11px] text-neutral-400">{biz.reviews} reviews</span>
+                            <span className="text-neutral-200 text-[11px]">·</span>
+                            <span className="text-[11px] text-neutral-400">{biz.distance}</span>
+                          </div>
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={PILL_STYLE}>{biz.category}</span>
+                        </div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               )}
