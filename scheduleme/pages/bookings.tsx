@@ -477,7 +477,6 @@ const BookingsPage: NextPage = () => {
         setBookings(MOCK_BOOKINGS);
       } else {
         setPhase('done');
-        setTimeout(() => setFadeIn(true), 60);
       }
     });
   }, []);
