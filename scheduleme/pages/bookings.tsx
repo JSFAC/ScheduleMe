@@ -514,19 +514,29 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen bg-neutral-50 pt-[72px]">
-        {/* Header — richer, with new request CTA + quick stats */}
-        <div className="sm-panel border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <div className="sm-glow" style={{ width: 500, height: 360, top: -180, right: '-5%' }} />
+      <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
+        {/* Header — blue gradient like home hero */}
+        <div className="relative overflow-hidden border-b" style={{
+          background: 'linear-gradient(135deg, #1a6fd4 0%, #0A84FF 45%, #3b9eff 100%)',
+          borderColor: 'rgba(0,0,0,0.08)'
+        }}>
+          <div className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+            backgroundSize: '48px 48px'
+          }} />
+          <div className="absolute top-[-60px] right-[8%] w-[360px] h-[360px] rounded-full pointer-events-none" style={{
+            background: 'radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 65%)'
+          }} />
           <div className="relative mx-auto max-w-3xl px-6 pt-8 pb-7">
-            <span className="sm-eyebrow mb-3 block">Your activity</span>
-            <div className="flex items-end justify-between gap-4 mb-5">
+            <div className="flex items-start justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-2xl font-bold text-neutral-900" style={{ letterSpacing: '-0.025em' }}>My Bookings</h1>
-                <p className="text-sm text-neutral-400 mt-1">Track and manage your service requests</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.65)' }}>Your activity</p>
+                <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>My Bookings</h1>
+                <p className="mt-1" style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>Track and manage your service requests</p>
               </div>
               <Link href="/browse" scroll={false}
-                className="shrink-0 flex items-center gap-2 bg-accent text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow-[0_2px_12px_rgba(10,132,255,0.3)] hover:bg-accent-dark transition-colors">
+                className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl transition-colors mt-1"
+                style={{ background: 'rgba(255,255,255,0.18)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -534,42 +544,40 @@ const BookingsPage: NextPage = () => {
               </Link>
             </div>
 
-            {/* Stats row */}
+            {/* Stats row — white cards on blue */}
             <div className="flex gap-3 mb-5">
               {[
                 { label: 'Total', value: bookings.length },
                 { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
-                <div key={s.label} className="flex-1 bg-white rounded-xl border px-3 py-2.5 text-center" style={{ borderColor: 'rgba(10,132,255,0.1)' }}>
-                  <p className="text-lg font-bold text-neutral-900" style={{ letterSpacing: '-0.02em' }}>{s.value}</p>
-                  <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide mt-0.5">{s.label}</p>
+                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                  <p className="text-xl font-black text-white" style={{ letterSpacing: '-0.025em' }}>{s.value}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>{s.label}</p>
                 </div>
               ))}
             </div>
 
-            {/* Dynamic category filter — only categories from existing bookings */}
+            {/* Dynamic category filter */}
             {bookings.length > 0 && (() => {
               const usedCategories = [...new Set(bookings.map(b => b.category).filter(Boolean))];
               return usedCategories.length > 0 ? (
                 <div>
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.12em] mb-2">Filter by</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] mb-2" style={{ color: 'rgba(255,255,255,0.55)' }}>Filter by</p>
                   <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
                     <button onClick={() => setActiveCategory(null)}
-                      className={`shrink-0 text-[11px] font-semibold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap border ${
-                        activeCategory === null
-                          ? 'bg-accent text-white border-accent'
-                          : 'bg-white border-neutral-200 text-neutral-500 hover:border-accent/40 hover:text-accent'
-                      }`}>
+                      className="shrink-0 text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
+                      style={activeCategory === null
+                        ? { background: 'white', color: '#0A84FF' }
+                        : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)' }}>
                       All
                     </button>
                     {usedCategories.map(cat => (
                       <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-                        className={`shrink-0 text-[11px] font-semibold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap border ${
-                          activeCategory === cat
-                            ? 'bg-accent text-white border-accent'
-                            : 'bg-white border-neutral-200 text-neutral-600 hover:border-accent/40 hover:text-accent'
-                        }`}>
+                        className="shrink-0 text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
+                        style={activeCategory === cat
+                          ? { background: 'white', color: '#0A84FF' }
+                          : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)' }}>
                         {cat}
                       </button>
                     ))}
@@ -583,7 +591,7 @@ const BookingsPage: NextPage = () => {
         <div className="mx-auto max-w-3xl px-6 py-6">
           <div className="space-y-5">
               {bookings.length === 0 ? (
-                <div className="sm-panel rounded-2xl border text-center py-16 px-6" style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
+                <div className="bg-white rounded-2xl border text-center py-16 px-6" style={{ border: '1px solid rgba(10,132,255,0.08)' }}>
                   <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
@@ -604,7 +612,7 @@ const BookingsPage: NextPage = () => {
                 <>
                   {activeBookings.length > 0 && (
                     <div>
-                      <h2 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-3">Active</h2>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: '#0A84FF' }}>Active</h2>
                       <div className="space-y-2.5">
                         {activeBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
@@ -612,11 +620,11 @@ const BookingsPage: NextPage = () => {
                             <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left booking-card group overflow-hidden flex">
                               {/* Left accent bar — status color */}
-                              <div className="w-1 shrink-0" style={{ background: cfg.barColor }} />
-                              <div className="flex-1 p-5">
+                              <div className="w-[5px] shrink-0" style={{ background: cfg.barColor }} />
+                              <div className="flex-1 p-5 pt-4 pb-4">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-neutral-900 text-sm line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em' }}>{b.service}</h3>
+                                    <h3 className="font-black text-neutral-900 text-[15px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em' }}>{b.service}</h3>
                                     {b.business_name
                                       ? <p className="text-xs text-neutral-500 mt-0.5 font-medium">{b.business_name}</p>
                                       : <p className="text-xs text-neutral-300 mt-0.5 italic">Matching you with a pro…</p>}
@@ -655,10 +663,10 @@ const BookingsPage: NextPage = () => {
                         {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100">
-                            <div className="w-1 shrink-0 bg-neutral-200" />
-                            <div className="flex-1 p-5 flex items-start justify-between gap-3">
+                            <div className="w-[5px] shrink-0 bg-neutral-200" />
+                            <div className="flex-1 p-5 pt-4 pb-4 flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-neutral-900 text-sm line-clamp-2" style={{ letterSpacing: '-0.01em' }}>{b.service}</h3>
+                                <h3 className="font-black text-neutral-700 text-[15px] line-clamp-2" style={{ letterSpacing: '-0.02em' }}>{b.service}</h3>
                                 {b.business_name && <p className="text-xs text-neutral-500 mt-0.5 font-medium">{b.business_name}</p>}
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <p className="text-[10px] text-neutral-300">{formatDate(b.created_at)}</p>
@@ -685,50 +693,50 @@ const BookingsPage: NextPage = () => {
                 </>
               )}
 
-          {/* Nearby pros — real business cards give the page real density */}
-          <div className="sm-panel rounded-2xl border overflow-hidden" style={{ border: '1px solid rgba(10,132,255,0.10)' }}>
-            <div className="sm-glow" style={{ width: 300, height: 220, top: -110, right: 0 }} />
-            <div className="relative px-5 pt-5 pb-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <span className="sm-eyebrow mb-1 block">Nearby</span>
-                  <h3 className="text-sm font-bold text-neutral-900" style={{ letterSpacing: '-0.015em' }}>Available near you</h3>
-                </div>
-                <Link href="/browse" scroll={false}
-                  className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity">
-                  See all →
-                </Link>
+          {/* Nearby pros — horizontal scroll row, no grid */}
+          <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(10,132,255,0.09)' }}>
+            <div className="px-5 pt-5 pb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-[1rem] font-black text-neutral-900" style={{ letterSpacing: '-0.02em' }}>Available near you</h3>
+                <p className="text-[11px] text-neutral-400 mt-0.5">Pros ready to take your job</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {SPONSORED.slice(0, 4).map(biz => (
-                  <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
-                    className="group block rounded-xl overflow-hidden border bg-white transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(10,132,255,0.1)]"
-                    style={{ borderColor: 'rgba(10,132,255,0.10)' }}>
-                    <div className="relative h-[88px] overflow-hidden bg-neutral-100">
-                      <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 60%)' }} />
-                      {biz.available && (
-                        <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full px-1.5 py-0.5"
-                          style={{ background: 'rgba(255,255,255,0.95)' }}>
-                          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: '#FF6B4A' }} />
-                          <span className="text-[9px] font-black" style={{ color: '#FF6B4A' }}>Open</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="px-2.5 py-2">
-                      <p className="text-xs font-bold text-neutral-900 line-clamp-1" style={{ letterSpacing: '-0.01em' }}>{biz.name}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <svg className="h-2.5 w-2.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        <span className="text-[10px] font-semibold text-neutral-700">{biz.rating}</span>
-                        <span className="text-neutral-300 text-[10px]">·</span>
-                        <span className="text-[10px] text-neutral-400">{biz.distance}</span>
+              <Link href="/browse" scroll={false}
+                className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity">
+                See all →
+              </Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto px-5 pb-5 pt-3" style={{ scrollbarWidth: 'none' }}>
+              {SPONSORED.slice(0, 6).map(biz => (
+                <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
+                  className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
+                  style={{ width: 160, border: '1px solid rgba(10,132,255,0.10)', background: 'white' }}>
+                  <div className="relative overflow-hidden bg-neutral-100" style={{ height: 112 }}>
+                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
+                    {biz.available && (
+                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full px-2 py-0.5"
+                        style={{ background: 'rgba(255,255,255,0.95)' }}>
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: '#FF6B4A' }} />
+                        <span className="text-[9px] font-black" style={{ color: '#FF6B4A' }}>Open</span>
                       </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2">
+                      <p className="text-white text-[11px] font-black line-clamp-1" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{biz.name}</p>
                     </div>
-                  </Link>
-                ))}
-              </div>
+                  </div>
+                  <div className="px-2.5 py-2">
+                    <div className="flex items-center gap-1">
+                      <svg className="h-2.5 w-2.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      <span className="text-[10px] font-semibold text-neutral-700">{biz.rating}</span>
+                      <span className="text-neutral-300 text-[10px]">·</span>
+                      <span className="text-[10px] text-neutral-400">{biz.distance}</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-400 mt-0.5 line-clamp-1">{biz.category}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
 
