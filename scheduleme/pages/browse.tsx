@@ -247,67 +247,89 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen bg-neutral-50 pt-[72px]">
+      <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
         <Nav />
 
-        {/* Filter header — same sm-panel treatment as home */}
-        <div className="sm-panel border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <div className="sm-glow" style={{ width: 400, height: 280, top: -140, right: '8%' }} />
-          <div className="relative mx-auto max-w-6xl px-6 pt-5 pb-4">
-            {/* Row 1: search + controls */}
-            <div className="flex items-center gap-3 mb-3.5">
-              <div className="flex-1 relative">
-                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
-                <input type="text" placeholder="Search businesses or services…"
-                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all" />
-              </div>
-              <select value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}
-                className="pl-3 pr-8 py-2.5 rounded-xl border border-neutral-200 text-sm text-neutral-600 focus:outline-none focus:ring-2 focus:ring-accent bg-white appearance-none flex-shrink-0">
-                <option value="distance">Nearest</option>
-                <option value="rating">Top Rated</option>
-                <option value="reviews">Most Reviewed</option>
-              </select>
-              <div className="flex items-center bg-neutral-100 rounded-xl p-1 flex-shrink-0">
+        {/* Hero header — blue gradient, matches home + bookings */}
+        <div className="relative overflow-hidden border-b" style={{
+          background: 'linear-gradient(135deg, #1a6fd4 0%, #0A84FF 45%, #3b9eff 100%)',
+          borderColor: 'rgba(0,0,0,0.08)'
+        }}>
+          <div className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+            backgroundSize: '48px 48px'
+          }} />
+          <div className="absolute top-[-40px] right-[12%] w-[300px] h-[300px] rounded-full pointer-events-none" style={{
+            background: 'radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 65%)'
+          }} />
+          <div className="relative mx-auto max-w-6xl px-6 pt-7 pb-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Explore</p>
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
+              {/* View toggle — inside hero */}
+              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
                 {([
                   ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
                   ['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
                   ['map', 'Map', 'M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z'],
-                ] as const)
-                  .map(([mode, label, d]) => (
-                    <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === mode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}>
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-                      </svg>
-                      {label}
-                    </button>
-                  ))}
+                ] as const).map(([mode, label, d]) => (
+                  <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={viewMode === mode
+                      ? { background: 'white', color: '#0A84FF' }
+                      : { color: 'rgba(255,255,255,0.75)' }}>
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+                    </svg>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
-            {/* Row 2: category pills — same style as home chips */}
-            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-              {CATEGORIES.map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)}
-                  className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
-                    activeCategory === cat
-                      ? 'bg-accent text-white'
-                      : 'bg-white text-neutral-600 border border-neutral-200 hover:border-accent/40 hover:text-accent'
-                  }`}>
-                  {cat}
-                </button>
-              ))}
+            {/* Search + sort row */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 relative">
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: 'rgba(255,255,255,0.5)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input type="text" placeholder="Search businesses or services…"
+                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all"
+                  style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}
+                />
+              </div>
+              <select value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}
+                className="pl-3 pr-8 py-2.5 rounded-xl text-sm focus:outline-none appearance-none flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+                <option value="distance" style={{ color: '#171717' }}>Nearest</option>
+                <option value="rating" style={{ color: '#171717' }}>Top Rated</option>
+                <option value="reviews" style={{ color: '#171717' }}>Most Reviewed</option>
+              </select>
             </div>
           </div>
         </div>
 
+        {/* Category pills — white bar below hero */}
+        <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+          <div className="flex gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
+            {CATEGORIES.map(cat => (
+              <button key={cat} onClick={() => setActiveCategory(cat)}
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+                  activeCategory === cat
+                    ? 'bg-accent text-white'
+                    : 'bg-accent-wash text-accent/70 border border-accent/15 hover:border-accent/30 hover:text-accent'
+                }`}>
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Content */}
-        <div className="mx-auto max-w-6xl px-6 py-6">
+        <div className="mx-auto max-w-6xl px-6 py-7">
           {viewMode !== 'map' ? (
             <>
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-4">
+              <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
                 {filtered.length} {filtered.length === 1 ? 'business' : 'businesses'}
               </p>
               {filtered.length === 0 ? (
@@ -316,8 +338,8 @@ const BrowsePage: NextPage = () => {
                   <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
                 </div>
               ) : viewMode === 'grid' ? (
-                /* Asymmetric grid — first card is a hero spanning 2 cols */
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-auto">
+                /* Asymmetric grid — first card hero spans 2 cols, rest fill */
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">
                   {filtered.map((biz, i) => (
                     <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} hero={i === 0} />
                   ))}
@@ -329,9 +351,9 @@ const BrowsePage: NextPage = () => {
                     <button key={biz.id} onClick={() => setActiveBiz(biz)}
                       className="biz-card group w-full text-left flex overflow-hidden">
                       {/* Photo */}
-                      <div className="relative w-40 sm:w-48 flex-shrink-0 overflow-hidden bg-neutral-100">
+                      <div className="relative w-36 sm:w-44 flex-shrink-0 overflow-hidden bg-neutral-100">
                         <img src={biz.coverUrl} alt={biz.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" style={{ minHeight: 120 }} />
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" style={{ minHeight: 100 }} />
                         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 60%, rgba(0,0,0,0.18) 100%)' }} />
                         {biz.available ? (
                           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-0.5 shadow-sm"
@@ -347,18 +369,18 @@ const BrowsePage: NextPage = () => {
                         )}
                       </div>
                       {/* Info */}
-                      <div className="flex-1 min-w-0 px-4 py-3.5 flex flex-col justify-between">
+                      <div className="flex-1 min-w-0 px-4 py-3 flex flex-col justify-between">
                         <div>
-                          <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex items-start justify-between gap-2 mb-0.5">
                             <h3 className="font-bold text-neutral-900 text-sm leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em' }}>{biz.name}</h3>
                             {biz.badge && (
                               <span className="shrink-0 text-[9px] font-bold bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full tracking-wide uppercase">{biz.badge}</span>
                             )}
                           </div>
-                          <p className="text-[11.5px] text-neutral-400 font-medium leading-snug line-clamp-2">{biz.tagline}</p>
+                          <p className="text-[11px] text-neutral-400 leading-snug line-clamp-1">{biz.tagline}</p>
                         </div>
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-1.5">
                             <div className="flex gap-0.5">
                               {[1,2,3,4,5].map(i => (
                                 <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-neutral-200'}`} fill="currentColor" viewBox="0 0 20 20">
@@ -367,9 +389,9 @@ const BrowsePage: NextPage = () => {
                               ))}
                             </div>
                             <span className="text-[11px] font-semibold text-neutral-700">{biz.rating}</span>
-                            <span className="text-neutral-200 text-[11px]">·</span>
+                            <span className="text-neutral-300 text-[11px]">·</span>
                             <span className="text-[11px] text-neutral-400">{biz.reviews} reviews</span>
-                            <span className="text-neutral-200 text-[11px]">·</span>
+                            <span className="text-neutral-300 text-[11px]">·</span>
                             <span className="text-[11px] text-neutral-400">{biz.distance}</span>
                           </div>
                           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={PILL_STYLE}>{biz.category}</span>

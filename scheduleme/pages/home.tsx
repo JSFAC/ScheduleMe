@@ -52,10 +52,10 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 
   return (
     <div className="mx-auto max-w-xl w-full">
-      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>
         Good {timeOfDay()}, {userName}
       </p>
-      <h1 className="text-[2.4rem] font-bold text-neutral-900 mb-6" style={{ letterSpacing: '-0.03em', lineHeight: 1.08 }}>
+      <h1 className="text-[2.4rem] font-bold text-white mb-6" style={{ letterSpacing: '-0.03em', lineHeight: 1.08 }}>
         What do you need<br />done today?
       </h1>
       <div className={`relative bg-white rounded-2xl border transition-all duration-200 ${
@@ -96,7 +96,10 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
       <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
         {AI_SUGGESTIONS.map(s => (
           <button key={s} onClick={() => { setQuery(s); setTimeout(() => inputRef.current?.focus(), 0); }}
-            className="shrink-0 text-[11px] text-neutral-500 bg-white border border-neutral-200 hover:border-accent hover:text-accent px-3 py-1.5 rounded-full transition-colors whitespace-nowrap">
+            className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
+            style={{ background: 'rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.25)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.28)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.18)'; }}>
             {s}
           </button>
         ))}
@@ -272,25 +275,60 @@ const HomePage: NextPage = () => {
     <>
       <Head><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen bg-neutral-50 pt-[72px]">
+      <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
 
-        {/* Search header */}
-        <div className="bg-neutral-50 border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <div className="mx-auto max-w-6xl px-6 pt-10 pb-10">
-            <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
+        {/* Search hero — full-bleed blue gradient, fills all the dead space */}
+        <div className="relative overflow-hidden border-b" style={{
+          background: 'linear-gradient(135deg, #1a6fd4 0%, #0A84FF 45%, #3b9eff 100%)',
+          borderColor: 'rgba(0,0,0,0.08)'
+        }}>
+          {/* Subtle grid overlay */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)',
+            backgroundSize: '48px 48px'
+          }} />
+          {/* Glow blobs */}
+          <div className="absolute top-[-80px] right-[10%] w-[500px] h-[500px] rounded-full pointer-events-none" style={{
+            background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 65%)'
+          }} />
+          <div className="absolute bottom-[-60px] left-[5%] w-[400px] h-[400px] rounded-full pointer-events-none" style={{
+            background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%)'
+          }} />
+          <div className="relative mx-auto max-w-6xl px-6 pt-12 pb-12">
+            <div className="flex items-start gap-16">
+              {/* Search — takes up left side */}
+              <div className="flex-1 min-w-0">
+                <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
+              </div>
+              {/* Decorative category tiles — right side, desktop only */}
+              <div className="hidden lg:grid grid-cols-2 gap-2.5 w-[260px] shrink-0 pt-10 pb-2">
+                {QUICK_CATS.map((cat) => (
+                  <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
+                    className="flex flex-col items-center gap-2 rounded-2xl px-3 py-4 transition-all hover:scale-[1.03]"
+                    style={{ background: 'rgba(255,255,255,0.13)', border: '1px solid rgba(255,255,255,0.18)' }}>
+                    <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.18)' }}>
+                      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
+                      </svg>
+                    </div>
+                    <span className="text-[11px] font-bold text-white/90 text-center leading-snug">{cat.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Category quick-links */}
-        <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.05)' }}>
+        <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
-                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-50 hover:bg-blue-50 border border-neutral-200 hover:border-accent/30 transition-all group">
-                <svg className="h-4 w-4 text-neutral-400 group-hover:text-accent transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-wash hover:bg-blue-100 border border-accent/15 hover:border-accent/30 transition-all group">
+                <svg className="h-4 w-4 text-accent/70 group-hover:text-accent transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold text-neutral-600 group-hover:text-accent transition-colors whitespace-nowrap">{cat.label}</span>
+                <span className="text-[12px] font-semibold text-accent/80 group-hover:text-accent transition-colors whitespace-nowrap">{cat.label}</span>
               </Link>
             ))}
           </div>
