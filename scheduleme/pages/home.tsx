@@ -22,7 +22,7 @@ const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 const AI_SUGGESTIONS = [
   'My kitchen pipe has been dripping for a week',
   'Need a deep clean before my landlord inspection',
-  'AC runs but the house isn't cooling — what's wrong?',
+  "AC runs but the house isn't cooling — what's wrong?",
   'Want to repaint my living room before guests arrive',
   'Breaker keeps tripping whenever I use the microwave',
   'Backyard is completely overgrown, need help ASAP',
