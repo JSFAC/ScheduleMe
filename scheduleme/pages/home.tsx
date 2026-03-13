@@ -278,18 +278,12 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
 
       {/* Scroll container — full width, cards start at edgePad */}
       <div className="relative">
-        {/* Left curtain — covers cards + adds soft fade shadow */}
-        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto flex"
-          style={{ width: `calc(${edgePad} + 28px)` }}>
-          <div style={{ flex: '0 0 calc(100% - 28px)', background: '#EDF5FF' }} />
-          <div style={{ flex: '0 0 28px', background: 'linear-gradient(to right, #EDF5FF 0%, transparent 100%)' }} />
-        </div>
-        {/* Right curtain — same on right */}
-        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto flex"
-          style={{ width: `calc(${edgePad} + 28px)` }}>
-          <div style={{ flex: '0 0 28px', background: 'linear-gradient(to left, #EDF5FF 0%, transparent 100%)' }} />
-          <div style={{ flex: '0 0 calc(100% - 28px)', background: '#EDF5FF' }} />
-        </div>
+        {/* Left curtain — solid cover + very subtle 20px feather */}
+        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
+          style={{ width: `calc(${edgePad} + 20px)`, background: `linear-gradient(to right, #EDF5FF calc(100% - 20px), transparent 100%)` }} />
+        {/* Right curtain */}
+        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
+          style={{ width: `calc(${edgePad} + 20px)`, background: `linear-gradient(to left, #EDF5FF calc(100% - 20px), transparent 100%)` }} />
 
         <div
           ref={scrollRef}
