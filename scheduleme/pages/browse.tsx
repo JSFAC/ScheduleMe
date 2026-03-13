@@ -66,13 +66,11 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
 }
 
 // Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
-const CORAL = '#FF6B4A';
-
 // Standard card used in grid view
 function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; hero?: boolean }) {
   return (
-    <button onClick={onClick} className={`biz-card group w-full text-left ${hero ? 'col-span-2' : ''}`}>
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 200 }}>
+    <button onClick={onClick} className="biz-card group w-full text-left">
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 188 }}>
         <img src={biz.coverUrl} alt={biz.name}
           className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" />
         <div className="absolute inset-0" style={{
@@ -81,13 +79,13 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
         {biz.available ? (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
             style={{ background: 'rgba(255,255,255,0.96)' }}>
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: CORAL }} />
-            <span className="text-[10px] font-black tracking-wide" style={{ color: CORAL }}>Open</span>
+            <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
+            <span className="text-[10px] font-black tracking-wide text-emerald-600">Open</span>
           </div>
         ) : (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/52 backdrop-blur-sm rounded-full px-2.5 py-1">
             <span className="h-2 w-2 rounded-full bg-neutral-400 shrink-0" />
-            <span className="text-[10px] font-bold text-white/60 tracking-wide">Busy</span>
+            <span className="text-[10px] font-bold text-white/60 tracking-wide">Fully Booked</span>
           </div>
         )}
         {biz.badge && (
@@ -98,7 +96,7 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
         )}
         <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
           <p className="text-white font-black leading-snug" style={{
-            fontSize: hero ? 16 : 13,
+            fontSize: 13,
             letterSpacing: '-0.01em',
             textShadow: '0 1px 8px rgba(0,0,0,0.55)'
           }}>
@@ -107,12 +105,12 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
           <div className="flex items-center gap-1.5 mt-1">
             <div className="flex gap-0.5">
               {[1,2,3,4,5].map(i => (
-                <svg key={i} className={`${hero ? 'h-3 w-3' : 'h-2.5 w-2.5'} ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/20'}`} fill="currentColor" viewBox="0 0 20 20">
+                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/20'}`} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-white/90 font-semibold" style={{ fontSize: hero ? 11 : 10 }}>{biz.rating}</span>
+            <span className="text-white/90 font-semibold" style={{ fontSize: 10 }}>{biz.rating}</span>
             <span className="text-white/35 text-[10px]">·</span>
             <span className="text-white/55 text-[10px]">{biz.reviews} reviews</span>
             <span className="text-white/35 text-[10px]">·</span>
@@ -124,17 +122,28 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
       <div className="px-3.5 pt-3 pb-3.5">
         <p className="text-[11.5px] text-neutral-500 leading-snug line-clamp-2 mb-2">{biz.tagline}</p>
         {biz.topReview && (
-          <p className="text-[10.5px] text-neutral-400 leading-snug line-clamp-2 mb-2.5 italic">{biz.topReview}</p>
+          <div className="mb-2.5">
+            <p className="text-[10.5px] text-neutral-500 leading-snug line-clamp-2 italic mb-1.5">{biz.topReview}</p>
+            {biz.reviewer && (
+              <div className="flex items-center gap-1.5">
+                <img src={biz.reviewer.avatarUrl} alt={biz.reviewer.name}
+                  className="h-4 w-4 rounded-full object-cover border border-neutral-100" />
+                <span className="text-[10px] font-semibold text-neutral-400">{biz.reviewer.name}</span>
+              </div>
+            )}
+          </div>
         )}
         <div className="flex items-center justify-between">
-          <div className="flex" style={{ gap: 0 }}>
-            {biz.allImages.slice(1, 4).map((url, i) => (
-              <div key={i} className="h-6 w-6 rounded-full overflow-hidden bg-neutral-100 border-2 border-white shadow-sm flex-shrink-0"
-                style={{ marginLeft: i === 0 ? 0 : -5, zIndex: 3 - i }}>
-                <img src={url} alt="" className="w-full h-full object-cover" />
-              </div>
-            ))}
-            <span className="ml-2 text-[10px] text-neutral-400 font-medium self-center">{biz.reviews} reviews</span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex" style={{ gap: 0 }}>
+              {biz.allImages.slice(1, 3).map((url, i) => (
+                <div key={i} className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100 border-2 border-white shadow-sm flex-shrink-0"
+                  style={{ marginLeft: i === 0 ? 0 : -4, zIndex: 2 - i }}>
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+            <span className="text-[10px] text-neutral-400">{biz.reviews} reviews</span>
           </div>
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={PILL_STYLE}>
             {biz.category}
@@ -253,18 +262,11 @@ const BrowsePage: NextPage = () => {
       <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
         <Nav />
 
-        {/* Hero header — blue gradient, matches home + bookings */}
-        <div className="relative overflow-hidden border-b" style={{
-          background: 'linear-gradient(160deg, #2563eb 0%, #3b82f6 40%, #7ab8f5 80%, #c7e2ff 100%)',
+        {/* Hero header — flat solid blue, clean and readable */}
+        <div className="border-b" style={{
+          background: '#3b82f6',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
-          <div className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
-            backgroundSize: '48px 48px'
-          }} />
-          <div className="absolute top-[-40px] right-[12%] w-[300px] h-[300px] rounded-full pointer-events-none" style={{
-            background: 'radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 65%)'
-          }} />
           <div className="relative mx-auto max-w-6xl px-6 pt-7 pb-6">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Explore</p>
             <div className="flex items-center justify-between gap-4 mb-5">
@@ -342,9 +344,9 @@ const BrowsePage: NextPage = () => {
                 </div>
               ) : viewMode === 'grid' ? (
                 /* Asymmetric grid — first card hero spans 2 cols, rest fill */
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">
-                  {filtered.map((biz, i) => (
-                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} hero={i === 0} />
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filtered.map((biz) => (
+                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} />
                   ))}
                 </div>
               ) : (
@@ -361,13 +363,13 @@ const BrowsePage: NextPage = () => {
                         {biz.available ? (
                           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-0.5 shadow-sm"
                             style={{ background: 'rgba(255,255,255,0.96)' }}>
-                            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: CORAL }} />
-                            <span className="text-[9px] font-black tracking-wide" style={{ color: CORAL }}>Open</span>
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
+                            <span className="text-[9px] font-black tracking-wide text-emerald-600">Open</span>
                           </div>
                         ) : (
                           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2 py-0.5">
                             <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
-                            <span className="text-[9px] font-bold text-white/70 tracking-wide">Busy</span>
+                            <span className="text-[9px] font-bold text-white/70 tracking-wide">Fully Booked</span>
                           </div>
                         )}
                       </div>
