@@ -524,12 +524,12 @@ const BookingsPage: NextPage = () => {
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.65)' }}>Your activity</p>
-                <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>My Bookings</h1>
-                <p className="mt-1" style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>Track and manage your service requests</p>
+                <h1 className="text-[2.1rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>My Bookings</h1>
+                <p className="mt-1" style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>Track and manage your service requests</p>
               </div>
               <Link href="/browse" scroll={false}
                 className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl transition-colors mt-1"
-                style={{ background: 'rgba(255,255,255,0.18)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
+                style={{ background: 'rgba(255,255,255,0.28)', color: 'white', border: '1px solid rgba(255,255,255,0.55)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -538,15 +538,15 @@ const BookingsPage: NextPage = () => {
             </div>
 
             {/* Stats row — white cards on blue */}
-            <div className="flex gap-3 mb-5">
+            <div className="flex gap-3 mb-6">
               {[
                 { label: 'Total', value: bookings.length },
                 { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
-                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  <p className="text-xl font-black text-white" style={{ letterSpacing: '-0.025em' }}>{s.value}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>{s.label}</p>
+                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.45)' }}>
+                  <p className="text-2xl font-black text-white" style={{ letterSpacing: '-0.025em' }}>{s.value}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>{s.label}</p>
                 </div>
               ))}
             </div>
@@ -562,7 +562,7 @@ const BookingsPage: NextPage = () => {
                       className="shrink-0 text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
                       style={activeCategory === null
                         ? { background: 'white', color: '#0A84FF' }
-                        : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                        : { background: 'rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.95)', border: '1px solid rgba(255,255,255,0.45)' }}>
                       All
                     </button>
                     {usedCategories.map(cat => (
@@ -570,7 +570,7 @@ const BookingsPage: NextPage = () => {
                         className="shrink-0 text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
                         style={activeCategory === cat
                           ? { background: 'white', color: '#0A84FF' }
-                          : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                          : { background: 'rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.95)', border: '1px solid rgba(255,255,255,0.45)' }}>
                         {cat}
                       </button>
                     ))}

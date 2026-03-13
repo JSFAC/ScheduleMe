@@ -70,7 +70,7 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
 function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; hero?: boolean }) {
   return (
     <button onClick={onClick} className="biz-card group w-full text-left">
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 188 }}>
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 210 }}>
         <img src={biz.coverUrl} alt={biz.name}
           className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" />
         <div className="absolute inset-0" style={{
@@ -119,16 +119,16 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
         </div>
       </div>
       {/* Card body */}
-      <div className="px-3.5 pt-3 pb-3.5">
-        <p className="text-[11.5px] text-neutral-500 leading-snug line-clamp-2 mb-2">{biz.tagline}</p>
+      <div className="px-3.5 pt-3 pb-3.5" style={{ minHeight: 110 }}>
+        <p className="text-[12px] text-neutral-500 leading-snug line-clamp-2 mb-2">{biz.tagline}</p>
         {biz.topReview && (
           <div className="mb-2.5">
-            <p className="text-[10.5px] text-neutral-500 leading-snug line-clamp-2 italic mb-1.5">{biz.topReview}</p>
+            <p className="text-[11px] text-neutral-500 leading-snug line-clamp-2 italic mb-1.5">{biz.topReview}</p>
             {biz.reviewer && (
               <div className="flex items-center gap-1.5">
                 <img src={biz.reviewer.avatarUrl} alt={biz.reviewer.name}
-                  className="h-4 w-4 rounded-full object-cover border border-neutral-100" />
-                <span className="text-[10px] font-semibold text-neutral-400">{biz.reviewer.name}</span>
+                  className="h-5 w-5 rounded-full object-cover border border-neutral-100" />
+                <span className="text-[10.5px] font-semibold text-neutral-400">{biz.reviewer.name}</span>
               </div>
             )}
           </div>
@@ -316,7 +316,7 @@ const BrowsePage: NextPage = () => {
 
         {/* Category pills — white bar below hero */}
         <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <div className="flex gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex justify-center gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
             {CATEGORIES.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
                 className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all ${

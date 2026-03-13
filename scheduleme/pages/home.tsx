@@ -96,9 +96,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
         {AI_SUGGESTIONS.map(s => (
           <button key={s} onClick={() => { setQuery(s); setTimeout(() => inputRef.current?.focus(), 0); }}
             className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-            style={{ background: 'rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.25)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.28)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.18)'; }}>
+            style={{ background: 'rgba(255,255,255,0.88)', color: '#2563eb', border: '1px solid rgba(255,255,255,0.95)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.88)'; }}>
             {s}
           </button>
         ))}
@@ -111,8 +111,8 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => void; featured?: boolean }) {
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0"
-      style={{ width: featured ? 272 : 210 }}>
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: featured ? 216 : 172 }}>
+      style={{ width: featured ? 295 : 235 }}>
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: featured ? 236 : 192 }}>
         <img src={biz.coverUrl} alt={biz.name}
           className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.05]" />
         <div className="absolute inset-0" style={{
@@ -292,13 +292,13 @@ const HomePage: NextPage = () => {
                 {QUICK_CATS.map((cat) => (
                   <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
                     className="flex flex-col items-center gap-2 rounded-2xl px-3 py-4 transition-all hover:scale-[1.03]"
-                    style={{ background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.35)' }}>
-                    <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.30)' }}>
-                      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    style={{ background: 'rgba(255,255,255,0.90)', border: '1px solid rgba(255,255,255,0.95)' }}>
+                    <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.12)' }}>
+                      <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                       </svg>
                     </div>
-                    <span className="text-[11px] font-bold text-white/90 text-center leading-snug">{cat.label}</span>
+                    <span className="text-[11px] font-bold text-blue-700 text-center leading-snug">{cat.label}</span>
                   </Link>
                 ))}
               </div>
@@ -308,7 +308,7 @@ const HomePage: NextPage = () => {
 
         {/* Category quick-links */}
         <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex justify-center gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-wash hover:bg-blue-100 border border-accent/15 hover:border-accent/30 transition-all group">
