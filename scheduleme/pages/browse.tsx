@@ -15,6 +15,7 @@ function getSupabase() {
 
 const CATEGORIES = ['All', 'Independent', 'Plumbing', 'House Cleaning', 'Electrical', 'HVAC', 'Landscaping', 'Painting', 'Handyman'];
 type SortMode = 'distance' | 'rating' | 'reviews';
+const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
 
 // Uniform blue pill — same as home
 const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
@@ -209,6 +210,18 @@ const BrowsePage: NextPage = () => {
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
+  const [sortOpen, setSortOpen] = useState(false);
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    if (!sortOpen) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-sort-dropdown]')) setSortOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [sortOpen]);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -281,7 +294,7 @@ const BrowsePage: NextPage = () => {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: '#2563eb', color: 'white' }
+                      ? { background: 'white', color: '#0A84FF' }
                       : { color: 'rgba(255,255,255,0.92)', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
@@ -303,13 +316,36 @@ const BrowsePage: NextPage = () => {
                   style={{ background: 'white', color: '#171717', border: '1px solid rgba(255,255,255,0.3)' }}
                 />
               </div>
-              <select value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}
-                className="pl-3 pr-8 py-2.5 rounded-xl text-sm focus:outline-none appearance-none flex-shrink-0"
-                style={{ background: 'white', color: '#171717', border: '1px solid rgba(255,255,255,0.3)' }}>
-                <option value="distance">Nearest</option>
-                <option value="rating">Top Rated</option>
-                <option value="reviews">Most Reviewed</option>
-              </select>
+              {/* Custom sort dropdown */}
+              <div className="relative flex-shrink-0" data-sort-dropdown>
+                <button
+                  onClick={() => setSortOpen(o => !o)}
+                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none"
+                  style={{ background: 'white', color: '#171717', border: '1px solid rgba(255,255,255,0.3)', minWidth: 130 }}>
+                  <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
+                  <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {sortOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg overflow-hidden z-50"
+                    style={{ minWidth: 150, border: '1px solid rgba(0,0,0,0.07)' }}>
+                    {(['distance', 'rating', 'reviews'] as const).map(mode => (
+                      <button key={mode}
+                        onClick={() => { setSortMode(mode); setSortOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent-wash flex items-center justify-between gap-3"
+                        style={{ color: sortMode === mode ? '#0A84FF' : '#374151' }}>
+                        {SORT_LABELS[mode]}
+                        {sortMode === mode && (
+                          <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -354,11 +390,11 @@ const BrowsePage: NextPage = () => {
                 <div className="space-y-2.5">
                   {filtered.map(biz => (
                     <button key={biz.id} onClick={() => setActiveBiz(biz)}
-                      className="biz-card group w-full text-left flex overflow-hidden">
+                      className="biz-card group w-full text-left flex overflow-hidden" style={{ minHeight: 148 }}>
                       {/* Photo */}
-                      <div className="relative w-36 sm:w-44 flex-shrink-0 overflow-hidden bg-neutral-100">
+                      <div className="relative w-40 sm:w-48 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ height: 148 }}>
                         <img src={biz.coverUrl} alt={biz.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" style={{ minHeight: 100 }} />
+                          className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
                         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 60%, rgba(0,0,0,0.18) 100%)' }} />
                         {biz.available ? (
                           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-0.5 shadow-sm"
@@ -374,15 +410,15 @@ const BrowsePage: NextPage = () => {
                         )}
                       </div>
                       {/* Info */}
-                      <div className="flex-1 min-w-0 px-4 py-3 flex flex-col justify-between">
+                      <div className="flex-1 min-w-0 px-4 py-4 flex flex-col justify-between">
                         <div>
                           <div className="flex items-start justify-between gap-2 mb-0.5">
-                            <h3 className="font-bold text-neutral-900 text-sm leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em' }}>{biz.name}</h3>
+                            <h3 className="font-bold text-neutral-900 text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em' }}>{biz.name}</h3>
                             {biz.badge && (
                               <span className="shrink-0 text-[9px] font-bold bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full tracking-wide uppercase">{biz.badge}</span>
                             )}
                           </div>
-                          <p className="text-[11px] text-neutral-400 leading-snug line-clamp-1">{biz.tagline}</p>
+                          <p className="text-[11.5px] text-neutral-500 leading-snug line-clamp-2 mt-0.5">{biz.tagline}</p>
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex items-center gap-1.5">
