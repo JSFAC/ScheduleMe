@@ -20,12 +20,16 @@ function timeOfDay() {
 const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
 const AI_SUGGESTIONS = [
-  'Leaking pipe under my sink',
-  'Deep clean before move-out',
-  'AC not cooling properly',
-  'Repaint two rooms',
-  'Electrical panel noise',
-  'Lawn completely overgrown',
+  'My kitchen pipe has been dripping for a week',
+  'Need a deep clean before my landlord inspection',
+  'AC runs but the house isn't cooling — what's wrong?',
+  'Want to repaint my living room before guests arrive',
+  'Breaker keeps tripping whenever I use the microwave',
+  'Backyard is completely overgrown, need help ASAP',
+  'Bathroom tiles are cracked and need replacing',
+  'Need someone to assemble IKEA furniture this weekend',
+  'Hot water heater making a loud banging noise',
+  'Want to add outdoor lighting to my patio',
 ];
 
 const QUICK_CATS = [
@@ -50,7 +54,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
   }
 
   return (
-    <div className="mx-auto max-w-xl w-full">
+    <div className="w-full">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>
         Good {timeOfDay()}, {userName}
       </p>
@@ -108,13 +112,13 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 }
 
 // Card — bigger, bolder. featured = first card in a row, slightly taller + wider
-function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => void; featured?: boolean }) {
+function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0"
-      style={{ width: featured ? 'clamp(260px, 22vw, 340px)' : 'clamp(210px, 17vw, 280px)' }}>
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: featured ? 'clamp(210px, 17vw, 270px)' : 'clamp(175px, 14vw, 225px)' }}>
+      style={{ width: 'clamp(220px, 18vw, 290px)' }}>
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 'clamp(185px, 15vw, 240px)' }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" style={{ objectPosition: 'center 20%' }} />
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" style={{ objectPosition: 'center 35%' }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
         }} />
@@ -138,7 +142,7 @@ function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => voi
         )}
         <div className="absolute bottom-0 left-0 right-0 px-3.5 pb-3.5">
           <p className="text-white font-black leading-snug" style={{
-            fontSize: featured ? 15 : 13,
+            fontSize: 14,
             letterSpacing: '-0.01em',
             textShadow: '0 1px 8px rgba(0,0,0,0.6)'
           }}>
@@ -147,12 +151,12 @@ function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => voi
           <div className="flex items-center gap-1.5 mt-1">
             <div className="flex gap-0.5">
               {[1,2,3,4,5].map(i => (
-                <svg key={i} className={`${featured ? 'h-3 w-3' : 'h-2.5 w-2.5'} ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/20'}`} fill="currentColor" viewBox="0 0 20 20">
+                <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : 'text-white/20'}`} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-white/90 font-semibold" style={{ fontSize: featured ? 11 : 10 }}>{biz.rating}</span>
+            <span className="text-white/90 font-semibold" style={{ fontSize: 10 }}>{biz.rating}</span>
             <span className="text-white/40 text-[10px]">·</span>
             <span className="text-white/65 text-[10px]">{biz.distance}</span>
           </div>
@@ -163,9 +167,7 @@ function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => voi
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>
             {biz.category}
           </span>
-          {featured && (
-            <p className="text-[11px] text-neutral-400 mt-1.5 leading-snug line-clamp-1">{biz.tagline}</p>
-          )}
+          <p className="text-[11px] text-neutral-400 mt-1.5 leading-snug line-clamp-1">{biz.tagline}</p>
         </div>
         <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -179,22 +181,56 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
   title: string; subtitle: string; href: string;
   businesses: Business[]; onBizClick: (b: Business) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  function handleWheel(e: React.WheelEvent) {
+    if (!scrollRef.current) return;
+    // If user is scrolling more horizontally than vertically, let default handle it
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    scrollRef.current.scrollLeft += e.deltaY * 1.2;
+  }
+
+  // Shared edge padding — aligns cards with section header text on all screen sizes
+  const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
+
   return (
     <section>
-      <div className="flex items-end justify-between mb-4 px-6 max-w-[1600px] mx-auto">
+      <div className="flex items-end justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
         <div>
           <h2 className="text-[1.2rem] font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{title}</h2>
           <p className="text-[12px] text-neutral-400 mt-0.5">{subtitle}</p>
         </div>
-        <Link href={href} scroll={false}
-          className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0 mb-0.5">
-          See all →
-        </Link>
       </div>
-      <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', paddingLeft: 'max(24px, calc((100vw - 1600px) / 2 + 24px))', paddingRight: 'max(24px, calc((100vw - 1600px) / 2 + 24px))' } as React.CSSProperties}>
-        {businesses.map((biz, i) => (
-          <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} featured={i === 0} />
+      <div
+        ref={scrollRef}
+        onWheel={handleWheel}
+        className="flex gap-3.5 overflow-x-auto pb-2"
+        style={{
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch',
+          paddingLeft: edgePad,
+          paddingRight: edgePad,
+          cursor: 'grab',
+        } as React.CSSProperties}
+      >
+        {businesses.map((biz) => (
+          <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} />
         ))}
+        {/* See more card */}
+        <Link href={href} scroll={false}
+          className="flex-shrink-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent/20 hover:border-accent/40 bg-white hover:bg-accent-wash transition-all group"
+          style={{ width: 'clamp(160px, 13vw, 210px)', height: 'clamp(185px, 15vw, 240px)', marginBottom: '2px' }}>
+          <div className="h-10 w-10 rounded-full bg-accent/10 group-hover:bg-accent/15 flex items-center justify-center transition-colors">
+            <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+          <div className="text-center px-4">
+            <p className="text-[12px] font-black text-accent leading-tight">See all pros</p>
+            <p className="text-[10px] text-neutral-400 mt-1 leading-snug">Browse more in this category</p>
+          </div>
+        </Link>
       </div>
     </section>
   );
@@ -212,7 +248,7 @@ function ReferCard() {
     </div>
   );
   if (!open) return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ marginLeft: 'max(24px, calc((100vw - 1600px) / 2 + 24px))', marginRight: 'max(24px, calc((100vw - 1600px) / 2 + 24px))' }}>
+    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -229,7 +265,7 @@ function ReferCard() {
     </div>
   );
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1600px) / 2 + 24px))', marginRight: 'max(24px, calc((100vw - 1600px) / 2 + 24px))' }}>
+    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
@@ -308,7 +344,7 @@ const HomePage: NextPage = () => {
 
         {/* Category quick-links */}
         <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <div className="flex justify-center gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-wash hover:bg-blue-100 border border-accent/15 hover:border-accent/30 transition-all group">
@@ -322,7 +358,7 @@ const HomePage: NextPage = () => {
         </div>
 
         {/* Scrollable business rows */}
-        <div className="py-8 space-y-10 max-w-screen-2xl mx-auto">
+        <div className="py-8 space-y-10">
           <ScrollSection
             title="Top-rated near you"
             subtitle="Available now — highly reviewed"
