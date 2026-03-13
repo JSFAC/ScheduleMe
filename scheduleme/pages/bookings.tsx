@@ -228,7 +228,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
 
           <div className="h-px bg-neutral-100 my-6" />
 
-          <div className="space-y-5">
+          <div className="space-y-3.5">
             {booking.scheduled_at && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -581,8 +581,8 @@ const BookingsPage: NextPage = () => {
           </div>
         </div>
 
-        <div className="mx-auto max-w-3xl px-6 py-6">
-          <div className="space-y-5">
+        <div className="mx-auto max-w-3xl px-6 py-8">
+          <div className="space-y-3.5">
               {bookings.length === 0 ? (
                 <div className="bg-white rounded-2xl border text-center py-16 px-6" style={{ border: '1px solid rgba(10,132,255,0.08)' }}>
                   <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
@@ -606,18 +606,18 @@ const BookingsPage: NextPage = () => {
                   {activeBookings.length > 0 && (
                     <div>
                       <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: '#0A84FF' }}>Active</h2>
-                      <div className="space-y-2.5">
+                      <div className="space-y-3">
                         {activeBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left booking-card group overflow-hidden flex">
                               {/* Left accent bar — status color */}
-                              <div className="w-[5px] shrink-0" style={{ background: cfg.barColor }} />
-                              <div className="flex-1 p-5 pt-4 pb-4">
+                              <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
+                              <div className="flex-1 p-6 pt-5 pb-5">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-black text-neutral-900 text-[15px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em' }}>{b.service}</h3>
+                                    <h3 className="font-black text-neutral-900 text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em' }}>{b.service}</h3>
                                     {b.business_name
                                       ? <p className="text-xs text-neutral-500 mt-0.5 font-medium">{b.business_name}</p>
                                       : <p className="text-xs text-neutral-300 mt-0.5 italic">Matching you with a pro…</p>}
@@ -652,14 +652,14 @@ const BookingsPage: NextPage = () => {
                   {pastBookings.length > 0 && (
                     <div>
                       <h2 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.14em] mb-3">Past</h2>
-                      <div className="space-y-2.5">
+                      <div className="space-y-3">
                         {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100">
-                            <div className="w-[5px] shrink-0 bg-neutral-200" />
-                            <div className="flex-1 p-5 pt-4 pb-4 flex items-start justify-between gap-3">
+                            <div className="w-[6px] shrink-0 bg-neutral-200" />
+                            <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-black text-neutral-700 text-[15px] line-clamp-2" style={{ letterSpacing: '-0.02em' }}>{b.service}</h3>
+                                <h3 className="font-black text-neutral-700 text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em' }}>{b.service}</h3>
                                 {b.business_name && <p className="text-xs text-neutral-500 mt-0.5 font-medium">{b.business_name}</p>}
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <p className="text-[10px] text-neutral-300">{formatDate(b.created_at)}</p>
@@ -702,8 +702,8 @@ const BookingsPage: NextPage = () => {
               {SPONSORED.slice(0, 6).map(biz => (
                 <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
-                  style={{ width: 160, border: '1px solid rgba(10,132,255,0.10)', background: 'white' }}>
-                  <div className="relative overflow-hidden bg-neutral-100" style={{ height: 112 }}>
+                  style={{ width: 200, border: '1px solid rgba(10,132,255,0.10)', background: 'white' }}>
+                  <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
                     <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
                     {biz.available && (
@@ -717,7 +717,7 @@ const BookingsPage: NextPage = () => {
                       <p className="text-white text-[11px] font-black line-clamp-1" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{biz.name}</p>
                     </div>
                   </div>
-                  <div className="px-2.5 py-2">
+                  <div className="px-3 py-2.5">
                     <div className="flex items-center gap-1">
                       <svg className="h-2.5 w-2.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
