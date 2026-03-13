@@ -272,7 +272,7 @@ const BrowsePage: NextPage = () => {
             <div className="flex items-center justify-between gap-4 mb-5">
               <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
               {/* View toggle — inside hero */}
-              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
+              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 {([
                   ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
                   ['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
@@ -281,8 +281,8 @@ const BrowsePage: NextPage = () => {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: 'white', color: '#0A84FF' }
-                      : { color: 'rgba(255,255,255,0.75)' }}>
+                      ? { background: '#2563eb', color: 'white' }
+                      : { color: 'rgba(255,255,255,0.92)', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
                     </svg>
@@ -294,21 +294,21 @@ const BrowsePage: NextPage = () => {
             {/* Search + sort row */}
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
-                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: 'rgba(255,255,255,0.5)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all"
-                  style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
+                  style={{ background: 'white', color: '#171717', border: '1px solid rgba(255,255,255,0.3)' }}
                 />
               </div>
               <select value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}
                 className="pl-3 pr-8 py-2.5 rounded-xl text-sm focus:outline-none appearance-none flex-shrink-0"
-                style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-                <option value="distance" style={{ color: '#171717' }}>Nearest</option>
-                <option value="rating" style={{ color: '#171717' }}>Top Rated</option>
-                <option value="reviews" style={{ color: '#171717' }}>Most Reviewed</option>
+                style={{ background: 'white', color: '#171717', border: '1px solid rgba(255,255,255,0.3)' }}>
+                <option value="distance">Nearest</option>
+                <option value="rating">Top Rated</option>
+                <option value="reviews">Most Reviewed</option>
               </select>
             </div>
           </div>

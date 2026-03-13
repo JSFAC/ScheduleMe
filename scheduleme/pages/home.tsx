@@ -128,8 +128,8 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
       </div>
       {/* Suggestion chips — clipped to chat box width, draggable, wheel-scrollable */}
       <div className="mt-3 overflow-hidden" style={{
-        maskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 88%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 88%, transparent 100%)',
+        maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 92%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 92%, transparent 100%)',
       }}>
         <div
           ref={chipsRef}
@@ -265,25 +265,31 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
 
   return (
     <section>
-      <div className="flex items-end justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
-        <div>
+      <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
+        <div className="flex items-baseline gap-3">
           <h2 className="text-[1.2rem] font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{title}</h2>
-          <p className="text-[12px] text-neutral-400 mt-0.5">{subtitle}</p>
+          <span className="text-[11px] text-neutral-400 font-medium hidden sm:block">{subtitle}</span>
         </div>
         <Link href={href} scroll={false}
-          className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0 mb-0.5">
+          className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0">
           See all →
         </Link>
       </div>
 
       {/* Scroll container — full width, cards start at edgePad */}
       <div className="relative">
-        {/* Left curtain — covers cards scrolling past the left margin, blocks wheel events */}
-        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: '#EDF5FF' }} />
+        {/* Left curtain — covers cards + adds soft fade shadow */}
+        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto flex"
+          style={{ width: `calc(${edgePad} + 28px)` }}>
+          <div style={{ flex: '0 0 calc(100% - 28px)', background: '#EDF5FF' }} />
+          <div style={{ flex: '0 0 28px', background: 'linear-gradient(to right, #EDF5FF 0%, transparent 100%)' }} />
+        </div>
         {/* Right curtain — same on right */}
-        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: '#EDF5FF' }} />
+        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto flex"
+          style={{ width: `calc(${edgePad} + 28px)` }}>
+          <div style={{ flex: '0 0 28px', background: 'linear-gradient(to left, #EDF5FF 0%, transparent 100%)' }} />
+          <div style={{ flex: '0 0 calc(100% - 28px)', background: '#EDF5FF' }} />
+        </div>
 
         <div
           ref={scrollRef}
@@ -408,8 +414,8 @@ const HomePage: NextPage = () => {
           background: '#3b82f6',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
-          <div className="relative mx-auto max-w-6xl px-6 pt-9 pb-9">
-            <div className="flex items-start gap-10">
+          <div className="relative mx-auto max-w-4xl px-6 pt-9 pb-9">
+            <div className="flex items-center gap-10">
               {/* Search — constrained width */}
               <div className="flex-1 min-w-0 max-w-lg">
                 <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
