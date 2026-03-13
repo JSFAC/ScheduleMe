@@ -19,17 +19,17 @@ function timeOfDay() {
 
 const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
-const AI_SUGGESTIONS = [
-  'My kitchen pipe has been dripping for a week',
-  'Need a deep clean before my landlord inspection',
-  "AC runs but the house isn't cooling — what's wrong?",
-  'Want to repaint my living room before guests arrive',
-  'Breaker keeps tripping whenever I use the microwave',
-  'Backyard is completely overgrown, need help ASAP',
-  'Bathroom tiles are cracked and need replacing',
-  'Need someone to assemble IKEA furniture this weekend',
-  'Hot water heater making a loud banging noise',
-  'Want to add outdoor lighting to my patio',
+const AI_SUGGESTIONS: { label: string; prompt: string }[] = [
+  { label: 'Leaking pipe', prompt: 'My kitchen pipe has been dripping under the sink for about a week. It gets worse when I run the dishwasher. I need a licensed plumber who can come soon.' },
+  { label: 'Deep clean', prompt: "I need a thorough deep clean of my apartment before my landlord inspection next week. It's a 2-bed 1-bath, roughly 900 sq ft. Looking for someone reliable and detail-oriented." },
+  { label: 'AC not cooling', prompt: "My AC unit runs but the house isn't cooling down properly. It's an older central air system and I think it might need refrigerant or a tune-up. Can someone take a look?" },
+  { label: 'Room repaint', prompt: 'I want to repaint my living room and hallway before guests arrive next month. The walls are currently a dark gray and I want to go lighter. Looking for a clean, professional job.' },
+  { label: 'Breaker tripping', prompt: 'My circuit breaker keeps tripping every time I use the microwave in my kitchen. It might be an overloaded circuit. I need a licensed electrician to assess and fix it.' },
+  { label: 'Overgrown yard', prompt: 'My backyard is completely overgrown — tall grass, weeds, and some overgrown bushes. I need someone who can do a full cleanup and haul away the clippings.' },
+  { label: 'Cracked tiles', prompt: 'Several bathroom floor tiles are cracked and one is completely broken. I need someone experienced with tile replacement who can match or closely approximate the existing style.' },
+  { label: 'Furniture assembly', prompt: 'I just got a delivery of IKEA furniture — a bed frame, wardrobe, and two nightstands. I need someone available this weekend to assemble everything.' },
+  { label: 'Water heater noise', prompt: 'My water heater has been making a loud banging or popping noise, especially in the morning. I think it might need flushing or a part replaced. Looking for a plumber or HVAC tech.' },
+  { label: 'Patio lighting', prompt: 'I want to add outdoor string lights and two wall-mounted fixtures to my patio. I need an electrician who can run the wiring properly and make it weatherproof.' },
 ];
 
 const QUICK_CATS = [
@@ -92,20 +92,23 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
               ? <div className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
               : <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
             }
-            Find pros
+            Find Pro
           </button>
         </div>
       </div>
-      <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-        {AI_SUGGESTIONS.map(s => (
-          <button key={s} onClick={() => { setQuery(s); setTimeout(() => inputRef.current?.focus(), 0); }}
-            className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-            style={{ background: 'rgba(255,255,255,0.88)', color: '#2563eb', border: '1px solid rgba(255,255,255,0.95)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.88)'; }}>
-            {s}
-          </button>
-        ))}
+      <div className="relative mt-3" style={{ maskImage: 'linear-gradient(to right, black 80%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 80%, transparent 100%)' }}>
+        <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+          {AI_SUGGESTIONS.map(({ label, prompt }) => (
+            <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
+              className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
+              style={{ background: 'rgba(255,255,255,0.88)', color: '#2563eb', border: '1px solid rgba(255,255,255,0.95)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.88)'; }}>
+              {label}
+            </button>
+          ))}
+          <span className="shrink-0 w-8 block" />
+        </div>
       </div>
     </div>
   );
@@ -182,16 +185,36 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
   businesses: Business[]; onBizClick: (b: Business) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
 
-  function handleWheel(e: React.WheelEvent) {
-    if (!scrollRef.current) return;
-    // If user is scrolling more horizontally than vertically, let default handle it
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  // Non-passive wheel listener — lets us preventDefault so page doesn't scroll vertically
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      el!.scrollLeft += e.deltaY * 1.4;
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  function onMouseDown(e: React.MouseEvent) {
+    dragRef.current = { active: true, startX: e.pageX - scrollRef.current!.offsetLeft, scrollLeft: scrollRef.current!.scrollLeft };
+    if (scrollRef.current) scrollRef.current.style.cursor = 'grabbing';
+  }
+  function onMouseMove(e: React.MouseEvent) {
+    if (!dragRef.current.active || !scrollRef.current) return;
     e.preventDefault();
-    scrollRef.current.scrollLeft += e.deltaY * 1.2;
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    scrollRef.current.scrollLeft = dragRef.current.scrollLeft - (x - dragRef.current.startX) * 1.2;
+  }
+  function onMouseUp() {
+    dragRef.current.active = false;
+    if (scrollRef.current) scrollRef.current.style.cursor = 'grab';
   }
 
-  // Shared edge padding — aligns cards with section header text on all screen sizes
   const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
@@ -201,36 +224,50 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
           <h2 className="text-[1.2rem] font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{title}</h2>
           <p className="text-[12px] text-neutral-400 mt-0.5">{subtitle}</p>
         </div>
-      </div>
-      <div
-        ref={scrollRef}
-        onWheel={handleWheel}
-        className="flex gap-3.5 overflow-x-auto pb-2"
-        style={{
-          scrollbarWidth: 'none',
-          WebkitOverflowScrolling: 'touch',
-          paddingLeft: edgePad,
-          paddingRight: edgePad,
-          cursor: 'grab',
-        } as React.CSSProperties}
-      >
-        {businesses.map((biz) => (
-          <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} />
-        ))}
-        {/* See more card */}
         <Link href={href} scroll={false}
-          className="flex-shrink-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent/20 hover:border-accent/40 bg-white hover:bg-accent-wash transition-all group"
-          style={{ width: 'clamp(160px, 13vw, 210px)', height: 'clamp(185px, 15vw, 240px)', marginBottom: '2px' }}>
-          <div className="h-10 w-10 rounded-full bg-accent/10 group-hover:bg-accent/15 flex items-center justify-center transition-colors">
-            <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </div>
-          <div className="text-center px-4">
-            <p className="text-[12px] font-black text-accent leading-tight">See all pros</p>
-            <p className="text-[10px] text-neutral-400 mt-1 leading-snug">Browse more in this category</p>
-          </div>
+          className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0 mb-0.5">
+          See all →
         </Link>
+      </div>
+      {/* Clip wrapper — hides overflow exactly at the edgePad boundary */}
+      <div style={{ overflow: 'hidden' }}>
+        <div
+          ref={scrollRef}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseUp}
+          className="flex gap-3.5 overflow-x-auto pb-2 select-none"
+          style={{
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+            paddingLeft: edgePad,
+            paddingRight: edgePad,
+            cursor: 'grab',
+          } as React.CSSProperties}
+        >
+          {businesses.map((biz) => (
+            <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} />
+          ))}
+          {/* See more — same total height as BizCard (image + body) */}
+          <Link href={href} scroll={false}
+            className="flex-shrink-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent/20 hover:border-accent/40 bg-white hover:bg-accent-wash transition-all group"
+            style={{
+              width: 'clamp(160px, 13vw, 200px)',
+              height: 'calc(clamp(185px, 15vw, 240px) + 68px)',
+              marginBottom: '8px',
+            }}>
+            <div className="h-10 w-10 rounded-full bg-accent/10 group-hover:bg-accent/15 flex items-center justify-center transition-colors">
+              <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </div>
+            <div className="text-center px-4">
+              <p className="text-[12px] font-black text-accent leading-tight">See all pros</p>
+              <p className="text-[10px] text-neutral-400 mt-1 leading-snug">Browse more in this category</p>
+            </div>
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -323,18 +360,26 @@ const HomePage: NextPage = () => {
               <div className="flex-1 min-w-0">
                 <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
               </div>
-              {/* Decorative category tiles — right side, desktop only */}
-              <div className="hidden lg:grid grid-cols-2 gap-2.5 w-[260px] shrink-0 pt-10 pb-2">
-                {QUICK_CATS.map((cat) => (
-                  <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
-                    className="flex flex-col items-center gap-2 rounded-2xl px-3 py-4 transition-all hover:scale-[1.03]"
+              {/* 4 utility nav tiles — right side, desktop only */}
+              <div className="hidden lg:grid grid-cols-2 gap-2.5 w-[240px] shrink-0 self-stretch py-1">
+                {([
+                  { label: 'My Bookings', sub: 'Track your jobs', href: '/bookings', d: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
+                  { label: 'Browse Pros', sub: 'See all services', href: '/browse', d: 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' },
+                  { label: 'How It Works', sub: 'Pricing & info', href: '/pricing', d: 'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z' },
+                  { label: 'Refer a Pro', sub: 'Know someone good?', href: '#refer', d: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
+                ] as const).map((tile) => (
+                  <Link key={tile.label} href={tile.href} scroll={false}
+                    className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
                     style={{ background: 'rgba(255,255,255,0.90)', border: '1px solid rgba(255,255,255,0.95)' }}>
-                    <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.12)' }}>
+                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
                       <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
+                        <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                       </svg>
                     </div>
-                    <span className="text-[11px] font-bold text-blue-700 text-center leading-snug">{cat.label}</span>
+                    <div>
+                      <p className="text-[12px] font-black text-neutral-800 leading-snug">{tile.label}</p>
+                      <p className="text-[10px] text-blue-500 mt-0.5 font-medium">{tile.sub}</p>
+                    </div>
                   </Link>
                 ))}
               </div>
