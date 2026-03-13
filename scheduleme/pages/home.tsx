@@ -46,11 +46,41 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
   const [focused, setFocused] = useState(false);
   const [thinking, setThinking] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const chipsDragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
 
   function submit(q: string) {
     if (!q.trim() || thinking) return;
     setThinking(true);
     setTimeout(() => { setThinking(false); onSubmit(q.trim()); }, 380);
+  }
+
+  // Non-passive wheel on chips row
+  useEffect(() => {
+    const el = chipsRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      el!.scrollLeft += e.deltaY * 1.2;
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  function onChipsMouseDown(e: React.MouseEvent) {
+    chipsDragRef.current = { active: true, startX: e.pageX - chipsRef.current!.offsetLeft, scrollLeft: chipsRef.current!.scrollLeft };
+    if (chipsRef.current) chipsRef.current.style.cursor = 'grabbing';
+  }
+  function onChipsMouseMove(e: React.MouseEvent) {
+    if (!chipsDragRef.current.active || !chipsRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - chipsRef.current.offsetLeft;
+    chipsRef.current.scrollLeft = chipsDragRef.current.scrollLeft - (x - chipsDragRef.current.startX) * 1.2;
+  }
+  function onChipsMouseUp() {
+    chipsDragRef.current.active = false;
+    if (chipsRef.current) chipsRef.current.style.cursor = 'grab';
   }
 
   return (
@@ -96,8 +126,21 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           </button>
         </div>
       </div>
-      <div className="relative mt-3" style={{ maskImage: 'linear-gradient(to right, black 80%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 80%, transparent 100%)' }}>
-        <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+      {/* Suggestion chips — clipped to chat box width, draggable, wheel-scrollable */}
+      <div className="mt-3 overflow-hidden" style={{
+        maskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 88%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 88%, transparent 100%)',
+      }}>
+        <div
+          ref={chipsRef}
+          onMouseDown={onChipsMouseDown}
+          onMouseMove={onChipsMouseMove}
+          onMouseUp={onChipsMouseUp}
+          onMouseLeave={onChipsMouseUp}
+          className="flex gap-2 overflow-x-auto pb-0.5 select-none"
+          style={{ scrollbarWidth: 'none', cursor: 'grab' }}
+        >
+          <span className="shrink-0 w-1 block" />
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
             <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
               className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
@@ -107,7 +150,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
               {label}
             </button>
           ))}
-          <span className="shrink-0 w-8 block" />
+          <span className="shrink-0 w-4 block" />
         </div>
       </div>
     </div>
@@ -187,11 +230,13 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
 
-  // Non-passive wheel listener — lets us preventDefault so page doesn't scroll vertically
+  // Non-passive wheel listener — prevents page scroll while hovering the scroll row
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     function onWheel(e: WheelEvent) {
+      // Only intercept if cursor is in the card zone (not over the curtain margins)
+      // The curtains have pointer-events:none so this fires only over cards
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       e.preventDefault();
       el!.scrollLeft += e.deltaY * 1.4;
@@ -215,6 +260,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
     if (scrollRef.current) scrollRef.current.style.cursor = 'grab';
   }
 
+  // edgePad must match exactly — cards start and end here, curtains cover outside
   const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
@@ -229,8 +275,16 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
           See all →
         </Link>
       </div>
-      {/* Clip wrapper — hides overflow exactly at the edgePad boundary */}
-      <div style={{ overflow: 'hidden' }}>
+
+      {/* Scroll container — full width, cards start at edgePad */}
+      <div className="relative">
+        {/* Left curtain — covers cards scrolling past the left margin, blocks wheel events */}
+        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
+          style={{ width: edgePad, background: '#EDF5FF' }} />
+        {/* Right curtain — same on right */}
+        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
+          style={{ width: edgePad, background: '#EDF5FF' }} />
+
         <div
           ref={scrollRef}
           onMouseDown={onMouseDown}
@@ -355,13 +409,13 @@ const HomePage: NextPage = () => {
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
           <div className="relative mx-auto max-w-6xl px-6 pt-9 pb-9">
-            <div className="flex items-start gap-16">
-              {/* Search — takes up left side */}
-              <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-10">
+              {/* Search — constrained width */}
+              <div className="flex-1 min-w-0 max-w-lg">
                 <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
               </div>
               {/* 4 utility nav tiles — right side, desktop only */}
-              <div className="hidden lg:grid grid-cols-2 gap-2.5 w-[240px] shrink-0 self-stretch py-1">
+              <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2.5 w-[260px] shrink-0">
                 {([
                   { label: 'My Bookings', sub: 'Track your jobs', href: '/bookings', d: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
                   { label: 'Browse Pros', sub: 'See all services', href: '/browse', d: 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' },
@@ -370,7 +424,7 @@ const HomePage: NextPage = () => {
                 ] as const).map((tile) => (
                   <Link key={tile.label} href={tile.href} scroll={false}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{ background: 'rgba(255,255,255,0.90)', border: '1px solid rgba(255,255,255,0.95)' }}>
+                    style={{ background: 'rgba(255,255,255,0.90)', border: '1px solid rgba(255,255,255,0.95)', aspectRatio: '1' }}>
                     <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
                       <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
