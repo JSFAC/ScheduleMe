@@ -17,7 +17,6 @@ function timeOfDay() {
   return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
-const CORAL = '#FF6B4A';
 const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
 const AI_SUGGESTIONS = [
@@ -115,20 +114,20 @@ function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => voi
       style={{ width: featured ? 272 : 210 }}>
       <div className="relative overflow-hidden bg-neutral-100" style={{ height: featured ? 216 : 172 }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.05]" />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
         }} />
         {biz.available ? (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
             style={{ background: 'rgba(255,255,255,0.95)' }}>
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: CORAL }} />
-            <span className="text-[10px] font-black tracking-wide" style={{ color: CORAL }}>Open</span>
+            <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
+            <span className="text-[10px] font-black tracking-wide text-emerald-600">Open</span>
           </div>
         ) : (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
             <span className="h-2 w-2 rounded-full bg-neutral-400 shrink-0" />
-            <span className="text-[10px] font-bold text-white/60 tracking-wide">Busy</span>
+            <span className="text-[10px] font-bold text-white/60 tracking-wide">Fully Booked</span>
           </div>
         )}
         {biz.badge && (
@@ -277,23 +276,11 @@ const HomePage: NextPage = () => {
       <Nav />
       <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
 
-        {/* Search hero — full-bleed blue gradient, fills all the dead space */}
-        <div className="relative overflow-hidden border-b" style={{
-          background: 'linear-gradient(160deg, #2563eb 0%, #3b82f6 40%, #7ab8f5 80%, #c7e2ff 100%)',
+        {/* Search hero — flat solid blue, clean */}
+        <div className="border-b" style={{
+          background: '#3b82f6',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
-          {/* Subtle grid overlay */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)',
-            backgroundSize: '48px 48px'
-          }} />
-          {/* Glow blobs */}
-          <div className="absolute top-[-80px] right-[10%] w-[500px] h-[500px] rounded-full pointer-events-none" style={{
-            background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 65%)'
-          }} />
-          <div className="absolute bottom-[-60px] left-[5%] w-[400px] h-[400px] rounded-full pointer-events-none" style={{
-            background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%)'
-          }} />
           <div className="relative mx-auto max-w-6xl px-6 pt-9 pb-9">
             <div className="flex items-start gap-16">
               {/* Search — takes up left side */}

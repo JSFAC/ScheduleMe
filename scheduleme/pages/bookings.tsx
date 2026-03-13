@@ -515,18 +515,11 @@ const BookingsPage: NextPage = () => {
       <Nav />
 
       <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
-        {/* Header — blue gradient like home hero */}
-        <div className="relative overflow-hidden border-b" style={{
-          background: 'linear-gradient(160deg, #2563eb 0%, #3b82f6 40%, #7ab8f5 80%, #c7e2ff 100%)',
+        {/* Header — flat solid blue */}
+        <div className="border-b" style={{
+          background: '#3b82f6',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
-          <div className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
-            backgroundSize: '48px 48px'
-          }} />
-          <div className="absolute top-[-60px] right-[8%] w-[360px] h-[360px] rounded-full pointer-events-none" style={{
-            background: 'radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 65%)'
-          }} />
           <div className="relative mx-auto max-w-3xl px-6 pt-8 pb-7">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
@@ -716,8 +709,8 @@ const BookingsPage: NextPage = () => {
                     {biz.available && (
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full px-2 py-0.5"
                         style={{ background: 'rgba(255,255,255,0.95)' }}>
-                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: '#FF6B4A' }} />
-                        <span className="text-[9px] font-black" style={{ color: '#FF6B4A' }}>Open</span>
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
+                        <span className="text-[9px] font-black text-emerald-600">Open</span>
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2">

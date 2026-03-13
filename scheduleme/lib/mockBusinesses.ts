@@ -24,6 +24,7 @@ export interface Business {
   sponsored?: boolean;
   independent?: boolean;
   topReview?: string;
+  reviewer?: { name: string; avatarUrl: string };
 }
 
 export const ALL_BUSINESSES: Business[] = [
@@ -35,6 +36,7 @@ export const ALL_BUSINESSES: Business[] = [
     available: true, badge: 'Top Rated', sponsored: true,
     tagline: 'Same-day emergency service. Licensed & insured.',
     topReview: '"Fixed our leak at midnight — showed up in 20 min. Absolute lifesaver."',
+    reviewer: { name: 'Marcus T.', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80' },
     description: 'Pacific Plumbing Co. has served the Bay Area for over 15 years. We handle everything from leaky faucets to full pipe replacements — same-day availability for emergencies. All technicians are licensed, bonded, and insured.',
     address: '819 Valencia St, San Francisco, CA 94110',
     phone: '(415) 555-0192', email: 'hello@pacificplumbing.com',
@@ -67,6 +69,7 @@ export const ALL_BUSINESSES: Business[] = [
     available: true, badge: 'Fast Response', sponsored: true,
     tagline: 'Deep cleans, recurring service, eco-friendly products.',
     topReview: '"Left our apartment spotless. Even cleaned behind the fridge. Incredible."',
+    reviewer: { name: 'Priya S.', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80' },
     description: 'Sparkle Clean SF is a locally owned cleaning company specializing in residential and small office spaces. We use only eco-certified products. All staff are background-checked, and we\'re fully insured.',
     address: '2390 Mission St, San Francisco, CA 94110',
     phone: '(415) 555-0108', email: 'team@sparkleclean.com',
@@ -98,6 +101,7 @@ export const ALL_BUSINESSES: Business[] = [
     available: false, badge: 'Licensed & Insured', sponsored: true,
     tagline: 'Panel upgrades, EV charger installation, 24/7 service.',
     topReview: '"Installed our EV charger fast and clean. Great communication throughout."',
+    reviewer: { name: 'James K.', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80' },
     description: 'Bay Area Electric provides full-service residential and commercial electrical work. From simple outlet repairs to complete panel upgrades and EV charger installations. C-10 licensed, fully insured, and serving the Bay since 2008.',
     address: '450 Brannan St, San Francisco, CA 94107',
     phone: '(415) 555-0241', email: 'service@bayareaelectric.com',
@@ -129,6 +133,7 @@ export const ALL_BUSINESSES: Business[] = [
     available: true, badge: null, sponsored: true,
     tagline: 'Lawn care, garden design, and seasonal maintenance.',
     topReview: '"Transformed our dead lawn in one day. Worth every penny."',
+    reviewer: { name: 'Sofia R.', avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&q=80' },
     description: 'Green Thumb Gardens is a small family-run landscaping company in the Mission. We love transforming outdoor spaces — from simple lawn maintenance to full garden redesigns. Sustainable practices, fair prices.',
     address: '3246 24th St, San Francisco, CA 94110',
     phone: '(415) 555-0377', email: 'hello@greenthumbsf.com',
@@ -160,6 +165,7 @@ export const ALL_BUSINESSES: Business[] = [
     available: true, badge: null, independent: true,
     tagline: 'Heating, cooling, and ventilation — installed right.',
     topReview: '"AC died in a heatwave. They were here in 2 hours. Incredibly professional."',
+    reviewer: { name: 'David L.', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&q=80' },
     description: 'Summit HVAC has been keeping Bay Area homes comfortable for 12 years. We install, repair, and maintain all major HVAC brands. Free estimates. Financing available for larger jobs.',
     address: '1200 Howard St, San Francisco, CA 94103',
     phone: '(415) 555-0519', email: 'info@summithvac.com',
@@ -192,6 +198,7 @@ export const ALL_BUSINESSES: Business[] = [
     available: true, badge: 'Top Rated', independent: true,
     tagline: 'Interior and exterior painting. Free estimates in 24 hrs.',
     topReview: '"Cleanest paint job I\'ve ever seen. No drips, finished ahead of schedule."',
+    reviewer: { name: 'Aisha M.', avatarUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=80&q=80' },
     description: 'Canvas & Coat is a boutique painting company known for clean prep work and flawless finishes. We handle everything from single rooms to full exterior repaints. Family owned, locally based in the Inner Sunset.',
     address: '1450 Irving St, San Francisco, CA 94122',
     phone: '(415) 555-0634', email: 'quotes@canvasandcoat.com',
