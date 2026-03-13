@@ -69,10 +69,10 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
 // Standard card used in grid view
 function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; hero?: boolean }) {
   return (
-    <button onClick={onClick} className="biz-card group w-full text-left">
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 210 }}>
+    <button onClick={onClick} className="biz-card group w-full text-left flex flex-col">
+      <div className="relative overflow-hidden bg-neutral-100 flex-shrink-0" style={{ height: 210 }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" />
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" style={{ objectPosition: 'center 20%' }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 52%, transparent 100%)'
         }} />
@@ -119,7 +119,7 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
         </div>
       </div>
       {/* Card body */}
-      <div className="px-3.5 pt-3 pb-3.5" style={{ minHeight: 110 }}>
+      <div className="px-3.5 pt-3 pb-3.5 flex-1" style={{ minHeight: 118, overflow: 'hidden' }}>
         <p className="text-[12px] text-neutral-500 leading-snug line-clamp-2 mb-2">{biz.tagline}</p>
         {biz.topReview && (
           <div className="mb-2.5">
@@ -344,7 +344,7 @@ const BrowsePage: NextPage = () => {
                 </div>
               ) : viewMode === 'grid' ? (
                 /* Asymmetric grid — first card hero spans 2 cols, rest fill */
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4" style={{ alignItems: 'stretch' }}>
                   {filtered.map((biz) => (
                     <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} />
                   ))}

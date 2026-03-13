@@ -111,10 +111,10 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 function BizCard({ biz, onClick, featured }: { biz: Business; onClick: () => void; featured?: boolean }) {
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0"
-      style={{ width: featured ? 295 : 235 }}>
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: featured ? 236 : 192 }}>
+      style={{ width: featured ? 'clamp(260px, 22vw, 340px)' : 'clamp(210px, 17vw, 280px)' }}>
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: featured ? 'clamp(210px, 17vw, 270px)' : 'clamp(175px, 14vw, 225px)' }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.05]" />
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" style={{ objectPosition: 'center 20%' }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
         }} />
@@ -181,7 +181,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
 }) {
   return (
     <section>
-      <div className="flex items-end justify-between mb-4 px-6">
+      <div className="flex items-end justify-between mb-4 px-6 max-w-[1600px] mx-auto">
         <div>
           <h2 className="text-[1.2rem] font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{title}</h2>
           <p className="text-[12px] text-neutral-400 mt-0.5">{subtitle}</p>
@@ -191,7 +191,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
           See all →
         </Link>
       </div>
-      <div className="flex gap-3.5 overflow-x-auto pl-6 pr-6 pb-2" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+      <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', paddingLeft: 'max(24px, calc((100vw - 1600px) / 2 + 24px))', paddingRight: 'max(24px, calc((100vw - 1600px) / 2 + 24px))' } as React.CSSProperties}>
         {businesses.map((biz, i) => (
           <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} featured={i === 0} />
         ))}
@@ -212,7 +212,7 @@ function ReferCard() {
     </div>
   );
   if (!open) return (
-    <div className="mx-6 rounded-2xl border border-neutral-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ marginLeft: 'max(24px, calc((100vw - 1600px) / 2 + 24px))', marginRight: 'max(24px, calc((100vw - 1600px) / 2 + 24px))' }}>
       <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -229,7 +229,7 @@ function ReferCard() {
     </div>
   );
   return (
-    <div className="mx-6 rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3">
+    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1600px) / 2 + 24px))', marginRight: 'max(24px, calc((100vw - 1600px) / 2 + 24px))' }}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
@@ -322,7 +322,7 @@ const HomePage: NextPage = () => {
         </div>
 
         {/* Scrollable business rows */}
-        <div className="py-8 space-y-10">
+        <div className="py-8 space-y-10 max-w-screen-2xl mx-auto">
           <ScrollSection
             title="Top-rated near you"
             subtitle="Available now — highly reviewed"
