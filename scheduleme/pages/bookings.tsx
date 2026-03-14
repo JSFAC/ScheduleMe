@@ -401,14 +401,13 @@ type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
 
 const BookingsPage: NextPage = () => {
   const router = useRouter();
-  useDarkMode(); // apply persisted dark mode
+  const { dark: dm } = useDarkMode();
   const [phase, setPhase] = useState<Phase>('loading');
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());
@@ -469,7 +468,7 @@ const BookingsPage: NextPage = () => {
 
   const showOverlay = phase === 'welcome' || phase === 'transitioning';
   const overlayOut = phase === 'transitioning';
-  const filteredBookings = activeCategory ? bookings.filter(b => b.category === activeCategory) : bookings;
+  const filteredBookings = bookings; // category filter removed - column doesn't exist in DB
   const activeBookings = filteredBookings.filter(b => !['completed', 'cancelled'].includes(b.status));
   const pastBookings   = filteredBookings.filter(b => ['completed', 'cancelled'].includes(b.status));
 
@@ -514,7 +513,7 @@ const BookingsPage: NextPage = () => {
               </div>
               <Link href="/browse" scroll={false}
                 className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl transition-colors mt-1"
-                style={{ background: 'white', color: '#0A84FF', border: '1px solid rgba(255,255,255,0.3)' }}>
+                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#0A84FF', border: '1px solid rgba(255,255,255,0.3)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -529,40 +528,13 @@ const BookingsPage: NextPage = () => {
                 { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
-                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: '#0A84FF' }}>{s.value}</p>
-                  <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5 text-neutral-500">{s.label}</p>
+                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
+                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0A84FF' }}>{s.value}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>{s.label}</p>
                 </div>
               ))}
             </div>
 
-            {/* Dynamic category filter */}
-            {bookings.length > 0 && (() => {
-              const usedCategories = [...new Set(bookings.map(b => b.category).filter(Boolean))];
-              return usedCategories.length > 0 ? (
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.12em] mb-2" style={{ color: 'rgba(255,255,255,0.75)' }}>Filter by</p>
-                  <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-                    <button onClick={() => setActiveCategory(null)}
-                      className="shrink-0 text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
-                      style={activeCategory === null
-                        ? { background: 'white', color: '#0A84FF' }
-                        : { background: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.95)', border: '1px solid rgba(255,255,255,0.4)' }}>
-                      All
-                    </button>
-                    {usedCategories.map(cat => (
-                      <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-                        className="shrink-0 text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
-                        style={activeCategory === cat
-                          ? { background: 'white', color: '#0A84FF' }
-                          : { background: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.95)', border: '1px solid rgba(255,255,255,0.4)' }}>
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null;
-            })()}
           </div>
         </div>
 
@@ -579,13 +551,7 @@ const BookingsPage: NextPage = () => {
                   <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
                   <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
                 </div>
-              ) : activeBookings.length === 0 && pastBookings.length === 0 ? (
-                <div className="rounded-2xl border border-neutral-100 bg-white text-center py-10 px-6">
-                  <p className="font-semibold text-neutral-600 text-sm">No {activeCategory} bookings</p>
-                  <button onClick={() => setActiveCategory(null)} className="text-xs text-accent font-semibold mt-2 hover:opacity-70 transition-opacity">
-                    Clear filter
-                  </button>
-                </div>
+
               ) : (
                 <>
                   {activeBookings.length > 0 && (
@@ -687,7 +653,7 @@ const BookingsPage: NextPage = () => {
               {SPONSORED.slice(0, 6).map(biz => (
                 <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
-                  style={{ width: 200, border: '1px solid rgba(10,132,255,0.10)', background: 'white' }}>
+                  style={{ width: 200, border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.10)', background: dm ? '#1a1d27' : 'white' }}>
                   <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
                     <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
