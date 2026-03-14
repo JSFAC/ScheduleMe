@@ -462,7 +462,7 @@ const HomePage: NextPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
                 <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0A84FF') }}>{cat.label}</span>
-              </Link>
+              </button>
             ))}
           </div>
         </div>
