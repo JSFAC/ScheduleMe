@@ -75,6 +75,7 @@ const Account: NextPage = () => {
   const [tab, setTab] = useState<Tab>('addresses');
   const [user, setUser] = useState<any>(null);
   const { dark: darkMode, toggle: toggleDark } = useDarkMode();
+  const dm = darkMode;
   const [authProvider, setAuthProvider] = useState<string>('email');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
