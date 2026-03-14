@@ -207,7 +207,7 @@ function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?
       {/* Card body — category + review snippet + reviewer */}
       <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#171717' : 'white' }}>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#EBF4FF', color: dm ? 'white' : '#1A6FD4', border: dm ? '1px solid rgba(10,132,255,0.45)' : '1px solid transparent' }}>
             {biz.category}
           </span>
           <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -469,30 +469,43 @@ const HomePage: NextPage = () => {
 
         {/* Scrollable business rows */}
         <div className="py-8 space-y-10">
-          <ScrollSection
-            title="Top-rated near you"
-            subtitle="Available now — highly reviewed"
-            href="/browse"
-            businesses={[...SPONSORED, ...NEARBY].slice(0, 6)}
-            onBizClick={setActiveBiz}
-            dm={dm}
-          />
-          <ScrollSection
-            title="Small & Independent"
-            subtitle="Solo tradespeople — your booking helps them grow"
-            href="/browse?category=Independent"
-            businesses={[...INDEPENDENT, ...SPONSORED.slice(0, 2)].slice(0, 6)}
-            onBizClick={setActiveBiz}
-            dm={dm}
-          />
-          <ScrollSection
-            title="Quick response"
-            subtitle="Pros that pick up jobs fast"
-            href="/browse"
-            businesses={[...NEARBY, ...INDEPENDENT].slice(0, 6)}
-            onBizClick={setActiveBiz}
-            dm={dm}
-          />
+          {activeCategory === 'All' ? (
+            <>
+              <ScrollSection
+                title="Top-rated near you"
+                subtitle="Available now — highly reviewed"
+                href="/browse"
+                businesses={[...SPONSORED, ...NEARBY].slice(0, 6)}
+                onBizClick={setActiveBiz}
+                dm={dm}
+              />
+              <ScrollSection
+                title="Small & Independent"
+                subtitle="Solo tradespeople — your booking helps them grow"
+                href="/browse?category=Independent"
+                businesses={[...INDEPENDENT, ...SPONSORED.slice(0, 2)].slice(0, 6)}
+                onBizClick={setActiveBiz}
+                dm={dm}
+              />
+              <ScrollSection
+                title="Quick response"
+                subtitle="Pros that pick up jobs fast"
+                href="/browse"
+                businesses={[...NEARBY, ...INDEPENDENT].slice(0, 6)}
+                onBizClick={setActiveBiz}
+                dm={dm}
+              />
+            </>
+          ) : (
+            <ScrollSection
+              title={activeCategory}
+              subtitle={`Top ${activeCategory} pros near you`}
+              href={`/browse?category=${activeCategory}`}
+              businesses={[...SPONSORED, ...INDEPENDENT, ...NEARBY].filter(b => b.category === activeCategory).slice(0, 8)}
+              onBizClick={setActiveBiz}
+              dm={dm}
+            />
+          )}
           <ReferCard />
         </div>
 

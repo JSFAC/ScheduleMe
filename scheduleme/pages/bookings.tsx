@@ -498,7 +498,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pt-[72px]" style={{ background: dm ? '#0f1117' : '#EDF5FF' }}>
+      <div className="min-h-screen pt-[72px]" style={{ background: dm ? '#0a0a0a' : '#EDF5FF' }}>
         {/* Header — flat solid blue */}
         <div className="border-b" style={{
           background: '#3b82f6',
@@ -541,7 +541,7 @@ const BookingsPage: NextPage = () => {
         <div className="mx-auto max-w-3xl px-6 py-8">
           <div className="space-y-3.5">
               {bookings.length === 0 ? (
-                <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#1a1d27' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.08)' }}>
+                <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.08)' }}>
                   <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
@@ -562,10 +562,10 @@ const BookingsPage: NextPage = () => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : undefined }}>
+                              className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
                               {/* Left accent bar — status color */}
                               <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
-                              <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#1a1d27' : 'white' }}>
+                              <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
@@ -606,9 +606,9 @@ const BookingsPage: NextPage = () => {
                       <div className="space-y-3">
                         {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
-                            className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : undefined }}>
+                            className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
                             <div className="w-[6px] shrink-0 bg-neutral-200" />
-                            <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#1a1d27' : 'white' }}>
+                            <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
                                 {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
@@ -638,7 +638,7 @@ const BookingsPage: NextPage = () => {
               )}
 
           {/* Nearby pros — horizontal scroll row, no grid */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#1a1d27' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.09)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.09)' }}>
             <div className="px-5 pt-5 pb-2 flex items-center justify-between">
               <div>
                 <h3 className="text-[1rem] font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>Available near you</h3>
@@ -653,31 +653,31 @@ const BookingsPage: NextPage = () => {
               {SPONSORED.slice(0, 6).map(biz => (
                 <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
-                  style={{ width: 200, border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.10)', background: dm ? '#1a1d27' : 'white' }}>
+                  style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(10,132,255,0.12)', background: dm ? '#171717' : 'white' }}>
                   <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
                     <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
                     {biz.available && (
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full px-2 py-0.5"
-                        style={{ background: 'rgba(255,255,255,0.95)' }}>
+                        style={{ background: dm ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.95)' }}>
                         <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
-                        <span className="text-[9px] font-black text-emerald-600">Open</span>
+                        <span className="text-[9px] font-black" style={{ color: dm ? 'white' : '#16a34a' }}>Open</span>
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2">
                       <p className="text-white text-[11px] font-black line-clamp-1" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{biz.name}</p>
                     </div>
                   </div>
-                  <div className="px-3 py-2.5" style={{ background: dm ? '#1a1d27' : 'white' }}>
+                  <div className="px-3 py-2.5" style={{ background: dm ? '#171717' : 'white' }}>
                     <div className="flex items-center gap-1">
                       <svg className="h-2.5 w-2.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
-                      <span className="text-[10px] font-semibold text-neutral-700">{biz.rating}</span>
+                      <span className="text-[10px] font-semibold" style={{ color: dm ? '#d1d5db' : '#404040' }}>{biz.rating}</span>
                       <span className="text-neutral-300 text-[10px]">·</span>
-                      <span className="text-[10px] text-neutral-400">{biz.distance}</span>
+                      <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</span>
                     </div>
-                    <p className="text-[10px] text-neutral-400 mt-0.5 line-clamp-1">{biz.category}</p>
+                    <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
                   </div>
                 </Link>
               ))}
