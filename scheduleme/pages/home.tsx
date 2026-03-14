@@ -172,9 +172,9 @@ function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?
         }} />
         {biz.available ? (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
-            style={{ background: 'rgba(255,255,255,0.95)' }}>
+            style={{ background: dm ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.95)', backdropFilter: dm ? 'blur(8px)' : undefined }}>
             <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
-            <span className="text-[10px] font-black tracking-wide text-emerald-600">Open</span>
+            <span className="text-[10px] font-black tracking-wide" style={{ color: dm ? '#4ade80' : '#16a34a' }}>Open</span>
           </div>
         ) : (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
@@ -209,7 +209,7 @@ function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?
       {/* Card body — category + review snippet + reviewer */}
       <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#1a1d27' : 'white' }}>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? '#0d2040' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
             {biz.category}
           </span>
           <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -455,8 +455,8 @@ const HomePage: NextPage = () => {
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
-                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all group"
-                style={{ background: dm ? '#0d1f35' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
+                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
+                style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
                 <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>

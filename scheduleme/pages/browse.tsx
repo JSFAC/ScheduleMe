@@ -80,9 +80,9 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
         }} />
         {biz.available ? (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
-            style={{ background: 'rgba(255,255,255,0.96)' }}>
+            style={{ background: dm ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.96)', backdropFilter: dm ? 'blur(8px)' : undefined }}>
             <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
-            <span className="text-[10px] font-black tracking-wide text-emerald-600">Open</span>
+            <span className="text-[10px] font-black tracking-wide" style={{ color: dm ? '#4ade80' : '#16a34a' }}>Open</span>
           </div>
         ) : (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/52 backdrop-blur-sm rounded-full px-2.5 py-1">
@@ -147,7 +147,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
             </div>
             <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
           </div>
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? '#0d2040' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
             {biz.category}
           </span>
         </div>
