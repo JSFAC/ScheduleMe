@@ -205,7 +205,8 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
             value={address}
             onChange={e => setAddress(e.target.value)}
             placeholder="Your address or unit where work is needed"
-            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+            className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+            style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
           />
         </div>
 
