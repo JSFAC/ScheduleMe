@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const supabase = getSupabase();
         const { data, error } = await supabase
           .from('bookings')
-          .select('id, service, category, status, created_at, scheduled_at, address, notes, amount_cents, businesses(name, phone, email)')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email)')
           .eq('user_id', user_id)
           .order('created_at', { ascending: false });
 
@@ -61,6 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Flatten business info
         const bookings = (data || []).map((b: any) => ({
           ...b,
+          scheduled_at: b.scheduled_start ?? null,
           business_name: b.businesses?.name ?? null,
           business_phone: b.businesses?.phone ?? null,
           business_email: b.businesses?.email ?? null,
