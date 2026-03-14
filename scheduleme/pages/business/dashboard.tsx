@@ -96,11 +96,8 @@ const BusinessDashboard: NextPage = () => {
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
-  const [threadMessages, setThreadMessages] = useState<any[]>([]);
   const [msgDraft, setMsgDraft] = useState('');
-  const [msgSending, setMsgSending] = useState(false);
   const msgPollRef = useRef<NodeJS.Timeout | null>(null);
-  const msgBottomRef = useRef<HTMLDivElement | null>(null);
   const [msgThreads, setMsgThreads] = useState<any[]>([]);
   const [activeMsgThread, setActiveMsgThread] = useState<any>(null);
   const [threadMessages, setThreadMessages] = useState<any[]>([]);
