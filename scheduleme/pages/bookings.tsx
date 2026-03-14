@@ -41,34 +41,6 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
 const STEPS = ['pending', 'confirmed', 'paid', 'completed'];
 const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Done'];
 
-const MOCK_BOOKINGS: Booking[] = [
-  {
-    id: '1', service: 'Leaking kitchen faucet — under sink dripping badly', category: 'Plumbing', status: 'confirmed',
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    scheduled_at: new Date(Date.now() + 86400000).toISOString(),
-    address: '421 Hayes St, San Francisco, CA 94102',
-    notes: 'Please bring replacement parts for a standard kitchen faucet. Dog in the house, she is friendly.',
-    business_name: 'Pacific Plumbing Co.', business_phone: '(415) 555-0192', business_email: 'hello@pacificplumbing.com',
-    amount_cents: undefined,
-  },
-  {
-    id: '2', service: 'Deep clean 2BR apartment before move-out', category: 'House Cleaning', status: 'completed',
-    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
-    scheduled_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    address: '140 New Montgomery St, San Francisco, CA 94105',
-    business_name: 'Sparkle Clean SF', business_phone: '(415) 555-0108', business_email: 'team@sparkleclean.com',
-    amount_cents: 29000,
-  },
-  {
-    id: '3', service: 'Electrical panel inspection — circuit keeps tripping', category: 'Electrical', status: 'pending',
-    created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
-    address: '1 Ferry Building, San Francisco, CA 94111',
-    notes: 'Circuit for the kitchen has been tripping every few days.',
-    business_name: undefined,
-    amount_cents: undefined,
-  },
-];
-
 function formatDate(iso: string) {
   const d = new Date(iso);
   const now = new Date();
@@ -475,7 +447,18 @@ const BookingsPage: NextPage = () => {
 
         }
 
-        setBookings(MOCK_BOOKINGS);
+        // Fetch real bookings for this user
+        try {
+          const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setBookings(data.bookings || []);
+          } else {
+            setBookings([]);
+          }
+        } catch {
+          setBookings([]);
+        }
       } else {
         setPhase('done');
       }
@@ -529,7 +512,7 @@ const BookingsPage: NextPage = () => {
               </div>
               <Link href="/browse" scroll={false}
                 className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl transition-colors mt-1"
-                style={{ background: 'white', color: '#0A84FF', border: '1px solid rgba(255,255,255,0.3)' }}>
+                style={{ background: 'rgba(255,255,255,0.22)', color: 'white', border: '1px solid rgba(255,255,255,0.45)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -544,9 +527,9 @@ const BookingsPage: NextPage = () => {
                 { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
-                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: '#0A84FF' }}>{s.value}</p>
-                  <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5 text-neutral-500">{s.label}</p>
+                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)' }}>
+                  <p className="text-2xl font-black text-white" style={{ letterSpacing: '-0.025em' }}>{s.value}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.label}</p>
                 </div>
               ))}
             </div>
