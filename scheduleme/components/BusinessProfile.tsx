@@ -377,7 +377,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
 
           <div className="absolute top-3 left-3 pointer-events-none">
             {biz.available
-              ? <span className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold text-green-700"><span className="h-1.5 w-1.5 rounded-full bg-green-500" />Open</span>
+              ? <span className="flex items-center gap-1.5 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: dm ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.9)', color: dm ? 'white' : '#15803d' }}><span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />Open</span>
               : <span className="backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold text-white/80" style={{ background: 'rgba(0,0,0,0.55)' }}>Fully Booked</span>}
           </div>
         </div>

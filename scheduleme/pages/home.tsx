@@ -207,7 +207,7 @@ function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?
       {/* Card body — category + review snippet + reviewer */}
       <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#171717' : 'white' }}>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? '#0A84FF' : '#EBF4FF', color: dm ? 'white' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
             {biz.category}
           </span>
           <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -384,6 +384,7 @@ const HomePage: NextPage = () => {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -451,14 +452,16 @@ const HomePage: NextPage = () => {
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
-            {QUICK_CATS.map(cat => (
-              <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
+            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS].map(cat => (
+              <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
-                style={{ background: dm ? '#0A84FF' : '#EDF5FF', borderColor: dm ? '#0A84FF' : 'rgba(10,132,255,0.15)' }}>
-                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: dm ? 'white' : undefined }}>
+                style={activeCategory === cat.label
+                  ? { background: '#0A84FF', borderColor: '#0A84FF' }
+                  : { background: dm ? 'rgba(10,132,255,0.2)' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.4)' : 'rgba(10,132,255,0.15)' }}>
+                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0A84FF') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: dm ? 'white' : undefined }}>{cat.label}</span>
+                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0A84FF') }}>{cat.label}</span>
               </Link>
             ))}
           </div>
