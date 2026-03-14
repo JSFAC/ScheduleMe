@@ -36,7 +36,7 @@ function fmtTime(iso: string) {
 
 const MessagesPage: NextPage = () => {
   const router = useRouter();
-  useDarkMode(); // apply persisted dark mode
+  const { dark: dm } = useDarkMode();
   const [userId, setUserId] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
@@ -122,7 +122,7 @@ const MessagesPage: NextPage = () => {
               </div>
               <Link href="/bookings" scroll={false}
                 className="flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl"
-                style={{ background: 'white', color: '#0A84FF' }}>
+                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#0A84FF' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                 Bookings
               </Link>
@@ -210,7 +210,7 @@ const MessagesPage: NextPage = () => {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: 'var(--section-bg, #f8fafc)' }}>
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: dm ? '#13161f' : '#f8fafc' }}>
                     {/* Booking context card */}
                     <div className="rounded-xl border border-neutral-200 bg-white p-3.5 mb-4">
                       <p className="text-[10px] font-black uppercase tracking-[0.1em] text-neutral-400 mb-2">Booking Details</p>
@@ -240,7 +240,7 @@ const MessagesPage: NextPage = () => {
                             <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                               isUser
                                 ? 'bg-accent text-white rounded-br-md'
-                                : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'
+                                : dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'
                             }`}>
                               {msg.content}
                             </div>

@@ -18,7 +18,7 @@ function timeOfDay() {
   return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
-const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
+// PILL_STYLE is now inline-dynamic in components that have dm
 
 const AI_SUGGESTIONS: { label: string; prompt: string }[] = [
   { label: 'Leaking pipe', prompt: 'My kitchen pipe has been dripping under the sink for about a week. It gets worse when I run the dishwasher. I need a licensed plumber who can come soon.' },
@@ -159,7 +159,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 }
 
 // Card — horizontal scroll card with review snippet
-function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
+function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?: boolean }) {
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0"
       style={{ width: 'clamp(220px, 18vw, 290px)' }}>
@@ -207,9 +207,9 @@ function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
         </div>
       </div>
       {/* Card body — category + review snippet + reviewer */}
-      <div className="px-3.5 pt-2.5 pb-3">
+      <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#1a1d27' : 'white' }}>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? '#0d2040' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
             {biz.category}
           </span>
           <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -217,13 +217,13 @@ function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
           </svg>
         </div>
         {biz.topReview && (
-          <p className="text-[10.5px] text-neutral-500 italic leading-snug line-clamp-2 mb-2">{biz.topReview}</p>
+          <p className="text-[10.5px] italic leading-snug line-clamp-2 mb-2" style={{ color: dm ? '#d1d5db' : '#737373' }}>{biz.topReview}</p>
         )}
         {biz.reviewer && (
           <div className="flex items-center gap-1.5">
             <img src={biz.reviewer.avatarUrl} alt={biz.reviewer.name}
               className="h-4 w-4 rounded-full object-cover border border-neutral-100 shrink-0" />
-            <span className="text-[10px] font-semibold text-neutral-400">{biz.reviewer.name}</span>
+            <span className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#a3a3a3' }}>{biz.reviewer.name}</span>
           </div>
         )}
       </div>
@@ -231,9 +231,9 @@ function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
   );
 }
 
-function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
+function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm }: {
   title: string; subtitle: string; href: string;
-  businesses: Business[]; onBizClick: (b: Business) => void;
+  businesses: Business[]; onBizClick: (b: Business) => void; dm?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
@@ -288,10 +288,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: '#EDF5FF' }} />
+          style={{ width: edgePad, background: dm ? '#0f1117' : '#EDF5FF' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: '#EDF5FF' }} />
+          style={{ width: edgePad, background: dm ? '#0f1117' : '#EDF5FF' }} />
 
         <div
           ref={scrollRef}
@@ -309,7 +309,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
           } as React.CSSProperties}
         >
           {businesses.map((biz) => (
-            <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} />
+            <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} />
           ))}
           {/* See more — same total height as BizCard (image + body) */}
           <Link href={href} scroll={false}
@@ -382,7 +382,7 @@ function ReferCard() {
 
 const HomePage: NextPage = () => {
   const router = useRouter();
-  useDarkMode(); // apply persisted dark mode
+  const { dark: dm } = useDarkMode();
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
@@ -433,7 +433,7 @@ const HomePage: NextPage = () => {
                 ] as const).map((tile) => (
                   <Link key={tile.label} href={tile.href} scroll={false}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{ background: 'white', border: '1px solid rgba(0,0,0,0.07)', aspectRatio: '1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                    style={{ background: dm ? 'rgba(255,255,255,0.12)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.07)', aspectRatio: '1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
                     <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
                       <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
@@ -455,7 +455,8 @@ const HomePage: NextPage = () => {
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
-                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-wash hover:bg-blue-100 border border-accent/15 hover:border-accent/30 transition-all group">
+                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all group"
+                style={{ background: dm ? '#0d1f35' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
                 <svg className="h-4 w-4 text-accent/70 group-hover:text-accent transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
@@ -473,6 +474,7 @@ const HomePage: NextPage = () => {
             href="/browse"
             businesses={[...SPONSORED, ...NEARBY].slice(0, 6)}
             onBizClick={setActiveBiz}
+            dm={dm}
           />
           <ScrollSection
             title="Small & Independent"
@@ -480,6 +482,7 @@ const HomePage: NextPage = () => {
             href="/browse?category=Independent"
             businesses={[...INDEPENDENT, ...SPONSORED.slice(0, 2)].slice(0, 6)}
             onBizClick={setActiveBiz}
+            dm={dm}
           />
           <ScrollSection
             title="Quick response"
@@ -487,6 +490,7 @@ const HomePage: NextPage = () => {
             href="/browse"
             businesses={[...NEARBY, ...INDEPENDENT].slice(0, 6)}
             onBizClick={setActiveBiz}
+            dm={dm}
           />
           <ReferCard />
         </div>
