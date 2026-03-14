@@ -126,77 +126,75 @@ export default function Nav({ variant = 'light' }: NavProps) {
         </ul>
 
         {/* Right */}
-        <div className="flex-1 flex items-center justify-end">
+        <div className="flex-1 flex items-center justify-end gap-2">
           {!user && (
             <Link href="/business" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
               For Businesses
             </Link>
           )}
-          {/* Account pill + dark mode toggle side by side */}
-          <div className="flex items-center justify-end gap-1.5">
-            <button onClick={toggleDark} aria-label="Toggle dark mode"
-              className="flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
-              style={{ background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', transition: 'background 0.25s ease' }}>
-              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                style={{ color: darkMode ? 'white' : '#525252', transition: 'color 0.25s ease' }}>
-                {darkMode
-                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                  : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                }
-              </svg>
-              <div className="relative w-8 h-4 rounded-full shrink-0"
-                style={{ background: darkMode ? '#0A84FF' : '#d1d5db', transition: 'background 0.25s ease' }}>
-                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm"
-                  style={{ left: darkMode ? '17px' : '2px', transition: 'left 0.25s ease' }} />
-              </div>
-            </button>
-          <div className="flex items-center justify-end">
-            {user ? (
-              <div className="relative" ref={menuRef}>
-                <button onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
-                  aria-label="Account menu">
-                  <div className="h-7 w-7 rounded-full bg-accent flex items-center justify-center text-white text-[11px] font-bold shrink-0">
-                    {initials}
-                  </div>
-                  <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {menuOpen && (
-                  <div className="fixed z-[200]" style={{ top: 72, right: 'max(calc(50% - 576px + 24px), 24px)' }}>
-                    <div className="w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
-                      <div className="px-4 py-3 border-b border-neutral-50">
-                        <p className="text-xs font-semibold text-neutral-700 truncate">{user.name}</p>
-                        <p className="text-xs text-neutral-400 truncate">{user.email}</p>
-                      </div>
-                      <div className="p-1.5">
-                        <Link href="/account" scroll={false} onClick={() => setMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
-                          <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                          </svg>
-                          My Account
-                        </Link>
-                        <div className="h-px bg-neutral-100 mx-3 my-1" />
-                        <button onClick={handleSignOut}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                          </svg>
-                          Sign Out
-                        </button>
-                      </div>
+          {/* Dark mode toggle */}
+          <button onClick={toggleDark} aria-label="Toggle dark mode"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
+            style={{ background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', transition: 'background 0.25s ease' }}>
+            <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              style={{ color: darkMode ? 'white' : '#525252', transition: 'color 0.25s ease' }}>
+              {darkMode
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+              }
+            </svg>
+            <div className="relative w-8 h-4 rounded-full shrink-0"
+              style={{ background: darkMode ? '#0A84FF' : '#d1d5db', transition: 'background 0.25s ease' }}>
+              <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm"
+                style={{ left: darkMode ? '17px' : '2px', transition: 'left 0.25s ease' }} />
+            </div>
+          </button>
+          {/* Account pill */}
+          {user ? (
+            <div className="relative" ref={menuRef}>
+              <button onClick={() => setMenuOpen(!menuOpen)}
+                className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
+                aria-label="Account menu">
+                <div className="h-7 w-7 rounded-full bg-accent flex items-center justify-center text-white text-[11px] font-bold shrink-0">
+                  {initials}
+                </div>
+                <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+              {menuOpen && (
+                <div className="fixed z-[200]" style={{ top: 72, right: 'max(calc(50% - 576px + 24px), 24px)' }}>
+                  <div className="w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-neutral-50">
+                      <p className="text-xs font-semibold text-neutral-700 truncate">{user.name}</p>
+                      <p className="text-xs text-neutral-400 truncate">{user.email}</p>
+                    </div>
+                    <div className="p-1.5">
+                      <Link href="/account" scroll={false} onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
+                        <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                        My Account
+                      </Link>
+                      <div className="h-px bg-neutral-100 mx-3 my-1" />
+                      <button onClick={handleSignOut}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                        </svg>
+                        Sign Out
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
-            ) : (
-              <Link href="/signin" scroll={false} className="btn-primary text-sm px-4 py-2.5 w-full text-center whitespace-nowrap">
-                Sign up
-              </Link>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link href="/signin" scroll={false} className="btn-primary text-sm px-4 py-2.5 text-center whitespace-nowrap">
+              Sign up
+            </Link>
+          )}
         </div>
       </nav>
     </header>
