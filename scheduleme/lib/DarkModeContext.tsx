@@ -13,8 +13,8 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('sm_dark_mode');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = saved !== null ? saved === 'true' : prefersDark;
+    // Only use dark mode if user has explicitly chosen it — default to light
+    const isDark = saved === 'true';
     setDm(isDark);
     if (isDark) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
