@@ -312,10 +312,10 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
       onClick={close}>
       <div
         onClick={e => e.stopPropagation()}
-        className="relative rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col" style={{ background: dm ? '#1a1d27' : 'white' }}
+        className="relative rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col"
         style={{
+          background: dm ? '#1a1d27' : 'white',
           opacity: ready ? 1 : 0,
-          // Open: scale in. Close: fade out only (no scale) so content stays readable
           transform: !closing && !ready ? 'scale(0.96)' : 'scale(1)',
           transition: closing
             ? 'opacity 0.25s ease'
