@@ -105,6 +105,14 @@ const Account: NextPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Draft persistence — localStorage keys
+  const DRAFT_PROFILE = 'sm_draft_profile';
+  const DRAFT_ADDRESS = 'sm_draft_address';
+  const DRAFT_PASSWORD = 'sm_draft_password';
+  const [profileDraft, setProfileDraft] = useState(false); // has unsaved draft
+  const [addressDraft, setAddressDraft] = useState(false);
+  const [passwordDraft, setPasswordDraft] = useState(false);
+
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -120,6 +128,15 @@ const Account: NextPage = () => {
         const res = await fetch(`/api/bookings?user_phone=${encodeURIComponent(u.phone || u.user_metadata?.phone || '')}`);
         if (res.ok) { const data = await res.json(); setBookings(data.bookings || []); }
       } catch {}
+      // Check for in-progress drafts
+      if (typeof window !== 'undefined') {
+        const pd = localStorage.getItem('sm_draft_profile');
+        if (pd) { try { const d = JSON.parse(pd); if (d.name || d.phone) setProfileDraft(true); } catch {} }
+        const ad = localStorage.getItem('sm_draft_address');
+        if (ad) { try { const d = JSON.parse(ad); if (d.street || d.label) setAddressDraft(true); } catch {} }
+        const pwd = localStorage.getItem('sm_draft_password');
+        if (pwd) { try { const d = JSON.parse(pwd); if (d.newPw) setPasswordDraft(true); } catch {} }
+      }
       setLoading(false);
       setTimeout(() => setFadeIn(true), 50);
     });
@@ -132,7 +149,9 @@ const Account: NextPage = () => {
     const { error } = await supabase.auth.updateUser({ data: { full_name: name, phone } });
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
-    setSaved(true); setTimeout(() => setSaved(false), 2500);
+    setSaved(true); setProfileDraft(false);
+    if (typeof window !== 'undefined') localStorage.removeItem('sm_draft_profile');
+    setTimeout(() => setSaved(false), 2500);
   }
 
   async function handleSaveNotifs(newPrefs: typeof notifPrefs) {
@@ -153,6 +172,8 @@ const Account: NextPage = () => {
     const newList = [...addresses, { id: Date.now().toString(), label: addrLabel || 'Address', address: addrStreet, city: addrCity, default: addresses.length === 0 }];
     persistAddresses(newList);
     setAddrLabel(''); setAddrStreet(''); setAddrCity(''); setShowAddressForm(false);
+    setAddressDraft(false);
+    if (typeof window !== 'undefined') localStorage.removeItem('sm_draft_address');
   }
 
   async function handleChangePassword(e: React.FormEvent) {
@@ -165,6 +186,8 @@ const Account: NextPage = () => {
     setPwSaving(false);
     if (error) { setPwError(error.message); return; }
     setPwSaved(true); setNewPw(''); setConfirmPw('');
+    setPasswordDraft(false);
+    if (typeof window !== 'undefined') localStorage.removeItem('sm_draft_password');
     setTimeout(() => { setPwSaved(false); setShowPasswordForm(false); }, 2500);
   }
 
@@ -188,6 +211,40 @@ const Account: NextPage = () => {
   function handleSignOut() {
     const supabase = getSupabase();
     supabase.auth.signOut().then(() => router.push('/'));
+  }
+
+  function restoreProfileDraft() {
+    if (typeof window === 'undefined') return;
+    try {
+      const d = JSON.parse(localStorage.getItem('sm_draft_profile') || '{}');
+      if (d.name) setName(d.name);
+      if (d.phone) setPhone(d.phone);
+    } catch {}
+    setProfileDraft(false);
+  }
+  function restoreAddressDraft() {
+    if (typeof window === 'undefined') return;
+    try {
+      const d = JSON.parse(localStorage.getItem('sm_draft_address') || '{}');
+      if (d.label) setAddrLabel(d.label);
+      if (d.street) setAddrStreet(d.street);
+      if (d.city) setAddrCity(d.city);
+      setShowAddressForm(true);
+    } catch {}
+    setAddressDraft(false);
+  }
+  function restorePasswordDraft() {
+    if (typeof window === 'undefined') return;
+    try {
+      const d = JSON.parse(localStorage.getItem('sm_draft_password') || '{}');
+      if (d.newPw) setNewPw(d.newPw);
+      setShowPasswordForm(true);
+    } catch {}
+    setPasswordDraft(false);
+  }
+  function dismissDraft(key: string, setter: (v: boolean) => void) {
+    if (typeof window !== 'undefined') localStorage.removeItem(key);
+    setter(false);
   }
 
   if (loading) return (
@@ -273,6 +330,44 @@ const Account: NextPage = () => {
             ))}
           </div>
 
+          {/* Draft restore banners */}
+          {(tab === 'settings' && profileDraft) && (
+            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                <p className="text-sm font-semibold text-amber-800">You have unsaved profile changes — continue where you left off?</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={restoreProfileDraft} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">Restore</button>
+                <button onClick={() => dismissDraft('sm_draft_profile', setProfileDraft)} className="text-xs text-amber-500 hover:text-amber-700 px-2 py-1.5">Dismiss</button>
+              </div>
+            </div>
+          )}
+          {(tab === 'addresses' && addressDraft) && (
+            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                <p className="text-sm font-semibold text-amber-800">You have an unfinished address — continue where you left off?</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={restoreAddressDraft} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">Restore</button>
+                <button onClick={() => dismissDraft('sm_draft_address', setAddressDraft)} className="text-xs text-amber-500 hover:text-amber-700 px-2 py-1.5">Dismiss</button>
+              </div>
+            </div>
+          )}
+          {(tab === 'security' && passwordDraft) && (
+            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                <p className="text-sm font-semibold text-amber-800">You started changing your password — continue where you left off?</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={restorePasswordDraft} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">Restore</button>
+                <button onClick={() => dismissDraft('sm_draft_password', setPasswordDraft)} className="text-xs text-amber-500 hover:text-amber-700 px-2 py-1.5">Dismiss</button>
+              </div>
+            </div>
+          )}
+
           {/* Tab bar */}
           <div className="bg-white rounded-2xl border border-neutral-100 p-1.5 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {TABS.map(t => (
@@ -335,15 +430,15 @@ const Account: NextPage = () => {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Label</label>
-                      <input type="text" className="form-input" placeholder="Home, Office, etc." value={addrLabel} onChange={e => setAddrLabel(e.target.value)} />
+                      <input type="text" className="form-input" placeholder="Home, Office, etc." value={addrLabel} onChange={e => { setAddrLabel(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: e.target.value, street: addrStreet, city: addrCity })); }} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Street Address</label>
-                      <input type="text" className="form-input" placeholder="123 Main St" value={addrStreet} onChange={e => setAddrStreet(e.target.value)} />
+                      <input type="text" className="form-input" placeholder="123 Main St" value={addrStreet} onChange={e => { setAddrStreet(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: e.target.value, city: addrCity })); }} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">City, State ZIP</label>
-                      <input type="text" className="form-input" placeholder="Austin, TX 78701" value={addrCity} onChange={e => setAddrCity(e.target.value)} />
+                      <input type="text" className="form-input" placeholder="Austin, TX 78701" value={addrCity} onChange={e => { setAddrCity(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: addrStreet, city: e.target.value })); }} />
                     </div>
                     <div className="flex gap-2 pt-1">
                       <button onClick={addAddress} className="btn-primary text-sm px-5 py-2">Save</button>
@@ -461,7 +556,7 @@ const Account: NextPage = () => {
                       {pwSaved && <div className="rounded-xl bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">✓ Password updated.</div>}
                       <div>
                         <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">New Password</label>
-                        <input type="password" required className="form-input" placeholder="At least 8 characters" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                        <input type="password" required className="form-input" placeholder="At least 8 characters" value={newPw} onChange={e => { setNewPw(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_password', JSON.stringify({ newPw: e.target.value })); }} />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Confirm Password</label>
@@ -521,7 +616,7 @@ const Account: NextPage = () => {
                   {saveError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{saveError}</div>}
                   <div>
                     <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Full name</label>
-                    <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
+                    <input type="text" className="form-input" value={name} onChange={e => { setName(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name: e.target.value, phone })); }} placeholder="Jane Smith" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Email address</label>
@@ -530,7 +625,7 @@ const Account: NextPage = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Phone number</label>
-                    <input type="tel" className="form-input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(555) 000-1234" />
+                    <input type="tel" className="form-input" value={phone} onChange={e => { setPhone(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name, phone: e.target.value })); }} placeholder="(555) 000-1234" />
                     <p className="text-xs text-neutral-400 mt-1">Used for SMS and matching with local pros.</p>
                   </div>
                   <button type="submit" disabled={saving} className="btn-primary w-full py-2.5 text-sm">

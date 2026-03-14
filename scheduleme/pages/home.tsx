@@ -280,10 +280,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick }: {
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: `calc(${edgePad} + 20px)`, background: `linear-gradient(to right, #EDF5FF calc(100% - 20px), transparent 100%)` }} />
+          style={{ width: edgePad, background: '#EDF5FF' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: `calc(${edgePad} + 20px)`, background: `linear-gradient(to left, #EDF5FF calc(100% - 20px), transparent 100%)` }} />
+          style={{ width: edgePad, background: '#EDF5FF' }} />
 
         <div
           ref={scrollRef}
@@ -424,7 +424,7 @@ const HomePage: NextPage = () => {
                 ] as const).map((tile) => (
                   <Link key={tile.label} href={tile.href} scroll={false}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{ background: 'rgba(255,255,255,0.90)', border: '1px solid rgba(255,255,255,0.95)', aspectRatio: '1' }}>
+                    style={{ background: 'white', border: '1px solid rgba(0,0,0,0.07)', aspectRatio: '1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
                     <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
                       <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />

@@ -44,9 +44,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    // Get bookings for a business (used by dashboard)
-    const { business_id } = req.query;
-    if (!business_id) return res.status(400).json({ error: 'business_id required' });
+    const { business_id, user_id } = req.query;
+
+    // User bookings — authenticated via bearer token
+    if (user_id) {
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('id, service, category, status, created_at, scheduled_at, address, notes, amount_cents, businesses(name, phone, email)')
+          .eq('user_id', user_id)
+          .order('created_at', { ascending: false });
+
+        if (error) return res.status(500).json({ error: error.message });
+
+        // Flatten business info
+        const bookings = (data || []).map((b: any) => ({
+          ...b,
+          business_name: b.businesses?.name ?? null,
+          business_phone: b.businesses?.phone ?? null,
+          business_email: b.businesses?.email ?? null,
+          businesses: undefined,
+        }));
+        return res.status(200).json({ bookings });
+      } catch (err) {
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
+    // Business bookings — used by dashboard
+    if (!business_id) return res.status(400).json({ error: 'business_id or user_id required' });
 
     try {
       const supabase = getSupabase();

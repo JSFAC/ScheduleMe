@@ -295,7 +295,7 @@ const BrowsePage: NextPage = () => {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
                       ? { background: 'white', color: '#0A84FF' }
-                      : { color: 'rgba(255,255,255,0.92)', background: 'transparent' }}>
+                      : { color: 'white', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
                     </svg>
