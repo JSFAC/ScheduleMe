@@ -1,5 +1,6 @@
 // components/BusinessProfile.tsx
 import { useEffect, useRef, useState } from 'react';
+import { useDm } from '../lib/DarkModeContext';
 import type { Business } from '../lib/mockBusinesses';
 
 /* ─── PureBtn: bypasses global button active-scale ─── */
@@ -23,7 +24,7 @@ function Stars({ rating }: { rating: number }) {
       <svg className="h-3.5 w-3.5 text-amber-400 fill-current flex-shrink-0" viewBox="0 0 20 20">
         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
       </svg>
-      <span className="text-sm font-semibold text-neutral-700 tabular-nums">{rating}</span>
+      <span className="text-sm font-semibold tabular-nums" style={{ color: dm ? '#d1d5db' : '#404040' }}>{rating}</span>
     </span>
   );
 }
@@ -46,17 +47,17 @@ function MiniCalendar({ selected, onSelect }: { selected: Date | null; onSelect:
     <div className="select-none">
       <div className="flex items-center justify-between mb-3">
         <PureBtn onClick={() => setVm(new Date(y, m - 1, 1))}
-          className="h-7 w-7 rounded-full hover:bg-neutral-200 flex items-center justify-center transition-colors text-neutral-500">
+          className="h-7 w-7 rounded-full flex items-center justify-center transition-colors" style={{ color: dm ? '#9ca3af' : '#737373', background: dm ? 'transparent' : undefined }}>
           <svg className="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
         </PureBtn>
-        <p className="text-sm font-bold text-neutral-900">{MONTHS[m]} {y}</p>
+        <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{MONTHS[m]} {y}</p>
         <PureBtn onClick={() => setVm(new Date(y, m + 1, 1))}
-          className="h-7 w-7 rounded-full hover:bg-neutral-200 flex items-center justify-center transition-colors text-neutral-500">
+          className="h-7 w-7 rounded-full flex items-center justify-center transition-colors" style={{ color: dm ? '#9ca3af' : '#737373', background: dm ? 'transparent' : undefined }}>
           <svg className="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
         </PureBtn>
       </div>
       <div className="grid grid-cols-7 mb-1">
-        {DAYS.map(d => <div key={d} className="text-center text-[10px] font-bold text-neutral-400 py-1">{d}</div>)}
+        {DAYS.map(d => <div key={d} className="text-center text-[10px] font-bold py-1" style={{ color: dm ? 'rgba(255,255,255,0.35)' : '#a3a3a3' }}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-y-0.5">
         {cells.map((date, i) => {
@@ -123,7 +124,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
   return (
     <div>
       {/* Sticky back bar */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-100 bg-white sticky top-0 z-10">
+      <div className="flex items-center gap-3 px-6 py-4 border-b sticky top-0 z-10" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
         <PureBtn onClick={onBack}
           className="h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
           <svg className="h-4 w-4 text-neutral-600 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -131,21 +132,21 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
           </svg>
         </PureBtn>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-neutral-900 truncate">Book {biz.name}</p>
-          <p className="text-xs text-neutral-400">{biz.category} · {biz.address}</p>
+          <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Book {biz.name}</p>
+          <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category} · {biz.address}</p>
         </div>
       </div>
 
       <div className="px-6 py-5 space-y-6">
 
         {/* Pricing reference */}
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
+        <div className="rounded-2xl px-4 py-3" style={{ background: dm ? '#0d1f35' : '#eff6ff', border: dm ? '1px solid rgba(59,130,246,0.3)' : '1px solid #dbeafe' }}>
           <p className="text-xs font-bold text-accent uppercase tracking-wide mb-2">Typical pricing</p>
           <div className="grid grid-cols-2 gap-1.5">
             {biz.services.slice(0, 4).map(s => (
               <div key={s.name} className="flex items-start justify-between gap-2">
-                <span className="text-xs text-neutral-600 leading-snug">{s.name}</span>
-                <span className="text-xs font-semibold text-neutral-800 whitespace-nowrap flex-shrink-0">{s.price}</span>
+                <span className="text-xs leading-snug" style={{ color: dm ? '#9ca3af' : '#525252' }}>{s.name}</span>
+                <span className="text-xs font-semibold whitespace-nowrap flex-shrink-0" style={{ color: dm ? '#d1d5db' : '#262626' }}>{s.price}</span>
               </div>
             ))}
           </div>
@@ -154,13 +155,12 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
 
         {/* Type of service */}
         <div>
-          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2.5">What do you need?</p>
+          <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>What do you need?</p>
           <div className="grid grid-cols-2 gap-2">
             {SERVICES_CONTEXT.map(s => (
               <PureBtn key={s} onClick={() => setServiceType(s)}
-                className={`py-2.5 px-3 rounded-xl text-xs font-medium text-left border transition-colors ${
-                  serviceType === s ? 'bg-accent text-white border-accent' : 'bg-white text-neutral-700 border-neutral-200 hover:border-accent hover:text-accent'
-                }`}>
+                className={`py-2.5 px-3 rounded-xl text-xs font-medium text-left border transition-colors ${serviceType === s ? 'bg-accent text-white border-accent' : ''}`}
+                style={serviceType === s ? {} : { background: dm ? '#13161f' : 'white', color: dm ? '#d1d5db' : '#404040', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>
                 {s}
               </PureBtn>
             ))}
@@ -169,7 +169,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
 
         {/* Calendar */}
         <div>
-          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2.5">Preferred date</p>
+          <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Preferred date</p>
           <div className="bg-neutral-50 rounded-2xl p-4">
             <MiniCalendar selected={date} onSelect={d => { setDate(d); setSlot(null); }} />
           </div>
@@ -185,7 +185,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
               {TIME_SLOTS.map(s => (
                 <PureBtn key={s} onClick={() => setSlot(s)}
                   className={`py-2.5 rounded-xl text-xs font-semibold text-center border transition-colors ${
-                    slot === s ? 'bg-accent text-white border-accent' : 'bg-white text-neutral-700 border-neutral-200 hover:border-accent hover:text-accent'
+                    slot === s ? 'bg-accent text-white border-accent' : ''
                   }`}>
                   {s}
                 </PureBtn>
@@ -196,7 +196,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
 
         {/* Service address */}
         <div>
-          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2">Service address</p>
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Service address</p>
           <input
             type="text"
             value={address}
@@ -214,7 +214,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
             onChange={e => setNote(e.target.value)}
             placeholder={`e.g. My ${biz.category.toLowerCase()} needs attention — describe the issue, how long it's been happening, and anything else helpful...`}
             rows={4}
-            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+            className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" style={{ background: dm ? '#13161f' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
           />
           <p className="text-[11px] text-neutral-400 mt-1.5">The more detail, the faster they can prepare.</p>
         </div>
@@ -252,6 +252,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
 
 /* ─── Main modal ─── */
 export default function BusinessProfile({ biz, onClose }: { biz: Business; onClose: () => void }) {
+  const { dm } = useDm();
   const [activeImg, setActiveImg] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -308,7 +309,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
       onClick={close}>
       <div
         onClick={e => e.stopPropagation()}
-        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col"
+        className="relative rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col" style={{ background: dm ? '#1a1d27' : 'white' }}
         style={{
           opacity: ready ? 1 : 0,
           // Open: scale in. Close: fade out only (no scale) so content stays readable
@@ -373,7 +374,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
           <div className="absolute top-3 left-3 pointer-events-none">
             {biz.available
               ? <span className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold text-green-700"><span className="h-1.5 w-1.5 rounded-full bg-green-500" />Open</span>
-              : <span className="bg-black/40 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold text-white/80">Busy</span>}
+              : <span className="backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold text-white/80" style={{ background: 'rgba(0,0,0,0.55)' }}>Fully Booked</span>}
           </div>
         </div>
 
@@ -381,22 +382,22 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
         <div className="flex-1 overflow-y-auto">
           {view === 'book' ? <BookingView biz={biz} onBack={() => setView('info')} /> : (
             <>
-              <div className="px-6 pt-5 pb-4 border-b border-neutral-100">
-                <p className="text-xs font-medium text-neutral-400 mb-0.5">{biz.category}</p>
-                <h2 className="text-xl font-bold text-neutral-900" style={{ letterSpacing: '-0.02em' }}>{biz.name}</h2>
+              <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
+                <p className="text-xs font-medium mb-0.5" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
+                <h2 className="text-xl font-bold" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h2>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   <Stars rating={biz.rating} />
-                  <span className="text-sm text-neutral-500">{biz.reviews} reviews</span>
+                  <span className="text-sm" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.reviews} reviews</span>
                   <span className="text-neutral-200">·</span>
-                  <span className="text-sm text-neutral-500">{biz.distance}</span>
+                  <span className="text-sm" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.distance}</span>
                   <span className="text-sm font-medium text-neutral-400">{'$'.repeat(biz.price_tier)}<span className="opacity-25">{'$'.repeat(3 - biz.price_tier)}</span></span>
                   {biz.badge && <span className="text-xs font-semibold text-accent bg-blue-50 px-2 py-0.5 rounded-full">{biz.badge}</span>}
                 </div>
-                <p className="text-sm text-neutral-500 mt-3 leading-relaxed">{biz.description}</p>
+                <p className="text-sm mt-3 leading-relaxed" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.description}</p>
               </div>
 
-              <div className="px-6 py-4 border-b border-neutral-100">
-                <h3 className="text-sm font-bold text-neutral-900 mb-3">Services &amp; pricing</h3>
+              <div className="px-6 py-4 border-b" style={{ borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
+                <h3 className="text-sm font-bold mb-3" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Services &amp; pricing</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {biz.services.map(s => (
                     <div key={s.name} className="bg-neutral-50 rounded-xl px-3 py-2.5">

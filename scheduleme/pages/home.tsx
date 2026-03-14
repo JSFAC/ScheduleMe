@@ -43,6 +43,7 @@ const QUICK_CATS = [
 ];
 
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {
+  const { dm } = useDm();
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [thinking, setThinking] = useState(false);
@@ -92,12 +93,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
       <h1 className="text-[2.4rem] font-bold text-white mb-6" style={{ letterSpacing: '-0.03em', lineHeight: 1.08 }}>
         What do you need<br />done today?
       </h1>
-      <div className={`relative bg-white rounded-2xl border transition-all duration-200 ${
-        focused
-          ? 'border-accent shadow-[0_0_0_4px_rgba(10,132,255,0.10),0_4px_24px_rgba(0,0,0,0.07)]'
-          : 'border-neutral-200 shadow-[0_2px_12px_rgba(0,0,0,0.06)] hover:border-neutral-300'
-      }`}>
-        <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5 border-b border-neutral-100">
+      <div className={`relative rounded-2xl border transition-all duration-200 ${focused ? 'border-accent shadow-[0_0_0_4px_rgba(10,132,255,0.10),0_4px_24px_rgba(0,0,0,0.07)]' : ''}`}
+        style={{ background: dm ? '#1e2130' : 'white', borderColor: focused ? undefined : (dm ? '#2a2d3a' : '#e5e5e5') }}>
+        <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5 border-b" style={{ borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
           <svg className="h-3.5 w-3.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
           </svg>
@@ -109,10 +107,10 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(query); } }}
           placeholder="Describe your issue — 'my kitchen pipe has been dripping for a week'"
           rows={4}
-          className="w-full px-4 pt-3 pb-14 text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none resize-none leading-relaxed"
+          className="w-full px-4 pt-3 pb-14 text-sm placeholder:text-neutral-400 bg-transparent focus:outline-none resize-none leading-relaxed" style={{ color: dm ? '#f3f4f6' : '#171717' }}
         />
         <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 pb-3.5">
-          <p className="text-[11px] text-neutral-400">↵ to send</p>
+          <p className="text-[11px]" style={{ color: dm ? 'rgba(255,255,255,0.35)' : '#a3a3a3' }}>↵ to send</p>
           <button onClick={() => submit(query)} disabled={!query.trim() || thinking}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               query.trim() && !thinking
@@ -174,7 +172,7 @@ function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?
           <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
             style={{ background: dm ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.95)', backdropFilter: dm ? 'blur(8px)' : undefined }}>
             <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
-            <span className="text-[10px] font-black tracking-wide" style={{ color: dm ? '#4ade80' : '#16a34a' }}>Open</span>
+            <span className="text-[10px] font-black tracking-wide" style={{ color: dm ? 'white' : '#16a34a' }}>Open</span>
           </div>
         ) : (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
@@ -209,7 +207,7 @@ function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?
       {/* Card body — category + review snippet + reviewer */}
       <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#1a1d27' : 'white' }}>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(59,130,246,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
             {biz.category}
           </span>
           <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -456,11 +454,11 @@ const HomePage: NextPage = () => {
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
-                style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
-                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>
+                style={{ background: dm ? 'rgba(59,130,246,0.18)' : '#EDF5FF', borderColor: dm ? 'rgba(99,179,237,0.4)' : 'rgba(10,132,255,0.15)' }}>
+                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: dm ? '#93c5fd' : undefined }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: dm ? 'rgba(255,255,255,0.8)' : undefined }}>{cat.label}</span>
+                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: dm ? '#93c5fd' : undefined }}>{cat.label}</span>
               </Link>
             ))}
           </div>
