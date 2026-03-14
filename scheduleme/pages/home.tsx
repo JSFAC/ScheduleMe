@@ -157,14 +157,15 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
   );
 }
 
-// Card — bigger, bolder. featured = first card in a row, slightly taller + wider
+// Card — horizontal scroll card with review snippet
 function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0"
       style={{ width: 'clamp(220px, 18vw, 290px)' }}>
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: 'clamp(185px, 15vw, 240px)' }}>
+      <div className="relative overflow-hidden" style={{ height: 'clamp(175px, 14vw, 220px)', background: '#c8d8e8' }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" style={{ objectPosition: 'center top' }} />
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+          style={{ objectPosition: '50% 15%' }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
         }} />
@@ -186,12 +187,8 @@ function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
             {biz.badge}
           </div>
         )}
-        <div className="absolute bottom-0 left-0 right-0 px-3.5 pb-3.5">
-          <p className="text-white font-black leading-snug" style={{
-            fontSize: 14,
-            letterSpacing: '-0.01em',
-            textShadow: '0 1px 8px rgba(0,0,0,0.6)'
-          }}>
+        <div className="absolute bottom-0 left-0 right-0 px-3.5 pb-3">
+          <p className="text-white font-black leading-snug" style={{ fontSize: 13, letterSpacing: '-0.01em', textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>
             {biz.name}
           </p>
           <div className="flex items-center gap-1.5 mt-1">
@@ -208,16 +205,26 @@ function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
           </div>
         </div>
       </div>
-      <div className="px-3.5 pt-2.5 pb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      {/* Card body — category + review snippet + reviewer */}
+      <div className="px-3.5 pt-2.5 pb-3">
+        <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>
             {biz.category}
           </span>
-          <p className="text-[11px] text-neutral-400 mt-1.5 leading-snug line-clamp-1">{biz.tagline}</p>
+          <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
         </div>
-        <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-        </svg>
+        {biz.topReview && (
+          <p className="text-[10.5px] text-neutral-500 italic leading-snug line-clamp-2 mb-2">{biz.topReview}</p>
+        )}
+        {biz.reviewer && (
+          <div className="flex items-center gap-1.5">
+            <img src={biz.reviewer.avatarUrl} alt={biz.reviewer.name}
+              className="h-4 w-4 rounded-full object-cover border border-neutral-100 shrink-0" />
+            <span className="text-[10px] font-semibold text-neutral-400">{biz.reviewer.name}</span>
+          </div>
+        )}
       </div>
     </button>
   );
