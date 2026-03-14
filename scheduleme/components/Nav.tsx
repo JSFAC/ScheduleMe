@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { useDarkMode } from '../lib/useDarkMode';
+import { useDm } from '../lib/DarkModeContext';
 
 interface NavProps { variant?: 'light' | 'dark'; }
 
@@ -27,7 +27,7 @@ function writeCache(u: { email?: string; name?: string } | null) {
 export default function Nav({ variant = 'light' }: NavProps) {
   const isDark = variant === 'dark';
   const router = useRouter();
-  const { dark: darkMode, toggle: toggleDark } = useDarkMode();
+  const { dm: darkMode, toggle: toggleDark } = useDm();
   // Initialise from cache synchronously — no layout shift on mount
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(readCache);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -115,8 +115,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
               <li key={link.href}>
                 <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
                   isActive
-                    ? isDark ? 'text-white bg-neutral-800' : 'text-accent bg-blue-50'
-                    : isDark ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+                    ? isDark || darkMode ? 'text-white bg-accent' : 'text-accent bg-blue-50'
+                    : isDark || darkMode ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
                 }`}>
                   {link.label}
                 </Link>
@@ -132,18 +132,22 @@ export default function Nav({ variant = 'light' }: NavProps) {
               For Businesses
             </Link>
           )}
-          {/* Dark mode toggle */}
+          {/* Dark mode switch */}
           <button onClick={toggleDark} aria-label="Toggle dark mode"
-            className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isDark || darkMode ? 'hover:bg-neutral-700 text-neutral-300' : 'hover:bg-neutral-100 text-neutral-500'}`}>
-            {darkMode ? (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-              </svg>
-            )}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full transition-all"
+            style={{ background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }}>
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              style={{ color: darkMode ? 'white' : '#525252' }}>
+              {darkMode
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+              }
+            </svg>
+            <div className="relative w-7 h-4 rounded-full transition-colors"
+              style={{ background: darkMode ? '#0A84FF' : '#d1d5db' }}>
+              <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform"
+                style={{ transform: darkMode ? 'translateX(14px)' : 'translateX(2px)' }} />
+            </div>
           </button>
           <div className="w-[116px] flex items-center justify-end">
             {user ? (
