@@ -139,8 +139,8 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
           <div className="flex items-center gap-1.5">
             <div className="flex" style={{ gap: 0 }}>
               {biz.allImages.slice(1, 3).map((url, i) => (
-                <div key={i} className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100 border-2 shadow-sm flex-shrink-0" style={{ borderColor: dm ? '#1a1d27' : 'white' }}
-                  style={{ marginLeft: i === 0 ? 0 : -4, zIndex: 2 - i }}>
+                <div key={i} className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100 border-2 shadow-sm flex-shrink-0"
+                  style={{ borderColor: dm ? '#1a1d27' : 'white', marginLeft: i === 0 ? 0 : -4, zIndex: 2 - i }}>
                   <img src={url} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
