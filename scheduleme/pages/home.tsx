@@ -164,7 +164,7 @@ function BizCard({ biz, onClick }: { biz: Business; onClick: () => void }) {
       style={{ width: 'clamp(220px, 18vw, 290px)' }}>
       <div className="relative overflow-hidden bg-neutral-100" style={{ height: 'clamp(185px, 15vw, 240px)' }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" style={{ objectPosition: 'center 35%' }} />
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" style={{ objectPosition: 'center top' }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
         }} />
