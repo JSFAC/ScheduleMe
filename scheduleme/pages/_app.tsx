@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/globals.css';
+import { DarkModeProvider } from '../lib/DarkModeContext';
 
 const isBiz = (url: string) => url.startsWith('/business') || url.startsWith('/auth');
 
@@ -88,7 +89,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
       {/* Premium fade — pure opacity, no translate. 280ms feels considered, not instant */}
       <div style={{ opacity: visible ? 1 : 0, transition: visible ? 'opacity 0.28s ease' : 'opacity 0.18s ease' }}>
-        <Component {...pageProps} />
+        <DarkModeProvider>
+          <Component {...pageProps} />
+        </DarkModeProvider>
       </div>
     </>
   );

@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
-import { useDarkMode } from '../lib/useDarkMode';
+import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
 
@@ -275,11 +275,11 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm }: {
     <section>
       <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
         <div className="flex items-baseline gap-3">
-          <h2 className="text-[1.2rem] font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{title}</h2>
+          <h2 className="text-[1.2rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>{title}</h2>
           <span className="text-[11px] text-neutral-400 font-medium hidden sm:block">{subtitle}</span>
         </div>
         <Link href={href} scroll={false}
-          className="text-[11px] font-black text-accent uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0">
+          className="text-[11px] font-black uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0" style={{ color: '#0A84FF' }}>
           See all →
         </Link>
       </div>
@@ -382,7 +382,7 @@ function ReferCard() {
 
 const HomePage: NextPage = () => {
   const router = useRouter();
-  const { dark: dm } = useDarkMode();
+  const { dm } = useDm();
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
@@ -433,15 +433,15 @@ const HomePage: NextPage = () => {
                 ] as const).map((tile) => (
                   <Link key={tile.label} href={tile.href} scroll={false}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{ background: dm ? 'rgba(255,255,255,0.12)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.07)', aspectRatio: '1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                    style={{ background: dm ? '#1e2130' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
                     <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
                       <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                       </svg>
                     </div>
                     <div>
-                      <p className="text-[12px] font-black text-neutral-800 leading-snug">{tile.label}</p>
-                      <p className="text-[10px] text-blue-500 mt-0.5 font-medium">{tile.sub}</p>
+                      <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
+                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#3b82f6' }}>{tile.sub}</p>
                     </div>
                   </Link>
                 ))}
@@ -451,16 +451,16 @@ const HomePage: NextPage = () => {
         </div>
 
         {/* Category quick-links */}
-        <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="border-b" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all group"
                 style={{ background: dm ? '#0d1f35' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
-                <svg className="h-4 w-4 text-accent/70 group-hover:text-accent transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold text-accent/80 group-hover:text-accent transition-colors whitespace-nowrap">{cat.label}</span>
+                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: dm ? 'rgba(255,255,255,0.8)' : undefined }}>{cat.label}</span>
               </Link>
             ))}
           </div>

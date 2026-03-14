@@ -460,3 +460,240 @@ html.dark input::placeholder, html.dark textarea::placeholder {
 /* Scrollbar in dark */
 html.dark ::-webkit-scrollbar-thumb { background: #2a2d3a; }
 html.dark ::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Dark mode targeted fixes ─────────────────────────────────── */
+
+/* Biz card body strip (white bg under image) */
+html.dark .biz-card > div:last-child {
+  background: var(--card-bg) !important;
+}
+
+/* Inline white bg on cards via [style] attribute matching - not possible in CSS */
+/* Instead we tag these with data attributes */
+
+/* Pill styles (category tags) */
+html.dark [data-pill] {
+  background: #0d2040 !important;
+  color: #60a5fa !important;
+}
+
+/* Review text in cards - needs to be readable */
+html.dark .biz-card p,
+html.dark .biz-card span:not(.bg-emerald-500):not(.bg-amber-400):not([class*="text-white"]):not([class*="text-emerald"]) {
+  color: #9ca3af !important;
+}
+html.dark .biz-card .italic {
+  color: #d1d5db !important;
+}
+
+/* Booking card text */
+html.dark .booking-card h3 { color: var(--text-primary) !important; }
+html.dark .booking-card p { color: var(--text-secondary) !important; }
+
+/* Stats tiles on blue header that use inline white bg */
+html.dark [data-stat-tile] {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+html.dark [data-stat-tile] p { color: white !important; }
+
+/* Search/sort/view inputs on browse hero (white bg on blue) */
+html.dark [data-hero-input] {
+  background: rgba(255,255,255,0.12) !important;
+  color: white !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+html.dark [data-hero-input]::placeholder { color: rgba(255,255,255,0.5) !important; }
+
+/* View toggle container */
+html.dark [data-view-toggle] {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+
+/* Nav tile buttons (right of chat box) */
+html.dark [data-nav-tile] {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+html.dark [data-nav-tile] p.text-neutral-800 { color: rgba(255,255,255,0.9) !important; }
+html.dark [data-nav-tile] p.text-blue-500 { color: rgba(255,255,255,0.55) !important; }
+html.dark [data-nav-tile] .text-blue-600 { color: rgba(255,255,255,0.8) !important; }
+
+/* Pagination buttons */
+html.dark [data-page-btn] {
+  background: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+  color: #9ca3af !important;
+}
+html.dark [data-page-btn-active] {
+  background: #0A84FF !important;
+  color: white !important;
+}
+
+/* Refer inline card */
+html.dark [data-refer-card] {
+  background: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+}
+
+/* Messages page bookings button (white on blue bg - keep white) */
+/* Nearby pro cards in bookings */
+html.dark [data-nearby-card] {
+  background: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+}
+
+/* Google auth box */
+html.dark .bg-blue-50 { background: #0d1f35 !important; }
+html.dark .border-blue-100 { border-color: #1a3a5c !important; }
+html.dark .text-blue-900 { color: #bfdbfe !important; }
+html.dark .text-blue-700 { color: #93c5fd !important; }
+
+/* Account page dark header bg */
+html.dark .sm-panel {
+  background: #13161f !important;
+}
+
+/* Suggestion chips scrollable (on blue bg — should stay light) */
+/* These are fine as-is since they sit on the blue hero */
+
+/* Browse: card body text */
+html.dark .biz-card .px-3\.5 p { color: #9ca3af !important; }
+html.dark .biz-card .px-3\.5 .italic { color: #d1d5db !important; }
+html.dark .biz-card .px-3\.5 span.text-neutral-400 { color: #6b7280 !important; }
+
+/* Browse list view cards */
+html.dark .space-y-2\.5 .biz-card { background: #1a1d27 !important; }
+html.dark .space-y-2\.5 .biz-card div:last-child { background: #1a1d27 !important; }
+
+/* Open badge on cards (white bg) */
+html.dark .biz-card [style*="rgba(255,255,255,0.96)"],
+html.dark .biz-card [style*="rgba(255,255,255,0.95)"] {
+  background: rgba(30,33,48,0.92) !important;
+}
+
+/* ── Dark mode final comprehensive fixes ─────────────────────── */
+
+/* Pill/category tags using inline style — targeted via data-pill */
+html.dark [data-pill] {
+  background: #0d2040 !important;
+  color: #60a5fa !important;
+}
+
+/* Nav tiles right of chat box */
+html.dark [data-nav-tile] {
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.15) !important;
+}
+html.dark [data-nav-tile] .text-neutral-800 { color: rgba(255,255,255,0.9) !important; }
+html.dark [data-nav-tile] .text-blue-500 { color: rgba(255,255,255,0.55) !important; }
+html.dark [data-nav-tile] .text-blue-600 { color: rgba(99,179,237,0.9) !important; }
+html.dark [data-nav-tile] [style*="rgba(59,130,246,0.10)"] {
+  background: rgba(99,179,237,0.12) !important;
+}
+
+/* Biz card body text in dark mode */
+html.dark .biz-card [class*="text-neutral-500"]:not([class*="bg-"]) { color: #9ca3af !important; }
+html.dark .biz-card .italic { color: #d1d5db !important; }
+html.dark .biz-card [class*="text-neutral-400"] { color: #6b7280 !important; }
+
+/* Browse hero inputs (data-hero-input) */
+html.dark [data-hero-input] {
+  background: rgba(255,255,255,0.1) !important;
+  color: white !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+html.dark [data-hero-input]::placeholder { color: rgba(255,255,255,0.45) !important; }
+
+/* View toggle */
+html.dark [data-view-toggle] {
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.15) !important;
+}
+
+/* Refer inline card */
+html.dark [data-refer-card] {
+  background: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+}
+html.dark [data-refer-card] p { color: #d1d5db !important; }
+html.dark [data-refer-card] .text-neutral-500 { color: #9ca3af !important; }
+
+/* Account dark sm-panel header */
+html.dark .sm-panel {
+  background: linear-gradient(135deg, #0f1117 0%, #13161f 100%) !important;
+  border-color: #2a2d3a !important;
+}
+html.dark .sm-panel .sm-glow { opacity: 0.3 !important; }
+
+/* Account Google auth blue box */
+html.dark .bg-blue-50 { background: #0d1f35 !important; }
+html.dark .border-blue-100 { border-color: rgba(59,130,246,0.3) !important; }
+html.dark .text-blue-900 { color: #bfdbfe !important; }
+html.dark .text-blue-700 { color: #93c5fd !important; }
+html.dark .bg-blue-100 { background: #1a3a5c !important; }
+
+/* Browse ReferInline open form */
+html.dark [data-refer-card] input,
+html.dark [data-refer-card] textarea {
+  background: #13161f !important;
+  border-color: #2a2d3a !important;
+  color: #f3f4f6 !important;
+}
+
+/* Home biz card body - the white strip below the image */
+html.dark .biz-card > button > div:not([class*="relative"]),
+html.dark .biz-card > div:last-child {
+  background: #1a1d27 !important;
+}
+
+/* Make sure open badges on cards in dark stay readable */
+html.dark .biz-card [style*="rgba(255,255,255,0.95)"],
+html.dark .biz-card [style*="rgba(255,255,255,0.96)"] {
+  background: rgba(26,29,39,0.9) !important;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Category bar quick-links (Tailwind classes, should work) */
+html.dark .bg-accent-wash { background: #0d1f35 !important; }
+html.dark .border-accent\/15 { border-color: rgba(10,132,255,0.3) !important; }
+
+/* Browse/bookings card body divs that have inline white bg */
+html.dark div[style*="background: white"],
+html.dark div[style*="background:'white'"],
+html.dark div[style*='background: "white"'] {
+  background: #1a1d27 !important;
+}
+
+/* Browse sort dropdown option colors */
+html.dark select option { background: #1a1d27; color: #f3f4f6; }
+
+/* Messages thread list */
+html.dark .sm:flex .flex-col.bg-white { background: #1a1d27 !important; }
+
+/* Bottom nav/CTA buttons on blue - keep white on blue */
+html.dark [style*="background: 'rgba(255,255,255,0.25)'"],
+html.dark [style*="background: rgba(255,255,255,0.25)"] {
+  background: rgba(255,255,255,0.14) !important;
+}
+
+/* ── Dark mode biz-card fix: transparent base, only card body gets dark bg ── */
+html.dark .biz-card {
+  background: transparent !important;
+  border-color: #2a2d3a !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
+}
+/* The card body div has inline style set by dm in React — don't override */
+/* The image container has its own bg color */
+
+/* Browse search/sort: match chat box style in dark mode */
+html.dark [data-hero-input] {
+  background: #1e2130 !important;
+  color: #f3f4f6 !important;
+  border-color: #2a2d3a !important;
+}
+
+/* Remove overly broad dark mode text overrides that fight with inline styles */
+html.dark .biz-card p { color: unset; }
+html.dark .biz-card span:not(.bg-emerald-500):not(.bg-amber-400):not([class*="text-white"]):not([class*="text-emerald"]) { color: unset; }

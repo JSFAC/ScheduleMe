@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
-import { useDarkMode } from '../../lib/useDarkMode';
+import { useDm } from '../../lib/DarkModeContext';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -86,7 +86,8 @@ function RevenueChart({ bookings }: { bookings: Booking[] }) {
 
 const BusinessDashboard: NextPage = () => {
   const router = useRouter();
-  const { dark: darkMode, toggle: toggleDark } = useDarkMode();
+  const { dm: darkMode, toggle: toggleDark } = useDm();
+  const dm = darkMode;
   const [tab, setTab] = useState<TabId>('overview');
   const [business, setBusiness] = useState<Business | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
