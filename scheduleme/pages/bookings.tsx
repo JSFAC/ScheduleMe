@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
+import { useDarkMode } from '../lib/useDarkMode';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 import { createClient } from '@supabase/supabase-js';
 import { SPONSORED } from '../lib/mockBusinesses';
@@ -400,6 +401,7 @@ type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
 
 const BookingsPage: NextPage = () => {
   const router = useRouter();
+  useDarkMode(); // apply persisted dark mode
   const [phase, setPhase] = useState<Phase>('loading');
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
@@ -497,7 +499,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
+      <div className="min-h-screen pt-[72px]" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
         {/* Header — flat solid blue */}
         <div className="border-b" style={{
           background: '#3b82f6',

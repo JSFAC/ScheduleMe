@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import { useDarkMode } from '../lib/useDarkMode';
 import Link from 'next/link';
 
 function getSupabase() {
@@ -35,6 +36,7 @@ function fmtTime(iso: string) {
 
 const MessagesPage: NextPage = () => {
   const router = useRouter();
+  useDarkMode(); // apply persisted dark mode
   const [userId, setUserId] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
@@ -106,7 +108,7 @@ const MessagesPage: NextPage = () => {
     <>
       <Head><title>Messages — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
+      <div className="min-h-screen pt-[72px]" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
 
         {/* Blue header */}
         <div className="border-b" style={{ background: '#3b82f6', borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -208,7 +210,7 @@ const MessagesPage: NextPage = () => {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: '#f8fafc' }}>
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: 'var(--section-bg, #f8fafc)' }}>
                     {/* Booking context card */}
                     <div className="rounded-xl border border-neutral-200 bg-white p-3.5 mb-4">
                       <p className="text-[10px] font-black uppercase tracking-[0.1em] text-neutral-400 mb-2">Booking Details</p>

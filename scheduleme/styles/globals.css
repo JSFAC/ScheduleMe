@@ -293,3 +293,170 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #A3A3A3; }
+
+/* ── Dark Mode ──────────────────────────────────────────────────── */
+/* Applied when <html class="dark"> is set */
+
+.dark body {
+  background: #0f1117;
+  color: #e5e7eb;
+}
+
+/* Page backgrounds */
+.dark .min-h-screen,
+.dark [style*="background: '#EDF5FF'"],
+.dark [style*="background: '#f8fafc'"] {
+  background: #0f1117 !important;
+}
+
+/* Cards / white surfaces */
+.dark .bg-white {
+  background: #1a1d27 !important;
+}
+.dark .bg-neutral-50 {
+  background: #16192 !important;
+}
+
+/* Borders */
+.dark .border-neutral-100 { border-color: #2a2d3a !important; }
+.dark .border-neutral-200 { border-color: #2a2d3a !important; }
+.dark .border-b { border-color: #2a2d3a !important; }
+
+/* Text */
+.dark .text-neutral-900 { color: #f3f4f6 !important; }
+.dark .text-neutral-800 { color: #e5e7eb !important; }
+.dark .text-neutral-700 { color: #d1d5db !important; }
+.dark .text-neutral-600 { color: #9ca3af !important; }
+.dark .text-neutral-500 { color: #6b7280 !important; }
+.dark .text-neutral-400 { color: #4b5563 !important; }
+
+/* Inputs */
+.dark .form-input {
+  background: #1e2130 !important;
+  border-color: #2a2d3a !important;
+  color: #f3f4f6 !important;
+}
+.dark .form-input::placeholder { color: #4b5563 !important; }
+
+/* Category pills / wash backgrounds */
+.dark .bg-accent-wash { background: #0d1f35 !important; }
+.dark .bg-neutral-100 { background: #1e2130 !important; }
+
+/* Booking / biz cards */
+.dark .biz-card { background: #1a1d27 !important; border-color: #2a2d3a !important; }
+.dark .booking-card { background: #1a1d27 !important; border-color: #2a2d3a !important; }
+
+/* Nav */
+.dark header { background: rgba(15,17,23,0.95) !important; border-color: #2a2d3a !important; }
+
+/* Category bar */
+.dark .bg-white.border-b { background: #1a1d27 !important; }
+
+/* Scrollbar */
+.dark ::-webkit-scrollbar-thumb { background: #2a2d3a; }
+
+/* Transition for smooth switching */
+body { transition: background 0.2s ease, color 0.2s ease; }
+
+/* ── Dark mode: CSS variables for inline-style overrides ─────── */
+:root {
+  --page-bg: #EDF5FF;
+  --card-bg: #ffffff;
+  --card-border: rgba(0,0,0,0.07);
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --input-bg: #ffffff;
+  --input-border: #e5e5e5;
+  --section-bg: #f8fafc;
+  --divider: rgba(0,0,0,0.06);
+}
+
+html.dark {
+  --page-bg: #0f1117;
+  --card-bg: #1a1d27;
+  --card-border: rgba(255,255,255,0.07);
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --input-bg: #1e2130;
+  --input-border: #2a2d3a;
+  --section-bg: #13161f;
+  --divider: rgba(255,255,255,0.06);
+}
+
+/* Apply CSS vars to common elements in dark mode */
+html.dark body { background: var(--page-bg); color: var(--text-primary); }
+
+html.dark .bg-white { background: var(--card-bg) !important; }
+html.dark .bg-neutral-50 { background: var(--section-bg) !important; }
+html.dark .bg-neutral-100 { background: #1e2130 !important; }
+html.dark .bg-accent-wash { background: #0d1f35 !important; }
+
+html.dark .text-neutral-900 { color: var(--text-primary) !important; }
+html.dark .text-neutral-800 { color: #e5e7eb !important; }
+html.dark .text-neutral-700 { color: #d1d5db !important; }
+html.dark .text-neutral-600 { color: var(--text-secondary) !important; }
+html.dark .text-neutral-500 { color: var(--text-muted) !important; }
+html.dark .text-neutral-400 { color: #4b5563 !important; }
+html.dark .text-neutral-300 { color: #374151 !important; }
+
+html.dark .border-neutral-100 { border-color: #2a2d3a !important; }
+html.dark .border-neutral-200 { border-color: #2a2d3a !important; }
+html.dark .border-b { border-bottom-color: #2a2d3a !important; }
+html.dark .divide-y > * { border-color: #2a2d3a !important; }
+html.dark .divide-neutral-50 > * { border-color: #1e2130 !important; }
+
+html.dark .form-input {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark header {
+  background: rgba(15,17,23,0.97) !important;
+  border-bottom-color: #2a2d3a !important;
+}
+
+/* biz-card dark */
+html.dark .biz-card {
+  background: var(--card-bg) !important;
+}
+html.dark .biz-card .px-3\.5 {
+  background: var(--card-bg) !important;
+}
+
+/* booking-card dark */
+html.dark .booking-card {
+  background: var(--card-bg) !important;
+  border-color: #2a2d3a !important;
+}
+
+/* Accent-wash pills */
+html.dark .bg-accent-wash.border-accent\/15 {
+  background: #0d1f35 !important;
+  border-color: rgba(10,132,255,0.25) !important;
+}
+
+/* White category bar */
+html.dark .bg-white.border-b {
+  background: #1a1d27 !important;
+}
+
+/* Consumer page backgrounds — using data attributes since they're inline styles */
+html.dark [data-page-bg] {
+  background: var(--page-bg) !important;
+}
+
+html.dark .hover\:bg-neutral-50:hover { background: #1e2130 !important; }
+html.dark .hover\:bg-neutral-100:hover { background: #2a2d3a !important; }
+html.dark .hover\:bg-blue-50:hover { background: #0d1f35 !important; }
+
+/* Input placeholders */
+html.dark input::placeholder, html.dark textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Scrollbar in dark */
+html.dark ::-webkit-scrollbar-thumb { background: #2a2d3a; }
+html.dark ::-webkit-scrollbar-track { background: transparent; }

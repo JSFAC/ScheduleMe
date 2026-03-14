@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import { useDarkMode } from '../lib/useDarkMode';
 import BusinessProfile from '../components/BusinessProfile';
 import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
 
@@ -381,6 +382,7 @@ function ReferCard() {
 
 const HomePage: NextPage = () => {
   const router = useRouter();
+  useDarkMode(); // apply persisted dark mode
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
@@ -408,7 +410,7 @@ const HomePage: NextPage = () => {
     <>
       <Head><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
+      <div className="min-h-screen pt-[72px]" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
 
         {/* Search hero — flat solid blue, clean */}
         <div className="border-b" style={{
