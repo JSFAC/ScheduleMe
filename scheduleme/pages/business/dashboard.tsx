@@ -2,7 +2,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,7 +10,7 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
-type TabId = 'overview' | 'bookings' | 'clients' | 'calendar' | 'settings';
+type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings';
 
 interface Booking {
   id: string; service: string; status: string; created_at: string;
@@ -37,11 +37,12 @@ const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text:
 };
 
 const NAV: { id: TabId; label: string; d: string }[] = [
-  { id: 'overview', label: 'Overview', d: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { id: 'bookings', label: 'Bookings', d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { id: 'clients',  label: 'Clients',  d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-  { id: 'calendar', label: 'Calendar', d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-  { id: 'settings', label: 'Settings', d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+  { id: 'overview',  label: 'Overview',  d: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { id: 'bookings',  label: 'Bookings',  d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  { id: 'messages',  label: 'Messages',  d: 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z' },
+  { id: 'clients',   label: 'Clients',   d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+  { id: 'calendar',  label: 'Calendar',  d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+  { id: 'settings',  label: 'Settings',  d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
 
 function fmt(cents: number) { return '$' + (cents / 100).toFixed(2); }
@@ -92,6 +93,22 @@ const BusinessDashboard: NextPage = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('all');
 
+  // Messages state
+  const [threads, setThreads] = useState<any[]>([]);
+  const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  const [threadMessages, setThreadMessages] = useState<any[]>([]);
+  const [msgDraft, setMsgDraft] = useState('');
+  const [msgSending, setMsgSending] = useState(false);
+  const msgPollRef = useRef<NodeJS.Timeout | null>(null);
+  const msgBottomRef = useRef<HTMLDivElement | null>(null);
+  const [msgThreads, setMsgThreads] = useState<any[]>([]);
+  const [activeMsgThread, setActiveMsgThread] = useState<any>(null);
+  const [threadMessages, setThreadMessages] = useState<any[]>([]);
+  const [msgInput, setMsgInput] = useState('');
+  const [msgSending, setMsgSending] = useState(false);
+  const msgBottomRef = useRef<HTMLDivElement>(null);
+  const msgInputRef = useRef<HTMLTextAreaElement>(null);
+
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
@@ -114,10 +131,55 @@ const BusinessDashboard: NextPage = () => {
     setEditServices((biz.service_tags || []).join(', '));
     const { data: bkgs } = await supabase.from('bookings').select('*, users(name, phone, email)').eq('business_id', biz.id).order('created_at', { ascending: false });
     setBookings(bkgs || []);
+    // Pre-load message threads
+    const msgsRes = await fetch('/api/messages?business_id=' + biz.id);
+    if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); }
     setLoading(false);
   }, [router]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
+
+  // Load message threads when on messages tab
+  useEffect(() => {
+    if (tab !== 'messages' || !business) return;
+    loadThreads();
+  }, [tab, business]);
+
+  // Poll active thread
+  useEffect(() => {
+    if (!selectedThread) return;
+    loadThreadMessages(selectedThread);
+    if (msgPollRef.current) clearInterval(msgPollRef.current);
+    msgPollRef.current = setInterval(() => loadThreadMessages(selectedThread), 5000);
+    return () => { if (msgPollRef.current) clearInterval(msgPollRef.current); };
+  }, [selectedThread]);
+
+  useEffect(() => {
+    msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [threadMessages]);
+
+  async function loadThreads() {
+    if (!business) return;
+    const res = await fetch('/api/messages?business_id=' + business.id);
+    if (res.ok) { const d = await res.json(); setThreads(d.threads || []); }
+  }
+
+  async function loadThreadMessages(bookingId: string) {
+    const res = await fetch('/api/messages?booking_id=' + bookingId);
+    if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); }
+  }
+
+  async function sendBusinessMessage() {
+    if (!msgDraft.trim() || !selectedThread || msgSending) return;
+    setMsgSending(true);
+    const text = msgDraft.trim(); setMsgDraft('');
+    const res = await fetch('/api/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: selectedThread, sender_type: 'business', content: text }),
+    });
+    if (res.ok) { const d = await res.json(); setThreadMessages(m => [...m, d.message]); }
+    setMsgSending(false);
+  }
 
   async function handleStripeConnect() {
     if (!business) return; setStripeLoading(true);
@@ -155,6 +217,7 @@ const BusinessDashboard: NextPage = () => {
   );
 
   const totalEarned = bookings.filter(b => b.status === 'paid' || b.status === 'completed').reduce((s, b) => s + (b.amount_cents || 0), 0);
+  const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const completedCount = bookings.filter(b => b.status === 'completed' || b.status === 'paid').length;
   const uniqueClients = new Set(bookings.map(b => b.users?.email).filter(Boolean)).size;
@@ -219,6 +282,9 @@ const BusinessDashboard: NextPage = () => {
                 {item.id === 'bookings' && pendingCount > 0 && (
                   <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700'}`}>{pendingCount}</span>
                 )}
+                {item.id === 'messages' && totalUnreadMsgs > 0 && (
+                  <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-accent/10 text-accent'}`}>{totalUnreadMsgs}</span>
+                )}
               </button>
             ))}
           </nav>
@@ -252,6 +318,7 @@ const BusinessDashboard: NextPage = () => {
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${tab === item.id ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
                     {item.label}
                     {item.id === 'bookings' && pendingCount > 0 && <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700'}`}>{pendingCount}</span>}
+                    {item.id === 'messages' && totalUnreadMsgs > 0 && <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-accent/10 text-accent'}`}>{totalUnreadMsgs}</span>}
                   </button>
                 ))}
               </div>
@@ -279,6 +346,7 @@ const BusinessDashboard: NextPage = () => {
               {tab === 'overview' && <p className="text-sm text-neutral-400 mt-0.5">Welcome back, {business?.owner_name?.split(' ')[0] || 'there'}</p>}
               {tab === 'bookings' && <p className="text-sm text-neutral-400 mt-0.5">{bookings.length} total · {pendingCount} need attention</p>}
               {tab === 'clients' && <p className="text-sm text-neutral-400 mt-0.5">{clients.length} unique clients served</p>}
+            {tab === 'messages' && <p className="text-sm text-neutral-400 mt-0.5">{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>}
             </div>
 
             {/* OVERVIEW */}
@@ -411,6 +479,194 @@ const BusinessDashboard: NextPage = () => {
               </div>
             )}
 
+            {/* MESSAGES */}
+            {tab === 'messages' && (
+              <div className="flex gap-4" style={{ height: 'calc(100vh - 280px)', minHeight: 500 }}>
+                {/* Thread list */}
+                <div className={`${activeMsgThread ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-neutral-100 overflow-hidden`}>
+                  <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+                    <p className="text-xs font-black text-neutral-400 uppercase tracking-[0.1em]">{msgThreads.length} conversation{msgThreads.length !== 1 ? 's' : ''}</p>
+                    {totalUnreadMsgs > 0 && <span className="text-[10px] font-black bg-accent text-white px-2 py-0.5 rounded-full">{totalUnreadMsgs} unread</span>}
+                  </div>
+                  <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                    {msgThreads.length === 0 ? (
+                      <div className="p-6 text-center text-neutral-400 text-sm">No conversations yet.</div>
+                    ) : msgThreads.map((t: any) => (
+                      <button key={t.id} onClick={async () => {
+                        setActiveMsgThread(t);
+                        setThreadMessages([]);
+                        const res = await fetch('/api/messages?booking_id=' + t.id);
+                        if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); }
+                        if (t.unreadCount > 0) {
+                          await fetch('/api/messages', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ booking_id: t.id, reader_type: 'business' }) });
+                          setMsgThreads((ts: any[]) => ts.map((x: any) => x.id === t.id ? { ...x, unreadCount: 0 } : x));
+                        }
+                        setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+                      }}
+                        className={`w-full text-left px-4 py-3.5 border-b border-neutral-50 transition-colors hover:bg-blue-50/50 ${activeMsgThread?.id === t.id ? 'bg-blue-50' : ''}`}>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                              <span className="text-accent text-[10px] font-black">{(t.users?.name || 'U').charAt(0).toUpperCase()}</span>
+                            </div>
+                            <p className="text-sm font-bold text-neutral-900 truncate">{t.users?.name || 'Unknown customer'}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {t.unreadCount > 0 && <span className="h-4 w-4 rounded-full bg-accent flex items-center justify-center text-[9px] font-black text-white">{t.unreadCount}</span>}
+                            {t.lastMessage && <span className="text-[10px] text-neutral-400">{new Date(t.lastMessage.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-neutral-500 truncate mb-0.5 pl-9">{t.service}</p>
+                        {t.lastMessage
+                          ? <p className={`text-[11px] truncate pl-9 ${t.unreadCount > 0 ? 'font-semibold text-neutral-700' : 'text-neutral-400'}`}>
+                              {t.lastMessage.sender_type === 'business' ? 'You: ' : ''}{t.lastMessage.content}
+                            </p>
+                          : <p className="text-[11px] text-neutral-300 italic pl-9">No messages yet</p>
+                        }
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Active thread */}
+                {activeMsgThread ? (
+                  <div className="flex-1 flex flex-col bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+                    {/* Header — customer + booking info */}
+                    <div className="px-5 py-3.5 border-b border-neutral-100">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <button onClick={() => setActiveMsgThread(null)} className="lg:hidden p-1.5 rounded-lg hover:bg-neutral-100 mr-1 shrink-0">
+                            <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                          </button>
+                          <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                            <span className="text-accent font-black text-sm">{(activeMsgThread.users?.name || 'U').charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-neutral-900">{activeMsgThread.users?.name || 'Unknown'}</p>
+                            <p className="text-[11px] text-neutral-400 truncate">{activeMsgThread.users?.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {activeMsgThread.users?.phone && (
+                            <a href={`tel:${activeMsgThread.users.phone}`} className="text-xs font-semibold text-accent bg-blue-50 px-3 py-1.5 rounded-xl border border-accent/15 hover:bg-blue-100 transition-colors flex items-center gap-1.5">
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+                              {activeMsgThread.users.phone}
+                            </a>
+                          )}
+                          <button onClick={() => setTab('bookings')} className="text-xs font-semibold text-neutral-500 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-100 transition-colors">
+                            View booking
+                          </button>
+                        </div>
+                      </div>
+                      {/* Booking summary strip */}
+                      <div className="mt-3 flex items-center gap-3 px-3 py-2 bg-neutral-50 rounded-xl border border-neutral-100">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-neutral-700 truncate">{activeMsgThread.service}</p>
+                          <p className="text-[10px] text-neutral-400 mt-0.5">{new Date(activeMsgThread.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                        <StatusBadge status={activeMsgThread.status} />
+                      </div>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: '#f8fafc' }}>
+                      {threadMessages.length === 0 && (
+                        <div className="text-center py-8">
+                          <p className="text-sm text-neutral-400">No messages yet.</p>
+                          <p className="text-xs text-neutral-300 mt-1">Send a message to start the conversation.</p>
+                        </div>
+                      )}
+                      {threadMessages.map((msg: any, i: number) => {
+                        const isBiz = msg.sender_type === 'business';
+                        const showTime = i === 0 || new Date(msg.created_at).getTime() - new Date(threadMessages[i-1].created_at).getTime() > 300000;
+                        return (
+                          <div key={msg.id}>
+                            {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
+                            <div className={`flex ${isBiz ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isBiz ? 'bg-accent text-white rounded-br-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'}`}>
+                                {msg.content}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={msgBottomRef} />
+                    </div>
+
+                    {/* Input */}
+                    <div className="px-4 py-3 border-t border-neutral-100 bg-white">
+                      <div className="flex items-end gap-2">
+                        <textarea
+                          ref={msgInputRef}
+                          value={msgInput}
+                          onChange={e => setMsgInput(e.target.value)}
+                          onKeyDown={async e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              if (!msgInput.trim() || msgSending) return;
+                              setMsgSending(true);
+                              const content = msgInput.trim(); setMsgInput('');
+                              const res = await fetch('/api/messages', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ booking_id: activeMsgThread.id, sender_type: 'business', sender_id: business?.id, content }),
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setThreadMessages((m: any[]) => [...m, data.message]);
+                                setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
+                                setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                              }
+                              setMsgSending(false);
+                              msgInputRef.current?.focus();
+                            }
+                          }}
+                          placeholder={`Reply to ${activeMsgThread.users?.name || 'customer'}…`}
+                          rows={1}
+                          className="flex-1 resize-none rounded-xl border border-neutral-200 px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
+                          style={{ maxHeight: 100 }}
+                        />
+                        <button
+                          disabled={!msgInput.trim() || msgSending}
+                          onClick={async () => {
+                            if (!msgInput.trim() || msgSending) return;
+                            setMsgSending(true);
+                            const content = msgInput.trim(); setMsgInput('');
+                            const res = await fetch('/api/messages', {
+                              method: 'POST', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ booking_id: activeMsgThread.id, sender_type: 'business', sender_id: business?.id, content }),
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setThreadMessages((m: any[]) => [...m, data.message]);
+                              setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
+                              setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                            }
+                            setMsgSending(false);
+                          }}
+                          className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
+                          style={{ background: msgInput.trim() ? '#0A84FF' : '#e5e7eb' }}>
+                          <svg className={`h-4 w-4 ${msgInput.trim() ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-1.5 px-1">↵ to send · Shift+↵ for new line</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="hidden lg:flex flex-1 items-center justify-center bg-white rounded-2xl border border-neutral-100">
+                    <div className="text-center">
+                      <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                        <svg className="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
+                      </div>
+                      <p className="text-sm font-semibold text-neutral-600">Select a conversation</p>
+                      <p className="text-xs text-neutral-400 mt-1">Choose a customer thread to reply</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* CLIENTS */}
             {tab === 'clients' && (
               <div className="space-y-3">
@@ -491,6 +747,149 @@ const BusinessDashboard: NextPage = () => {
                         ))}
                       </div>
                   }
+                </div>
+              </div>
+            )}
+
+            {/* MESSAGES */}
+            {tab === 'messages' && (
+              <div className="flex gap-4" style={{ height: 'calc(100vh - 280px)', minHeight: 480 }}>
+                {/* Thread list */}
+                <div className="w-80 shrink-0 flex flex-col gap-2 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                  {threads.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-neutral-100 py-10 text-center text-neutral-400 text-sm">
+                      No messages yet. They appear when customers message you.
+                    </div>
+                  ) : threads.map((t: any) => {
+                    const bk = t.bookings;
+                    const client = bk?.users;
+                    const isSelected = selectedThread === t.booking_id;
+                    return (
+                      <button key={t.booking_id} onClick={() => setSelectedThread(t.booking_id)}
+                        className={`w-full text-left rounded-2xl border px-4 py-3.5 transition-all ${isSelected ? 'bg-white border-accent shadow-sm ring-1 ring-accent/20' : 'bg-white border-neutral-100 hover:border-neutral-200'}`}>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                              <span className="text-accent text-xs font-black">{(client?.name || '?').charAt(0).toUpperCase()}</span>
+                            </div>
+                            <p className="text-sm font-bold text-neutral-900 truncate">{client?.name || 'Unknown'}</p>
+                          </div>
+                          <span className="text-[9px] text-neutral-400 shrink-0 mt-0.5">{new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        </div>
+                        <p className="text-xs text-neutral-500 line-clamp-1 pl-9">{bk?.service || 'Service'}</p>
+                        <p className="text-[10px] text-neutral-400 mt-0.5 pl-9 line-clamp-1">{t.content}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Chat + client info panel */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {!selectedThread ? (
+                    <div className="bg-white rounded-2xl border border-neutral-100 flex-1 flex items-center justify-center text-neutral-400 text-sm">
+                      Select a conversation
+                    </div>
+                  ) : (() => {
+                    const thread = threads.find((t: any) => t.booking_id === selectedThread);
+                    const bk = thread?.bookings;
+                    const client = bk?.users;
+                    const clientBookings = bookings.filter(b => b.users?.email === client?.email);
+                    const clientSpend = clientBookings.reduce((s: number, b) => s + (b.amount_cents || 0), 0);
+                    return (
+                      <div className="flex gap-3 flex-1 overflow-hidden">
+                        {/* Chat */}
+                        <div className="flex-1 bg-white rounded-2xl border border-neutral-100 flex flex-col overflow-hidden">
+                          {/* Header */}
+                          <div className="px-4 py-3.5 border-b border-neutral-100 flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                              <span className="text-accent font-black">{(client?.name || '?').charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-neutral-900">{client?.name || 'Unknown'}</p>
+                              <p className="text-xs text-neutral-400 truncate">{bk?.service}</p>
+                            </div>
+                            {client?.phone && (
+                              <a href={'tel:' + client.phone} className="ml-auto text-xs font-semibold text-accent hover:opacity-70 transition-opacity shrink-0">
+                                📞 {client.phone}
+                              </a>
+                            )}
+                          </div>
+                          {/* Messages */}
+                          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5" style={{ scrollbarWidth: 'none' }}>
+                            {threadMessages.length === 0 ? (
+                              <div className="flex items-center justify-center h-full text-neutral-400 text-sm">No messages yet</div>
+                            ) : threadMessages.map((m: any) => (
+                              <div key={m.id} className={'flex ' + (m.sender_type === 'business' ? 'justify-end' : 'justify-start')}>
+                                <div className={'max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ' + (m.sender_type === 'business' ? 'bg-accent text-white rounded-br-sm' : 'bg-neutral-100 text-neutral-800 rounded-bl-sm')}>
+                                  {m.content}
+                                  <p className={'text-[9px] mt-1 ' + (m.sender_type === 'business' ? 'text-white/60' : 'text-neutral-400')}>
+                                    {new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                            <div ref={msgBottomRef} />
+                          </div>
+                          {/* Input */}
+                          <div className="px-4 py-3 border-t border-neutral-100">
+                            <div className="flex items-end gap-2">
+                              <textarea value={msgDraft} onChange={e => setMsgDraft(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBusinessMessage(); } }}
+                                placeholder="Reply to customer…" rows={1}
+                                className="flex-1 resize-none rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all"
+                                style={{ maxHeight: 100 }} />
+                              <button onClick={sendBusinessMessage} disabled={!msgDraft.trim() || msgSending}
+                                className="shrink-0 h-10 w-10 rounded-xl bg-accent text-white flex items-center justify-center disabled:opacity-40 hover:bg-accent-dark transition-colors">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Client stats sidebar */}
+                        <div className="w-56 shrink-0 flex flex-col gap-3">
+                          <div className="bg-white rounded-2xl border border-neutral-100 p-4">
+                            <p className="text-[9px] font-black uppercase tracking-wider text-neutral-400 mb-3">Client</p>
+                            <div className="flex items-center gap-2.5 mb-3">
+                              <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                                <span className="text-accent font-black">{(client?.name || '?').charAt(0).toUpperCase()}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold text-neutral-900 truncate">{client?.name}</p>
+                                <p className="text-[10px] text-neutral-400 truncate">{client?.email}</p>
+                              </div>
+                            </div>
+                            <div className="space-y-2.5 pt-2 border-t border-neutral-50">
+                              {[
+                                { label: 'Total Jobs', value: String(clientBookings.length) },
+                                { label: 'Total Spent', value: '$' + (clientSpend / 100).toFixed(2) },
+                                { label: 'Phone', value: client?.phone || '—' },
+                              ].map(r => (
+                                <div key={r.label} className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-neutral-400">{r.label}</span>
+                                  <span className="text-[11px] font-bold text-neutral-700">{r.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-2xl border border-neutral-100 p-4">
+                            <p className="text-[9px] font-black uppercase tracking-wider text-neutral-400 mb-3">Booking</p>
+                            <div className="space-y-2">
+                              {[
+                                { label: 'Service', value: bk?.service },
+                                { label: 'Status', value: bk?.status?.replace('_', ' ') },
+                              ].map(r => (
+                                <div key={r.label}>
+                                  <p className="text-[9px] text-neutral-400">{r.label}</p>
+                                  <p className="text-[11px] font-semibold text-neutral-700 mt-0.5 line-clamp-2">{r.value || '—'}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
