@@ -19,6 +19,7 @@ function PureBtn({ onClick, className, children, style, disabled }: {
 
 /* ─── Stars ─── */
 function Stars({ rating }: { rating: number }) {
+  const { dm } = useDm();
   return (
     <span className="flex items-center gap-1">
       <svg className="h-3.5 w-3.5 text-amber-400 fill-current flex-shrink-0" viewBox="0 0 20 20">
@@ -33,6 +34,7 @@ function Stars({ rating }: { rating: number }) {
 const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
 function MiniCalendar({ selected, onSelect }: { selected: Date | null; onSelect: (d: Date) => void }) {
+  const { dm } = useDm();
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [vm, setVm] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const y = vm.getFullYear(), m = vm.getMonth();
@@ -93,6 +95,7 @@ const SERVICES_CONTEXT = [
 ];
 
 function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
+  const { dm } = useDm();
   const [date, setDate] = useState<Date | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
   const [serviceType, setServiceType] = useState<string>('');
