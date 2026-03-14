@@ -146,7 +146,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
             </div>
             <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
           </div>
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? '#0A84FF' : '#EBF4FF', color: dm ? 'white' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
             {biz.category}
           </span>
         </div>
@@ -303,7 +303,7 @@ const BrowsePage: NextPage = () => {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: dm ? '#262626' : 'white', color: dm ? 'white' : '#0A84FF' }
+                      ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#0A84FF', border: dm ? '1px solid #262626' : 'none' }
                       : { color: 'white', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
@@ -359,15 +359,14 @@ const BrowsePage: NextPage = () => {
         </div>
 
         {/* Category pills — white bar below hero */}
-        <div className="bg-white border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex justify-center gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
             {CATEGORIES.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
-                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
-                  activeCategory === cat
-                    ? 'bg-accent text-white'
-                    : 'bg-accent-wash text-accent/70 border border-accent/15 hover:border-accent/30 hover:text-accent'
-                }`}>
+                className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
+                style={activeCategory === cat
+                  ? { background: '#0A84FF', color: 'white', borderColor: '#0A84FF' }
+                  : { background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#0A84FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
                 {cat}
               </button>
             ))}
