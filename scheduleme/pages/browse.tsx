@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import { useDarkMode } from '../lib/useDarkMode';
 import BusinessProfile from '../components/BusinessProfile';
 import { ALL_BUSINESSES, type Business } from '../lib/mockBusinesses';
 
@@ -203,6 +204,7 @@ function ReferInline() {
 
 const BrowsePage: NextPage = () => {
   const router = useRouter();
+  useDarkMode(); // apply persisted dark mode
   const [sortMode, setSortMode] = useState<SortMode>('distance');
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -280,7 +282,7 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pt-[72px]" style={{ background: '#EDF5FF' }}>
+      <div className="min-h-screen pt-[72px]" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
         <Nav />
 
         {/* Hero header — flat solid blue, clean and readable */}
