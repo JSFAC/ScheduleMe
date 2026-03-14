@@ -127,7 +127,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
   return (
     <div>
       {/* Sticky back bar */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b sticky top-0 z-10" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
+      <div className="flex items-center gap-3 px-6 py-4 border-b sticky top-0 z-10" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
         <PureBtn onClick={onBack}
           className="h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
           <svg className="h-4 w-4 text-neutral-600 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -163,7 +163,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
             {SERVICES_CONTEXT.map(s => (
               <PureBtn key={s} onClick={() => setServiceType(s)}
                 className={`py-2.5 px-3 rounded-xl text-xs font-medium text-left border transition-colors ${serviceType === s ? 'bg-accent text-white border-accent' : ''}`}
-                style={serviceType === s ? {} : { background: dm ? '#13161f' : 'white', color: dm ? '#d1d5db' : '#404040', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>
+                style={serviceType === s ? {} : { background: dm ? '#0d0d0d' : 'white', color: dm ? '#d1d5db' : '#404040', borderColor: dm ? '#262626' : '#e5e5e5' }}>
                 {s}
               </PureBtn>
             ))}
@@ -217,7 +217,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
             onChange={e => setNote(e.target.value)}
             placeholder={`e.g. My ${biz.category.toLowerCase()} needs attention — describe the issue, how long it's been happening, and anything else helpful...`}
             rows={4}
-            className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" style={{ background: dm ? '#13161f' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
+            className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
           />
           <p className="text-[11px] text-neutral-400 mt-1.5">The more detail, the faster they can prepare.</p>
         </div>
@@ -314,7 +314,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
         onClick={e => e.stopPropagation()}
         className="relative rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col"
         style={{
-          background: dm ? '#1a1d27' : 'white',
+          background: dm ? '#171717' : 'white',
           opacity: ready ? 1 : 0,
           transform: !closing && !ready ? 'scale(0.96)' : 'scale(1)',
           transition: closing
@@ -385,7 +385,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
         <div className="flex-1 overflow-y-auto">
           {view === 'book' ? <BookingView biz={biz} onBack={() => setView('info')} /> : (
             <>
-              <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
+              <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
                 <p className="text-xs font-medium mb-0.5" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
                 <h2 className="text-xl font-bold" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h2>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
@@ -399,7 +399,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
                 <p className="text-sm mt-3 leading-relaxed" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.description}</p>
               </div>
 
-              <div className="px-6 py-4 border-b" style={{ borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
+              <div className="px-6 py-4 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
                 <h3 className="text-sm font-bold mb-3" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Services &amp; pricing</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {biz.services.map(s => (

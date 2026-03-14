@@ -3,6 +3,7 @@ import type { NextPage, GetStaticProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { useDm } from '../lib/DarkModeContext';
 import Nav from '../components/Nav';
 import Hero from '../components/Hero';
 import cms from '../cms_content.json';
@@ -45,6 +46,7 @@ const STATS = [
 ];
 
 const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
+  const { dm } = useDm();
   useScrollReveal('.js-feat', 100);
   useScrollReveal('.js-step', 130);
   useScrollReveal('.js-stat', 80);
@@ -73,7 +75,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
         />
 
         {/* Stats strip */}
-        <section className="bg-neutral-900 py-16" aria-label="Key stats">
+        <section className="py-16" style={{ background: dm ? '#111111' : '#171717' }} aria-label="Key stats">
           <div className="mx-auto max-w-5xl px-6">
             <ul className="grid grid-cols-2 md:grid-cols-4 gap-8" role="list">
               {STATS.map((s) => (
@@ -87,25 +89,25 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
         </section>
 
         {/* Features */}
-        <section id="features" className="py-28 bg-white" aria-labelledby="features-heading">
+        <section id="features" className="py-28" style={{ background: dm ? '#0a0a0a' : 'white' }} aria-labelledby="features-heading">
           <div className="mx-auto max-w-6xl px-6">
             <div className="js-section text-center mb-20">
               <span className="section-eyebrow">Why ScheduleMe</span>
-              <h2 id="features-heading" className="mt-4 text-4xl md:text-5xl font-bold text-neutral-900">
+              <h2 id="features-heading" className="mt-4 text-4xl md:text-5xl font-bold" style={{ color: dm ? 'white' : '#171717' }}>
                 Everything you need,<br className="hidden md:block" /> nothing you don&apos;t.
               </h2>
-              <p className="mt-5 text-lg text-neutral-500 max-w-xl mx-auto leading-relaxed">
+              <p className="mt-5 text-lg max-w-xl mx-auto leading-relaxed" style={{ color: dm ? '#737373' : '#737373' }}>
                 Built for the moment you need help fast — and for the businesses that show up.
               </p>
             </div>
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
               {features.map((feature) => (
-                <li key={feature.title} className="js-feat card p-7 group hover:-translate-y-1 transition-transform duration-300">
-                  <div className="h-11 w-11 rounded-2xl bg-accent-light text-accent flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300">
+                <li key={feature.title} className="js-feat p-7 group hover:-translate-y-1 transition-transform duration-300 rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)', boxShadow: dm ? 'none' : '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  <div className="h-11 w-11 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#E8F3FF', color: '#0A84FF' }}>
                     {ICONS[feature.icon] ?? null}
                   </div>
-                  <h3 className="text-base font-semibold text-neutral-900 mb-2">{feature.title}</h3>
-                  <p className="text-sm text-neutral-500 leading-relaxed">{feature.description}</p>
+                  <h3 className="text-base font-semibold mb-2" style={{ color: dm ? 'white' : '#171717' }}>{feature.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: dm ? '#737373' : '#737373' }}>{feature.description}</p>
                 </li>
               ))}
             </ul>
@@ -113,11 +115,11 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
         </section>
 
         {/* Testimonials */}
-        <section className="py-24 bg-neutral-50" aria-labelledby="testimonials-heading">
+        <section className="py-24" style={{ background: dm ? '#0d0d0d' : '#fafafa' }} aria-labelledby="testimonials-heading">
           <div className="mx-auto max-w-6xl px-6">
             <div className="js-section text-center mb-16">
               <span className="section-eyebrow">Real stories</span>
-              <h2 id="testimonials-heading" className="mt-4 text-4xl font-bold text-neutral-900">People love ScheduleMe</h2>
+              <h2 id="testimonials-heading" className="mt-4 text-4xl font-bold" style={{ color: dm ? 'white' : '#171717' }}>People love ScheduleMe</h2>
             </div>
             <ul className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
               {[
@@ -125,16 +127,16 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "James T.", location: "Phoenix, AZ", service: "HVAC" },
                 { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Sandra K.", location: "Denver, CO", service: "Home Repair" },
               ].map((t) => (
-                <li key={t.name} className="js-testimonial card p-7">
+                <li key={t.name} className="js-testimonial p-7 rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
                   <div className="flex gap-0.5 mb-4" aria-label="5 stars">
                     {Array.from({ length: 5 }).map((_, i) => <span key={i} className="text-amber-400 text-sm" aria-hidden="true">★</span>)}
                   </div>
-                  <blockquote className="text-sm text-neutral-700 leading-relaxed mb-5">&ldquo;{t.quote}&rdquo;</blockquote>
+                  <blockquote className="text-sm leading-relaxed mb-5" style={{ color: dm ? '#a3a3a3' : '#404040' }}>&ldquo;{t.quote}&rdquo;</blockquote>
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-accent-light flex items-center justify-center text-accent font-bold text-sm flex-shrink-0">{t.name.charAt(0)}</div>
+                    <div className="h-9 w-9 rounded-full flex items-center justify-center text-accent font-bold text-sm flex-shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#E8F3FF' }}>{t.name.charAt(0)}</div>
                     <div>
-                      <p className="text-sm font-semibold text-neutral-900">{t.name}</p>
-                      <p className="text-xs text-neutral-400">{t.location} · {t.service}</p>
+                      <p className="text-sm font-semibold" style={{ color: dm ? 'white' : '#171717' }}>{t.name}</p>
+                      <p className="text-xs" style={{ color: dm ? '#525252' : '#a3a3a3' }}>{t.location} · {t.service}</p>
                     </div>
                   </div>
                 </li>
@@ -144,24 +146,24 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
         </section>
 
         {/* How It Works */}
-        <section id="how-it-works" className="py-28 bg-white" aria-labelledby="how-heading">
+        <section id="how-it-works" className="py-28" style={{ background: dm ? '#0a0a0a' : 'white' }} aria-labelledby="how-heading">
           <div className="mx-auto max-w-4xl px-6">
             <div className="js-section text-center mb-20">
               <span className="section-eyebrow">How It Works</span>
-              <h2 id="how-heading" className="mt-4 text-4xl md:text-5xl font-bold text-neutral-900">
+              <h2 id="how-heading" className="mt-4 text-4xl md:text-5xl font-bold" style={{ color: dm ? 'white' : '#171717' }}>
                 From problem to pro<br className="hidden md:block" /> in under 60 seconds.
               </h2>
             </div>
             <ol className="relative space-y-0" role="list">
-              <div className="absolute left-6 top-6 bottom-6 w-px bg-neutral-100 hidden md:block" aria-hidden="true" />
+              <div className="absolute left-6 top-6 bottom-6 w-px hidden md:block" style={{ background: dm ? '#262626' : '#f5f5f5' }} aria-hidden="true" />
               {demoSteps.map((step) => (
                 <li key={step.step} className="js-step relative flex items-start gap-8 pb-12 last:pb-0">
                   <div className="relative flex-shrink-0 h-12 w-12 rounded-full bg-accent text-white flex items-center justify-center text-lg font-bold shadow-lg shadow-accent/20 z-10" aria-hidden="true">
                     {step.step}
                   </div>
                   <div className="pt-2.5">
-                    <h3 className="text-lg font-semibold text-neutral-900 mb-1">{step.title}</h3>
-                    <p className="text-neutral-500 leading-relaxed">{step.description}</p>
+                    <h3 className="text-lg font-semibold mb-1" style={{ color: dm ? 'white' : '#171717' }}>{step.title}</h3>
+                    <p className="leading-relaxed" style={{ color: dm ? '#737373' : '#737373' }}>{step.description}</p>
                   </div>
                 </li>
               ))}
@@ -208,21 +210,21 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
 
 
         {/* FAQ */}
-        <section className="py-24 bg-neutral-50" id="faq" aria-labelledby="faq-heading">
+        <section className="py-24" id="faq" style={{ background: dm ? '#0d0d0d' : '#fafafa' }} aria-labelledby="faq-heading">
           <div className="mx-auto max-w-3xl px-6">
             <div className="text-center mb-14 js-section">
               <span className="section-eyebrow mb-3 block">FAQ</span>
-              <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-neutral-900">Common questions</h2>
+              <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold" style={{ color: dm ? 'white' : '#171717' }}>Common questions</h2>
             </div>
             <FaqAccordion />
           </div>
         </section>
 
         {/* Final CTA */}
-        <section className="py-24 bg-white" aria-labelledby="final-cta-heading">
+        <section className="py-24" style={{ background: dm ? '#0a0a0a' : 'white' }} aria-labelledby="final-cta-heading">
           <div className="mx-auto max-w-3xl px-6 text-center js-section">
-            <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">Ready to find your pro?</h2>
-            <p className="text-neutral-500 mb-8 text-lg">Free for users. Always. Describe your issue and get matched in seconds.</p>
+            <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold mb-4" style={{ color: dm ? 'white' : '#171717' }}>Ready to find your pro?</h2>
+            <p className="mb-8 text-lg" style={{ color: dm ? '#737373' : '#737373' }}>Free for users. Always. Describe your issue and get matched in seconds.</p>
             <Link href="/bookings" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Get Started — No Account Needed</Link>
           </div>
         </section>

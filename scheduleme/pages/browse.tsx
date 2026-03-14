@@ -25,24 +25,24 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
   businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean;
 }) {
   return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: dm ? '#13161f' : '#e8ecf0' }}>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: dm ? '#0d0d0d' : '#e8ecf0' }}>
       <div className="absolute inset-0" style={{
         backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
         backgroundSize: '48px 48px',
       }} />
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid slice">
-        <rect x="0" y="0" width="500" height="600" fill={dm ? '#13161f' : '#e8ecf0'} />
-        <rect x="0" y="145" width="500" height="10" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.7" />
-        <rect x="0" y="275" width="500" height="8" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.6" />
-        <rect x="95" y="0" width="10" height="600" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.7" />
-        <rect x="245" y="0" width="8" height="600" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.6" />
-        <rect x="380" y="0" width="6" height="600" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.5" />
-        <rect x="108" y="158" width="128" height="108" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
-        <rect x="258" y="158" width="112" height="75" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
-        <rect x="10" y="158" width="76" height="75" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
-        <rect x="108" y="290" width="128" height="90" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
-        <rect x="258" y="290" width="112" height="90" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
-        <rect x="396" y="158" width="90" height="90" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
+        <rect x="0" y="0" width="500" height="600" fill={dm ? '#0d0d0d' : '#e8ecf0'} />
+        <rect x="0" y="145" width="500" height="10" fill={dm ? '#262626' : '#fff'} opacity="0.7" />
+        <rect x="0" y="275" width="500" height="8" fill={dm ? '#262626' : '#fff'} opacity="0.6" />
+        <rect x="95" y="0" width="10" height="600" fill={dm ? '#262626' : '#fff'} opacity="0.7" />
+        <rect x="245" y="0" width="8" height="600" fill={dm ? '#262626' : '#fff'} opacity="0.6" />
+        <rect x="380" y="0" width="6" height="600" fill={dm ? '#262626' : '#fff'} opacity="0.5" />
+        <rect x="108" y="158" width="128" height="108" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
+        <rect x="258" y="158" width="112" height="75" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
+        <rect x="10" y="158" width="76" height="75" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
+        <rect x="108" y="290" width="128" height="90" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
+        <rect x="258" y="290" width="112" height="90" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
+        <rect x="396" y="158" width="90" height="90" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
       </svg>
       {businesses.map((biz, i) => {
         const x = 40 + (i * 51) % 400;
@@ -53,10 +53,10 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
             style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -100%)', zIndex: isSel ? 10 : 1 }}>
             <div className="flex flex-col items-center">
               <div className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-md whitespace-nowrap transition-all ${isSel ? 'text-white scale-110 shadow-xl' : ''}`}
-                style={isSel ? { background: '#0A84FF' } : { background: dm ? '#1a1d27' : 'white', color: dm ? '#f3f4f6' : '#171717' }}>
+                style={isSel ? { background: '#0A84FF' } : { background: dm ? '#171717' : 'white', color: dm ? '#f3f4f6' : '#171717' }}>
                 {biz.name.split(' ').slice(0, 2).join(' ')}
               </div>
-              <div className="w-1.5 h-1.5 rotate-45 -mt-0.5 shadow-sm" style={{ background: isSel ? '#0A84FF' : (dm ? '#1a1d27' : 'white') }} />
+              <div className="w-1.5 h-1.5 rotate-45 -mt-0.5 shadow-sm" style={{ background: isSel ? '#0A84FF' : (dm ? '#171717' : 'white') }} />
             </div>
           </button>
         );
@@ -120,7 +120,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
         </div>
       </div>
       {/* Card body */}
-      <div className="px-3.5 pt-3 pb-3.5 flex-1" style={{ minHeight: 118, overflow: 'hidden', background: dm ? '#1a1d27' : 'white' }}>
+      <div className="px-3.5 pt-3 pb-3.5 flex-1" style={{ minHeight: 118, overflow: 'hidden', background: dm ? '#171717' : 'white' }}>
         <p className="text-[12px] leading-snug line-clamp-2 mb-2" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.tagline}</p>
         {biz.topReview && (
           <div className="mb-2.5">
@@ -139,7 +139,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
             <div className="flex" style={{ gap: 0 }}>
               {biz.allImages.slice(1, 3).map((url, i) => (
                 <div key={i} className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100 border-2 shadow-sm flex-shrink-0"
-                  style={{ borderColor: dm ? '#1a1d27' : 'white', marginLeft: i === 0 ? 0 : -4, zIndex: 2 - i }}>
+                  style={{ borderColor: dm ? '#171717' : 'white', marginLeft: i === 0 ? 0 : -4, zIndex: 2 - i }}>
                   <img src={url} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
@@ -322,14 +322,14 @@ const BrowsePage: NextPage = () => {
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
-                  style={{ background: dm ? '#1e2130' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)' }}
+                  style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)' }}
                 />
               </div>
               {/* Custom sort dropdown */}
               <div className="relative flex-shrink-0" data-sort-dropdown>
                 <button
                   onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#1e2130' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
+                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
                   <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -337,7 +337,7 @@ const BrowsePage: NextPage = () => {
                 </button>
                 {sortOpen && (
                   <div className="absolute right-0 top-full mt-1.5 rounded-xl shadow-lg overflow-hidden z-50"
-                    style={{ minWidth: 150, background: dm ? '#1a1d27' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(0,0,0,0.07)' }}>
+                    style={{ minWidth: 150, background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(0,0,0,0.07)' }}>
                     {(['distance', 'rating', 'reviews'] as const).map(mode => (
                       <button key={mode}
                         onClick={() => { setSortMode(mode); setSortOpen(false); }}
@@ -397,7 +397,7 @@ const BrowsePage: NextPage = () => {
                 <div className="space-y-2.5">
                   {paginated.map(biz => (
                     <button key={biz.id} onClick={() => setActiveBiz(biz)}
-                      className="biz-card group w-full text-left flex overflow-hidden" style={{ minHeight: 148, background: dm ? '#1a1d27' : undefined }}>
+                      className="biz-card group w-full text-left flex overflow-hidden" style={{ minHeight: 148, background: dm ? '#171717' : undefined }}>
                       <div className="relative w-40 sm:w-48 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ height: 148 }}>
                         <img src={biz.coverUrl} alt={biz.name}
                           className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
@@ -415,7 +415,7 @@ const BrowsePage: NextPage = () => {
                           </div>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 px-4 py-4 flex flex-col justify-between" style={{ background: dm ? '#1a1d27' : 'white' }}>
+                      <div className="flex-1 min-w-0 px-4 py-4 flex flex-col justify-between" style={{ background: dm ? '#171717' : 'white' }}>
                         <div>
                           <div className="flex items-start justify-between gap-2 mb-0.5">
                             <h3 className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
@@ -453,7 +453,7 @@ const BrowsePage: NextPage = () => {
                 <div className="flex items-center justify-center gap-1.5 mt-8 mb-2">
                   <button onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={page === 1}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5', color: dm ? '#9ca3af' : '#525252' }}>
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#9ca3af' : '#525252' }}>
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
@@ -464,13 +464,13 @@ const BrowsePage: NextPage = () => {
                       className="w-9 h-9 rounded-xl text-sm font-bold transition-all"
                       style={page === p
                         ? { background: '#0A84FF', color: 'white' }
-                        : { background: dm ? '#1a1d27' : 'white', color: dm ? '#9ca3af' : '#6b7280', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e7eb' }}>
+                        : { background: dm ? '#171717' : 'white', color: dm ? '#9ca3af' : '#6b7280', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e7eb' }}>
                       {p}
                     </button>
                   ))}
                   <button onClick={() => { setPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={page === totalPages}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5', color: dm ? '#9ca3af' : '#525252' }}>
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#9ca3af' : '#525252' }}>
                     Next
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
