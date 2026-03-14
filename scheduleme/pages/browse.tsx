@@ -69,7 +69,7 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
 
 // Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
 // Standard card used in grid view
-function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; hero?: boolean }) {
+function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => void; hero?: boolean; dm?: boolean }) {
   return (
     <button onClick={onClick} className="biz-card group w-full text-left flex flex-col">
       <div className="relative overflow-hidden bg-neutral-100 flex-shrink-0" style={{ height: 210 }}>
@@ -121,16 +121,16 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
         </div>
       </div>
       {/* Card body */}
-      <div className="px-3.5 pt-3 pb-3.5 flex-1" style={{ minHeight: 118, overflow: 'hidden' }}>
-        <p className="text-[12px] text-neutral-500 leading-snug line-clamp-2 mb-2">{biz.tagline}</p>
+      <div className="px-3.5 pt-3 pb-3.5 flex-1" style={{ minHeight: 118, overflow: 'hidden', background: dm ? '#1a1d27' : 'white' }}>
+        <p className="text-[12px] leading-snug line-clamp-2 mb-2" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.tagline}</p>
         {biz.topReview && (
           <div className="mb-2.5">
-            <p className="text-[11px] text-neutral-500 leading-snug line-clamp-2 italic mb-1.5">{biz.topReview}</p>
+            <p className="text-[11px] leading-snug line-clamp-2 italic mb-1.5" style={{ color: dm ? '#d1d5db' : '#737373' }}>{biz.topReview}</p>
             {biz.reviewer && (
               <div className="flex items-center gap-1.5">
                 <img src={biz.reviewer.avatarUrl} alt={biz.reviewer.name}
                   className="h-5 w-5 rounded-full object-cover border border-neutral-100" />
-                <span className="text-[10.5px] font-semibold text-neutral-400">{biz.reviewer.name}</span>
+                <span className="text-[10.5px] font-semibold" style={{ color: dm ? '#9ca3af' : '#a3a3a3' }}>{biz.reviewer.name}</span>
               </div>
             )}
           </div>
@@ -139,15 +139,15 @@ function BizCard({ biz, onClick, hero }: { biz: Business; onClick: () => void; h
           <div className="flex items-center gap-1.5">
             <div className="flex" style={{ gap: 0 }}>
               {biz.allImages.slice(1, 3).map((url, i) => (
-                <div key={i} className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100 border-2 border-white shadow-sm flex-shrink-0"
+                <div key={i} className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100 border-2 shadow-sm flex-shrink-0" style={{ borderColor: dm ? '#1a1d27' : 'white' }}
                   style={{ marginLeft: i === 0 ? 0 : -4, zIndex: 2 - i }}>
                   <img src={url} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>
-            <span className="text-[10px] text-neutral-400">{biz.reviews} reviews</span>
+            <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
           </div>
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={PILL_STYLE}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? '#0d2040' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
             {biz.category}
           </span>
         </div>
@@ -204,7 +204,7 @@ function ReferInline() {
 
 const BrowsePage: NextPage = () => {
   const router = useRouter();
-  useDarkMode(); // apply persisted dark mode
+  const { dark: dm } = useDarkMode();
   const [sortMode, setSortMode] = useState<SortMode>('distance');
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -323,28 +323,27 @@ const BrowsePage: NextPage = () => {
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
-                  style={{ background: 'white', color: '#171717', border: '1px solid rgba(255,255,255,0.3)' }}
+                  style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'white', color: dm ? 'white' : '#171717', border: '1px solid rgba(255,255,255,0.25)' }}
                 />
               </div>
               {/* Custom sort dropdown */}
               <div className="relative flex-shrink-0" data-sort-dropdown>
                 <button
                   onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none"
-                  style={{ background: 'white', color: '#171717', border: '1px solid rgba(255,255,255,0.3)', minWidth: 130 }}>
+                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'white', color: dm ? 'white' : '#171717', border: '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
                   <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 </button>
                 {sortOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg overflow-hidden z-50"
-                    style={{ minWidth: 150, border: '1px solid rgba(0,0,0,0.07)' }}>
+                  <div className="absolute right-0 top-full mt-1.5 rounded-xl shadow-lg overflow-hidden z-50"
+                    style={{ minWidth: 150, background: dm ? '#1a1d27' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(0,0,0,0.07)' }}>
                     {(['distance', 'rating', 'reviews'] as const).map(mode => (
                       <button key={mode}
                         onClick={() => { setSortMode(mode); setSortOpen(false); }}
                         className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent-wash flex items-center justify-between gap-3"
-                        style={{ color: sortMode === mode ? '#0A84FF' : '#374151' }}>
+                        style={{ color: sortMode === mode ? '#0A84FF' : (dm ? '#d1d5db' : '#374151') }}>
                         {SORT_LABELS[mode]}
                         {sortMode === mode && (
                           <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -392,14 +391,14 @@ const BrowsePage: NextPage = () => {
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4" style={{ alignItems: 'stretch' }}>
                   {paginated.map((biz) => (
-                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} />
+                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} dm={dm} />
                   ))}
                 </div>
               ) : (
                 <div className="space-y-2.5">
                   {paginated.map(biz => (
                     <button key={biz.id} onClick={() => setActiveBiz(biz)}
-                      className="biz-card group w-full text-left flex overflow-hidden" style={{ minHeight: 148 }}>
+                      className="biz-card group w-full text-left flex overflow-hidden" style={{ minHeight: 148, background: dm ? '#1a1d27' : undefined }}>
                       <div className="relative w-40 sm:w-48 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ height: 148 }}>
                         <img src={biz.coverUrl} alt={biz.name}
                           className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
@@ -417,15 +416,15 @@ const BrowsePage: NextPage = () => {
                           </div>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 px-4 py-4 flex flex-col justify-between">
+                      <div className="flex-1 min-w-0 px-4 py-4 flex flex-col justify-between" style={{ background: dm ? '#1a1d27' : 'white' }}>
                         <div>
                           <div className="flex items-start justify-between gap-2 mb-0.5">
-                            <h3 className="font-bold text-neutral-900 text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em' }}>{biz.name}</h3>
+                            <h3 className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
                             {biz.badge && (
                               <span className="shrink-0 text-[9px] font-bold bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full tracking-wide uppercase">{biz.badge}</span>
                             )}
                           </div>
-                          <p className="text-[11.5px] text-neutral-500 leading-snug line-clamp-2 mt-0.5">{biz.tagline}</p>
+                          <p className="text-[11.5px] leading-snug line-clamp-2 mt-0.5" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.tagline}</p>
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex items-center gap-1.5">
@@ -436,13 +435,13 @@ const BrowsePage: NextPage = () => {
                                 </svg>
                               ))}
                             </div>
-                            <span className="text-[11px] font-semibold text-neutral-700">{biz.rating}</span>
+                            <span className="text-[11px] font-semibold" style={{ color: dm ? '#d1d5db' : '#404040' }}>{biz.rating}</span>
                             <span className="text-neutral-300 text-[11px]">·</span>
-                            <span className="text-[11px] text-neutral-400">{biz.reviews} reviews</span>
+                            <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
                             <span className="text-neutral-300 text-[11px]">·</span>
-                            <span className="text-[11px] text-neutral-400">{biz.distance}</span>
+                            <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</span>
                           </div>
-                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={PILL_STYLE}>{biz.category}</span>
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" data-pill style={PILL_STYLE}>{biz.category}</span>
                         </div>
                       </div>
                     </button>
@@ -455,7 +454,7 @@ const BrowsePage: NextPage = () => {
                 <div className="flex items-center justify-center gap-1.5 mt-8 mb-2">
                   <button onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={page === 1}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent-wash border-neutral-200 text-neutral-600 hover:border-accent/30 hover:text-accent">
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5', color: dm ? '#9ca3af' : '#525252' }}>
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
@@ -466,13 +465,13 @@ const BrowsePage: NextPage = () => {
                       className="w-9 h-9 rounded-xl text-sm font-bold transition-all"
                       style={page === p
                         ? { background: '#0A84FF', color: 'white' }
-                        : { background: 'white', color: '#6b7280', border: '1px solid #e5e7eb' }}>
+                        : { background: dm ? '#1a1d27' : 'white', color: dm ? '#9ca3af' : '#6b7280', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e7eb' }}>
                       {p}
                     </button>
                   ))}
                   <button onClick={() => { setPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={page === totalPages}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent-wash border-neutral-200 text-neutral-600 hover:border-accent/30 hover:text-accent">
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5', color: dm ? '#9ca3af' : '#525252' }}>
                     Next
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -526,7 +525,7 @@ const BrowsePage: NextPage = () => {
                       </div>
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>{biz.category}</span>
+                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
                       <span className="text-[10px] text-neutral-400 font-medium">{biz.reviews} reviews</span>
                     </div>
                   </button>
@@ -555,7 +554,7 @@ const BrowsePage: NextPage = () => {
                     </div>
                     <div className="px-4 py-3.5">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={PILL_STYLE}>{selectedMapBizData.category}</span>
+                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{selectedMapBizData.category}</span>
                         <div className="flex items-center gap-1.5">
                           <svg className="h-3 w-3 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
