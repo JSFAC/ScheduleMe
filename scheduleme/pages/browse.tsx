@@ -146,7 +146,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
             </div>
             <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
           </div>
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(59,130,246,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? '#0A84FF' : '#EBF4FF', color: dm ? 'white' : '#1A6FD4' }}>
             {biz.category}
           </span>
         </div>
@@ -303,7 +303,7 @@ const BrowsePage: NextPage = () => {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: dm ? '#0A84FF' : 'white', color: dm ? 'white' : '#0A84FF' }
+                      ? { background: dm ? '#262626' : 'white', color: dm ? 'white' : '#0A84FF' }
                       : { color: 'white', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
