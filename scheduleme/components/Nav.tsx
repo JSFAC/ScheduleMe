@@ -116,7 +116,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
                   isActive
                     ? isDark || darkMode ? 'text-white bg-accent' : 'text-accent bg-blue-50'
-                    : isDark || darkMode ? 'text-neutral-300 hover:text-white hover:bg-neutral-800' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+                    : isDark || darkMode ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
                 }`}>
                   {link.label}
                 </Link>

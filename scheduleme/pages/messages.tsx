@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
-import { useDarkMode } from '../lib/useDarkMode';
+import { useDm } from '../lib/DarkModeContext';
 import Link from 'next/link';
 
 function getSupabase() {
@@ -36,7 +36,7 @@ function fmtTime(iso: string) {
 
 const MessagesPage: NextPage = () => {
   const router = useRouter();
-  const { dark: dm } = useDarkMode();
+  const { dm } = useDm();
   const [userId, setUserId] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
@@ -108,7 +108,7 @@ const MessagesPage: NextPage = () => {
     <>
       <Head><title>Messages — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pt-[72px]" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
+      <div className="min-h-screen pt-[72px]" style={{ background: dm ? '#0f1117' : '#EDF5FF' }}>
 
         {/* Blue header */}
         <div className="border-b" style={{ background: '#3b82f6', borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -136,30 +136,30 @@ const MessagesPage: NextPage = () => {
               <div className="relative h-7 w-7"><div className="absolute inset-0 rounded-full border-2 border-neutral-200" /><div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" /></div>
             </div>
           ) : threads.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-neutral-100 text-center py-16 px-6" style={{ borderColor: 'rgba(10,132,255,0.08)' }}>
+            <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : 'rgba(10,132,255,0.08)' }}>
               <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                 <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
               </div>
-              <p className="font-bold text-neutral-700 mb-1">No messages yet</p>
-              <p className="text-neutral-400 text-sm mb-6">Once you book a service, you can message the pro directly here.</p>
+              <p className="font-bold mb-1" style={{ color: dm ? '#f3f4f6' : '#404040' }}>No messages yet</p>
+              <p className="text-sm mb-6" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Once you book a service, you can message the pro directly here.</p>
               <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
             </div>
           ) : (
             <div className="flex gap-4" style={{ height: 'calc(100vh - 280px)', minHeight: 500 }}>
 
               {/* Thread list */}
-              <div className={`${activeThread ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-80 shrink-0 bg-white rounded-2xl border overflow-hidden`} style={{ borderColor: 'rgba(10,132,255,0.08)' }}>
-                <div className="px-4 py-3 border-b border-neutral-100">
-                  <p className="text-xs font-black text-neutral-400 uppercase tracking-[0.1em]">{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>
+              <div className={`${activeThread ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-80 shrink-0 rounded-2xl border overflow-hidden`} style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : 'rgba(10,132,255,0.08)' }}>
+                <div className="px-4 py-3 border-b" style={{ borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
+                  <p className="text-xs font-black uppercase tracking-[0.1em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
                   {threads.map(t => (
                     <button key={t.id} onClick={() => openThread(t)}
-                      className={`w-full text-left px-4 py-3.5 border-b border-neutral-50 transition-colors hover:bg-blue-50/50 ${activeThread?.id === t.id ? 'bg-blue-50' : ''}`}>
+                      className="w-full text-left px-4 py-3.5 border-b transition-colors" style={{ borderColor: dm ? '#1e2130' : '#fafafa', background: activeThread?.id === t.id ? (dm ? '#1e2130' : '#eff6ff') : 'transparent' }}>
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`h-2 w-2 rounded-full shrink-0 ${STATUS_COLOR[t.status] || 'bg-neutral-300'}`} />
-                          <p className="text-sm font-bold text-neutral-900 truncate">{t.businesses?.name || 'Unknown business'}</p>
+                          <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{t.businesses?.name || 'Unknown business'}</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {t.unreadCount > 0 && (
@@ -168,7 +168,7 @@ const MessagesPage: NextPage = () => {
                           {t.lastMessage && <span className="text-[10px] text-neutral-400">{fmtTime(t.lastMessage.created_at)}</span>}
                         </div>
                       </div>
-                      <p className="text-[11px] text-neutral-500 truncate mb-1">{t.service}</p>
+                      <p className="text-[11px] truncate mb-1" style={{ color: dm ? '#9ca3af' : '#737373' }}>{t.service}</p>
                       {t.lastMessage
                         ? <p className={`text-[11px] truncate ${t.unreadCount > 0 ? 'font-semibold text-neutral-700' : 'text-neutral-400'}`}>
                             {t.lastMessage.sender_type === 'user' ? 'You: ' : ''}{t.lastMessage.content}
@@ -182,9 +182,9 @@ const MessagesPage: NextPage = () => {
 
               {/* Message thread */}
               {activeThread ? (
-                <div className="flex-1 flex flex-col bg-white rounded-2xl border overflow-hidden" style={{ borderColor: 'rgba(10,132,255,0.08)' }}>
+                <div className="flex-1 flex flex-col rounded-2xl border overflow-hidden" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : 'rgba(10,132,255,0.08)' }}>
                   {/* Thread header — booking info */}
-                  <div className="px-5 py-3.5 border-b border-neutral-100 bg-white">
+                  <div className="px-5 py-3.5 border-b" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
                     <div className="flex items-center gap-3">
                       <button onClick={() => setActiveThread(null)} className="sm:hidden p-1.5 rounded-lg hover:bg-neutral-100 mr-1">
                         <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
@@ -193,7 +193,7 @@ const MessagesPage: NextPage = () => {
                         <span className="text-accent font-black text-sm">{(activeThread.businesses?.name || 'B').charAt(0)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-neutral-900 truncate">{activeThread.businesses?.name || 'Business'}</p>
+                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{activeThread.businesses?.name || 'Business'}</p>
                         <div className="flex items-center gap-2">
                           <span className={`h-1.5 w-1.5 rounded-full ${STATUS_COLOR[activeThread.status] || 'bg-neutral-300'}`} />
                           <p className="text-[11px] text-neutral-400 truncate">{activeThread.service}</p>
@@ -212,9 +212,9 @@ const MessagesPage: NextPage = () => {
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: dm ? '#13161f' : '#f8fafc' }}>
                     {/* Booking context card */}
-                    <div className="rounded-xl border border-neutral-200 bg-white p-3.5 mb-4">
+                    <div className="rounded-xl border p-3.5 mb-4" style={{ background: dm ? '#13161f' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>
                       <p className="text-[10px] font-black uppercase tracking-[0.1em] text-neutral-400 mb-2">Booking Details</p>
-                      <p className="text-sm font-bold text-neutral-800">{activeThread.service}</p>
+                      <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#262626' }}>{activeThread.service}</p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className={`h-2 w-2 rounded-full ${STATUS_COLOR[activeThread.status] || 'bg-neutral-300'}`} />
                         <span className="text-xs text-neutral-500 capitalize">{activeThread.status}</span>
@@ -252,7 +252,7 @@ const MessagesPage: NextPage = () => {
                   </div>
 
                   {/* Input */}
-                  <div className="px-4 py-3 border-t border-neutral-100 bg-white">
+                  <div className="px-4 py-3 border-t" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
                     <div className="flex items-end gap-2">
                       <textarea
                         ref={inputRef}
@@ -261,8 +261,8 @@ const MessagesPage: NextPage = () => {
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                         placeholder={`Message ${activeThread.businesses?.name || 'the business'}…`}
                         rows={1}
-                        className="flex-1 resize-none rounded-xl border border-neutral-200 px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
-                        style={{ maxHeight: 120 }}
+                        className="flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
+                        style={{ maxHeight: 120, background: dm ? '#13161f' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
                       />
                       <button onClick={sendMessage} disabled={!input.trim() || sending}
                         className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
@@ -276,13 +276,13 @@ const MessagesPage: NextPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className="hidden sm:flex flex-1 items-center justify-center bg-white rounded-2xl border" style={{ borderColor: 'rgba(10,132,255,0.08)' }}>
+                <div className="hidden sm:flex flex-1 items-center justify-center rounded-2xl border" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : 'rgba(10,132,255,0.08)' }}>
                   <div className="text-center">
                     <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
                       <svg className="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
                     </div>
-                    <p className="text-sm font-semibold text-neutral-600">Select a conversation</p>
-                    <p className="text-xs text-neutral-400 mt-1">Choose a booking to start messaging</p>
+                    <p className="text-sm font-semibold" style={{ color: dm ? '#d1d5db' : '#525252' }}>Select a conversation</p>
+                    <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Choose a booking to start messaging</p>
                   </div>
                 </div>
               )}
