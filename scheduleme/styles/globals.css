@@ -343,7 +343,6 @@
 .dark .bg-neutral-100 { background: #111111 !important; }
 
 /* Booking / biz cards */
-.dark .biz-card { background: #171717 !important; border-color: #262626 !important; }
 .dark .booking-card { background: #171717 !important; border-color: #262626 !important; }
 
 /* Nav */
@@ -418,13 +417,6 @@ html.dark header {
   border-bottom-color: #262626 !important;
 }
 
-/* biz-card dark */
-html.dark .biz-card {
-  background: var(--card-bg) !important;
-}
-html.dark .biz-card .px-3\.5 {
-  background: var(--card-bg) !important;
-}
 
 /* booking-card dark */
 html.dark .booking-card {
@@ -463,28 +455,11 @@ html.dark ::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Dark mode targeted fixes ─────────────────────────────────── */
 
-/* Biz card body strip (white bg under image) */
-html.dark .biz-card > div:last-child {
-  background: var(--card-bg) !important;
-}
 
 /* Inline white bg on cards via [style] attribute matching - not possible in CSS */
 /* Instead we tag these with data attributes */
 
-/* Pill styles (category tags) */
-html.dark [data-pill] {
-  background: #0d2040 !important;
-  color: #60a5fa !important;
-}
 
-/* Review text in cards - needs to be readable */
-html.dark .biz-card p,
-html.dark .biz-card span:not(.bg-emerald-500):not(.bg-amber-400):not([class*="text-white"]):not([class*="text-emerald"]) {
-  color: #9ca3af !important;
-}
-html.dark .biz-card .italic {
-  color: #d1d5db !important;
-}
 
 /* Booking card text */
 html.dark .booking-card h3 { color: var(--text-primary) !important; }
@@ -559,13 +534,8 @@ html.dark .sm-panel {
 /* These are fine as-is since they sit on the blue hero */
 
 /* Browse: card body text */
-html.dark .biz-card .px-3\.5 p { color: #9ca3af !important; }
-html.dark .biz-card .px-3\.5 .italic { color: #d1d5db !important; }
-html.dark .biz-card .px-3\.5 span.text-neutral-400 { color: #6b7280 !important; }
 
 /* Browse list view cards */
-html.dark .space-y-2\.5 .biz-card { background: #171717 !important; }
-html.dark .space-y-2\.5 .biz-card div:last-child { background: #171717 !important; }
 
 /* Open badge on cards (white bg) */
 html.dark .biz-card [style*="rgba(255,255,255,0.96)"],
