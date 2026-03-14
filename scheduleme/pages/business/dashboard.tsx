@@ -474,13 +474,7 @@ const BusinessDashboard: NextPage = () => {
                             {b.users?.phone && <span>📞 {b.users.phone}</span>}
                             {b.users?.email && <span>✉ {b.users.email}</span>}
                             {b.amount_cents && <span className="text-neutral-700 font-semibold">{fmt(b.amount_cents)}</span>}
-                            {null && <span>📍 {null}</span>}
                           </div>
-                          {null && (
-                            <div className="bg-neutral-50 rounded-xl px-3 py-2 text-xs text-neutral-500 mb-3 leading-relaxed">
-                              <span className="font-semibold text-neutral-600">Note: </span>{null}
-                            </div>
-                          )}
                           {(b.status === 'pending' || b.status === 'confirmed') && (
                             <div className="flex gap-2">
                               <button onClick={() => handleUpdateBooking(b.id, 'completed')} className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">Mark Complete</button>
@@ -800,7 +794,6 @@ const BusinessDashboard: NextPage = () => {
                             <div className="flex items-center gap-3 pl-11 text-[10px] text-neutral-400">
                               <span>📅 {bookingDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</span>
                               {b.users?.phone && <span>📞 {b.users.phone}</span>}
-                              {null && <span>📍 {null.split(',')[0]}</span>}
                             </div>
                             {(b.status === 'pending' || b.status === 'confirmed') && (
                               <div className="flex gap-1.5 mt-2.5 pl-11">
