@@ -311,16 +311,16 @@
 
 /* Cards / white surfaces */
 .dark .bg-white {
-  background: #1a1d27 !important;
+  background: #171717 !important;
 }
 .dark .bg-neutral-50 {
   background: #16192 !important;
 }
 
 /* Borders */
-.dark .border-neutral-100 { border-color: #2a2d3a !important; }
-.dark .border-neutral-200 { border-color: #2a2d3a !important; }
-.dark .border-b { border-color: #2a2d3a !important; }
+.dark .border-neutral-100 { border-color: #262626 !important; }
+.dark .border-neutral-200 { border-color: #262626 !important; }
+.dark .border-b { border-color: #262626 !important; }
 
 /* Text */
 .dark .text-neutral-900 { color: #f3f4f6 !important; }
@@ -332,28 +332,28 @@
 
 /* Inputs */
 .dark .form-input {
-  background: #1e2130 !important;
-  border-color: #2a2d3a !important;
+  background: #111111 !important;
+  border-color: #262626 !important;
   color: #f3f4f6 !important;
 }
 .dark .form-input::placeholder { color: #4b5563 !important; }
 
 /* Category pills / wash backgrounds */
 .dark .bg-accent-wash { background: #0d1f35 !important; }
-.dark .bg-neutral-100 { background: #1e2130 !important; }
+.dark .bg-neutral-100 { background: #111111 !important; }
 
 /* Booking / biz cards */
-.dark .biz-card { background: #1a1d27 !important; border-color: #2a2d3a !important; }
-.dark .booking-card { background: #1a1d27 !important; border-color: #2a2d3a !important; }
+.dark .biz-card { background: #171717 !important; border-color: #262626 !important; }
+.dark .booking-card { background: #171717 !important; border-color: #262626 !important; }
 
 /* Nav */
-.dark header { background: rgba(15,17,23,0.95) !important; border-color: #2a2d3a !important; }
+.dark header { background: rgba(15,17,23,0.95) !important; border-color: #262626 !important; }
 
 /* Category bar */
-.dark .bg-white.border-b { background: #1a1d27 !important; }
+.dark .bg-white.border-b { background: #171717 !important; }
 
 /* Scrollbar */
-.dark ::-webkit-scrollbar-thumb { background: #2a2d3a; }
+.dark ::-webkit-scrollbar-thumb { background: #262626; }
 
 /* Transition for smooth switching */
 body { transition: background 0.2s ease, color 0.2s ease; }
@@ -373,16 +373,16 @@ body { transition: background 0.2s ease, color 0.2s ease; }
 }
 
 html.dark {
-  --page-bg: #0f1117;
-  --card-bg: #1a1d27;
+  --page-bg: #0a0a0a;
+  --card-bg: #171717;
   --card-border: rgba(255,255,255,0.07);
   --text-primary: #f3f4f6;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
-  --input-bg: #1e2130;
-  --input-border: #2a2d3a;
-  --section-bg: #13161f;
-  --divider: rgba(255,255,255,0.06);
+  --input-bg: #111111;
+  --input-border: #262626;
+  --section-bg: #0d0d0d;
+  --divider: rgba(255,255,255,0.08);
 }
 
 /* Apply CSS vars to common elements in dark mode */
@@ -390,7 +390,7 @@ html.dark body { background: var(--page-bg); color: var(--text-primary); }
 
 html.dark .bg-white { background: var(--card-bg) !important; }
 html.dark .bg-neutral-50 { background: var(--section-bg) !important; }
-html.dark .bg-neutral-100 { background: #1e2130 !important; }
+html.dark .bg-neutral-100 { background: #111111 !important; }
 html.dark .bg-accent-wash { background: #0d1f35 !important; }
 
 html.dark .text-neutral-900 { color: var(--text-primary) !important; }
@@ -401,10 +401,10 @@ html.dark .text-neutral-500 { color: var(--text-muted) !important; }
 html.dark .text-neutral-400 { color: #4b5563 !important; }
 html.dark .text-neutral-300 { color: #374151 !important; }
 
-html.dark .border-neutral-100 { border-color: #2a2d3a !important; }
-html.dark .border-neutral-200 { border-color: #2a2d3a !important; }
-html.dark .border-b { border-bottom-color: #2a2d3a !important; }
-html.dark .divide-y > * { border-color: #2a2d3a !important; }
+html.dark .border-neutral-100 { border-color: #262626 !important; }
+html.dark .border-neutral-200 { border-color: #262626 !important; }
+html.dark .border-b { border-bottom-color: #262626 !important; }
+html.dark .divide-y > * { border-color: #262626 !important; }
 html.dark .divide-neutral-50 > * { border-color: #1e2130 !important; }
 
 html.dark .form-input {
@@ -415,7 +415,7 @@ html.dark .form-input {
 
 html.dark header {
   background: rgba(15,17,23,0.97) !important;
-  border-bottom-color: #2a2d3a !important;
+  border-bottom-color: #262626 !important;
 }
 
 /* biz-card dark */
@@ -429,7 +429,7 @@ html.dark .biz-card .px-3\.5 {
 /* booking-card dark */
 html.dark .booking-card {
   background: var(--card-bg) !important;
-  border-color: #2a2d3a !important;
+  border-color: #262626 !important;
 }
 
 /* Accent-wash pills */
@@ -440,7 +440,7 @@ html.dark .bg-accent-wash.border-accent\/15 {
 
 /* White category bar */
 html.dark .bg-white.border-b {
-  background: #1a1d27 !important;
+  background: #171717 !important;
 }
 
 /* Consumer page backgrounds — using data attributes since they're inline styles */
@@ -448,8 +448,8 @@ html.dark [data-page-bg] {
   background: var(--page-bg) !important;
 }
 
-html.dark .hover\:bg-neutral-50:hover { background: #1e2130 !important; }
-html.dark .hover\:bg-neutral-100:hover { background: #2a2d3a !important; }
+html.dark .hover\:bg-neutral-50:hover { background: #111111 !important; }
+html.dark .hover\:bg-neutral-100:hover { background: #262626 !important; }
 html.dark .hover\:bg-blue-50:hover { background: #0d1f35 !important; }
 
 /* Input placeholders */
@@ -458,7 +458,7 @@ html.dark input::placeholder, html.dark textarea::placeholder {
 }
 
 /* Scrollbar in dark */
-html.dark ::-webkit-scrollbar-thumb { background: #2a2d3a; }
+html.dark ::-webkit-scrollbar-thumb { background: #262626; }
 html.dark ::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Dark mode targeted fixes ─────────────────────────────────── */
@@ -522,8 +522,8 @@ html.dark [data-nav-tile] .text-blue-600 { color: rgba(255,255,255,0.8) !importa
 
 /* Pagination buttons */
 html.dark [data-page-btn] {
-  background: #1a1d27 !important;
-  border-color: #2a2d3a !important;
+  background: #171717 !important;
+  border-color: #262626 !important;
   color: #9ca3af !important;
 }
 html.dark [data-page-btn-active] {
@@ -533,15 +533,15 @@ html.dark [data-page-btn-active] {
 
 /* Refer inline card */
 html.dark [data-refer-card] {
-  background: #1a1d27 !important;
-  border-color: #2a2d3a !important;
+  background: #171717 !important;
+  border-color: #262626 !important;
 }
 
 /* Messages page bookings button (white on blue bg - keep white) */
 /* Nearby pro cards in bookings */
 html.dark [data-nearby-card] {
-  background: #1a1d27 !important;
-  border-color: #2a2d3a !important;
+  background: #171717 !important;
+  border-color: #262626 !important;
 }
 
 /* Google auth box */
@@ -564,8 +564,8 @@ html.dark .biz-card .px-3\.5 .italic { color: #d1d5db !important; }
 html.dark .biz-card .px-3\.5 span.text-neutral-400 { color: #6b7280 !important; }
 
 /* Browse list view cards */
-html.dark .space-y-2\.5 .biz-card { background: #1a1d27 !important; }
-html.dark .space-y-2\.5 .biz-card div:last-child { background: #1a1d27 !important; }
+html.dark .space-y-2\.5 .biz-card { background: #171717 !important; }
+html.dark .space-y-2\.5 .biz-card div:last-child { background: #171717 !important; }
 
 /* Open badge on cards (white bg) */
 html.dark .biz-card [style*="rgba(255,255,255,0.96)"],
@@ -614,8 +614,8 @@ html.dark [data-view-toggle] {
 
 /* Refer inline card */
 html.dark [data-refer-card] {
-  background: #1a1d27 !important;
-  border-color: #2a2d3a !important;
+  background: #171717 !important;
+  border-color: #262626 !important;
 }
 html.dark [data-refer-card] p { color: #d1d5db !important; }
 html.dark [data-refer-card] .text-neutral-500 { color: #9ca3af !important; }
@@ -623,7 +623,7 @@ html.dark [data-refer-card] .text-neutral-500 { color: #9ca3af !important; }
 /* Account dark sm-panel header */
 html.dark .sm-panel {
   background: linear-gradient(135deg, #0f1117 0%, #13161f 100%) !important;
-  border-color: #2a2d3a !important;
+  border-color: #262626 !important;
 }
 html.dark .sm-panel .sm-glow { opacity: 0.3 !important; }
 
@@ -638,14 +638,14 @@ html.dark .bg-blue-100 { background: #1a3a5c !important; }
 html.dark [data-refer-card] input,
 html.dark [data-refer-card] textarea {
   background: #13161f !important;
-  border-color: #2a2d3a !important;
+  border-color: #262626 !important;
   color: #f3f4f6 !important;
 }
 
 /* Home biz card body - the white strip below the image */
 html.dark .biz-card > button > div:not([class*="relative"]),
 html.dark .biz-card > div:last-child {
-  background: #1a1d27 !important;
+  background: #171717 !important;
 }
 
 /* Make sure open badges on cards in dark stay readable */
@@ -663,14 +663,14 @@ html.dark .border-accent\/15 { border-color: rgba(10,132,255,0.3) !important; }
 html.dark div[style*="background: white"],
 html.dark div[style*="background:'white'"],
 html.dark div[style*='background: "white"'] {
-  background: #1a1d27 !important;
+  background: #171717 !important;
 }
 
 /* Browse sort dropdown option colors */
 html.dark select option { background: #1a1d27; color: #f3f4f6; }
 
 /* Messages thread list */
-html.dark .sm:flex .flex-col.bg-white { background: #1a1d27 !important; }
+html.dark .sm:flex .flex-col.bg-white { background: #171717 !important; }
 
 /* Bottom nav/CTA buttons on blue - keep white on blue */
 html.dark [style*="background: 'rgba(255,255,255,0.25)'"],
@@ -681,7 +681,7 @@ html.dark [style*="background: rgba(255,255,255,0.25)"] {
 /* ── Dark mode biz-card fix: transparent base, only card body gets dark bg ── */
 html.dark .biz-card {
   background: transparent !important;
-  border-color: #2a2d3a !important;
+  border-color: #262626 !important;
   box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
 }
 /* The card body div has inline style set by dm in React — don't override */
@@ -689,9 +689,9 @@ html.dark .biz-card {
 
 /* Browse search/sort: match chat box style in dark mode */
 html.dark [data-hero-input] {
-  background: #1e2130 !important;
+  background: #111111 !important;
   color: #f3f4f6 !important;
-  border-color: #2a2d3a !important;
+  border-color: #262626 !important;
 }
 
 /* Remove overly broad dark mode text overrides that fight with inline styles */

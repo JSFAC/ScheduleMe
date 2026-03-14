@@ -94,8 +94,8 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
         What do you need<br />done today?
       </h1>
       <div className={`relative rounded-2xl border transition-all duration-200 ${focused ? 'border-accent shadow-[0_0_0_4px_rgba(10,132,255,0.10),0_4px_24px_rgba(0,0,0,0.07)]' : ''}`}
-        style={{ background: dm ? '#1e2130' : 'white', borderColor: focused ? undefined : (dm ? '#2a2d3a' : '#e5e5e5') }}>
-        <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5 border-b" style={{ borderColor: dm ? '#2a2d3a' : '#f5f5f5' }}>
+        style={{ background: dm ? '#111111' : 'white', borderColor: focused ? undefined : (dm ? '#262626' : '#e5e5e5') }}>
+        <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
           <svg className="h-3.5 w-3.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
           </svg>
@@ -143,9 +143,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
             <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
               className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-              style={{ background: 'rgba(255,255,255,0.88)', color: '#2563eb', border: '1px solid rgba(255,255,255,0.95)' }}
+              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? '#93c5fd' : '#2563eb', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.88)'; }}>
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)'; }}>
               {label}
             </button>
           ))}
@@ -205,7 +205,7 @@ function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?
         </div>
       </div>
       {/* Card body — category + review snippet + reviewer */}
-      <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#1a1d27' : 'white' }}>
+      <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#171717' : 'white' }}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(59,130,246,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
             {biz.category}
@@ -286,10 +286,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm }: {
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0f1117' : '#EDF5FF' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#EDF5FF' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0f1117' : '#EDF5FF' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#EDF5FF' }} />
 
         <div
           ref={scrollRef}
@@ -431,7 +431,7 @@ const HomePage: NextPage = () => {
                 ] as const).map((tile) => (
                   <Link key={tile.label} href={tile.href} scroll={false}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{ background: dm ? '#1e2130' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+                    style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
                     <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
                       <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
@@ -449,7 +449,7 @@ const HomePage: NextPage = () => {
         </div>
 
         {/* Category quick-links */}
-        <div className="border-b" style={{ background: dm ? '#1a1d27' : 'white', borderColor: dm ? '#2a2d3a' : 'rgba(0,0,0,0.06)' }}>
+        <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
             {QUICK_CATS.map(cat => (
               <Link key={cat.label} href={`/browse?category=${cat.label}`} scroll={false}
