@@ -21,28 +21,28 @@ const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'To
 // Uniform blue pill — same as home
 const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
-function MapPlaceholder({ businesses, selected, onSelect }: {
-  businesses: Business[]; selected: string | null; onSelect: (id: string) => void;
+function MapPlaceholder({ businesses, selected, onSelect, dm }: {
+  businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean;
 }) {
   return (
-    <div className="relative w-full h-full bg-[#e8ecf0] overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden" style={{ background: dm ? '#13161f' : '#e8ecf0' }}>
       <div className="absolute inset-0" style={{
         backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
         backgroundSize: '48px 48px',
       }} />
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid slice">
-        <rect x="0" y="0" width="500" height="600" fill="#e8ecf0" />
-        <rect x="0" y="145" width="500" height="10" fill="#fff" opacity="0.7" />
-        <rect x="0" y="275" width="500" height="8" fill="#fff" opacity="0.6" />
-        <rect x="95" y="0" width="10" height="600" fill="#fff" opacity="0.7" />
-        <rect x="245" y="0" width="8" height="600" fill="#fff" opacity="0.6" />
-        <rect x="380" y="0" width="6" height="600" fill="#fff" opacity="0.5" />
-        <rect x="108" y="158" width="128" height="108" fill="#dde3e9" rx="4" />
-        <rect x="258" y="158" width="112" height="75" fill="#dde3e9" rx="4" />
-        <rect x="10" y="158" width="76" height="75" fill="#dde3e9" rx="4" />
-        <rect x="108" y="290" width="128" height="90" fill="#dde3e9" rx="4" />
-        <rect x="258" y="290" width="112" height="90" fill="#dde3e9" rx="4" />
-        <rect x="396" y="158" width="90" height="90" fill="#dde3e9" rx="4" />
+        <rect x="0" y="0" width="500" height="600" fill={dm ? '#13161f' : '#e8ecf0'} />
+        <rect x="0" y="145" width="500" height="10" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.7" />
+        <rect x="0" y="275" width="500" height="8" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.6" />
+        <rect x="95" y="0" width="10" height="600" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.7" />
+        <rect x="245" y="0" width="8" height="600" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.6" />
+        <rect x="380" y="0" width="6" height="600" fill={dm ? '#2a2d3a' : '#fff'} opacity="0.5" />
+        <rect x="108" y="158" width="128" height="108" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
+        <rect x="258" y="158" width="112" height="75" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
+        <rect x="10" y="158" width="76" height="75" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
+        <rect x="108" y="290" width="128" height="90" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
+        <rect x="258" y="290" width="112" height="90" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
+        <rect x="396" y="158" width="90" height="90" fill={dm ? '#1e2130' : '#dde3e9'} rx="4" />
       </svg>
       {businesses.map((biz, i) => {
         const x = 40 + (i * 51) % 400;
@@ -52,17 +52,16 @@ function MapPlaceholder({ businesses, selected, onSelect }: {
           <button key={biz.id} onClick={() => onSelect(biz.id)}
             style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -100%)', zIndex: isSel ? 10 : 1 }}>
             <div className="flex flex-col items-center">
-              <div className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-md whitespace-nowrap transition-all ${
-                isSel ? 'bg-neutral-900 text-white scale-110 shadow-xl' : 'bg-white text-neutral-800 hover:bg-neutral-900 hover:text-white shadow'
-              }`}>
+              <div className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-md whitespace-nowrap transition-all ${isSel ? 'text-white scale-110 shadow-xl' : ''}`}
+                style={isSel ? { background: '#0A84FF' } : { background: dm ? '#1a1d27' : 'white', color: dm ? '#f3f4f6' : '#171717' }}>
                 {biz.name.split(' ').slice(0, 2).join(' ')}
               </div>
-              <div className={`w-1.5 h-1.5 rotate-45 -mt-0.5 ${isSel ? 'bg-neutral-900' : 'bg-white'} shadow-sm`} />
+              <div className="w-1.5 h-1.5 rotate-45 -mt-0.5 shadow-sm" style={{ background: isSel ? '#0A84FF' : (dm ? '#1a1d27' : 'white') }} />
             </div>
           </button>
         );
       })}
-      <div className="absolute bottom-3 right-3 text-[10px] text-neutral-400 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-md font-medium">Live map coming soon</div>
+      <div className="absolute bottom-3 right-3 text-[10px] backdrop-blur-sm px-2 py-1 rounded-md font-medium" style={{ color: dm ? 'rgba(255,255,255,0.5)' : '#a3a3a3', background: dm ? 'rgba(26,29,39,0.8)' : 'rgba(255,255,255,0.8)' }}>Live map coming soon</div>
     </div>
   );
 }
@@ -82,7 +81,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
           <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-sm"
             style={{ background: dm ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.96)', backdropFilter: dm ? 'blur(8px)' : undefined }}>
             <span className="h-2 w-2 rounded-full shrink-0 bg-emerald-500" />
-            <span className="text-[10px] font-black tracking-wide" style={{ color: dm ? '#4ade80' : '#16a34a' }}>Open</span>
+            <span className="text-[10px] font-black tracking-wide" style={{ color: dm ? 'white' : '#16a34a' }}>Open</span>
           </div>
         ) : (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/52 backdrop-blur-sm rounded-full px-2.5 py-1">
@@ -147,7 +146,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
             </div>
             <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
           </div>
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#EBF4FF', color: dm ? '#60a5fa' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(59,130,246,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
             {biz.category}
           </span>
         </div>
@@ -295,7 +294,7 @@ const BrowsePage: NextPage = () => {
             <div className="flex items-center justify-between gap-4 mb-5">
               <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
               {/* View toggle — inside hero */}
-              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
+              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 {([
                   ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
                   ['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
@@ -304,7 +303,7 @@ const BrowsePage: NextPage = () => {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: 'white', color: '#0A84FF' }
+                      ? { background: dm ? '#0A84FF' : 'white', color: dm ? 'white' : '#0A84FF' }
                       : { color: 'white', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
@@ -490,7 +489,7 @@ const BrowsePage: NextPage = () => {
             /* ── MAP VIEW — revamped ── */
             <div className="flex gap-4" style={{ height: 'calc(100vh - 240px)', minHeight: 520 }}>
               {/* Sidebar */}
-              <div className="w-80 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
+              <div className="w-80 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none', background: 'transparent' }}>
                 <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] px-0.5 pt-1">
                   {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
                 </p>
@@ -509,7 +508,7 @@ const BrowsePage: NextPage = () => {
                         <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5"
                           style={{ background: 'rgba(255,255,255,0.95)' }}>
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                          <span className="text-[9px] font-black text-emerald-600">Open</span>
+                          <span className="text-[9px] font-black" style={{ color: dm ? 'white' : '#16a34a' }}>Open</span>
                         </div>
                       ) : null}
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
@@ -534,7 +533,7 @@ const BrowsePage: NextPage = () => {
 
               {/* Map */}
               <div className="flex-1 relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
-                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} />
+                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
                 {selectedMapBizData && (
                   <div className="absolute bottom-4 right-4 w-72 bg-white rounded-2xl shadow-2xl overflow-hidden"
                     style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
