@@ -146,7 +146,7 @@ function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => voi
             </div>
             <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
           </div>
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.25)' : '#EBF4FF', color: dm ? '#93c5fd' : '#1A6FD4' }}>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#0A84FF', border: dm ? '1px solid rgba(10,132,255,0.3)' : '1px solid transparent' }}>
             {biz.category}
           </span>
         </div>

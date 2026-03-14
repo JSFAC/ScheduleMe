@@ -126,31 +126,31 @@ export default function Nav({ variant = 'light' }: NavProps) {
         </ul>
 
         {/* Right */}
-        <div className="flex-1 flex items-center justify-end gap-1.5">
+        <div className="flex-1 flex items-center justify-end">
           {!user && (
             <Link href="/business" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
               For Businesses
             </Link>
           )}
-          {/* Horizontal dark mode switch — icon left, switch right, matches account pill height */}
-          <button onClick={toggleDark} aria-label="Toggle dark mode"
-            className="flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px]"
-            style={{ background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', transition: 'background 0.35s ease' }}>
-            <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              style={{ color: darkMode ? 'white' : '#525252', transition: 'color 0.35s ease' }}>
-              {darkMode
-                ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-              }
-            </svg>
-            <div className="relative w-8 h-4 rounded-full shrink-0"
-              style={{ background: darkMode ? '#0A84FF' : '#d1d5db', transition: 'background 0.35s ease' }}>
-              <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm"
-                style={{ left: darkMode ? '17px' : '2px', transition: 'left 0.35s cubic-bezier(0.34,1.56,0.64,1)' }} />
-            </div>
-          </button>
-          {/* Account pill */}
-          <div className="w-[116px] flex items-center justify-end">
+          {/* Account pill + dark mode toggle side by side */}
+          <div className="flex items-center justify-end gap-1.5">
+            <button onClick={toggleDark} aria-label="Toggle dark mode"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
+              style={{ background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', transition: 'background 0.25s ease' }}>
+              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                style={{ color: darkMode ? 'white' : '#525252', transition: 'color 0.25s ease' }}>
+                {darkMode
+                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                  : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                }
+              </svg>
+              <div className="relative w-8 h-4 rounded-full shrink-0"
+                style={{ background: darkMode ? '#0A84FF' : '#d1d5db', transition: 'background 0.25s ease' }}>
+                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm"
+                  style={{ left: darkMode ? '17px' : '2px', transition: 'left 0.25s ease' }} />
+              </div>
+            </button>
+          <div className="flex items-center justify-end">
             {user ? (
               <div className="relative" ref={menuRef}>
                 <button onClick={() => setMenuOpen(!menuOpen)}
