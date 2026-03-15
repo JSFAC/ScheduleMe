@@ -9,6 +9,7 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
+import { SkeletonScrollRow } from '../components/SkeletonCard';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
 
 function getSupabase() {
@@ -50,6 +51,39 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
   const [thinking, setThinking] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
+
+  // Animated placeholder — cycles through example prompts
+  const PLACEHOLDERS = [
+    "Describe what you need — 'kitchen pipe dripping for a week'",
+    "e.g. 'Need a haircut before formal this Friday'",
+    "e.g. 'Looking for a photographer for my graduation'",
+    "e.g. 'AC stopped working, need someone today'",
+    "e.g. 'Help moving out of my dorm on May 15th'",
+  ];
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const [displayPlaceholder, setDisplayPlaceholder] = useState('');
+  const [isTypingPlaceholder, setIsTypingPlaceholder] = useState(true);
+
+  useEffect(() => {
+    if (focused || query) return; // stop animation when user is using the field
+    const target = PLACEHOLDERS[placeholderIdx];
+    let i = 0;
+    setDisplayPlaceholder('');
+    setIsTypingPlaceholder(true);
+    const typeInterval = setInterval(() => {
+      i++;
+      setDisplayPlaceholder(target.slice(0, i));
+      if (i >= target.length) {
+        clearInterval(typeInterval);
+        setIsTypingPlaceholder(false);
+        // Pause then move to next
+        setTimeout(() => {
+          setPlaceholderIdx(idx => (idx + 1) % PLACEHOLDERS.length);
+        }, 2200);
+      }
+    }, 28);
+    return () => clearInterval(typeInterval);
+  }, [placeholderIdx, focused, query]);
   const chipsDragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
 
   function submit(q: string) {
@@ -106,7 +140,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(query); } }}
-          placeholder="Describe your issue — 'my kitchen pipe has been dripping for a week'"
+          placeholder={focused || query ? "Describe what you need…" : (displayPlaceholder || PLACEHOLDERS[0])}
           rows={4}
           className="w-full px-4 pt-3 pb-14 text-sm placeholder:text-neutral-400 bg-transparent focus:outline-none resize-none leading-relaxed" style={{ color: dm ? '#f3f4f6' : '#171717' }}
         />
@@ -158,14 +192,16 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 }
 
 // Card — horizontal scroll card with review snippet
-function BizCard({ biz, onClick, dm }: { biz: Business; onClick: () => void; dm?: boolean }) {
+function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
   return (
-    <button onClick={onClick} className="biz-card group text-left flex-shrink-0"
-      style={{ width: 'clamp(220px, 18vw, 290px)' }}>
+    <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up"
+      style={{ width: 'clamp(220px, 18vw, 290px)', animationDelay: `${index * 0.06}s` }}>
       <div className="relative overflow-hidden" style={{ height: 'clamp(175px, 14vw, 220px)', background: '#c8d8e8' }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-          style={{ objectPosition: '50% 15%' }} />
+          onLoad={() => setImgLoaded(true)}
+          className="w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.05]"
+          style={{ objectPosition: '50% 15%', filter: imgLoaded ? 'blur(0)' : 'blur(6px)', transform: imgLoaded ? undefined : 'scale(1.05)' }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
         }} />
@@ -312,8 +348,8 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm }: {
             cursor: 'grab',
           } as React.CSSProperties}
         >
-          {businesses.map((biz) => (
-            <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} />
+          {businesses.map((biz, i) => (
+            <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} index={i} />
           ))}
           {/* See more — same total height as BizCard (image + body) */}
           <Link href={href} scroll={false}
@@ -393,6 +429,7 @@ const HomePage: NextPage = () => {
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
   const [usingRealData, setUsingRealData] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
 
   useEffect(() => {
@@ -413,6 +450,7 @@ const HomePage: NextPage = () => {
         setRealBizList(real);
         setUsingRealData(true);
       }
+      setDataLoading(false);
     });
   }, [router]);
 
