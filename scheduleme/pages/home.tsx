@@ -242,7 +242,7 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
         </div>
       </div>
       {/* Card body — category + review snippet + reviewer */}
-      <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#171717' : 'white' }}>
+      <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#171717' : 'white', flexShrink: 0 }}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#EBF4FF', color: dm ? '#93c5fd' : '#0A84FF', border: dm ? '1px solid rgba(10,132,255,0.35)' : '1px solid transparent' }}>
             {biz.category}
