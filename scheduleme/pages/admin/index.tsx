@@ -7,6 +7,8 @@ interface Business {
   id: string; name: string; owner_name: string; owner_email: string;
   phone: string | null; address: string | null; service_tags: string[];
   is_onboarded: boolean; stripe_onboarded: boolean; created_at: string;
+  campus_provider?: boolean; campus_school_name?: string | null;
+  edu_verified?: boolean; school_domain?: string | null;
 }
 
 function formatDate(iso: string) {
@@ -19,6 +21,7 @@ const AdminPage: NextPage = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [schoolDomains, setSchoolDomains] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
 
@@ -55,7 +58,7 @@ const AdminPage: NextPage = () => {
       const res = await fetch('/api/approve-business', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
-        body: JSON.stringify({ businessId: id }),
+        body: JSON.stringify({ businessId: id, schoolDomain: schoolDomains[id] || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -166,6 +169,8 @@ const AdminPage: NextPage = () => {
                           {b.is_onboarded ? 'Approved' : 'Pending'}
                         </span>
                         {b.stripe_onboarded && <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-500/15 text-blue-400 border-blue-500/20">Stripe ✓</span>}
+                        {b.campus_provider && <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/20">🎓 Campus</span>}
+                        {b.edu_verified && <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-green-500/15 text-green-400 border-green-500/20">Campus Verified</span>}
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
                         {[
@@ -175,6 +180,7 @@ const AdminPage: NextPage = () => {
                           { label: 'Location', value: b.address ?? '—' },
                           { label: 'Services', value: b.service_tags?.join(', ') ?? '—' },
                           { label: 'Applied', value: formatDate(b.created_at) },
+                          ...(b.campus_provider ? [{ label: 'School', value: b.campus_school_name ?? '—' }] : []),
                         ].map(({ label, value, link }) => (
                           <div key={label}>
                             <p className="text-xs text-neutral-500">{label}</p>
@@ -184,10 +190,24 @@ const AdminPage: NextPage = () => {
                       </div>
                     </div>
                     {!b.is_onboarded && (
-                      <button onClick={() => approveBusiness(b.id)} disabled={approvingId === b.id}
-                        className="flex-shrink-0 btn-primary text-sm px-5 py-2.5">
-                        {approvingId === b.id ? 'Approving…' : 'Approve & Send Email'}
-                      </button>
+                      <div className="flex flex-col gap-2 items-end flex-shrink-0">
+                        {b.campus_provider && (
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs text-neutral-500">School domain (e.g. asu.edu)</label>
+                            <input
+                              type="text"
+                              placeholder="asu.edu"
+                              value={schoolDomains[b.id] || ''}
+                              onChange={e => setSchoolDomains(prev => ({ ...prev, [b.id]: e.target.value }))}
+                              className="px-3 py-1.5 text-xs rounded-lg bg-neutral-800 border border-neutral-700 text-white placeholder:text-neutral-600 focus:outline-none focus:border-accent"
+                            />
+                          </div>
+                        )}
+                        <button onClick={() => approveBusiness(b.id)} disabled={approvingId === b.id}
+                          className="btn-primary text-sm px-5 py-2.5">
+                          {approvingId === b.id ? 'Approving…' : 'Approve & Send Email'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
