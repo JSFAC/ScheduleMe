@@ -10,6 +10,7 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { mapDbBusiness } from '../lib/realBusinesses';
+import { SkeletonCard } from '../components/SkeletonCard';
 import type { Business } from '../lib/mockBusinesses';
 
 function getSupabase() {
@@ -49,7 +50,7 @@ function detectNearestCampus(lat: number, lng: number) {
   return nearest;
 }
 
-const CAMPUS_CATEGORIES = ['All', 'Hair & Beauty', 'Photography', 'Tutoring', 'Cleaning', 'Moving', 'Handyman', 'Other'];
+const CAMPUS_CATEGORIES = ['All', 'Hair & Beauty', 'Photography', 'Tutoring', 'Arts & Crafts', 'Moving', 'Handyman', 'Other'];
 
 const CampusPage: NextPage = () => {
   const router = useRouter();
@@ -174,10 +175,10 @@ const CampusPage: NextPage = () => {
   const campusName = detectedCampus?.name || (schoolDomain ? schoolDomain.replace('.edu', '').toUpperCase() : 'Campus');
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: dm ? '#0a0a0a' : '#EDF5FF' }}>
-      <div className="relative h-6 w-6">
-        <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+    <div className="min-h-screen pt-[72px]" style={{ background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="h-[88px] border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }} />
+      <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
       </div>
     </div>
   );
@@ -320,13 +321,13 @@ const CampusPage: NextPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.map(biz => (
+                {filtered.map((biz, i) => (
                   <button key={biz.id} onClick={() => {
                     if (!eduVerified) { setShowVerify(true); return; }
                     setActiveBiz(biz);
                   }}
-                    className="group text-left rounded-2xl border overflow-hidden hover:-translate-y-0.5 transition-all"
-                    style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+                    className="group text-left rounded-2xl border overflow-hidden hover:-translate-y-0.5 transition-all animate-fade-up"
+                    style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', animationDelay: `${i * 0.05}s` }}>
                     <div className="relative overflow-hidden" style={{ height: 180 }}>
                       <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 55%)' }} />

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import { useDm } from '../../lib/DarkModeContext';
+import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -649,7 +650,7 @@ const BusinessDashboard: NextPage = () => {
                 {filteredBookings.length === 0
                   ? <div className="bg-white rounded-2xl border border-neutral-100 py-12 text-center text-neutral-400 text-sm">No bookings in this category.</div>
                   : <div className="space-y-3">
-                      {filteredBookings.map(b => (
+                      {filteredBookings.map((b, i) => (
                         <div key={b.id} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
                           <div className="flex items-start justify-between gap-4 mb-3">
                             <div className="flex items-start gap-3 min-w-0">
@@ -693,7 +694,11 @@ const BusinessDashboard: NextPage = () => {
                     {totalUnreadMsgs > 0 && <span className="text-[10px] font-black bg-accent text-white px-2 py-0.5 rounded-full">{totalUnreadMsgs} unread</span>}
                   </div>
                   <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-                    {msgThreads.length === 0 ? (
+                    {loading ? (
+                    <div>
+                      {Array.from({ length: 4 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
+                    </div>
+                  ) : msgThreads.length === 0 ? (
                       <div className="p-6 text-center text-neutral-400 text-sm">No conversations yet.</div>
                     ) : msgThreads.map((t: any) => (
                       <button key={t.id} onClick={async () => {
