@@ -662,7 +662,7 @@ html.dark [style*="background: rgba(255,255,255,0.25)"] {
 
 /* ── Dark mode biz-card fix: transparent base, only card body gets dark bg ── */
 html.dark .biz-card {
-  background: transparent !important;
+  background: #171717 !important;
   border-color: #262626 !important;
   box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
 }

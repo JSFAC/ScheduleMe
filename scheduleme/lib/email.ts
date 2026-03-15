@@ -316,6 +316,31 @@ export function newBookingBusinessHtml(opts: {
   return layout(`New booking — ${opts.service}`, body, `${opts.customerName} wants to book ${opts.service}`);
 }
 
+
+// ─── Template: review request ─────────────────────────────────────────────────
+export function reviewRequestHtml(opts: {
+  name: string;
+  service: string;
+  bookingId: string;
+}) {
+  const reviewUrl = `${SITE_URL}/bookings`;
+  const body = `
+    <tr><td bgcolor="#ffffff" style="padding:36px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">⭐</div>
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">How did it go?</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#64748b;">Hi ${opts.name}, your <strong style="color:#0f172a;">${opts.service}</strong> has been marked complete. Leave a quick review to help others find great pros.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+        <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;">
+          <a href="${reviewUrl}" style="display:block;padding:14px 36px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
+            Leave a Review →
+          </a>
+        </td></tr>
+      </table>
+      <p style="margin:0;font-size:12px;color:#94a3b8;">Takes 30 seconds. Your honest feedback matters.</p>
+    </td></tr>`;
+  return layout('How did your service go? Leave a review', body, `Your ${opts.service} is complete — leave a quick review.`);
+}
+
 // ─── Send helpers ─────────────────────────────────────────────────────────────
 
 const FROM = 'ScheduleMe <notifications@usescheduleme.com>';
@@ -416,6 +441,16 @@ export async function sendBusinessApprovalEmail(opts: {
     to: opts.to,
     subject: `${opts.businessName} is approved on ScheduleMe`,
     html: layout(`${opts.businessName} is approved`, body, `You're approved! Set up your account and start receiving leads.`),
+  });
+}
+
+export async function sendReviewRequestEmail(opts: { to: string; name: string; service: string; bookingId: string }) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `How was your ${opts.service}? Leave a review`,
+    html: reviewRequestHtml(opts),
   });
 }
 

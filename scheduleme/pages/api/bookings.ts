@@ -142,6 +142,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Notify consumer of status change
     const consumer = booking.profiles as any;
     if (consumer?.email) {
+      // Send review request email when booking is completed
+      if (status === 'completed') {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+        fetch(`${siteUrl}/api/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+          body: JSON.stringify({
+            type: 'review_request',
+            to: consumer.email,
+            name: consumer.name || 'there',
+            service: booking.service,
+            bookingId: booking_id,
+          }),
+        }).catch(() => {});
+      }
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
       fetch(`${siteUrl}/api/notify`, {
         method: 'POST',

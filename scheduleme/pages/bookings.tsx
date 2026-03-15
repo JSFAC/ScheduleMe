@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
+import ReviewModal from '../components/ReviewModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
@@ -408,6 +409,7 @@ const BookingsPage: NextPage = () => {
   const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [reviewTarget, setReviewTarget] = useState<{ bookingId: string; businessId: string; businessName: string; serviceName: string } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
 
@@ -465,6 +467,19 @@ const BookingsPage: NextPage = () => {
           setBookings([]);
         } finally {
           setLoadingBookings(false);
+          // Check for unreviewed completed bookings — show review prompt
+          const unreviewed = (data.bookings || []).find(
+            (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
+          );
+          if (unreviewed && unreviewed.business_name) {
+            // Small delay so page loads first
+            setTimeout(() => setReviewTarget({
+              bookingId: unreviewed.id,
+              businessId: unreviewed.business_id,
+              businessName: unreviewed.business_name,
+              serviceName: unreviewed.service,
+            }), 800);
+          }
         }
       } else {
         setPhase('done');
