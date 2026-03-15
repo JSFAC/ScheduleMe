@@ -30,7 +30,7 @@ function layout(title: string, body: string, preheader: string = '') {
           <a href="${SITE_URL}" style="text-decoration:none;">
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
               <tr>
-                <td style="background:#1e40af;border-radius:10px;padding:8px 16px;">
+                <td bgcolor="#1e40af" style="background:#1e40af;border-radius:10px;padding:8px 16px;">
                   <span style="font-size:17px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">ScheduleMe</span>
                 </td>
               </tr>
@@ -94,7 +94,7 @@ export function bookingConfirmationHtml(opts: {
     </tr>`).join('');
 
   const body = `
-    <tr><td style="background:#1d4ed8;padding:36px 32px;text-align:center;">
+    <tr><td bgcolor="#1d4ed8" style="background:#1d4ed8;padding:36px 32px;text-align:center;">
       <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:50%;margin:0 auto 16px;text-align:center;line-height:48px;">
         <span style="font-size:22px;color:#ffffff;">&#10003;</span>
       </div>
@@ -181,7 +181,7 @@ export function statusUpdateHtml(opts: {
   };
 
   const body = `
-    <tr><td style="background:${cfg.bg};padding:32px;text-align:center;border-bottom:1px solid ${cfg.border};">
+    <tr><td style="background:${cfg.bg};padding:32px;text-align:center;border-bottom:1px solid ${cfg.border};" bgcolor="${cfg.bg}">
       <div style="width:48px;height:48px;background:${cfg.color};border-radius:50%;margin:0 auto 16px;text-align:center;line-height:48px;">
         <span style="font-size:20px;color:#ffffff;">${cfg.icon}</span>
       </div>
@@ -226,7 +226,7 @@ export function welcomeHtml(opts: { name: string }) {
   ];
 
   const body = `
-    <tr><td style="background:#1d4ed8;padding:40px 32px;text-align:center;">
+    <tr><td bgcolor="#1d4ed8" style="background:#1d4ed8;padding:40px 32px;text-align:center;">
       <h1 style="margin:0 0 8px;font-size:23px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">You're all set, ${opts.name}</h1>
       <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.8);">Your account has been created.</p>
     </td></tr>
@@ -336,15 +336,34 @@ export async function sendBusinessApprovalEmail(opts: {
         </td></tr>
       </table>
 
-      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px;">
-        <tr><td style="background:#1d4ed8;border-radius:12px;text-align:center;">
-          <a href="${opts.magicLink}" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
-            Set Up My Account →
+      <!-- Primary CTA: Connect Google -->
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 16px;width:100%;max-width:360px;">
+        <tr><td bgcolor="#1d4ed8" style="background:#1d4ed8;border-radius:12px;text-align:center;">
+          <a href="${opts.magicLink}" style="display:block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
+            Sign In with Google →
           </a>
         </td></tr>
       </table>
 
-      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">This link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:#1d4ed8;">${SITE_URL}/business/auth/login</a> to request a new one.</p>
+      <!-- Divider -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+        <tr>
+          <td style="border-bottom:1px solid #e2e8f0;width:40%;"></td>
+          <td style="text-align:center;padding:0 12px;font-size:12px;color:#94a3b8;white-space:nowrap;">or</td>
+          <td style="border-bottom:1px solid #e2e8f0;width:40%;"></td>
+        </tr>
+      </table>
+
+      <!-- Secondary CTA: Create Password -->
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px;width:100%;max-width:360px;">
+        <tr><td style="border:2px solid #1d4ed8;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/business/auth/login?setup=password&email=${encodeURIComponent(opts.to)}" style="display:block;padding:14px 40px;font-size:15px;font-weight:700;color:#1d4ed8;text-decoration:none;letter-spacing:-0.01em;">
+            Create a Password Instead
+          </a>
+        </td></tr>
+      </table>
+
+      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">Sign-in link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:#1d4ed8;">${SITE_URL}/business/auth/login</a></p>
       <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Questions? Reply to this email or contact <a href="mailto:hello@usescheduleme.com" style="color:#1d4ed8;">hello@usescheduleme.com</a></p>
     </td></tr>
   `;
