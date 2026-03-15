@@ -404,7 +404,7 @@ function CantFindThem() {
 const ONBOARDING_STEPS = [
   {
     icon: 'search',
-    headline: 'Need a haircut, tutor, or photographer?',
+    headline: 'Need a service?',
     body: "Stop texting everyone you know asking for recommendations. ScheduleMe shows you verified people near you — or at your own school — in seconds.",
     cta: "Show me how it works →",
   },
@@ -412,7 +412,7 @@ const ONBOARDING_STEPS = [
     icon: 'ai',
     headline: 'Describe it. We handle the rest.',
     body: "Type what you need in plain English. Our AI figures out the service, finds the right pros nearby, and lets you book directly — no calls, no back and forth.",
-    cta: 'What about campus? →',
+    cta: "What's next? →",
   },
   {
     icon: 'campus',
@@ -448,7 +448,7 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
   const s = ONBOARDING_STEPS[step];
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center px-6 transition-opacity duration-500"
+    <div className="onboarding-active fixed inset-0 z-[200] flex flex-col items-center justify-center px-6 transition-opacity duration-500 overflow-hidden"
       style={{ opacity: fading ? 0 : 1, background: 'linear-gradient(160deg, #0a0a1a 0%, #0d1f3c 50%, #0a0a1a 100%)' }}>
 
       {/* Top row: back button left, progress dots center, skip right */}

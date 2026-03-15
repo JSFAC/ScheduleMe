@@ -709,3 +709,8 @@ html.dark .animate-shimmer {
 .msg-bubble {
   animation: msgSlideIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
+
+/* Prevent white corners bleeding through onboarding overlay */
+body:has(.onboarding-active) {
+  background: #0a0a1a !important;
+}
