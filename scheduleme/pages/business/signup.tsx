@@ -10,6 +10,7 @@ interface FormData {
   businessName: string; ownerName: string; email: string; phone: string;
   serviceCategory: string; otherCategory: string; city: string; radiusMiles: string;
   licenseNumber: string; yearsInBusiness: string; calendlyUrl: string; agree: boolean;
+  campusProvider: boolean; schoolName: string;
 }
 
 const SERVICE_CATEGORIES = [
@@ -24,6 +25,7 @@ const SignupPage: NextPage = () => {
   const [form, setForm] = useState<FormData>({
     businessName:'', ownerName:'', email:'', phone:'', serviceCategory:'', otherCategory:'',
     city:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', calendlyUrl:'', agree:false,
+    campusProvider:false, schoolName:'',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
@@ -269,6 +271,41 @@ const SignupPage: NextPage = () => {
               </fieldset>
 
               <div className="h-px bg-neutral-800" />
+
+
+              <div className="h-px bg-neutral-800" />
+
+              {/* Campus Provider (optional) */}
+              <fieldset>
+                <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
+                  <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">5</span>
+                  Campus Marketplace <span className="text-neutral-600 font-normal text-xs ml-1">(optional)</span>
+                </legend>
+                <div className="space-y-4">
+                  {/* Toggle */}
+                  <label className="flex items-center justify-between gap-4 cursor-pointer p-4 rounded-xl border border-neutral-800 hover:border-neutral-700 transition-colors">
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-200">I serve college students</p>
+                      <p className="text-xs text-neutral-500 mt-0.5">List your services on the ScheduleMe campus feed</p>
+                    </div>
+                    <div className="relative shrink-0">
+                      <input type="checkbox" className="sr-only" checked={form.campusProvider} onChange={e => set('campusProvider', e.target.checked)} />
+                      <div className="w-10 h-5 rounded-full transition-colors" style={{ background: form.campusProvider ? '#0A84FF' : '#404040' }} />
+                      <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: form.campusProvider ? '22px' : '2px' }} />
+                    </div>
+                  </label>
+                  {/* School name — appears when toggled */}
+                  {form.campusProvider && (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Which school?</label>
+                      <input type="text" className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                        placeholder="e.g. Arizona State University"
+                        value={form.schoolName} onChange={e => set('schoolName', e.target.value)} />
+                      <p className="text-xs text-neutral-600 mt-1.5">We'll verify your campus affiliation after approval.</p>
+                    </div>
+                  )}
+                </div>
+              </fieldset>
 
               {/* Commission reminder */}
               <div className="rounded-xl bg-accent/5 border border-accent/20 p-4">

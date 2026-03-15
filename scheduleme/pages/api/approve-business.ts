@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { businessId } = req.body;
+  const { businessId, schoolDomain } = req.body;
   if (!businessId) return res.status(400).json({ error: 'businessId required' });
 
   const supabase = getSupabase();
@@ -41,11 +41,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (fetchError || !business) return res.status(404).json({ error: 'Business not found' });
     if (business.is_onboarded) return res.status(400).json({ error: 'Business already approved' });
 
-    // Mark as onboarded
-    await supabase
-      .from('businesses')
-      .update({ is_onboarded: true, approved_at: new Date().toISOString() })
-      .eq('id', businessId);
+    // Mark as onboarded — store school_domain but do NOT set edu_verified yet.
+    // The business owner must self-verify with their actual .edu email from the dashboard.
+    // This prevents fake campus listings where someone just typed a school name on the form.
+    const updatePayload: any = { is_onboarded: true, approved_at: new Date().toISOString() };
+    if (schoolDomain && typeof schoolDomain === 'string' && schoolDomain.endsWith('.edu')) {
+      updatePayload.school_domain = schoolDomain.toLowerCase().trim();
+      updatePayload.edu_verified = false; // explicitly false until they self-verify
+    }
+    await supabase.from('businesses').update(updatePayload).eq('id', businessId);
 
     // Set role=business in profiles so dashboard auth gate works
     await supabase
