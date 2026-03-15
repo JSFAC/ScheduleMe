@@ -88,8 +88,27 @@ const BusinessDashboard: NextPage = () => {
   const router = useRouter();
   const { dm: darkMode, toggle: toggleDark } = useDm();
   const dm = darkMode;
+  const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','settings'];
   const [tab, setTab] = useState<TabId>('overview');
+
+  // Read tab from URL hash on mount and on hash change
+  useEffect(() => {
+    function readHash() {
+      const hash = window.location.hash.replace('#', '') as TabId;
+      if (VALID_TABS.includes(hash)) setTab(hash);
+    }
+    readHash();
+    window.addEventListener('hashchange', readHash);
+    return () => window.removeEventListener('hashchange', readHash);
+  }, []);
   const [business, setBusiness] = useState<Business | null>(null);
+
+  // Sync tab changes to URL hash so refresh restores position
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash.replace('#','') !== tab) {
+      history.replaceState(null, '', '#' + tab);
+    }
+  }, [tab]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
@@ -108,6 +127,8 @@ const BusinessDashboard: NextPage = () => {
   const [msgSending, setMsgSending] = useState(false);
   const msgBottomRef = useRef<HTMLDivElement>(null);
   const msgInputRef = useRef<HTMLTextAreaElement>(null);
+  const supabaseRef = useRef(getSupabase());
+  const msgPollRef2 = useRef<NodeJS.Timeout | null>(null);
 
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -153,34 +174,58 @@ const BusinessDashboard: NextPage = () => {
     return () => clearInterval(interval);
   }, [tab, business]);
 
-  // Realtime subscription for active thread messages
+  // Realtime + polling fallback for active thread messages
   useEffect(() => {
     if (!activeMsgThread) return;
-    const supabase = getSupabase();
+    const supabase = supabaseRef.current;
+    const bookingId = activeMsgThread.id;
+
     // Initial load
-    fetch('/api/messages?booking_id=' + activeMsgThread.id)
+    fetch('/api/messages?booking_id=' + bookingId)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setThreadMessages(d.messages || []); });
-    // Subscribe to new messages on this booking
+
+    // Realtime subscription
     const channel = supabase
-      .channel('messages:' + activeMsgThread.id)
+      .channel('biz-msg-' + bookingId)
       .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: 'booking_id=eq.' + activeMsgThread.id,
-      }, (payload) => {
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: 'booking_id=eq.' + bookingId,
+      }, (payload: any) => {
         setThreadMessages(m => {
-          // Avoid duplicates
           if (m.find((x: any) => x.id === payload.new.id)) return m;
           return [...m, payload.new];
         });
         setMsgThreads((ts: any[]) => ts.map((t: any) =>
-          t.id === activeMsgThread.id ? { ...t, lastMessage: payload.new } : t
+          t.id === bookingId ? { ...t, lastMessage: payload.new } : t
         ));
+        setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    // Always poll every 2s as fallback (realtime may not be enabled)
+    if (msgPollRef2.current) clearInterval(msgPollRef2.current);
+    msgPollRef2.current = setInterval(() => {
+      fetch('/api/messages?booking_id=' + bookingId)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.messages) {
+            setThreadMessages(prev => {
+              // Only update if there are new messages
+              if (d.messages.length > prev.length) {
+                setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                return d.messages;
+              }
+              return prev;
+            });
+          }
+        });
+    }, 2000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (msgPollRef2.current) { clearInterval(msgPollRef2.current); msgPollRef2.current = null; }
+    };
   }, [activeMsgThread?.id]);
 
   useEffect(() => {
@@ -302,7 +347,7 @@ const BusinessDashboard: NextPage = () => {
           </div>
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {NAV.map(item => (
-              <button key={item.id} onClick={() => setTab(item.id)}
+              <button key={item.id} onClick={() => { setTab(item.id); history.replaceState(null, '', '#' + item.id); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left ${tab === item.id ? 'bg-accent text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={tab === item.id ? 2.5 : 1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.d} />
@@ -360,7 +405,7 @@ const BusinessDashboard: NextPage = () => {
             <div className="lg:hidden bg-white border-b border-neutral-100 px-4 pb-4">
               <div className="flex flex-wrap gap-1.5 pt-3">
                 {NAV.map(item => (
-                  <button key={item.id} onClick={() => { setTab(item.id); setMobileNavOpen(false); }}
+                  <button key={item.id} onClick={() => { setTab(item.id); setMobileNavOpen(false); history.replaceState(null, '', '#' + item.id); }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${tab === item.id ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
                     {item.label}
                     {item.id === 'bookings' && pendingCount > 0 && <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700'}`}>{pendingCount}</span>}

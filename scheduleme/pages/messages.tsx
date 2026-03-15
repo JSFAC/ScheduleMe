@@ -46,6 +46,8 @@ const MessagesPage: NextPage = () => {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const supabaseRef = useRef(getSupabase());
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -85,22 +87,43 @@ const MessagesPage: NextPage = () => {
     }
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     // Subscribe to realtime messages for this thread
-    const supabase = getSupabase();
+    const supabase = supabaseRef.current;
     if (realtimeChannelRef.current) supabase.removeChannel(realtimeChannelRef.current);
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    const bookingId = thread.id;
+
     realtimeChannelRef.current = supabase
-      .channel('consumer-messages:' + thread.id)
+      .channel('consumer-msg-' + bookingId)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
-        filter: 'booking_id=eq.' + thread.id,
-      }, (payload) => {
+        filter: 'booking_id=eq.' + bookingId,
+      }, (payload: any) => {
         setMessages(m => {
           if (m.find((x: any) => x.id === payload.new.id)) return m;
-          return [...m, payload.new as any];
+          return [...m, payload.new];
         });
-        setThreads(ts => ts.map(t => t.id === thread.id ? { ...t, lastMessage: payload.new as any } : t));
+        setThreads(ts => ts.map(t => t.id === bookingId ? { ...t, lastMessage: payload.new } : t));
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       })
       .subscribe();
+
+    // Always poll every 2s as fallback (realtime may not be enabled)
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => {
+      fetch('/api/messages?booking_id=' + bookingId)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.messages) {
+            setMessages(prev => {
+              if (d.messages.length > prev.length) {
+                setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                return d.messages;
+              }
+              return prev;
+            });
+          }
+        });
+    }, 2000);
   }
 
   async function sendMessage() {
