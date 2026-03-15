@@ -79,7 +79,7 @@ function BizCard({ biz, onClick, hero, dm, index = 0 }: { biz: Business; onClick
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
           className="w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.04]"
-          style={{ objectPosition: 'center 20%', filter: imgLoaded ? 'blur(0)' : 'blur(6px)', transform: imgLoaded ? undefined : 'scale(1.06)' }} />
+          style={{ objectPosition: 'center 20%', opacity: imgLoaded ? 1 : 0 }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 52%, transparent 100%)'
         }} />
