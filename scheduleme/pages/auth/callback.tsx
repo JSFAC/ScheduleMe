@@ -46,9 +46,20 @@ const AuthCallback: NextPage = () => {
             router.replace('/business/auth/login?error=not_a_business');
           }
         } else {
-          // Consumer flow — check if they've seen the welcome screen before
+          // Consumer flow — profiles is source of truth (trigger creates row on signup)
+          const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+
+          // Belt+suspenders: create profile if trigger didn't fire (e.g. existing auth users)
+          await supabase.from('profiles').upsert({
+            id: userId,
+            email,
+            name,
+            has_seen_welcome: false,
+          }, { onConflict: 'id', ignoreDuplicates: true });
+
+          // Check if they've seen the welcome screen
           const { data: userRow } = await supabase
-            .from('users')
+            .from('profiles')
             .select('has_seen_welcome')
             .eq('id', userId)
             .maybeSingle();
