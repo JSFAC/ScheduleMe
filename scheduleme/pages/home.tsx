@@ -236,6 +236,11 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm }: {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
 
+  // Reset scroll to start when businesses list changes (category filter)
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+  }, [businesses]);
+
   // Non-passive wheel listener — prevents page scroll while hovering the scroll row
   useEffect(() => {
     const el = scrollRef.current;
@@ -478,6 +483,7 @@ const HomePage: NextPage = () => {
             return (
               <>
                 <ScrollSection
+                  key={`top-${activeCategory}`}
                   title="Top-rated near you"
                   subtitle="Available now — highly reviewed"
                   href="/browse"
@@ -486,6 +492,7 @@ const HomePage: NextPage = () => {
                   dm={dm}
                 />
                 <ScrollSection
+                  key={`indie-${activeCategory}`}
                   title="Small & Independent"
                   subtitle="Solo tradespeople — your booking helps them grow"
                   href="/browse?category=Independent"
@@ -494,6 +501,7 @@ const HomePage: NextPage = () => {
                   dm={dm}
                 />
                 <ScrollSection
+                  key={`quick-${activeCategory}`}
                   title="Quick response"
                   subtitle="Pros that pick up jobs fast"
                   href="/browse"
