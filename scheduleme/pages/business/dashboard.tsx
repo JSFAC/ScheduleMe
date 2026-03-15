@@ -203,9 +203,11 @@ const BusinessDashboard: NextPage = () => {
     const bookingId = activeMsgThread.id;
 
     // Initial load
-    fetch('/api/messages?booking_id=' + bookingId, { headers: await getAuthHeaders() })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setThreadMessages(d.messages || []); });
+    getAuthHeaders().then(headers =>
+      fetch('/api/messages?booking_id=' + bookingId, { headers })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setThreadMessages(d.messages || []); })
+    );
 
     // Realtime subscription
     const channel = supabase
@@ -228,7 +230,7 @@ const BusinessDashboard: NextPage = () => {
     // Always poll every 2s as fallback (realtime may not be enabled)
     if (msgPollRef2.current) clearInterval(msgPollRef2.current);
     msgPollRef2.current = setInterval(() => {
-      fetch('/api/messages?booking_id=' + bookingId, { headers: await getAuthHeaders() })
+      getAuthHeaders().then(h => fetch('/api/messages?booking_id=' + bookingId, { headers: h }))
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (d?.messages) {
