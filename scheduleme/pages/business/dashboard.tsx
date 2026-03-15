@@ -25,6 +25,7 @@ interface Business {
   stripe_account_id: string | null; stripe_onboarded: boolean;
   service_tags: string[]; address: string; rating: number | null;
   is_onboarded: boolean; website?: string; instagram?: string;
+  school_domain?: string | null; edu_verified?: boolean;
 }
 
 const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text: string; border: string }> = {
@@ -121,6 +122,12 @@ const BusinessDashboard: NextPage = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [campusEduEmail, setCampusEduEmail] = useState('');
+  const [campusCodeSent, setCampusCodeSent] = useState(false);
+  const [campusCode, setCampusCode] = useState('');
+  const [campusVerifying, setCampusVerifying] = useState(false);
+  const [campusSending, setCampusSending] = useState(false);
+  const [campusVerifyError, setCampusVerifyError] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('all');
 
@@ -287,6 +294,38 @@ const BusinessDashboard: NextPage = () => {
     } catch { alert('Failed to connect Stripe.'); } finally { setStripeLoading(false); }
   }
 
+  async function handleCampusSendCode() {
+    setCampusSending(true); setCampusVerifyError('');
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/verify-edu', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ school_email: campusEduEmail, account_type: 'business' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCampusVerifyError(data.error); return; }
+      setCampusCodeSent(true);
+    } catch { setCampusVerifyError('Something went wrong.'); }
+    finally { setCampusSending(false); }
+  }
+
+  async function handleCampusVerify() {
+    setCampusVerifying(true); setCampusVerifyError('');
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/verify-edu', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'verify', code: campusCode, account_type: 'business' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCampusVerifyError(data.error); return; }
+      setBusiness(b => b ? { ...b, edu_verified: true } : b);
+    } catch { setCampusVerifyError('Something went wrong.'); }
+    finally { setCampusVerifying(false); }
+  }
+
   async function handleUpdateBooking(id: string, status: string) {
     await getSupabase().from('bookings').update({ status }).eq('id', id);
     setBookings(b => b.map(bk => bk.id === id ? { ...bk, status } : bk));
@@ -396,7 +435,7 @@ const BusinessDashboard: NextPage = () => {
                     : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
                   }
                 </svg>
-                {darkMode ? 'Dark Mode' : 'Light Mode'}
+                {darkMode ? 'Light Mode' : 'Dark Mode'}
               </div>
               <div className="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors"
                 style={{ background: darkMode ? '#0A84FF' : '#d1d5db' }}>
@@ -452,6 +491,62 @@ const BusinessDashboard: NextPage = () => {
                   {stripeLoading ? 'Loading…' : 'Connect Stripe →'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Campus verification banner */}
+          {business?.school_domain && !business?.edu_verified && (
+            <div className="rounded-2xl border p-4" style={{ background: dm ? 'rgba(139,92,246,0.1)' : '#f5f3ff', borderColor: dm ? 'rgba(139,92,246,0.3)' : '#ddd6fe' }}>
+              <div className="flex items-start gap-3">
+                <span className="text-xl shrink-0">🎓</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold mb-0.5" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>
+                    Complete your campus verification
+                  </p>
+                  <p className="text-xs mb-3" style={{ color: dm ? '#a78bfa' : '#7c3aed' }}>
+                    Verify your <strong>{business.school_domain}</strong> email to go live on the campus feed.
+                    You must use an @{business.school_domain} email address.
+                  </p>
+                  {!campusCodeSent ? (
+                    <div className="flex gap-2">
+                      <input type="email" placeholder={`you@${business.school_domain}`}
+                        value={campusEduEmail} onChange={e => setCampusEduEmail(e.target.value)}
+                        className="flex-1 px-3 py-2 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#ddd6fe', color: dm ? '#f3f4f6' : '#171717' }} />
+                      <button onClick={handleCampusSendCode}
+                        disabled={campusSending || !campusEduEmail.endsWith(business.school_domain || '')}
+                        className="shrink-0 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
+                        style={{ background: '#7c3aed', color: 'white' }}>
+                        {campusSending ? 'Sending…' : 'Send Code'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="6-digit code" maxLength={6}
+                        value={campusCode} onChange={e => setCampusCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="flex-1 px-3 py-2 text-sm rounded-xl border text-center tracking-widest font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#ddd6fe', color: dm ? '#f3f4f6' : '#171717' }} />
+                      <button onClick={handleCampusVerify}
+                        disabled={campusVerifying || campusCode.length !== 6}
+                        className="shrink-0 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
+                        style={{ background: '#7c3aed', color: 'white' }}>
+                        {campusVerifying ? 'Verifying…' : 'Verify'}
+                      </button>
+                    </div>
+                  )}
+                  {campusVerifyError && <p className="text-xs text-red-500 mt-2">{campusVerifyError}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {business?.edu_verified && (
+            <div className="rounded-2xl border px-4 py-3 flex items-center gap-2.5"
+              style={{ background: dm ? 'rgba(139,92,246,0.1)' : '#f5f3ff', borderColor: dm ? 'rgba(139,92,246,0.3)' : '#ddd6fe' }}>
+              <span>🎓</span>
+              <p className="text-sm font-semibold" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>
+                Campus verified — your business is live on the {business.school_domain} campus feed
+              </p>
             </div>
           )}
 
