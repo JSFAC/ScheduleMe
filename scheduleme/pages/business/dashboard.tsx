@@ -123,8 +123,13 @@ const BusinessDashboard: NextPage = () => {
     const supabase = getSupabase();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.push('/business/auth/login'); return; }
-    const { data: biz } = await supabase.from('businesses').select('*').eq('owner_email', session.user.email).single();
-    if (!biz) { router.push('/business/auth/login'); return; }
+    const { data: biz, error: bizErr } = await supabase.from('businesses').select('*').eq('owner_email', session.user.email).maybeSingle();
+    if (bizErr || !biz) {
+      // Consumer account trying to access business dashboard — sign out and redirect
+      await supabase.auth.signOut();
+      router.replace('/business/auth/login?error=not_a_business');
+      return;
+    }
     setBusiness(biz);
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
     setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
