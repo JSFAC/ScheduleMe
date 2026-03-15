@@ -1,7 +1,7 @@
 // pages/api/messages.ts — messaging between users and businesses
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { containsProfanity } from '../../lib/profanity';
+import { filterMessage } from '../../lib/profanity';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -92,12 +92,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Input validation
     if (typeof content !== 'string') return res.status(400).json({ error: 'Invalid content' });
     const trimmed = content.trim();
-    if (trimmed.length === 0) return res.status(400).json({ error: 'Message cannot be empty' });
-    if (trimmed.length > 2000) return res.status(400).json({ error: 'Message too long (max 2000 chars)' });
 
-    // Profanity filter — uses shared lib with regex patterns
-    if (containsProfanity(trimmed)) {
-      return res.status(400).json({ error: 'Message contains prohibited content.' });
+    // Filter message — censors profanity inline, blocks threats entirely
+    const filtered = filterMessage(trimmed);
+    if (!filtered.ok) {
+      return res.status(400).json({ error: filtered.error });
     }
 
     // Store only what's needed — no metadata bloat
@@ -105,8 +104,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('messages')
       .insert({
         booking_id,
-        sender_type,  // 'user' | 'business' (not storing full sender_id to save space)
-        content: trimmed,
+        sender_type,
+        content: filtered.filtered,  // censored version
         read: false,
       })
       .select('id, booking_id, sender_type, content, read, created_at')
