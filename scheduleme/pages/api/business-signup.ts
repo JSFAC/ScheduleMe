@@ -1,6 +1,7 @@
 // pages/api/business-signup.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { validateAndFilter } from '../../lib/profanity';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,6 +36,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  // Validate and filter user inputs for profanity
+  const nameCheck = validateAndFilter(businessName, { maxLength: 100, fieldName: 'Business name' });
+  if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
+
+  const ownerCheck = validateAndFilter(ownerName || '', { maxLength: 100, fieldName: 'Owner name' });
+  if (!ownerCheck.ok) return res.status(400).json({ error: ownerCheck.error });
+
+  const cleanName = nameCheck.value;
+  const cleanOwner = ownerCheck.value;
+
   try {
     const supabase = getSupabase();
 
@@ -45,20 +56,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const slug = slugify(businessName) + '-' + Date.now().toString(36);
 
     const { data, error } = await supabase.from('businesses').insert({
-      name: businessName,
+      name: cleanName,
       slug,
       description: `${category} service in ${city}`,
       address: city,
       lat: geo?.lat ?? null,
       lng: geo?.lng ?? null,
       service_tags: [category.toLowerCase().replace(/\s+/g, '_')],
-      keywords: [category.toLowerCase(), ownerName?.toLowerCase()].filter(Boolean),
+      keywords: [category.toLowerCase(), cleanOwner.toLowerCase()].filter(Boolean),
       rating: 0,
       calendly_url: calendlyUrl || null,
       website: website || null,
       instagram: instagram || null,
       phone: phone,
-      owner_name: ownerName,
+      owner_name: cleanOwner,
       owner_email: email,
       is_onboarded: false, // set to true after manual approval
     }).select('id').single();

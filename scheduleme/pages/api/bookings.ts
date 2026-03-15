@@ -1,5 +1,6 @@
 // pages/api/bookings.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { validateAndFilter } from '../../lib/profanity';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
@@ -15,6 +16,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { business_id, user_id, service, user_name, user_phone, user_email, notes } = req.body;
     if (!business_id) return res.status(400).json({ error: 'business_id is required' });
 
+    // Validate service description
+    if (service) {
+      const svcCheck = validateAndFilter(service, { maxLength: 500, fieldName: 'Service description' });
+      if (!svcCheck.ok) return res.status(400).json({ error: svcCheck.error });
+    }
+
     try {
       const supabase = getSupabase();
 
@@ -22,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let resolvedUserId = user_id;
       if (!resolvedUserId && user_email) {
         const { data: userData } = await supabase
-          .from('users')
+          .from('profiles')
           .upsert({ email: user_email, name: user_name, phone: user_phone }, { onConflict: 'email' })
           .select('id').single();
         resolvedUserId = userData?.id;
@@ -80,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const supabase = getSupabase();
       const { data, error } = await supabase
         .from('bookings')
-        .select(`*, users(name, phone, email)`)
+        .select(`*, profiles(name, phone, email)`)
         .eq('business_id', business_id)
         .order('created_at', { ascending: false });
 
