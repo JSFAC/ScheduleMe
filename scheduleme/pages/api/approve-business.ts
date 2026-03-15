@@ -41,8 +41,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Mark as onboarded
     await supabase
       .from('businesses')
-      .update({ is_onboarded: true })
+      .update({ is_onboarded: true, approved_at: new Date().toISOString() })
       .eq('id', businessId);
+
+    // Set role=business in profiles so dashboard auth gate works
+    await supabase
+      .from('profiles')
+      .update({ role: 'business' })
+      .eq('email', business.owner_email);
 
     // Generate a magic link for them to set up their account
     const { data: magicLinkData, error: magicError } = await supabase.auth.admin.generateLink({
