@@ -272,6 +272,50 @@ export function welcomeHtml(opts: { name: string }) {
     `Your account is set up. Here is how to find a trusted local professional in minutes.`);
 }
 
+
+// ─── Template: new booking notification to business ──────────────────────────
+export function newBookingBusinessHtml(opts: {
+  businessName: string;
+  customerName: string;
+  customerPhone: string;
+  service: string;
+  bookingId: string;
+}) {
+  const dashUrl = `${SITE_URL}/business/dashboard`;
+  const body = `
+    <tr><td bgcolor="#1d4ed8" style="background:#1d4ed8;padding:32px;text-align:center;">
+      <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#ffffff;">New booking request</h1>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.8);">A customer wants to book ${opts.businessName}</p>
+    </td></tr>
+    <tr><td style="padding:32px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:28px;overflow:hidden;">
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Customer</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerName}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Phone</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerPhone || 'Not provided'}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service Requested</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.service}</span>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+        <tr><td align="center">
+          <a href="${dashUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
+            View in Dashboard →
+          </a>
+        </td></tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;line-height:1.6;">
+        Reply to the customer through your dashboard to confirm the booking.
+      </p>
+    </td></tr>`;
+  return layout(`New booking — ${opts.service}`, body, `${opts.customerName} wants to book ${opts.service}`);
+}
+
 // ─── Send helpers ─────────────────────────────────────────────────────────────
 
 const FROM = 'ScheduleMe <notifications@usescheduleme.com>';
@@ -372,6 +416,23 @@ export async function sendBusinessApprovalEmail(opts: {
     to: opts.to,
     subject: `${opts.businessName} is approved on ScheduleMe`,
     html: layout(`${opts.businessName} is approved`, body, `You're approved! Set up your account and start receiving leads.`),
+  });
+}
+
+export async function sendNewBookingBusinessEmail(opts: {
+  to: string;
+  businessName: string;
+  customerName: string;
+  customerPhone: string;
+  service: string;
+  bookingId: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `New booking request — ${opts.service}`,
+    html: newBookingBusinessHtml(opts),
   });
 }
 

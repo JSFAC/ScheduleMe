@@ -9,6 +9,7 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
+import { fetchAllBusinesses } from '../lib/realBusinesses';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -390,14 +391,22 @@ const HomePage: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [realBizList, setRealBizList] = useState<Business[]>([]);
+  const [usingRealData, setUsingRealData] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
       const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
       setUserName(name.split(' ')[0]);
       setLoading(false);
+      // Load real businesses from DB
+      const real = await fetchAllBusinesses();
+      if (real.length > 0) {
+        setRealBizList(real);
+        setUsingRealData(true);
+      }
     });
   }, [router]);
 
@@ -475,11 +484,14 @@ const HomePage: NextPage = () => {
         {/* Scrollable business rows */}
         <div className="py-8 space-y-10">
           {(() => {
-            const pool = [...SPONSORED, ...NEARBY, ...INDEPENDENT];
+            // Use real businesses if available, else fall back to mock
+            const pool = usingRealData
+              ? realBizList
+              : [...SPONSORED, ...NEARBY, ...INDEPENDENT];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
-            const t1 = activeCategory === 'All' ? [...SPONSORED, ...NEARBY] : filtered;
-            const t2 = activeCategory === 'All' ? [...INDEPENDENT, ...SPONSORED.slice(0, 2)] : filtered;
-            const t3 = activeCategory === 'All' ? [...NEARBY, ...INDEPENDENT] : filtered;
+            const t1 = activeCategory === 'All' ? (usingRealData ? pool.slice(0, 8) : [...SPONSORED, ...NEARBY]) : filtered;
+            const t2 = activeCategory === 'All' ? (usingRealData ? pool.slice(0, 8) : [...INDEPENDENT, ...SPONSORED.slice(0, 2)]) : filtered;
+            const t3 = activeCategory === 'All' ? (usingRealData ? pool.slice(0, 8) : [...NEARBY, ...INDEPENDENT]) : filtered;
             return (
               <>
                 <ScrollSection
