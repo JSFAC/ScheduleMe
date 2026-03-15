@@ -139,20 +139,44 @@ const BusinessDashboard: NextPage = () => {
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
 
-  // Load message threads when on messages tab
+  // Load + subscribe to thread list when on messages tab
   useEffect(() => {
     if (tab !== 'messages' || !business) return;
     loadThreads();
+    // Poll thread list every 10s for new conversations
+    const interval = setInterval(loadThreads, 10000);
+    return () => clearInterval(interval);
   }, [tab, business]);
 
-  // Poll active thread
+  // Realtime subscription for active thread messages
   useEffect(() => {
-    if (!selectedThread) return;
-    loadThreadMessages(selectedThread);
-    if (msgPollRef.current) clearInterval(msgPollRef.current);
-    msgPollRef.current = setInterval(() => loadThreadMessages(selectedThread), 5000);
-    return () => { if (msgPollRef.current) clearInterval(msgPollRef.current); };
-  }, [selectedThread]);
+    if (!activeMsgThread) return;
+    const supabase = getSupabase();
+    // Initial load
+    fetch('/api/messages?booking_id=' + activeMsgThread.id)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setThreadMessages(d.messages || []); });
+    // Subscribe to new messages on this booking
+    const channel = supabase
+      .channel('messages:' + activeMsgThread.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: 'booking_id=eq.' + activeMsgThread.id,
+      }, (payload) => {
+        setThreadMessages(m => {
+          // Avoid duplicates
+          if (m.find((x: any) => x.id === payload.new.id)) return m;
+          return [...m, payload.new];
+        });
+        setMsgThreads((ts: any[]) => ts.map((t: any) =>
+          t.id === activeMsgThread.id ? { ...t, lastMessage: payload.new } : t
+        ));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeMsgThread?.id]);
 
   useEffect(() => {
     msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -494,9 +518,9 @@ const BusinessDashboard: NextPage = () => {
             {tab === 'messages' && (
               <div className="flex gap-4" style={{ height: 'calc(100vh - 280px)', minHeight: 500 }}>
                 {/* Thread list */}
-                <div className={`${activeMsgThread ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-neutral-100 overflow-hidden`}>
-                  <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-                    <p className="text-xs font-black text-neutral-400 uppercase tracking-[0.1em]">{msgThreads.length} conversation{msgThreads.length !== 1 ? 's' : ''}</p>
+                <div className={`${activeMsgThread ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 shrink-0 rounded-2xl border overflow-hidden`} style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
+                  <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
+                    <p className="text-xs font-black uppercase tracking-[0.1em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>{msgThreads.length} conversation{msgThreads.length !== 1 ? 's' : ''}</p>
                     {totalUnreadMsgs > 0 && <span className="text-[10px] font-black bg-accent text-white px-2 py-0.5 rounded-full">{totalUnreadMsgs} unread</span>}
                   </div>
                   <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
@@ -514,20 +538,20 @@ const BusinessDashboard: NextPage = () => {
                         }
                         setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
                       }}
-                        className={`w-full text-left px-4 py-3.5 border-b border-neutral-50 transition-colors hover:bg-blue-50/50 ${activeMsgThread?.id === t.id ? 'bg-blue-50' : ''}`}>
+                        className="w-full text-left px-4 py-3.5 border-b transition-colors" style={{ borderColor: dm ? '#1e1e1e' : '#fafafa', background: activeMsgThread?.id === t.id ? (dm ? '#1e2130' : '#eff6ff') : 'transparent' }}>
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
                               <span className="text-accent text-[10px] font-black">{(t.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
                             </div>
-                            <p className="text-sm font-bold text-neutral-900 truncate">{t.profiles?.name || 'Unknown customer'}</p>
+                            <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{t.profiles?.name || 'Unknown customer'}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {t.unreadCount > 0 && <span className="h-4 w-4 rounded-full bg-accent flex items-center justify-center text-[9px] font-black text-white">{t.unreadCount}</span>}
                             {t.lastMessage && <span className="text-[10px] text-neutral-400">{new Date(t.lastMessage.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                           </div>
                         </div>
-                        <p className="text-[11px] text-neutral-500 truncate mb-0.5 pl-9">{t.service}</p>
+                        <p className="text-[11px] truncate mb-0.5 pl-9" style={{ color: dm ? '#9ca3af' : '#737373' }}>{t.service}</p>
                         {t.lastMessage
                           ? <p className={`text-[11px] truncate pl-9 ${t.unreadCount > 0 ? 'font-semibold text-neutral-700' : 'text-neutral-400'}`}>
                               {t.lastMessage.sender_type === 'business' ? 'You: ' : ''}{t.lastMessage.content}
@@ -541,9 +565,9 @@ const BusinessDashboard: NextPage = () => {
 
                 {/* Active thread */}
                 {activeMsgThread ? (
-                  <div className="flex-1 flex flex-col bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+                  <div className="flex-1 flex flex-col rounded-2xl border overflow-hidden" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                     {/* Header — customer + booking info */}
-                    <div className="px-5 py-3.5 border-b border-neutral-100">
+                    <div className="px-5 py-3.5 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
                           <button onClick={() => setActiveMsgThread(null)} className="lg:hidden p-1.5 rounded-lg hover:bg-neutral-100 mr-1 shrink-0">
@@ -553,7 +577,7 @@ const BusinessDashboard: NextPage = () => {
                             <span className="text-accent font-black text-sm">{(activeMsgThread.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-neutral-900">{activeMsgThread.profiles?.name || 'Unknown'}</p>
+                            <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{activeMsgThread.profiles?.name || 'Unknown'}</p>
                             <p className="text-[11px] text-neutral-400 truncate">{activeMsgThread.profiles?.email}</p>
                           </div>
                         </div>
@@ -570,7 +594,7 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                       </div>
                       {/* Booking summary strip */}
-                      <div className="mt-3 flex items-center gap-3 px-3 py-2 bg-neutral-50 rounded-xl border border-neutral-100">
+                      <div className="mt-3 flex items-center gap-3 px-3 py-2 rounded-xl border" style={{ background: dm ? '#0d0d0d' : '#fafafa', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-bold text-neutral-700 truncate">{activeMsgThread.service}</p>
                           <p className="text-[10px] text-neutral-400 mt-0.5">{new Date(activeMsgThread.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
@@ -580,7 +604,7 @@ const BusinessDashboard: NextPage = () => {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: 'var(--section-bg, #f8fafc)' }}>
+                    <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: dm ? '#0d0d0d' : '#f8fafc' }}>
                       {threadMessages.length === 0 && (
                         <div className="text-center py-8">
                           <p className="text-sm text-neutral-400">No messages yet.</p>
@@ -594,7 +618,7 @@ const BusinessDashboard: NextPage = () => {
                           <div key={msg.id}>
                             {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
                             <div className={`flex ${isBiz ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isBiz ? 'bg-accent text-white rounded-br-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'}`}>
+                              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isBiz ? 'bg-accent text-white rounded-br-md' : (dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md')}`}>
                                 {msg.content}
                               </div>
                             </div>
@@ -605,7 +629,7 @@ const BusinessDashboard: NextPage = () => {
                     </div>
 
                     {/* Input */}
-                    <div className="px-4 py-3 border-t border-neutral-100 bg-white">
+                    <div className="px-4 py-3 border-t" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                       <div className="flex items-end gap-2">
                         <textarea
                           ref={msgInputRef}
@@ -633,8 +657,8 @@ const BusinessDashboard: NextPage = () => {
                           }}
                           placeholder={`Reply to ${activeMsgThread.profiles?.name || 'customer'}…`}
                           rows={1}
-                          className="flex-1 resize-none rounded-xl border border-neutral-200 px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
-                          style={{ maxHeight: 100 }}
+                          className="flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
+                          style={{ maxHeight: 100, background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
                         />
                         <button
                           disabled={!msgInput.trim() || msgSending}
@@ -665,13 +689,13 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="hidden lg:flex flex-1 items-center justify-center bg-white rounded-2xl border border-neutral-100">
+                  <div className="hidden lg:flex flex-1 items-center justify-center rounded-2xl border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                     <div className="text-center">
                       <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
                         <svg className="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
                       </div>
-                      <p className="text-sm font-semibold text-neutral-600">Select a conversation</p>
-                      <p className="text-xs text-neutral-400 mt-1">Choose a customer thread to reply</p>
+                      <p className="text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#525252' }}>Select a conversation</p>
+                      <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Choose a customer thread to reply</p>
                     </div>
                   </div>
                 )}
@@ -824,148 +848,6 @@ const BusinessDashboard: NextPage = () => {
             )}
 
             {/* MESSAGES */}
-            {tab === 'messages' && (
-              <div className="flex gap-4" style={{ height: 'calc(100vh - 280px)', minHeight: 480 }}>
-                {/* Thread list */}
-                <div className="w-80 shrink-0 flex flex-col gap-2 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-                  {threads.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-neutral-100 py-10 text-center text-neutral-400 text-sm">
-                      No messages yet. They appear when customers message you.
-                    </div>
-                  ) : threads.map((t: any) => {
-                    const bk = t.bookings;
-                    const client = bk?.profiles;
-                    const isSelected = selectedThread === t.booking_id;
-                    return (
-                      <button key={t.booking_id} onClick={() => setSelectedThread(t.booking_id)}
-                        className={`w-full text-left rounded-2xl border px-4 py-3.5 transition-all ${isSelected ? 'bg-white border-accent shadow-sm ring-1 ring-accent/20' : 'bg-white border-neutral-100 hover:border-neutral-200'}`}>
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                              <span className="text-accent text-xs font-black">{(client?.name || '?').charAt(0).toUpperCase()}</span>
-                            </div>
-                            <p className="text-sm font-bold text-neutral-900 truncate">{client?.name || 'Unknown'}</p>
-                          </div>
-                          <span className="text-[9px] text-neutral-400 shrink-0 mt-0.5">{new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                        </div>
-                        <p className="text-xs text-neutral-500 line-clamp-1 pl-9">{bk?.service || 'Service'}</p>
-                        <p className="text-[10px] text-neutral-400 mt-0.5 pl-9 line-clamp-1">{t.content}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Chat + client info panel */}
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  {!selectedThread ? (
-                    <div className="bg-white rounded-2xl border border-neutral-100 flex-1 flex items-center justify-center text-neutral-400 text-sm">
-                      Select a conversation
-                    </div>
-                  ) : (() => {
-                    const thread = threads.find((t: any) => t.booking_id === selectedThread);
-                    const bk = thread?.bookings;
-                    const client = bk?.profiles;
-                    const clientBookings = bookings.filter(b => b.profiles?.email === client?.email);
-                    const clientSpend = clientBookings.reduce((s: number, b) => s + (b.amount_cents || 0), 0);
-                    return (
-                      <div className="flex gap-3 flex-1 overflow-hidden">
-                        {/* Chat */}
-                        <div className="flex-1 bg-white rounded-2xl border border-neutral-100 flex flex-col overflow-hidden">
-                          {/* Header */}
-                          <div className="px-4 py-3.5 border-b border-neutral-100 flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                              <span className="text-accent font-black">{(client?.name || '?').charAt(0).toUpperCase()}</span>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-neutral-900">{client?.name || 'Unknown'}</p>
-                              <p className="text-xs text-neutral-400 truncate">{bk?.service}</p>
-                            </div>
-                            {client?.phone && (
-                              <a href={'tel:' + client.phone} className="ml-auto text-xs font-semibold text-accent hover:opacity-70 transition-opacity shrink-0">
-                                📞 {client.phone}
-                              </a>
-                            )}
-                          </div>
-                          {/* Messages */}
-                          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5" style={{ scrollbarWidth: 'none' }}>
-                            {threadMessages.length === 0 ? (
-                              <div className="flex items-center justify-center h-full text-neutral-400 text-sm">No messages yet</div>
-                            ) : threadMessages.map((m: any) => (
-                              <div key={m.id} className={'flex ' + (m.sender_type === 'business' ? 'justify-end' : 'justify-start')}>
-                                <div className={'max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ' + (m.sender_type === 'business' ? 'bg-accent text-white rounded-br-sm' : 'bg-neutral-100 text-neutral-800 rounded-bl-sm')}>
-                                  {m.content}
-                                  <p className={'text-[9px] mt-1 ' + (m.sender_type === 'business' ? 'text-white/60' : 'text-neutral-400')}>
-                                    {new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                            <div ref={msgBottomRef} />
-                          </div>
-                          {/* Input */}
-                          <div className="px-4 py-3 border-t border-neutral-100">
-                            <div className="flex items-end gap-2">
-                              <textarea value={msgDraft} onChange={e => setMsgDraft(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBusinessMessage(); } }}
-                                placeholder="Reply to customer…" rows={1}
-                                className="flex-1 resize-none rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all"
-                                style={{ maxHeight: 100 }} />
-                              <button onClick={sendBusinessMessage} disabled={!msgDraft.trim() || msgSending}
-                                className="shrink-0 h-10 w-10 rounded-xl bg-accent text-white flex items-center justify-center disabled:opacity-40 hover:bg-accent-dark transition-colors">
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Client stats sidebar */}
-                        <div className="w-56 shrink-0 flex flex-col gap-3">
-                          <div className="bg-white rounded-2xl border border-neutral-100 p-4">
-                            <p className="text-[9px] font-black uppercase tracking-wider text-neutral-400 mb-3">Client</p>
-                            <div className="flex items-center gap-2.5 mb-3">
-                              <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                                <span className="text-accent font-black">{(client?.name || '?').charAt(0).toUpperCase()}</span>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-bold text-neutral-900 truncate">{client?.name}</p>
-                                <p className="text-[10px] text-neutral-400 truncate">{client?.email}</p>
-                              </div>
-                            </div>
-                            <div className="space-y-2.5 pt-2 border-t border-neutral-50">
-                              {[
-                                { label: 'Total Jobs', value: String(clientBookings.length) },
-                                { label: 'Total Spent', value: '$' + (clientSpend / 100).toFixed(2) },
-                                { label: 'Phone', value: client?.phone || '—' },
-                              ].map(r => (
-                                <div key={r.label} className="flex items-center justify-between gap-2">
-                                  <span className="text-[10px] text-neutral-400">{r.label}</span>
-                                  <span className="text-[11px] font-bold text-neutral-700">{r.value}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="bg-white rounded-2xl border border-neutral-100 p-4">
-                            <p className="text-[9px] font-black uppercase tracking-wider text-neutral-400 mb-3">Booking</p>
-                            <div className="space-y-2">
-                              {[
-                                { label: 'Service', value: bk?.service },
-                                { label: 'Status', value: bk?.status?.replace('_', ' ') },
-                              ].map(r => (
-                                <div key={r.label}>
-                                  <p className="text-[9px] text-neutral-400">{r.label}</p>
-                                  <p className="text-[11px] font-semibold text-neutral-700 mt-0.5 line-clamp-2">{r.value || '—'}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-
             {/* SETTINGS */}
             {tab === 'settings' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
