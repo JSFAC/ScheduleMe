@@ -450,9 +450,11 @@ const BookingsPage: NextPage = () => {
 
         }
 
-        // Fetch real bookings for this user
+        // Fetch real bookings for this user (requires auth header)
         try {
-          const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`);
+          const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+          });
           if (res.ok) {
             const data = await res.json();
             setBookings(data.bookings || []);
@@ -461,9 +463,12 @@ const BookingsPage: NextPage = () => {
           }
         } catch {
           setBookings([]);
+        } finally {
+          setLoadingBookings(false);
         }
       } else {
         setPhase('done');
+        setLoadingBookings(false);
       }
     });
   }, []);

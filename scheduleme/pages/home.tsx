@@ -200,7 +200,7 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
       <div className="relative overflow-hidden" style={{ height: 'clamp(175px, 14vw, 220px)', background: '#c8d8e8' }}>
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
-          className="w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.05]"
+          className="block w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.05]"
           style={{ objectPosition: '50% 15%', opacity: imgLoaded ? 1 : 0 }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
