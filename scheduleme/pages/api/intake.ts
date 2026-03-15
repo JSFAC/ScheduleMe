@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 import { triageUserInput } from '../../lib/claude';
 import { matchProviders } from '../../lib/mockProviders';
-import { rateLimit } from '../../lib/rateLimit';
+import { setSecurityHeaders, rateLimit, getClientIp } from '../../lib/apiSecurity';
 
 interface IntakeRequestBody {
   message: string;
@@ -55,15 +55,13 @@ function validateBody(body: unknown): { valid: true; data: IntakeRequestBody } |
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  setSecurityHeaders(res);
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed.' });
   }
-  // Rate limit: 5 requests per minute per IP
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] ?? req.socket.remoteAddress ?? 'unknown';
-  const { allowed, remaining } = rateLimit(ip, 5, 60_000);
-  res.setHeader('X-RateLimit-Remaining', String(remaining));
-  if (!allowed) return res.status(429).json({ error: 'Too many requests. Please wait a moment before trying again.' });
+  // Rate limit: 5 intake requests per minute per IP
+  if (!rateLimit(req, res, { max: 5, windowMs: 60_000, keyPrefix: 'intake' })) return;
 
   const validation = validateBody(req.body);
   if (!validation.valid) return res.status(400).json({ error: 'Invalid request body.', details: validation.errors });
@@ -116,7 +114,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const leadId = uuidv4();
     if (supabase) {
       try {
-        await supabase.from('users').upsert(
+        await supabase.from('profiles').upsert(
           { id: leadId, name, phone, email: `${phone.replace(/\D/g, '')}@lead.scheduleme.app` },
           { onConflict: 'id' }
         );

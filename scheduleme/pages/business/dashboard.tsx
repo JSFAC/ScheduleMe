@@ -84,6 +84,15 @@ function RevenueChart({ bookings }: { bookings: Booking[] }) {
   );
 }
 
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const supabase = getSupabase();
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    'Content-Type': 'application/json',
+    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+  };
+}
+
 const BusinessDashboard: NextPage = () => {
   const router = useRouter();
   const { dm: darkMode, toggle: toggleDark } = useDm();
@@ -144,9 +153,22 @@ const BusinessDashboard: NextPage = () => {
     const supabase = getSupabase();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.push('/business/auth/login'); return; }
+    // Check profile role first — fastest gate, no extra table query needed
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (profile?.role !== 'business') {
+      // Consumer account — sign out and redirect, do NOT delete their account
+      await supabase.auth.signOut();
+      router.replace('/business/auth/login?error=not_a_business');
+      return;
+    }
+
     const { data: biz, error: bizErr } = await supabase.from('businesses').select('*').eq('owner_email', session.user.email).maybeSingle();
     if (bizErr || !biz) {
-      // Consumer account trying to access business dashboard — sign out and redirect
       await supabase.auth.signOut();
       router.replace('/business/auth/login?error=not_a_business');
       return;
@@ -158,7 +180,7 @@ const BusinessDashboard: NextPage = () => {
     const { data: bkgs } = await supabase.from('bookings').select('*, profiles(name, phone, email)').eq('business_id', biz.id).order('created_at', { ascending: false });
     setBookings(bkgs || []);
     // Pre-load message threads
-    const msgsRes = await fetch('/api/messages?business_id=' + biz.id);
+    const msgsRes = await fetch('/api/messages?business_id=' + biz.id, { headers: await getAuthHeaders() });
     if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); }
     setLoading(false);
   }, [router]);
@@ -181,7 +203,7 @@ const BusinessDashboard: NextPage = () => {
     const bookingId = activeMsgThread.id;
 
     // Initial load
-    fetch('/api/messages?booking_id=' + bookingId)
+    fetch('/api/messages?booking_id=' + bookingId, { headers: await getAuthHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setThreadMessages(d.messages || []); });
 
@@ -206,7 +228,7 @@ const BusinessDashboard: NextPage = () => {
     // Always poll every 2s as fallback (realtime may not be enabled)
     if (msgPollRef2.current) clearInterval(msgPollRef2.current);
     msgPollRef2.current = setInterval(() => {
-      fetch('/api/messages?booking_id=' + bookingId)
+      fetch('/api/messages?booking_id=' + bookingId, { headers: await getAuthHeaders() })
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (d?.messages) {
@@ -234,12 +256,12 @@ const BusinessDashboard: NextPage = () => {
 
   async function loadThreads() {
     if (!business) return;
-    const res = await fetch('/api/messages?business_id=' + business.id);
+    const res = await fetch('/api/messages?business_id=' + business.id, { headers: await getAuthHeaders() });
     if (res.ok) { const d = await res.json(); setThreads(d.threads || []); }
   }
 
   async function loadThreadMessages(bookingId: string) {
-    const res = await fetch('/api/messages?booking_id=' + bookingId);
+    const res = await fetch('/api/messages?booking_id=' + bookingId, { headers: await getAuthHeaders() });
     if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); }
   }
 
@@ -580,10 +602,10 @@ const BusinessDashboard: NextPage = () => {
                       <button key={t.id} onClick={async () => {
                         setActiveMsgThread(t);
                         setThreadMessages([]);
-                        const res = await fetch('/api/messages?booking_id=' + t.id);
+                        const res = await fetch('/api/messages?booking_id=' + t.id, { headers: await getAuthHeaders() });
                         if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); }
                         if (t.unreadCount > 0) {
-                          await fetch('/api/messages', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ booking_id: t.id, reader_type: 'business' }) });
+                          await fetch('/api/messages', { method: 'PATCH', headers: await getAuthHeaders(), body: JSON.stringify({ booking_id: t.id, reader_type: 'business' }) });
                           setMsgThreads((ts: any[]) => ts.map((x: any) => x.id === t.id ? { ...x, unreadCount: 0 } : x));
                         }
                         setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -717,7 +739,7 @@ const BusinessDashboard: NextPage = () => {
                             setMsgSending(true);
                             const content = msgInput.trim(); setMsgInput('');
                             const res = await fetch('/api/messages', {
-                              method: 'POST', headers: { 'Content-Type': 'application/json' },
+                              method: 'POST', headers: await getAuthHeaders(),
                               body: JSON.stringify({ booking_id: activeMsgThread.id, sender_type: 'business', sender_id: business?.id, content }),
                             });
                             if (res.ok) {

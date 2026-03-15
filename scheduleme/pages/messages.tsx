@@ -78,11 +78,12 @@ const MessagesPage: NextPage = () => {
   async function openThread(thread: Thread) {
     setActiveThread(thread);
     setMessages([]);
-    const res = await fetch(`/api/messages?booking_id=${thread.id}`);
+    const authH = await getAuthHeaders();
+    const res = await fetch(`/api/messages?booking_id=${thread.id}`, { headers: authH });
     if (res.ok) { const data = await res.json(); setMessages(data.messages || []); }
     // Mark read
     if (thread.unreadCount > 0) {
-      await fetch('/api/messages', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ booking_id: thread.id, reader_type: 'user' }) });
+      await fetch('/api/messages', { method: 'PATCH', headers: await getAuthHeaders(), body: JSON.stringify({ booking_id: thread.id, reader_type: 'user' }) });
       setThreads(ts => ts.map(t => t.id === thread.id ? { ...t, unreadCount: 0 } : t));
     }
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -336,5 +337,14 @@ const MessagesPage: NextPage = () => {
     </>
   );
 };
+
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const supabase = getSupabase();
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    'Content-Type': 'application/json',
+    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+  };
+}
 
 export default MessagesPage;
