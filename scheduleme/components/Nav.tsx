@@ -76,13 +76,22 @@ export default function Nav({ variant = 'light' }: NavProps) {
     router.push('/');
   }
 
-  const [eduVerified, setEduVerified] = useState(false);
+  // Cache edu_verified in localStorage so Campus tab never flashes on/off between pages
+  const EDU_CACHE_KEY = 'sm_edu_verified';
+  const [eduVerified, setEduVerified] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(EDU_CACHE_KEY) === 'true';
+  });
 
   useEffect(() => {
     if (!user?.email) return;
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
-      .then(({ data }) => { if (data?.edu_verified) setEduVerified(true); });
+      .then(({ data }) => {
+        const verified = data?.edu_verified === true;
+        setEduVerified(verified);
+        localStorage.setItem(EDU_CACHE_KEY, String(verified));
+      });
   }, [user?.email]);
 
   const initials = user?.name
@@ -90,11 +99,11 @@ export default function Nav({ variant = 'light' }: NavProps) {
     : '?';
 
   const appLinks = [
+    ...(eduVerified ? [{ label: '🎓 Campus', href: '/campus' }] : []),
     { label: 'Home', href: '/home' },
     { label: 'Browse', href: '/browse' },
     { label: 'Bookings', href: '/bookings' },
     { label: 'Messages', href: '/messages' },
-    ...(eduVerified ? [{ label: '🎓 Campus', href: '/campus' }] : []),
   ];
   const marketingLinks = [
     { label: 'Features', href: '/#features' },
