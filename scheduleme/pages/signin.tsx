@@ -108,7 +108,7 @@ const SignIn: NextPage = () => {
       </Head>
       <Nav />
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-6 pt-20 pb-16">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm animate-fade-up">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-neutral-900 mb-1">Welcome to ScheduleMe</h1>
             <p className="text-neutral-500 text-sm">Sign in to track your bookings and requests</p>

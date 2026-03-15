@@ -6,7 +6,8 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
-import { useDarkMode } from '../lib/useDarkMode';
+import { SkeletonBookingCard } from '../components/SkeletonCard';
+import { useDm } from '../lib/DarkModeContext';
 
 function getSupabase() {
   return createClient(
@@ -74,10 +75,11 @@ const Account: NextPage = () => {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('addresses');
   const [user, setUser] = useState<any>(null);
-  const { dark: darkMode, toggle: toggleDark } = useDarkMode();
-  const dm = darkMode;
+  const { dm, toggle: toggleDark } = useDm();
+  const darkMode = dm;
   const [authProvider, setAuthProvider] = useState<string>('email');
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
   const [loading, setLoading] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
 
@@ -286,7 +288,7 @@ const Account: NextPage = () => {
         style={{ opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
 
         {/* Premium header — sm-panel */}
-        <div className={`${dm ? 'bg-[#13161f]' : 'sm-panel'} border-b`} style={{ borderColor: dm ? '#2a2d3a' : 'rgba(0,0,0,0.06)' }}>
+        <div className={`${dm ? 'bg-[#0d0d0d]' : 'sm-panel'} border-b`} style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="sm-glow" style={{ width: 500, height: 350, top: -175, right: '-5%' }} />
           <div className="relative mx-auto max-w-5xl px-6 pt-8 pb-6 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">

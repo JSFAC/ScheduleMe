@@ -3,12 +3,13 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { ALL_BUSINESSES, type Business } from '../lib/mockBusinesses';
+import { SkeletonCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
 
 function getSupabase() {
@@ -69,12 +70,16 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
 
 // Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
 // Standard card used in grid view
-function BizCard({ biz, onClick, hero, dm }: { biz: Business; onClick: () => void; hero?: boolean; dm?: boolean }) {
+function BizCard({ biz, onClick, hero, dm, index = 0 }: { biz: Business; onClick: () => void; hero?: boolean; dm?: boolean; index?: number }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
   return (
-    <button onClick={onClick} className="biz-card group w-full text-left flex flex-col">
+    <button onClick={onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
+      style={{ animationDelay: `${index * 0.05}s` }}>
       <div className="relative overflow-hidden bg-neutral-100 flex-shrink-0" style={{ height: 210 }}>
         <img src={biz.coverUrl} alt={biz.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" style={{ objectPosition: 'center 20%' }} />
+          onLoad={() => setImgLoaded(true)}
+          className="w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.04]"
+          style={{ objectPosition: 'center 20%', filter: imgLoaded ? 'blur(0)' : 'blur(6px)', transform: imgLoaded ? undefined : 'scale(1.06)' }} />
         <div className="absolute inset-0" style={{
           background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.08) 52%, transparent 100%)'
         }} />
@@ -408,8 +413,8 @@ const BrowsePage: NextPage = () => {
                 </div>
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4" style={{ alignItems: 'stretch' }}>
-                  {paginated.map((biz) => (
-                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} dm={dm} />
+                  {paginated.map((biz, i) => (
+                    <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} dm={dm} index={i} />
                   ))}
                 </div>
               ) : (
