@@ -191,7 +191,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               )}
             </div>
           ) : (
-            <Link href="/signin" scroll={false} className="btn-primary text-sm px-4 py-2.5 text-center whitespace-nowrap">
+            <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-2.5 text-center whitespace-nowrap">
               Sign up
             </Link>
           )}

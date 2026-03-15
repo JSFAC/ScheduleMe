@@ -26,7 +26,7 @@
     "subheadline": "Describe your problem. Our AI instantly triages your request and connects you with the best local service professionals.",
     "cta_primary": {
       "label": "Get Started for Free",
-      "href": "/signin"
+      "href": "/signin?mode=signup"
     },
     "cta_secondary": {
       "label": "See how it works",
