@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
+import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 import { createClient } from '@supabase/supabase-js';
@@ -406,6 +407,7 @@ const BookingsPage: NextPage = () => {
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
 
@@ -540,7 +542,11 @@ const BookingsPage: NextPage = () => {
 
         <div className="mx-auto max-w-3xl px-6 py-8">
           <div className="space-y-3.5">
-              {bookings.length === 0 ? (
+              {loadingBookings ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => <SkeletonBookingCard key={i} dm={dm} />)}
+            </div>
+          ) : bookings.length === 0 ? (
                 <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.08)' }}>
                   <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import { SkeletonThread } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import Link from 'next/link';
 
@@ -39,6 +40,7 @@ const MessagesPage: NextPage = () => {
   const { dm } = useDm();
   const [userId, setUserId] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [loadingThreads, setLoadingThreads] = useState(true);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');

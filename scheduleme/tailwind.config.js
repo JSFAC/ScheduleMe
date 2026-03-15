@@ -49,6 +49,7 @@ module.exports = {
         'fade-up': 'fadeUp 0.5s ease-out forwards',
         'fade-in': 'fadeIn 0.4s ease-out forwards',
         'pulse-dot': 'pulseDot 2s ease-in-out infinite',
+        'shimmer': 'shimmer 1.4s infinite',
       },
       keyframes: {
         fadeUp: {
@@ -62,6 +63,10 @@ module.exports = {
         pulseDot: {
           '0%, 100%': { opacity: '1', transform: 'scale(1)' },
           '50%': { opacity: '0.5', transform: 'scale(0.85)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-800px 0' },
+          '100%': { backgroundPosition: '800px 0' },
         },
       },
       boxShadow: {
