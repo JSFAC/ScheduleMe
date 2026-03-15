@@ -403,22 +403,22 @@ function CantFindThem() {
 // ─── Onboarding Carousel ──────────────────────────────────────────────────────
 const ONBOARDING_STEPS = [
   {
-    emoji: '😤',
-    headline: 'Finding a good local pro is broken.',
-    body: "You Google it, get 40 results, call 3 numbers, no one picks up. You post in a Facebook group. You wait 3 days. Sound familiar?",
-    cta: "Yeah, that\u2019s me \u2192",
+    icon: 'search',
+    headline: 'Need a haircut, tutor, or photographer?',
+    body: "Stop texting everyone you know asking for recommendations. ScheduleMe shows you verified people near you — or at your own school — in seconds.",
+    cta: "That's the problem →",
   },
   {
-    emoji: '⚡',
-    headline: 'ScheduleMe fixes that in 60 seconds.',
-    body: "Describe what you need in plain English. Our AI matches you instantly with vetted, reviewed local pros — no calls, no waiting, no guessing.",
-    cta: 'How does it work? →',
+    icon: 'ai',
+    headline: 'Describe it. We handle the rest.',
+    body: "Type what you need in plain English. Our AI figures out the service, finds the right pros nearby, and lets you book directly — no calls, no back and forth.",
+    cta: 'Got it. Show me →',
   },
   {
-    emoji: '🎓',
-    headline: 'On campus? Even easier.',
-    body: "ScheduleMe has a verified campus marketplace — find student photographers, barbers, tutors, and more at your own school. Only .edu emails get in.",
-    cta: "Let's go →",
+    icon: 'campus',
+    headline: 'On campus? Unlock your school feed.',
+    body: "Verify your .edu email to access your campus marketplace — students offering haircuts, photography, tutoring, and more. Real people, reviewed and verified.",
+    cta: "Let me in →",
   },
 ];
 
@@ -462,8 +462,25 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
       {/* Content */}
       <div className="max-w-sm w-full text-center transition-opacity duration-200"
         style={{ opacity: animating ? 0 : 1 }}>
-        <div className="text-6xl mb-6" style={{ filter: 'drop-shadow(0 0 24px rgba(10,132,255,0.4))' }}>
-          {s.emoji}
+        <div className="mb-8 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(10,132,255,0.15)', border: '1px solid rgba(10,132,255,0.3)' }}>
+            {s.icon === 'search' && (
+              <svg className="w-7 h-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            )}
+            {s.icon === 'ai' && (
+              <svg className="w-7 h-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+            )}
+            {s.icon === 'campus' && (
+              <svg className="w-7 h-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+              </svg>
+            )}
+          </div>
         </div>
         <h1 className="text-2xl font-black text-white mb-4" style={{ letterSpacing: '-0.025em', lineHeight: 1.2 }}>
           {s.headline}
@@ -480,8 +497,8 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
 
       {/* Name greeting — bottom */}
       {step === 0 && (
-        <p className="absolute bottom-10 text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          Welcome, {userName} 👋
+        <p className="absolute bottom-10 text-sm font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          Welcome, {userName}
         </p>
       )}
     </div>
@@ -533,10 +550,6 @@ const BookingsPage: NextPage = () => {
           if (session.user.email) {
             maybeSendWelcomeEmail(session.user.email, fullName);
           }
-          setTimeout(() => {
-            setPhase('transitioning');
-            setTimeout(() => { setPhase('done'); }, 700);
-          }, 2400);
         } else {
           setPhase('done');
 
