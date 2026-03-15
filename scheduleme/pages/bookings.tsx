@@ -543,13 +543,15 @@ const BookingsPage: NextPage = () => {
         }
 
         // Fetch real bookings for this user (requires auth header)
+        let bookingsData: any[] = [];
         try {
           const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
             headers: { 'Authorization': `Bearer ${session.access_token}` },
           });
           if (res.ok) {
             const data = await res.json();
-            setBookings(data.bookings || []);
+            bookingsData = data.bookings || [];
+            setBookings(bookingsData);
           } else {
             setBookings([]);
           }
@@ -558,11 +560,10 @@ const BookingsPage: NextPage = () => {
         } finally {
           setLoadingBookings(false);
           // Check for unreviewed completed bookings — show review prompt
-          const unreviewed = (data.bookings || []).find(
+          const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
           );
           if (unreviewed && unreviewed.business_name) {
-            // Small delay so page loads first
             setTimeout(() => setReviewTarget({
               bookingId: unreviewed.id,
               businessId: unreviewed.business_id,
