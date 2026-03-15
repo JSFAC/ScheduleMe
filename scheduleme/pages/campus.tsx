@@ -1,7 +1,7 @@
 // pages/campus.tsx — GPS-first campus marketplace
 // View feed with GPS, verify .edu to message/book
 import type { NextPage } from 'next';
-import Head from 'head';
+import Head from 'next/head';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
