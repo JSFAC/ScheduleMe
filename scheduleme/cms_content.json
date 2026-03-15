@@ -21,9 +21,9 @@
     }
   },
   "hero": {
-    "eyebrow": "AI-Powered Scheduling",
-    "headline": "Book the right pro,\nin seconds.",
-    "subheadline": "Describe your problem. Our AI instantly triages your request and connects you with the best local service professionals.",
+    "eyebrow": "Stop googling, start booking",
+    "headline": "Find a local pro\nbefore the day is over.",
+    "subheadline": "Most people spend 2 hours finding a plumber, electrician, or cleaner \u2014 and still aren't sure they picked the right one. ScheduleMe fixes that in 60 seconds.",
     "cta_primary": {
       "label": "Get Started for Free",
       "href": "/signin?mode=signup"
@@ -32,45 +32,45 @@
       "label": "See how it works",
       "href": "#how-it-works"
     },
-    "trust_line": "Trusted by 2,400+ local businesses"
+    "trust_line": "Used by students and homeowners across 12 cities"
   },
   "features": [
     {
-      "icon": "brain",
-      "title": "AI Triage",
-      "description": "Describe your issue in plain language. Our AI understands context and urgency, categorizing your request instantly."
-    },
-    {
-      "icon": "zap",
-      "title": "Instant Matching",
-      "description": "Get matched with vetted local pros in your area based on service type, availability, and rating."
-    },
-    {
-      "icon": "calendar",
-      "title": "One-Click Booking",
-      "description": "See real availability and book directly \u2014 no phone tag, no back-and-forth emails."
+      "icon": "clock",
+      "title": "No more phone tag",
+      "description": "Describe what you need and get matched instantly. No calls, no waiting, no \"I'll get back to you.\""
     },
     {
       "icon": "shield",
-      "title": "Verified Providers",
-      "description": "Every professional is background-checked, licensed, and reviewed by real customers."
+      "title": "Actually vetted pros",
+      "description": "Every professional is reviewed by real customers. No random Craigslist strangers \u2014 just verified locals with track records."
+    },
+    {
+      "icon": "graduation",
+      "title": "Built for campus life",
+      "description": "Verified campus marketplace for students. Find photographers, barbers, tutors, and more \u2014 from people at your own school."
+    },
+    {
+      "icon": "dollar",
+      "title": "No hidden fees",
+      "description": "Free to use as a customer. We only charge businesses 12% when a job is completed \u2014 so pros are motivated to show up."
     }
   ],
   "demo_steps": [
     {
       "step": 1,
-      "title": "Describe Your Issue",
-      "description": "Type what's wrong in plain English \u2014 as if texting a friend."
+      "title": "Describe it like you'd text a friend",
+      "description": "\"My kitchen pipe has been dripping for a week and I have no idea who to call.\" That's all you need."
     },
     {
       "step": 2,
-      "title": "AI Triage",
-      "description": "Our AI identifies the service type, urgency, and what to expect."
+      "title": "AI matches you in seconds",
+      "description": "We figure out what you need, how urgent it is, and which local pros are actually available \u2014 no guessing on your end."
     },
     {
       "step": 3,
-      "title": "Pick Your Pro",
-      "description": "Browse matched providers and book the one that fits your schedule."
+      "title": "Book, message, done",
+      "description": "Pick your pro, book directly, and message them from the app. No phone calls unless you want them."
     }
   ],
   "footer": {

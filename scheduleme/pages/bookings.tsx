@@ -399,7 +399,97 @@ function CantFindThem() {
   );
 }
 
+
+// ─── Onboarding Carousel ──────────────────────────────────────────────────────
+const ONBOARDING_STEPS = [
+  {
+    emoji: '😤',
+    headline: 'Finding a good local pro is broken.',
+    body: "You Google it, get 40 results, call 3 numbers, no one picks up. You post in a Facebook group. You wait 3 days. Sound familiar?",
+    cta: 'Yeah, that's me →',
+  },
+  {
+    emoji: '⚡',
+    headline: 'ScheduleMe fixes that in 60 seconds.',
+    body: "Describe what you need in plain English. Our AI matches you instantly with vetted, reviewed local pros — no calls, no waiting, no guessing.",
+    cta: 'How does it work? →',
+  },
+  {
+    emoji: '🎓',
+    headline: 'On campus? Even easier.',
+    body: "ScheduleMe has a verified campus marketplace — find student photographers, barbers, tutors, and more at your own school. Only .edu emails get in.",
+    cta: "Let's go →",
+  },
+];
+
+function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
+  userName: string; userInitials: string; fading: boolean; onDone: () => void;
+}) {
+  const [step, setStep] = useState(0);
+  const [animating, setAnimating] = useState(false);
+
+  function next() {
+    if (animating) return;
+    if (step < ONBOARDING_STEPS.length - 1) {
+      setAnimating(true);
+      setTimeout(() => { setStep(s => s + 1); setAnimating(false); }, 200);
+    } else {
+      onDone();
+    }
+  }
+
+  const s = ONBOARDING_STEPS[step];
+
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center px-6 transition-opacity duration-500"
+      style={{ opacity: fading ? 0 : 1, background: 'linear-gradient(160deg, #0a0a1a 0%, #0d1f3c 50%, #0a0a1a 100%)' }}>
+
+      {/* Progress dots */}
+      <div className="absolute top-10 left-0 right-0 flex justify-center gap-2">
+        {ONBOARDING_STEPS.map((_, i) => (
+          <div key={i} className="rounded-full transition-all duration-300"
+            style={{ width: i === step ? 20 : 6, height: 6, background: i === step ? '#0A84FF' : 'rgba(255,255,255,0.2)' }} />
+        ))}
+      </div>
+
+      {/* Skip */}
+      <button onClick={onDone}
+        className="absolute top-10 right-6 text-xs font-semibold"
+        style={{ color: 'rgba(255,255,255,0.4)' }}>
+        Skip
+      </button>
+
+      {/* Content */}
+      <div className="max-w-sm w-full text-center transition-opacity duration-200"
+        style={{ opacity: animating ? 0 : 1 }}>
+        <div className="text-6xl mb-6" style={{ filter: 'drop-shadow(0 0 24px rgba(10,132,255,0.4))' }}>
+          {s.emoji}
+        </div>
+        <h1 className="text-2xl font-black text-white mb-4" style={{ letterSpacing: '-0.025em', lineHeight: 1.2 }}>
+          {s.headline}
+        </h1>
+        <p className="text-base leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          {s.body}
+        </p>
+        <button onClick={next}
+          className="w-full py-4 rounded-2xl text-base font-bold transition-all active:scale-95"
+          style={{ background: '#0A84FF', color: 'white', boxShadow: '0 8px 32px rgba(10,132,255,0.4)' }}>
+          {s.cta}
+        </button>
+      </div>
+
+      {/* Name greeting — bottom */}
+      {step === 0 && (
+        <p className="absolute bottom-10 text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          Welcome, {userName} 👋
+        </p>
+      )}
+    </div>
+  );
+}
+
 type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
+
 
 const BookingsPage: NextPage = () => {
   const router = useRouter();
@@ -498,24 +588,14 @@ const BookingsPage: NextPage = () => {
     <>
       <Head><title>Bookings — ScheduleMe</title></Head>
 
-      {/* Welcome overlay */}
+      {/* Onboarding carousel — first time users only */}
       {showOverlay && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-300"
-          style={{ opacity: overlayOut ? 0 : 1, background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
-          <div className="text-center px-6">
-            <div className="relative mx-auto mb-6 h-20 w-20">
-              <div className="absolute inset-0 rounded-2xl bg-accent/20 animate-ping" style={{ animationDuration: '2s' }} />
-              <div className="relative h-full w-full rounded-2xl bg-accent flex items-center justify-center text-white text-2xl font-black">
-                {userInitials}
-              </div>
-            </div>
-            <h1 className="text-3xl font-black text-white mb-2" style={{ letterSpacing: '-0.02em' }}>Welcome, {userName}!</h1>
-            <p className="text-neutral-400">You&apos;re all set. Let&apos;s find you a pro.</p>
-            <div className="flex justify-center gap-1.5 mt-8">
-              {[0,1,2].map(i => <div key={i} className="h-1.5 w-1.5 rounded-full bg-accent/40 animate-pulse" style={{ animationDelay: `${i*0.2}s` }} />)}
-            </div>
-          </div>
-        </div>
+        <OnboardingCarousel
+          userName={userName}
+          userInitials={userInitials}
+          fading={overlayOut}
+          onDone={() => { setPhase('transitioning'); setTimeout(() => setPhase('done'), 500); }}
+        />
       )}
 
       <Nav />

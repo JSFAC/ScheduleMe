@@ -1,5 +1,6 @@
 // pages/_app.tsx
 import type { AppProps } from 'next/app';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/globals.css';
@@ -62,6 +63,14 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <>
+      <Head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0A84FF" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="ScheduleMe" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </Head>
       {showOverlay && (
         <div aria-hidden="true" style={{
           position: 'fixed', inset: 0, zIndex: 9999,
