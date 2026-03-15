@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Get all bookings for this business with latest message + unread count
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, users(id, name, email, phone)')
+        .select('id, service, status, created_at, profiles(id, name, email, phone)')
         .eq('business_id', business_id)
         .order('created_at', { ascending: false });
 

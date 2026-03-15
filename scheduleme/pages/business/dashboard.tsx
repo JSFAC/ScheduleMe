@@ -17,7 +17,7 @@ interface Booking {
   id: string; service: string; status: string; created_at: string;
   scheduled_start?: string; scheduled_end?: string;
   amount_cents: number | null; paid_at: string | null;
-  users: { name: string; phone: string; email: string } | null;
+  profiles: { name: string; phone: string; email: string } | null;
 }
 interface Business {
   id: string; name: string; owner_name: string; owner_email: string;
@@ -129,7 +129,7 @@ const BusinessDashboard: NextPage = () => {
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
     setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
     setEditServices((biz.service_tags || []).join(', '));
-    const { data: bkgs } = await supabase.from('bookings').select('*, users(name, phone, email)').eq('business_id', biz.id).order('created_at', { ascending: false });
+    const { data: bkgs } = await supabase.from('bookings').select('*, profiles(name, phone, email)').eq('business_id', biz.id).order('created_at', { ascending: false });
     setBookings(bkgs || []);
     // Pre-load message threads
     const msgsRes = await fetch('/api/messages?business_id=' + biz.id);
@@ -220,7 +220,7 @@ const BusinessDashboard: NextPage = () => {
   const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const completedCount = bookings.filter(b => b.status === 'completed' || b.status === 'paid').length;
-  const uniqueClients = new Set(bookings.map(b => b.users?.email).filter(Boolean)).size;
+  const uniqueClients = new Set(bookings.map(b => b.profiles?.email).filter(Boolean)).size;
   const thisMonthEarned = bookings.filter(b => (b.status === 'paid' || b.status === 'completed') && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth()).reduce((s, b) => s + (b.amount_cents || 0), 0);
 
   const filteredBookings = bookings.filter(b => {
@@ -240,10 +240,10 @@ const BusinessDashboard: NextPage = () => {
 
   const clientMap = new Map<string, { name: string; email: string; phone: string; bookingCount: number; totalSpent: number; lastBooking: string }>();
   bookings.forEach(b => {
-    if (!b.users?.email) return;
-    const ex = clientMap.get(b.users.email);
+    if (!b.profiles?.email) return;
+    const ex = clientMap.get(b.profiles.email);
     if (ex) { ex.bookingCount++; ex.totalSpent += b.amount_cents || 0; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
-    else clientMap.set(b.users.email, { name: b.users.name, email: b.users.email, phone: b.users.phone, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
+    else clientMap.set(b.profiles.email, { name: b.profiles.name, email: b.profiles.email, phone: b.profiles.phone, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
   });
   const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -406,7 +406,7 @@ const BusinessDashboard: NextPage = () => {
                         {bookings.slice(0, 5).map(b => (
                           <div key={b.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-neutral-900 truncate">{b.users?.name || 'Unknown'}</p>
+                              <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || 'Unknown'}</p>
                               <p className="text-xs text-neutral-400 mt-0.5 truncate">{b.service} · {fmtDate(b.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
@@ -461,10 +461,10 @@ const BusinessDashboard: NextPage = () => {
                           <div className="flex items-start justify-between gap-4 mb-3">
                             <div className="flex items-start gap-3 min-w-0">
                               <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 mt-0.5">
-                                <span className="text-accent text-sm font-black">{(b.users?.name || '?').charAt(0).toUpperCase()}</span>
+                                <span className="text-accent text-sm font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-neutral-900">{b.users?.name || 'Unknown'}</p>
+                                <p className="text-sm font-bold text-neutral-900">{b.profiles?.name || 'Unknown'}</p>
                                 <p className="text-[12px] text-neutral-500 mt-0.5 line-clamp-1">{b.service}</p>
                               </div>
                             </div>
@@ -472,8 +472,8 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400 mb-3">
                             <span>📅 {fmtTime(b.created_at)}</span>
-                            {b.users?.phone && <span>📞 {b.users.phone}</span>}
-                            {b.users?.email && <span>✉ {b.users.email}</span>}
+                            {b.profiles?.phone && <span>📞 {b.profiles.phone}</span>}
+                            {b.profiles?.email && <span>✉ {b.profiles.email}</span>}
                             {b.amount_cents && <span className="text-neutral-700 font-semibold">{fmt(b.amount_cents)}</span>}
                           </div>
                           {(b.status === 'pending' || b.status === 'confirmed') && (
@@ -518,9 +518,9 @@ const BusinessDashboard: NextPage = () => {
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                              <span className="text-accent text-[10px] font-black">{(t.users?.name || 'U').charAt(0).toUpperCase()}</span>
+                              <span className="text-accent text-[10px] font-black">{(t.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
                             </div>
-                            <p className="text-sm font-bold text-neutral-900 truncate">{t.users?.name || 'Unknown customer'}</p>
+                            <p className="text-sm font-bold text-neutral-900 truncate">{t.profiles?.name || 'Unknown customer'}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {t.unreadCount > 0 && <span className="h-4 w-4 rounded-full bg-accent flex items-center justify-center text-[9px] font-black text-white">{t.unreadCount}</span>}
@@ -550,18 +550,18 @@ const BusinessDashboard: NextPage = () => {
                             <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                           </button>
                           <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                            <span className="text-accent font-black text-sm">{(activeMsgThread.users?.name || 'U').charAt(0).toUpperCase()}</span>
+                            <span className="text-accent font-black text-sm">{(activeMsgThread.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-neutral-900">{activeMsgThread.users?.name || 'Unknown'}</p>
-                            <p className="text-[11px] text-neutral-400 truncate">{activeMsgThread.users?.email}</p>
+                            <p className="text-sm font-bold text-neutral-900">{activeMsgThread.profiles?.name || 'Unknown'}</p>
+                            <p className="text-[11px] text-neutral-400 truncate">{activeMsgThread.profiles?.email}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {activeMsgThread.users?.phone && (
-                            <a href={`tel:${activeMsgThread.users.phone}`} className="text-xs font-semibold text-accent bg-blue-50 px-3 py-1.5 rounded-xl border border-accent/15 hover:bg-blue-100 transition-colors flex items-center gap-1.5">
+                          {activeMsgThread.profiles?.phone && (
+                            <a href={`tel:${activeMsgThread.profiles.phone}`} className="text-xs font-semibold text-accent bg-blue-50 px-3 py-1.5 rounded-xl border border-accent/15 hover:bg-blue-100 transition-colors flex items-center gap-1.5">
                               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
-                              {activeMsgThread.users.phone}
+                              {activeMsgThread.profiles.phone}
                             </a>
                           )}
                           <button onClick={() => setTab('bookings')} className="text-xs font-semibold text-neutral-500 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-100 transition-colors">
@@ -631,7 +631,7 @@ const BusinessDashboard: NextPage = () => {
                               msgInputRef.current?.focus();
                             }
                           }}
-                          placeholder={`Reply to ${activeMsgThread.users?.name || 'customer'}…`}
+                          placeholder={`Reply to ${activeMsgThread.profiles?.name || 'customer'}…`}
                           rows={1}
                           className="flex-1 resize-none rounded-xl border border-neutral-200 px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
                           style={{ maxHeight: 100 }}
@@ -684,7 +684,7 @@ const BusinessDashboard: NextPage = () => {
                 {clients.length === 0
                   ? <div className="bg-white rounded-2xl border border-neutral-100 py-12 text-center text-neutral-400 text-sm">No clients yet.</div>
                   : clients.map(c => {
-                      const cb = bookings.filter(b => b.users?.email === c.email);
+                      const cb = bookings.filter(b => b.profiles?.email === c.email);
                       return (
                         <div key={c.email} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
                           <div className="flex items-center justify-between gap-4">
@@ -741,7 +741,7 @@ const BusinessDashboard: NextPage = () => {
                       const count = bookingDates.get(day) || 0;
                       const dayBookings = bookings.filter(b => b.status !== 'cancelled' && new Date(b.created_at).getDate() === day);
                       return (
-                        <div key={day} title={count > 0 ? dayBookings.map(b => b.users?.name || 'Unknown').join(', ') : ''}
+                        <div key={day} title={count > 0 ? dayBookings.map(b => b.profiles?.name || 'Unknown').join(', ') : ''}
                           className={`aspect-square flex flex-col items-center justify-center rounded-lg text-[11px] relative cursor-default transition-colors ${
                             isToday ? 'bg-accent text-white font-black shadow-sm' :
                             count > 0 ? 'bg-blue-50 text-blue-700 font-bold hover:bg-blue-100' :
@@ -783,10 +783,10 @@ const BusinessDashboard: NextPage = () => {
                             <div className="flex items-start justify-between gap-3 mb-2">
                               <div className="flex items-start gap-3 min-w-0">
                                 <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0 mt-0.5">
-                                  <span className="text-accent text-xs font-black">{(b.users?.name || '?').charAt(0).toUpperCase()}</span>
+                                  <span className="text-accent text-xs font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold text-neutral-900">{b.users?.name || 'Unknown'}</p>
+                                  <p className="text-sm font-bold text-neutral-900">{b.profiles?.name || 'Unknown'}</p>
                                   <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{b.service}</p>
                                 </div>
                               </div>
@@ -794,7 +794,7 @@ const BusinessDashboard: NextPage = () => {
                             </div>
                             <div className="flex items-center gap-3 pl-11 text-[10px] text-neutral-400">
                               <span>📅 {bookingDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</span>
-                              {b.users?.phone && <span>📞 {b.users.phone}</span>}
+                              {b.profiles?.phone && <span>📞 {b.profiles.phone}</span>}
                             </div>
                             {(b.status === 'pending' || b.status === 'confirmed') && (
                               <div className="flex gap-1.5 mt-2.5 pl-11">
@@ -834,7 +834,7 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                   ) : threads.map((t: any) => {
                     const bk = t.bookings;
-                    const client = bk?.users;
+                    const client = bk?.profiles;
                     const isSelected = selectedThread === t.booking_id;
                     return (
                       <button key={t.booking_id} onClick={() => setSelectedThread(t.booking_id)}
@@ -864,8 +864,8 @@ const BusinessDashboard: NextPage = () => {
                   ) : (() => {
                     const thread = threads.find((t: any) => t.booking_id === selectedThread);
                     const bk = thread?.bookings;
-                    const client = bk?.users;
-                    const clientBookings = bookings.filter(b => b.users?.email === client?.email);
+                    const client = bk?.profiles;
+                    const clientBookings = bookings.filter(b => b.profiles?.email === client?.email);
                     const clientSpend = clientBookings.reduce((s: number, b) => s + (b.amount_cents || 0), 0);
                     return (
                       <div className="flex gap-3 flex-1 overflow-hidden">
