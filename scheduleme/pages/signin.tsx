@@ -18,6 +18,11 @@ const SignIn: NextPage = () => {
   const router = useRouter();
   const { next } = router.query;
   const [tab, setTab] = useState<'login' | 'signup'>('login');
+
+  // Default to signup tab if ?mode=signup is in the URL
+  useEffect(() => {
+    if (router.query.mode === 'signup') setTab('signup');
+  }, [router.query.mode]);
   const [showEmail, setShowEmail] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

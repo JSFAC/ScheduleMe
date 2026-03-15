@@ -169,7 +169,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               ))}
             </ol>
             <div className="js-section mt-14 text-center">
-              <Link href="/bookings" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Try It Now — It&apos;s Free →</Link>
+              <Link href="/signin?mode=signup" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Try It Now — It&apos;s Free →</Link>
             </div>
           </div>
         </section>
@@ -225,7 +225,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           <div className="mx-auto max-w-3xl px-6 text-center js-section">
             <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold mb-4" style={{ color: dm ? 'white' : '#171717' }}>Ready to find your pro?</h2>
             <p className="mb-8 text-lg" style={{ color: dm ? '#737373' : '#737373' }}>Free for users. Always. Describe your issue and get matched in seconds.</p>
-            <Link href="/bookings" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Get Started — No Account Needed</Link>
+            <Link href="/signin?mode=signup" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Get Started Free →</Link>
           </div>
         </section>
       </main>
