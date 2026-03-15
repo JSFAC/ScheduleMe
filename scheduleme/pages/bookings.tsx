@@ -406,7 +406,7 @@ const ONBOARDING_STEPS = [
     emoji: '😤',
     headline: 'Finding a good local pro is broken.',
     body: "You Google it, get 40 results, call 3 numbers, no one picks up. You post in a Facebook group. You wait 3 days. Sound familiar?",
-    cta: 'Yeah, that's me →',
+    cta: "Yeah, that\u2019s me \u2192",
   },
   {
     emoji: '⚡',
