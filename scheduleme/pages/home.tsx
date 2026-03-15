@@ -393,6 +393,7 @@ const HomePage: NextPage = () => {
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
   const [usingRealData, setUsingRealData] = useState(false);
+  const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -401,6 +402,11 @@ const HomePage: NextPage = () => {
       const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
       setUserName(name.split(' ')[0]);
       setLoading(false);
+      // Check edu verification status
+      const supabaseInst = getSupabase();
+      const { data: profile } = await supabaseInst
+        .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
+      setEduVerified(profile?.edu_verified ?? false);
       // Load real businesses from DB
       const real = await fetchAllBusinesses();
       if (real.length > 0) {
@@ -480,6 +486,27 @@ const HomePage: NextPage = () => {
             ))}
           </div>
         </div>
+
+        {/* EDU Campus banner — only shown to non-verified users */}
+        {eduVerified === false && (
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
+            <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
+              style={{ background: dm ? 'rgba(10,132,255,0.12)' : '#EBF4FF', border: dm ? '1px solid rgba(10,132,255,0.3)' : '1px solid rgba(10,132,255,0.2)' }}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-xl shrink-0">🎓</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#93c5fd' : '#1d4ed8' }}>Are you a student?</p>
+                  <p className="text-xs truncate" style={{ color: dm ? '#60a5fa' : '#3b82f6' }}>Verify your .edu email to unlock your campus marketplace</p>
+                </div>
+              </div>
+              <Link href="/campus" scroll={false}
+                className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
+                style={{ background: '#0A84FF', color: 'white' }}>
+                Verify Now →
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Scrollable business rows */}
         <div className="py-8 space-y-10">
