@@ -406,19 +406,19 @@ const ONBOARDING_STEPS = [
     icon: 'search',
     headline: 'Need a haircut, tutor, or photographer?',
     body: "Stop texting everyone you know asking for recommendations. ScheduleMe shows you verified people near you — or at your own school — in seconds.",
-    cta: "That's the problem →",
+    cta: "Show me how it works →",
   },
   {
     icon: 'ai',
     headline: 'Describe it. We handle the rest.',
     body: "Type what you need in plain English. Our AI figures out the service, finds the right pros nearby, and lets you book directly — no calls, no back and forth.",
-    cta: 'Got it. Show me →',
+    cta: 'What about campus? →',
   },
   {
     icon: 'campus',
     headline: 'On campus? Unlock your school feed.',
     body: "Verify your .edu email to access your campus marketplace — students offering haircuts, photography, tutoring, and more. Real people, reviewed and verified.",
-    cta: "Let me in →",
+    cta: "Get started →",
   },
 ];
 
@@ -427,15 +427,22 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
 }) {
   const [step, setStep] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [dir, setDir] = useState<'forward' | 'back'>('forward');
+
+  function go(newStep: number) {
+    if (animating) return;
+    setDir(newStep > step ? 'forward' : 'back');
+    setAnimating(true);
+    setTimeout(() => { setStep(newStep); setAnimating(false); }, 180);
+  }
 
   function next() {
-    if (animating) return;
-    if (step < ONBOARDING_STEPS.length - 1) {
-      setAnimating(true);
-      setTimeout(() => { setStep(s => s + 1); setAnimating(false); }, 200);
-    } else {
-      onDone();
-    }
+    if (step < ONBOARDING_STEPS.length - 1) go(step + 1);
+    else onDone();
+  }
+
+  function back() {
+    if (step > 0) go(step - 1);
   }
 
   const s = ONBOARDING_STEPS[step];
@@ -444,23 +451,36 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
     <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center px-6 transition-opacity duration-500"
       style={{ opacity: fading ? 0 : 1, background: 'linear-gradient(160deg, #0a0a1a 0%, #0d1f3c 50%, #0a0a1a 100%)' }}>
 
-      {/* Progress dots */}
-      <div className="absolute top-10 left-0 right-0 flex justify-center gap-2">
-        {ONBOARDING_STEPS.map((_, i) => (
-          <div key={i} className="rounded-full transition-all duration-300"
-            style={{ width: i === step ? 20 : 6, height: 6, background: i === step ? '#0A84FF' : 'rgba(255,255,255,0.2)' }} />
-        ))}
+      {/* Top row: back button left, progress dots center, skip right */}
+      <div className="absolute top-10 left-0 right-0 flex items-center justify-between px-6">
+        {/* Back button — invisible on step 0 so layout stays consistent */}
+        <button onClick={back}
+          className="flex items-center gap-1.5 text-xs font-semibold transition-opacity"
+          style={{ color: 'rgba(255,255,255,0.4)', opacity: step === 0 ? 0 : 1, pointerEvents: step === 0 ? 'none' : 'auto' }}>
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          Back
+        </button>
+
+        {/* Progress dots */}
+        <div className="flex justify-center gap-2">
+          {ONBOARDING_STEPS.map((_, i) => (
+            <div key={i} className="rounded-full transition-all duration-300"
+              style={{ width: i === step ? 20 : 6, height: 6, background: i === step ? '#0A84FF' : 'rgba(255,255,255,0.2)' }} />
+          ))}
+        </div>
+
+        {/* Skip */}
+        <button onClick={onDone}
+          className="text-xs font-semibold"
+          style={{ color: 'rgba(255,255,255,0.4)' }}>
+          Skip
+        </button>
       </div>
 
-      {/* Skip */}
-      <button onClick={onDone}
-        className="absolute top-10 right-6 text-xs font-semibold"
-        style={{ color: 'rgba(255,255,255,0.4)' }}>
-        Skip
-      </button>
-
       {/* Content */}
-      <div className="max-w-sm w-full text-center transition-opacity duration-200"
+      <div className="max-w-sm w-full text-center transition-opacity duration-180"
         style={{ opacity: animating ? 0 : 1 }}>
         <div className="mb-8 flex items-center justify-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
