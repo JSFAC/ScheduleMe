@@ -1,7 +1,7 @@
 // pages/api/notify.ts — SECURED (internal only, protected by NOTIFY_SECRET)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail } from '../../lib/email';
+import { sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail, sendNewBookingBusinessEmail } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
 
 function getSupabase() {
@@ -50,6 +50,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       case 'welcome':
         result = await sendWelcomeEmail({ to, name: name || 'there' });
+        break;
+      case 'new_booking_business':
+        result = await sendNewBookingBusinessEmail({
+          to,
+          businessName: rest.name || 'Your business',
+          customerName: rest.customerName || 'A customer',
+          customerPhone: rest.customerPhone || '',
+          service: rest.service || 'Service Request',
+          bookingId: rest.bookingId || '',
+        });
         break;
       default:
         return res.status(400).json({ error: `Unknown type: ${type}` });

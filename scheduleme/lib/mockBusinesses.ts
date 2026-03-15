@@ -25,6 +25,11 @@ export interface Business {
   independent?: boolean;
   topReview?: string;
   reviewer?: { name: string; avatarUrl: string };
+  // Real DB fields (populated when showing actual businesses)
+  realId?: string;
+  slug?: string | null;
+  calendlyUrl?: string | null;
+  website?: string | null;
 }
 
 export const ALL_BUSINESSES: Business[] = [

@@ -9,6 +9,7 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { ALL_BUSINESSES, type Business } from '../lib/mockBusinesses';
+import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -214,6 +215,8 @@ const BrowsePage: NextPage = () => {
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
+  const [bizList, setBizList] = useState<Business[]>(ALL_BUSINESSES);
+  const [usingRealData, setUsingRealData] = useState(false);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -228,9 +231,26 @@ const BrowsePage: NextPage = () => {
 
   useEffect(() => {
     const supabase = getSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
       setLoading(false);
+      // Try geo first, fall back to all businesses
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40 });
+            if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+          },
+          async () => {
+            // Geo denied — load all businesses
+            const real = await fetchAllBusinesses();
+            if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+          }
+        );
+      } else {
+        const real = await fetchAllBusinesses();
+        if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+      }
     });
   }, [router]);
 
@@ -241,12 +261,12 @@ const BrowsePage: NextPage = () => {
 
   useEffect(() => {
     if (router.query.biz) {
-      const biz = ALL_BUSINESSES.find(b => b.id === router.query.biz);
+      const biz = bizList.find(b => b.id === router.query.biz) || ALL_BUSINESSES.find(b => b.id === router.query.biz);
       if (biz) setActiveBiz(biz);
     }
   }, [router.query.biz]);
 
-  const filtered = ALL_BUSINESSES.filter(b => {
+  const filtered = bizList.filter(b => {
     const matchCat = activeCategory === 'All'
       || (activeCategory === 'Independent' ? b.independent === true : b.category === activeCategory);
     const matchSearch = !searchQuery
@@ -266,7 +286,7 @@ const BrowsePage: NextPage = () => {
   // Reset to page 1 when filters change
   useEffect(() => { setPage(1); }, [activeCategory, searchQuery, sortMode]);
 
-  const selectedMapBizData = ALL_BUSINESSES.find(b => b.id === selectedMapBiz) ?? null;
+  const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? ALL_BUSINESSES.find(b => b.id === selectedMapBiz) ?? null;
 
   if (loading) return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center">

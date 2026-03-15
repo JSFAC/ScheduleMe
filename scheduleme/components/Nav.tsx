@@ -76,6 +76,15 @@ export default function Nav({ variant = 'light' }: NavProps) {
     router.push('/');
   }
 
+  const [eduVerified, setEduVerified] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    supabase.from('profiles').select('edu_verified').eq('id', user.id).maybeSingle()
+      .then(({ data }) => { if (data?.edu_verified) setEduVerified(true); });
+  }, [user?.id]);
+
   const initials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     : '?';
@@ -85,6 +94,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
     { label: 'Browse', href: '/browse' },
     { label: 'Bookings', href: '/bookings' },
     { label: 'Messages', href: '/messages' },
+    ...(eduVerified ? [{ label: '🎓 Campus', href: '/campus' }] : []),
   ];
   const marketingLinks = [
     { label: 'Features', href: '/#features' },
