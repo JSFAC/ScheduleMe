@@ -21,9 +21,9 @@
     }
   },
   "hero": {
-    "eyebrow": "Stop googling, start booking",
-    "headline": "Find a local pro\nbefore the day is over.",
-    "subheadline": "Most people spend 2 hours finding a plumber, electrician, or cleaner \u2014 and still aren't sure they picked the right one. ScheduleMe fixes that in 60 seconds.",
+    "eyebrow": "Your local services marketplace",
+    "headline": "The right pro,\nfound in seconds.",
+    "subheadline": "Need a haircut, tutor, photographer, or handyman? Stop texting everyone you know. ScheduleMe finds vetted, reviewed local pros \u2014 or students at your own school \u2014 instantly.",
     "cta_primary": {
       "label": "Get Started for Free",
       "href": "/signin?mode=signup"

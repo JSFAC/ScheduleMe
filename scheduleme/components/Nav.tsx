@@ -129,7 +129,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
         {/* Center nav */}
         <ul className="hidden md:flex items-center gap-1 shrink-0" role="list">
           {navLinks.map((link) => {
-            const isActive = router.pathname === link.href || router.pathname === link.href.split('#')[0];
+            const isActive = !link.href.includes('#') && (router.pathname === link.href || router.pathname === link.href.split('?')[0]);
             return (
               <li key={link.href}>
                 <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
