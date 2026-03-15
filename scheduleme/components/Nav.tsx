@@ -79,11 +79,11 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const [eduVerified, setEduVerified] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.email) return;
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-    supabase.from('profiles').select('edu_verified').eq('id', user.id).maybeSingle()
+    supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
       .then(({ data }) => { if (data?.edu_verified) setEduVerified(true); });
-  }, [user?.id]);
+  }, [user?.email]);
 
   const initials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
