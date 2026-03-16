@@ -26,6 +26,26 @@ export function SkeletonCard() {
 }
 
 // Row of skeleton cards for scroll sections
+// Browse grid skeleton — matches BizCard height: 210px
+export function SkeletonBrowseCard() {
+  const { dm } = useDm();
+  return (
+    <div className="rounded-2xl overflow-hidden w-full"
+      style={{ background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#f0f0f0'}` }}>
+      <div className="animate-shimmer" style={{ height: 210 }} />
+      <div className="p-4 space-y-2.5">
+        <div className="animate-shimmer rounded h-3" style={{ width: '60%' }} />
+        <div className="animate-shimmer rounded h-2.5" style={{ width: '85%' }} />
+        <div className="animate-shimmer rounded h-2.5" style={{ width: '50%' }} />
+        <div className="flex items-center justify-between mt-1">
+          <div className="animate-shimmer rounded-full h-5" style={{ width: 70 }} />
+          <div className="animate-shimmer rounded h-2.5" style={{ width: 40 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SkeletonScrollRow({ count = 5 }: { count?: number }) {
   return (
     <div className="flex gap-3.5 overflow-hidden">
