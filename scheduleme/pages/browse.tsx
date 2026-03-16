@@ -524,18 +524,19 @@ const BrowsePage: NextPage = () => {
             </>
           ) : (
             /* ── MAP VIEW — revamped ── */
-            <div className="flex gap-4" style={{ height: 'calc(100vh - 240px)', minHeight: 520 }}>
+            <div className="flex gap-4 animate-fade-up" style={{ height: 'calc(100vh - 240px)', minHeight: 520, animationDuration: '0.3s' }}>
               {/* Sidebar */}
               <div className="w-80 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none', background: 'transparent' }}>
                 <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] px-0.5 pt-1">
                   {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
                 </p>
-                {filtered.map(biz => (
+                {filtered.map((biz, i) => (
                   <button key={biz.id}
                     onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
-                    className={`w-full text-left rounded-2xl overflow-hidden transition-all biz-card group ${
+                    className={`w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${
                       selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''
-                    }`}>
+                    }`}
+                    style={{ animationDelay: `${i * 0.04}s` }}>
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
                       <img src={biz.coverUrl} alt={biz.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
