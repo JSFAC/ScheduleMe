@@ -634,7 +634,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pt-[72px]" style={{ background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="min-h-screen pt-[72px] pb-20 md:pb-0" style={{ background: dm ? '#0a0a0a' : '#EDF5FF' }}>
         {/* Header — flat solid blue */}
         <div className="border-b" style={{
           background: '#3b82f6',
