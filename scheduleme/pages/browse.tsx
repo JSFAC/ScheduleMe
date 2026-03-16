@@ -243,19 +243,31 @@ const BrowsePage: NextPage = () => {
       // Always start fetching all businesses immediately — don't wait for geo
       const allPromise = fetchAllBusinesses();
 
-      // Try geo in parallel — if it resolves first with results, use those instead
       if (navigator.geolocation) {
         let geoResolved = false;
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
             geoResolved = true;
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40 });
-            if (real.length > 0) { setBizList(real); setUsingRealData(true); setBizLoading(false); }
+            if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+            else {
+              // Geo worked but no nearby results — fall back to all
+              const all = await allPromise;
+              if (all.length > 0) { setBizList(all); setUsingRealData(true); }
+              else { setBizList(ALL_BUSINESSES); }
+            }
+            setBizLoading(false);
           },
-          () => { /* geo denied — allPromise already running */ },
+          async () => {
+            // Geo denied or failed
+            const real = await allPromise;
+            if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+            else { setBizList(ALL_BUSINESSES); }
+            setBizLoading(false);
+          },
           { timeout: 3000 }
         );
-        // allPromise resolves regardless of geo outcome
+        // If geo never fires (e.g. slow mobile), allPromise resolves and we use it
         const real = await allPromise;
         if (!geoResolved) {
           if (real.length > 0) { setBizList(real); setUsingRealData(true); }
