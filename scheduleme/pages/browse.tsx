@@ -9,7 +9,7 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { ALL_BUSINESSES, type Business } from '../lib/mockBusinesses';
-import { SkeletonCard } from '../components/SkeletonCard';
+import { SkeletonCard, SkeletonBrowseCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
 
 function getSupabase() {
@@ -240,25 +240,30 @@ const BrowsePage: NextPage = () => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
       setLoading(false);
-      // Try geo first, fall back to all businesses
+      // Always start fetching all businesses immediately — don't wait for geo
+      const allPromise = fetchAllBusinesses();
+
+      // Try geo in parallel — if it resolves first with results, use those instead
       if (navigator.geolocation) {
+        let geoResolved = false;
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
+            geoResolved = true;
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40 });
-            if (real.length > 0) { setBizList(real); setUsingRealData(true); }
-            else { setBizList(ALL_BUSINESSES); }
-            setBizLoading(false);
+            if (real.length > 0) { setBizList(real); setUsingRealData(true); setBizLoading(false); }
           },
-          async () => {
-            const real = await fetchAllBusinesses();
-            if (real.length > 0) { setBizList(real); setUsingRealData(true); }
-            else { setBizList(ALL_BUSINESSES); }
-            setBizLoading(false);
-          },
-          { timeout: 5000 }
+          () => { /* geo denied — allPromise already running */ },
+          { timeout: 3000 }
         );
+        // allPromise resolves regardless of geo outcome
+        const real = await allPromise;
+        if (!geoResolved) {
+          if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+          else { setBizList(ALL_BUSINESSES); }
+          setBizLoading(false);
+        }
       } else {
-        const real = await fetchAllBusinesses();
+        const real = await allPromise;
         if (real.length > 0) { setBizList(real); setUsingRealData(true); }
         else { setBizList(ALL_BUSINESSES); }
         setBizLoading(false);
@@ -415,7 +420,7 @@ const BrowsePage: NextPage = () => {
               </p>
               {bizLoading ? (
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
+                  {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="text-center py-24">
@@ -423,34 +428,31 @@ const BrowsePage: NextPage = () => {
                   <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4" style={{ alignItems: 'stretch' }}>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                   {paginated.map((biz, i) => (
                     <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} dm={dm} index={i} />
                   ))}
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-2.5 animate-fade-up" style={{ animationDuration: '0.3s' }}>
                   {paginated.map(biz => (
                     <button key={biz.id} onClick={() => setActiveBiz(biz)}
-                      className="biz-card group w-full text-left flex overflow-hidden" style={{ minHeight: 148, background: dm ? '#171717' : undefined }}>
-                      <div className="relative w-40 sm:w-48 flex-shrink-0 overflow-hidden bg-neutral-100" style={{ height: 148 }}>
+                      className="group w-full text-left flex gap-4 p-3 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
+                      style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.1)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
+                      {/* Image with rounded corners */}
+                      <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 120 }}>
                         <img src={biz.coverUrl} alt={biz.name}
-                          className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 60%, rgba(0,0,0,0.18) 100%)' }} />
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                          style={{ objectPosition: 'center 25%' }} />
                         {biz.available ? (
-                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-0.5 shadow-sm"
-                            style={{ background: 'rgba(255,255,255,0.96)' }}>
+                          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-1.5 py-0.5"
+                            style={{ background: dm ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.95)' }}>
                             <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
-                            <span className="text-[9px] font-black tracking-wide text-emerald-600">Open</span>
+                            <span className="text-[9px] font-black tracking-wide" style={{ color: dm ? 'white' : '#16a34a' }}>Open</span>
                           </div>
-                        ) : (
-                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm rounded-full px-2 py-0.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 shrink-0" />
-                            <span className="text-[9px] font-bold text-white/70 tracking-wide">Fully Booked</span>
-                          </div>
-                        )}
+                        ) : null}
                       </div>
-                      <div className="flex-1 min-w-0 px-4 py-4 flex flex-col justify-between" style={{ background: dm ? '#171717' : 'white' }}>
+                      <div className="flex-1 min-w-0 py-1 flex flex-col justify-between">
                         <div>
                           <div className="flex items-start justify-between gap-2 mb-0.5">
                             <h3 className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
