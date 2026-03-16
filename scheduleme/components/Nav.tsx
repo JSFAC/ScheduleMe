@@ -216,6 +216,43 @@ export default function Nav({ variant = 'light' }: NavProps) {
           )}
         </div>
       </nav>
+      {/* Mobile bottom tab bar — only for logged-in app users */}
+      {user && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex items-center justify-around px-2 pb-safe"
+          style={{
+            background: darkMode ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)',
+            borderColor: darkMode ? '#262626' : '#f0f0f0',
+            backdropFilter: 'blur(12px)',
+            height: 64,
+            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+          }}>
+          {appLinks.map((link) => {
+            const isActive = !link.href.includes('#') && (router.pathname === link.href || router.pathname === link.href.split('?')[0]);
+            const icons: Record<string, JSX.Element> = {
+              '/campus': <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />,
+              '/home': <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />,
+              '/browse': <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />,
+              '/bookings': <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />,
+              '/messages': <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />,
+            };
+            const iconPath = icons[link.href];
+            const label = link.label.replace('🎓 ', '');
+            return (
+              <Link key={link.href} href={link.href} scroll={false}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
+                style={{ color: isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.4)' : '#a3a3a3') }}>
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isActive ? 2.2 : 1.8}>
+                  {iconPath}
+                </svg>
+                <span className="text-[10px] font-semibold">{label}</span>
+                {isActive && (
+                  <div className="absolute bottom-1 h-0.5 w-5 rounded-full bg-accent" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </header>
   );
 }

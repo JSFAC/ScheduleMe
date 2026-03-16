@@ -196,8 +196,8 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
   const [imgLoaded, setImgLoaded] = useState(false);
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up"
-      style={{ width: 'clamp(220px, 18vw, 290px)', animationDelay: `${index * 0.06}s` }}>
-      <div className="relative overflow-hidden" style={{ height: 'clamp(175px, 14vw, 220px)', background: '#c8d8e8' }}>
+      style={{ width: 'clamp(160px, 42vw, 290px)', animationDelay: `${index * 0.06}s` }}>
+      <div className="relative overflow-hidden" style={{ height: 'clamp(140px, 30vw, 220px)', background: '#c8d8e8' }}>
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
           className="block w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.05]"
@@ -473,7 +473,7 @@ const HomePage: NextPage = () => {
     <>
       <Head><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pt-[72px]" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
+      <div className="min-h-screen pt-[72px] pb-20 md:pb-0" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
 
         {/* Search hero — flat solid blue, clean */}
         <div className="border-b" style={{

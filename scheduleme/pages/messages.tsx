@@ -154,7 +154,7 @@ const MessagesPage: NextPage = () => {
     <>
       <Head><title>Messages — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pt-[72px]" style={{ background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="min-h-screen pt-[72px] pb-20 md:pb-0" style={{ background: dm ? '#0a0a0a' : '#EDF5FF' }}>
 
         {/* Blue header */}
         <div className="border-b" style={{ background: '#3b82f6', borderColor: 'rgba(0,0,0,0.08)' }}>
