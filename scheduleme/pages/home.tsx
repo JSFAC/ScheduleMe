@@ -434,6 +434,7 @@ const HomePage: NextPage = () => {
   const [usingRealData, setUsingRealData] = useState(false);
   const [dataLoading, setDataLoading] = useState(true); // true until real data or fallback loads
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -447,6 +448,15 @@ const HomePage: NextPage = () => {
       const { data: profile } = await supabaseInst
         .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
       setEduVerified(profile?.edu_verified ?? false);
+      // Show install banner on mobile if not already installed and not dismissed
+      const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+      const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
+      const isMobile = isIOS || isAndroid;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+      const dismissed = localStorage.getItem('sm_install_dismissed');
+      if (isMobile && !isStandalone && !dismissed) {
+        setShowInstallBanner(true);
+      }
       // Load real businesses from DB
       const real = await fetchAllBusinesses();
       if (real.length > 0) {
@@ -548,6 +558,58 @@ const HomePage: NextPage = () => {
                 style={{ background: '#0A84FF', color: 'white' }}>
                 Verify Now →
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Install app banner — mobile only, not shown if already installed */}
+        {showInstallBanner && (
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: eduVerified === false ? 12 : 24 }}>
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.08)', boxShadow: dm ? 'none' : '0 2px 12px rgba(0,0,0,0.06)' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 pt-4 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0A84FF' }}>
+                    <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-black" style={{ color: dm ? '#f3f4f6' : '#171717', letterSpacing: '-0.01em' }}>Add to Home Screen</p>
+                    <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Get the full app experience</p>
+                  </div>
+                </div>
+                <button onClick={() => { setShowInstallBanner(false); localStorage.setItem('sm_install_dismissed', '1'); }}
+                  className="h-7 w-7 rounded-full flex items-center justify-center transition-colors"
+                  style={{ background: dm ? '#262626' : '#f5f5f5', color: dm ? '#9ca3af' : '#a3a3a3' }}>
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Steps */}
+              <div className="px-4 pb-4 space-y-2.5">
+                {[
+                  { step: '1', icon: 'share', text: 'Tap the Share button at the bottom of your browser' },
+                  { step: '2', icon: 'plus', text: 'Scroll down and tap "Add to Home Screen"' },
+                  { step: '3', icon: 'check', text: 'Tap "Add" — ScheduleMe appears on your home screen' },
+                ].map(({ step, icon, text }) => (
+                  <div key={step} className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(10,132,255,0.12)' }}>
+                      <span className="text-[11px] font-black text-accent">{step}</span>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: dm ? '#d1d5db' : '#525252' }}>{text}</p>
+                  </div>
+                ))}
+                {/* Visual hint arrow pointing down toward browser UI */}
+                <div className="flex items-center gap-2 pt-1">
+                  <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                  </svg>
+                  <p className="text-[11px] font-semibold text-accent">Look for the share icon in your browser toolbar</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
