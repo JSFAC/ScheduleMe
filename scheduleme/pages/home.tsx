@@ -9,7 +9,7 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
-import { SkeletonScrollRow } from '../components/SkeletonCard';
+import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
 
 function getSupabase() {
@@ -266,9 +266,9 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
   );
 }
 
-function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm }: {
+function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLoading }: {
   title: string; subtitle: string; href: string;
-  businesses: Business[]; onBizClick: (b: Business) => void; dm?: boolean;
+  businesses: Business[]; onBizClick: (b: Business) => void; dm?: boolean; isLoading?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
@@ -348,9 +348,12 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm }: {
             cursor: 'grab',
           } as React.CSSProperties}
         >
-          {businesses.map((biz, i) => (
-            <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} index={i} />
-          ))}
+          {isLoading
+            ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+            : businesses.map((biz, i) => (
+                <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} index={i} />
+              ))
+          }
           {/* See more — same total height as BizCard (image + body) */}
           <Link href={href} scroll={false}
             className="flex-shrink-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent/20 hover:border-accent/40 bg-white hover:bg-accent-wash transition-all group"
@@ -429,7 +432,7 @@ const HomePage: NextPage = () => {
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
   const [usingRealData, setUsingRealData] = useState(false);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true); // true until real data or fallback loads
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
 
   useEffect(() => {
@@ -449,6 +452,9 @@ const HomePage: NextPage = () => {
       if (real.length > 0) {
         setRealBizList(real);
         setUsingRealData(true);
+      } else {
+        // No real data — fall back to mock so page isn't empty
+        setRealBizList([...SPONSORED, ...NEARBY, ...INDEPENDENT]);
       }
       setDataLoading(false);
     });
@@ -560,13 +566,14 @@ const HomePage: NextPage = () => {
             return (
               <>
                 <ScrollSection
-                  key={`top-${activeCategory}`}
+                  key={`top-${activeCategory}-${dataLoading}`}
                   title="Top-rated near you"
                   subtitle="Available now — highly reviewed"
                   href="/browse"
                   businesses={t1.slice(0, 6)}
                   onBizClick={setActiveBiz}
                   dm={dm}
+                  isLoading={dataLoading}
                 />
                 <ScrollSection
                   key={`indie-${activeCategory}`}
@@ -576,6 +583,7 @@ const HomePage: NextPage = () => {
                   businesses={t2.slice(0, 6)}
                   onBizClick={setActiveBiz}
                   dm={dm}
+                  isLoading={dataLoading}
                 />
                 <ScrollSection
                   key={`quick-${activeCategory}`}
@@ -585,6 +593,7 @@ const HomePage: NextPage = () => {
                   businesses={t3.slice(0, 6)}
                   onBizClick={setActiveBiz}
                   dm={dm}
+                  isLoading={dataLoading}
                 />
               </>
             );

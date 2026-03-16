@@ -220,7 +220,8 @@ const BrowsePage: NextPage = () => {
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
-  const [bizList, setBizList] = useState<Business[]>(ALL_BUSINESSES);
+  const [bizList, setBizList] = useState<Business[]>([]);
+  const [bizLoading, setBizLoading] = useState(true);
   const [usingRealData, setUsingRealData] = useState(false);
 
   // Close sort dropdown on outside click
@@ -255,6 +256,8 @@ const BrowsePage: NextPage = () => {
       } else {
         const real = await fetchAllBusinesses();
         if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+        else { setBizList(ALL_BUSINESSES); }
+        setBizLoading(false);
       }
     });
   }, [router]);
