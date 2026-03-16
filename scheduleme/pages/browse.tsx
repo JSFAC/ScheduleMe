@@ -246,12 +246,16 @@ const BrowsePage: NextPage = () => {
           async (pos) => {
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40 });
             if (real.length > 0) { setBizList(real); setUsingRealData(true); }
+            else { setBizList(ALL_BUSINESSES); }
+            setBizLoading(false);
           },
           async () => {
-            // Geo denied — load all businesses
             const real = await fetchAllBusinesses();
             if (real.length > 0) { setBizList(real); setUsingRealData(true); }
-          }
+            else { setBizList(ALL_BUSINESSES); }
+            setBizLoading(false);
+          },
+          { timeout: 5000 }
         );
       } else {
         const real = await fetchAllBusinesses();
