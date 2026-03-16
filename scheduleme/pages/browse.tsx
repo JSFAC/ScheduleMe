@@ -406,10 +406,14 @@ const BrowsePage: NextPage = () => {
           {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
-                {filtered.length} {filtered.length === 1 ? 'business' : 'businesses'}
-                {totalPages > 1 && <span className="ml-2 text-neutral-300">· Page {page} of {totalPages}</span>}
+                {bizLoading ? 'Loading…' : `${filtered.length} ${filtered.length === 1 ? 'business' : 'businesses'}`}
+                {!bizLoading && totalPages > 1 && <span className="ml-2 text-neutral-300">· Page {page} of {totalPages}</span>}
               </p>
-              {filtered.length === 0 ? (
+              {bizLoading ? (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
+                </div>
+              ) : filtered.length === 0 ? (
                 <div className="text-center py-24">
                   <p className="text-neutral-500 font-semibold">No results found</p>
                   <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
