@@ -536,16 +536,16 @@ const BrowsePage: NextPage = () => {
             </>
           ) : (
             /* ── MAP VIEW — revamped ── */
-            <div className="flex gap-4 animate-fade-up" style={{ height: 'calc(100vh - 240px)', minHeight: 520, animationDuration: '0.3s' }}>
+            <div className="flex flex-col md:flex-row gap-4 animate-fade-up" style={{ animationDuration: '0.3s' }}>
               {/* Sidebar */}
-              <div className="w-80 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none', background: 'transparent' }}>
+              <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto md:w-80 md:flex-shrink-0 pb-1 md:pb-0 md:pr-1" style={{ scrollbarWidth: 'none', background: 'transparent' }}>
                 <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] px-0.5 pt-1">
                   {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
                 </p>
                 {filtered.map((biz, i) => (
                   <button key={biz.id}
                     onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
-                    className={`w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${
+                    className={`flex-shrink-0 md:w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${
                       selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''
                     }`}
                     style={{ animationDelay: `${i * 0.04}s` }}>
@@ -582,7 +582,7 @@ const BrowsePage: NextPage = () => {
               </div>
 
               {/* Map */}
-              <div className="flex-1 relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
+              <div className="relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm md:flex-1" style={{ height: 320 }}>
                 <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
                 {selectedMapBizData && (
                   <div className="absolute bottom-4 right-4 w-72 bg-white rounded-2xl shadow-2xl overflow-hidden"

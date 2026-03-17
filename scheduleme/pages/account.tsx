@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import FeedbackModal from '../components/FeedbackModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 
@@ -80,6 +81,7 @@ const Account: NextPage = () => {
   const [authProvider, setAuthProvider] = useState<string>('email');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
 
