@@ -26,9 +26,10 @@ function slugify(name: string): string {
 }
 
 const VALID_CATEGORIES = [
-  'Plumbing', 'Electrical', 'HVAC', 'Cleaning', 'Handyman', 'Painting',
-  'Landscaping', 'Roofing', 'Carpentry', 'Moving', 'Photography',
-  'Tutoring', 'Hair & Beauty', 'Auto Repair', 'Other',
+  'Plumbing', 'Electrical', 'HVAC', 'Cleaning', 'Handyman', 'Home Repair / Handyman',
+  'Painting', 'Landscaping', 'Roofing', 'Carpentry', 'Moving', 'Photography',
+  'Tutoring', 'Hair & Beauty', 'Salon / Beauty', 'Auto Repair', 'Automotive',
+  'Arts & Crafts', 'Pest Control', 'Other',
 ];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -110,6 +111,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (error.code === '23505') return res.status(409).json({ error: 'A business with this email already exists' });
       return res.status(500).json({ error: 'Failed to submit application' });
     }
+
+    // Notify you immediately when a business applies
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+    fetch(`${siteUrl}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+      body: JSON.stringify({
+        type: 'new_business_application',
+        to: 'hello@usescheduleme.com',
+        name: cleanName,
+        ownerName: cleanOwner,
+        email,
+        phone: phone || 'not provided',
+        category: category,
+        city: cleanCity,
+        campusProvider: campusProvider === true,
+        schoolName: campusProvider ? schoolName : null,
+      }),
+    }).catch(() => {});
 
     return res.status(200).json({ success: true, businessId: data.id });
   } catch {

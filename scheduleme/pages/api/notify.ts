@@ -1,7 +1,7 @@
 // pages/api/notify.ts — SECURED (internal only, protected by NOTIFY_SECRET)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail, sendNewBookingBusinessEmail, sendReviewRequestEmail } from '../../lib/email';
+import { sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail, sendNewBookingBusinessEmail, sendReviewRequestEmail, sendNewBusinessApplicationEmail } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
 
 function getSupabase() {
@@ -59,6 +59,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           customerPhone: rest.customerPhone || '',
           service: rest.service || 'Service Request',
           bookingId: rest.bookingId || '',
+        });
+        break;
+      case 'new_business_application':
+        result = await sendNewBusinessApplicationEmail({
+          to,
+          name: rest.name || 'Unknown',
+          ownerName: rest.ownerName || '',
+          email: rest.email || '',
+          phone: rest.phone || '',
+          category: rest.category || '',
+          city: rest.city || '',
+          campusProvider: rest.campusProvider === true,
+          schoolName: rest.schoolName,
         });
         break;
       case 'review_request':

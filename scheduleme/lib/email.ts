@@ -341,6 +341,44 @@ export function reviewRequestHtml(opts: {
   return layout('How did your service go? Leave a review', body, `Your ${opts.service} is complete — leave a quick review.`);
 }
 
+
+// ─── Template: new business application alert (to you) ───────────────────────
+export function newBusinessApplicationHtml(opts: {
+  name: string; ownerName: string; email: string; phone: string;
+  category: string; city: string; campusProvider: boolean; schoolName?: string;
+}) {
+  const adminUrl = `${SITE_URL}/admin`;
+  const body = `
+    <tr><td bgcolor="#0f172a" style="background:#0f172a;padding:28px 32px;">
+      <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase;">New Application</p>
+      <h1 style="margin:6px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">${opts.name}</h1>
+    </td></tr>
+    <tr><td style="padding:28px 32px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:24px;overflow:hidden;">
+        ${[
+          ['Owner', opts.ownerName],
+          ['Email', opts.email],
+          ['Phone', opts.phone],
+          ['Category', opts.category],
+          ['City', opts.city],
+          ...(opts.campusProvider ? [['Campus', opts.schoolName || 'Yes']] : []),
+        ].map(([label, value], i, arr) => `
+        <tr><td style="padding:12px 20px;${i < arr.length - 1 ? 'border-bottom:1px solid #e2e8f0;' : ''}">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:3px;">${label}</span>
+          <span style="font-size:14px;font-weight:600;color:#0f172a;">${value}</span>
+        </td></tr>`).join('')}
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td align="center">
+          <a href="${adminUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:8px;">
+            Review in Admin Panel →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>`;
+  return layout(`New application: ${opts.name}`, body, `${opts.ownerName} just applied to join ScheduleMe`);
+}
+
 // ─── Send helpers ─────────────────────────────────────────────────────────────
 
 const FROM = 'ScheduleMe <notifications@usescheduleme.com>';
@@ -441,6 +479,19 @@ export async function sendBusinessApprovalEmail(opts: {
     to: opts.to,
     subject: `${opts.businessName} is approved on ScheduleMe`,
     html: layout(`${opts.businessName} is approved`, body, `You're approved! Set up your account and start receiving leads.`),
+  });
+}
+
+export async function sendNewBusinessApplicationEmail(opts: {
+  to: string; name: string; ownerName: string; email: string;
+  phone: string; category: string; city: string; campusProvider: boolean; schoolName?: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `New business application: ${opts.name}`,
+    html: newBusinessApplicationHtml(opts),
   });
 }
 
