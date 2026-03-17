@@ -536,6 +536,8 @@ const BookingsPage: NextPage = () => {
   const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [nearbyBizList, setNearbyBizList] = useState<any[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(true);
   const [reviewTarget, setReviewTarget] = useState<{ bookingId: string; businessId: string; businessName: string; serviceName: string } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
@@ -592,6 +594,14 @@ const BookingsPage: NextPage = () => {
           setBookings([]);
         } finally {
           setLoadingBookings(false);
+          // Also fetch nearby businesses for the "Available near you" section
+          try {
+            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+            const real = await fetchAllBusinesses();
+            if (real.length > 0) setNearbyBizList(real.slice(0, 6));
+            else setNearbyBizList(SPONSORED.slice(0, 6));
+          } catch { setNearbyBizList(SPONSORED.slice(0, 6)); }
+          setNearbyLoading(false);
           // Check for unreviewed completed bookings — show review prompt
           const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
@@ -608,6 +618,14 @@ const BookingsPage: NextPage = () => {
       } else {
         setPhase('done');
         setLoadingBookings(false);
+          // Also fetch nearby businesses for the "Available near you" section
+          try {
+            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+            const real = await fetchAllBusinesses();
+            if (real.length > 0) setNearbyBizList(real.slice(0, 6));
+            else setNearbyBizList(SPONSORED.slice(0, 6));
+          } catch { setNearbyBizList(SPONSORED.slice(0, 6)); }
+          setNearbyLoading(false);
       }
     });
   }, []);
@@ -790,7 +808,11 @@ const BookingsPage: NextPage = () => {
               </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto px-5 pb-5 pt-3" style={{ scrollbarWidth: 'none' }}>
-              {SPONSORED.slice(0, 6).map(biz => (
+              {nearbyLoading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="animate-shimmer rounded-xl flex-shrink-0" style={{ width: 200, height: 180 }} />
+                  ))
+                : nearbyBizList.map(biz => (
                 <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
                   style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(10,132,255,0.12)', background: dm ? '#171717' : 'white' }}>

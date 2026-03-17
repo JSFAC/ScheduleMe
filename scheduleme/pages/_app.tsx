@@ -1,5 +1,6 @@
 // pages/_app.tsx
 import type { AppProps } from 'next/app';
+import { Analytics } from '@vercel/analytics/react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
@@ -103,6 +104,7 @@ export default function App({ Component, pageProps }: AppProps) {
           <Component {...pageProps} />
         </DarkModeProvider>
       </div>
+      <Analytics />
     </>
   );
 }

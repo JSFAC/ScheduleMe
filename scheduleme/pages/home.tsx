@@ -10,6 +10,7 @@ import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
 import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
+import FeedbackModal from '../components/FeedbackModal';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
 
 function getSupabase() {
@@ -435,6 +436,7 @@ const HomePage: NextPage = () => {
   const [dataLoading, setDataLoading] = useState(true); // true until real data or fallback loads
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
 
   useEffect(() => {
@@ -502,7 +504,7 @@ const HomePage: NextPage = () => {
               <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2.5 w-[260px] shrink-0">
                 {([
                   { label: 'My Bookings', sub: 'Track your jobs', href: '/bookings', d: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
-                  { label: 'Browse Pros', sub: 'See all services', href: '/browse', d: 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' },
+                  { label: 'Browse Services', sub: 'See all services', href: '/browse', d: 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' },
                   { label: 'How It Works', sub: 'Pricing & info', href: '/pricing', d: 'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z' },
                   { label: 'Refer a Pro', sub: 'Know someone good?', href: '#refer', d: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
                 ] as const).map((tile) => (
@@ -667,6 +669,16 @@ const HomePage: NextPage = () => {
 
       </div>
       {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
+      {/* Floating feedback button */}
+      <button onClick={() => setShowFeedback(true)}
+        className="fixed bottom-24 md:bottom-6 right-4 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+        style={{ background: '#0A84FF', color: 'white' }}>
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+        </svg>
+        <span className="text-sm font-bold">Feedback</span>
+      </button>
     </>
   );
 };
