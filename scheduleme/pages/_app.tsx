@@ -50,8 +50,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
     const onStart = (url: string) => {
       scrollRef.current = window.scrollY;
-      setVisible(false);
+      // Only fade for business/consumer transitions, not regular page changes
       if (isBiz(router.asPath) !== isBiz(url)) {
+        setVisible(false);
         setToBusiness(isBiz(url));
         setShowOverlay(true);
         setOverlayFade(false);
@@ -61,12 +62,16 @@ export default function App({ Component, pageProps }: AppProps) {
 
     const onDone = () => {
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-      // Fade overlay out — page content fades in simultaneously
-      setTimeout(() => {
-        requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
-        setOverlayFade(false);
-        setTimeout(() => setShowOverlay(false), 400);
-      }, 300);
+      if (showOverlay) {
+        // Business/consumer transition — keep overlay until page loads then fade out
+        setTimeout(() => {
+          setOverlayFade(false);
+          setTimeout(() => { setShowOverlay(false); setVisible(true); }, 400);
+        }, 300);
+      } else {
+        // Normal page change — just make sure content is visible
+        setVisible(true);
+      }
     };
 
     const onError = () => { setVisible(true); setShowOverlay(false); };
@@ -138,8 +143,7 @@ export default function App({ Component, pageProps }: AppProps) {
         </div>
       )}
 
-      {/* Premium fade — pure opacity, no translate. 280ms feels considered, not instant */}
-      <div style={{ opacity: visible ? 1 : 0, transition: visible ? 'opacity 0.28s ease' : 'opacity 0.18s ease' }}>
+      <div style={{ opacity: visible ? 1 : 0, transition: showOverlay ? (visible ? 'opacity 0.28s ease' : 'opacity 0.18s ease') : 'none' }}>
         <DarkModeProvider>
           <Component {...pageProps} />
         </DarkModeProvider>
