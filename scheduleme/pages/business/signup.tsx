@@ -15,7 +15,8 @@ interface FormData {
 
 const SERVICE_CATEGORIES = [
   'Plumbing','HVAC','Electrical','Automotive','Home Repair / Handyman',
-  'Cleaning','Salon / Beauty','Landscaping','Pest Control','Moving','Painting','Other'
+  'Cleaning','Salon / Beauty','Landscaping','Pest Control','Moving','Painting',
+  'Photography','Tutoring','Arts & Crafts','Hair & Beauty','Other'
 ];
 const RADIUS_OPTIONS = ['5 miles','10 miles','15 miles','25 miles','50 miles','100 miles'];
 
@@ -131,7 +132,7 @@ const SignupPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <BusinessNav />
-      <div className="min-h-screen bg-neutral-950 pt-28 pb-20 px-6">
+      <div className="min-h-screen bg-neutral-950 pt-20 pb-20 px-4 md:px-6">
         <div className="mx-auto max-w-2xl">
           <div className="text-center mb-8">
             <span className="section-eyebrow mb-3 block">Business Application</span>
