@@ -34,8 +34,10 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
     setProgress(0);
 
     const supabase = getSupabase();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setError('Not authenticated'); setUploading(null); return; }
+    // Refresh session to ensure token is not expired
+    const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+    const activeSession = session || (await supabase.auth.getSession()).data.session;
+    if (!activeSession) { setError('Session expired — please refresh the page and try again.'); setUploading(null); return; }
 
     // Convert file to base64
     const fileData = await new Promise<string>((resolve, reject) => {
@@ -51,7 +53,7 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
       const res = await fetch('/api/upload-media', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${activeSession.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -81,12 +83,13 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
 
   async function deleteMedia(url: string, type: 'image' | 'video') {
     const supabase = getSupabase();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    const { data: { session } } = await supabase.auth.refreshSession();
+    const activeSession = session || (await supabase.auth.getSession()).data.session;
+    if (!activeSession) return;
 
     const res = await fetch('/api/delete-media', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeSession.access_token}` },
       body: JSON.stringify({ business_id: businessId, url, media_type: type }),
     });
     if (!res.ok) return;
