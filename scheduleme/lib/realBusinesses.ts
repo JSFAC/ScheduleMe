@@ -20,6 +20,8 @@ const CATEGORY_COVERS: Record<string, string> = {
   hair_beauty: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=900&q=80',
   moving: 'https://images.unsplash.com/photo-1600518464441-9154a4dea21b?w=900&q=80',
   auto_repair: 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=900&q=80',
+  arts_crafts: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=900&q=80',
+  'arts_&_crafts': 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=900&q=80',
   carpentry: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=900&q=80',
   roofing: 'https://images.unsplash.com/photo-1632759145351-1d592919f522?w=900&q=80',
 };
@@ -74,7 +76,10 @@ export function mapDbBusiness(b: any, distanceMiles?: number): Business {
       price: 'Contact for pricing',
     })),
     coverUrl: getCover(b.service_tags || [], b.cover_url),
-    allImages: [getCover(b.service_tags || [], b.cover_url)],
+    allImages: b.media_urls?.length
+      ? b.media_urls
+      : [getCover(b.service_tags || [], b.cover_url)],
+    video_url: b.video_url || null,
     lat: b.lat ?? 0,
     lng: b.lng ?? 0,
     sponsored: false,
@@ -128,7 +133,7 @@ export async function fetchAllBusinesses(): Promise<Business[]> {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('businesses')
-      .select('id, name, description, address, lat, lng, service_tags, rating, phone, owner_email, cover_url, calendly_url, website, slug, is_onboarded, price_tier')
+      .select('id, name, description, address, lat, lng, service_tags, rating, phone, owner_email, cover_url, media_urls, video_url, calendly_url, website, slug, is_onboarded, price_tier, review_count')
       .eq('is_onboarded', true)
       .order('rating', { ascending: false })
       .limit(40);
