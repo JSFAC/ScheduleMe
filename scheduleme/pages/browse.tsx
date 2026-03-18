@@ -610,8 +610,6 @@ const BrowsePage: NextPage = () => {
                 ))}
               </div>
 
-              </div>
-
               {/* Desktop: two-column */}
               <div className="hidden md:flex gap-4" style={{ height: 480 }}>
                 <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
