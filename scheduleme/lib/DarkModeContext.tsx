@@ -20,10 +20,11 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('sm_dark_mode');
+    // Default is light mode — only go dark if user explicitly chose it
     const isDark = saved === 'true';
     setDm(isDark);
+    document.documentElement.classList.remove('dark');
     if (isDark) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
     setThemeColor(isDark);
   }, []);
 

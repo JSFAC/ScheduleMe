@@ -15,6 +15,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayFade, setOverlayFade] = useState(false);
   const [toBusiness, setToBusiness] = useState(false);
+  const isTransitioning = useRef(false);
   // We track scroll position and restore it ourselves so Next's
   // built-in scroll-restoration doesn't cause the jarring jump.
   const scrollRef = useRef(0);
@@ -50,8 +51,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
     const onStart = (url: string) => {
       scrollRef.current = window.scrollY;
-      // Only fade for business/consumer transitions, not regular page changes
       if (isBiz(router.asPath) !== isBiz(url)) {
+        // Business/consumer transition — show overlay for full duration
+        isTransitioning.current = true;
         setVisible(false);
         setToBusiness(isBiz(url));
         setShowOverlay(true);
@@ -62,14 +64,15 @@ export default function App({ Component, pageProps }: AppProps) {
 
     const onDone = () => {
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-      if (showOverlay) {
-        // Business/consumer transition — keep overlay until page loads then fade out
+      if (isTransitioning.current) {
+        isTransitioning.current = false;
+        // Keep overlay showing briefly so no gap, then fade out with page
         setTimeout(() => {
+          setVisible(true);
           setOverlayFade(false);
-          setTimeout(() => { setShowOverlay(false); setVisible(true); }, 400);
-        }, 300);
+          setTimeout(() => setShowOverlay(false), 380);
+        }, 200);
       } else {
-        // Normal page change — just make sure content is visible
         setVisible(true);
       }
     };

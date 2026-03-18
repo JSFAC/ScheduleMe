@@ -139,7 +139,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           WebkitBackdropFilter: 'blur(12px)',
           transition: 'background 0.15s ease',
         }}>
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 64 }} aria-label="Main navigation">
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 64, alignItems: 'center' }} aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}
         <div className="flex-1 flex items-center min-w-0">
@@ -256,14 +256,13 @@ export default function Nav({ variant = 'light' }: NavProps) {
       </nav>
       {/* Mobile bottom tab bar — only for logged-in app users */}
       {user && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex items-center justify-around px-2 pb-safe"
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex flex-col"
           style={{
             background: darkMode ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)',
             borderColor: darkMode ? '#262626' : '#f0f0f0',
             backdropFilter: 'blur(12px)',
-            height: 64,
-            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
           }}>
+          <div className="flex items-center justify-around px-2" style={{ height: 56 }}>
           {[...appLinks, { label: 'Account', href: '/account' }].map((link) => {
             const isActive = !link.href.includes('#') && (router.pathname === link.href || router.pathname === link.href.split('?')[0]);
             const icons: Record<string, JSX.Element> = {
@@ -290,6 +289,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
               </Link>
             );
           })}
+          </div>
+          <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
         </div>
       )}
     </header>

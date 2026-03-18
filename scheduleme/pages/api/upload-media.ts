@@ -15,10 +15,7 @@ function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     key,
-    { 
-      auth: { persistSession: false },
-      global: { headers: { 'x-supabase-service-role': process.env.SUPABASE_SERVICE_ROLE_KEY ? '1' : '0' } }
-    }
+    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
   );
 }
 
@@ -50,19 +47,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getSupabase();
 
-  // Fetch business — try with service role first, then with anon
-  let biz: any = null;
-  { const { data } = await supabase.from('businesses').select('id, media_urls, video_url').eq('id', business_id).maybeSingle(); biz = data; }
+  // Fetch existing media_urls — use anon client with user's token for RLS
+  const token = req.headers.authorization?.replace('Bearer ', '') || '';
+  const userClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
+  );
   
-  // If not found, it may be an RLS issue — try via user auth
-  if (!biz) {
-    const anonClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-    const { data } = await anonClient.from('businesses').select('id, media_urls, video_url').eq('id', business_id).maybeSingle();
-    biz = data;
-  }
+  const { data: biz } = await userClient
+    .from('businesses')
+    .select('id, media_urls, video_url')
+    .eq('id', business_id)
+    .maybeSingle();
 
   if (!biz) return res.status(404).json({ 
-    error: `Business ${business_id} not found. In Supabase SQL editor run: ALTER TABLE businesses DISABLE ROW LEVEL SECURITY; then re-enable with a policy that allows service role access.`
+    error: `Business not found or you don't have access. Make sure you're logged in as the business owner.`
   });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
@@ -80,11 +80,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .getPublicUrl(fileName);
 
   if (isVideo) {
-    await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id);
+    await userClient.from('businesses').update({ video_url: publicUrl }).eq('id', business_id);
   } else {
     const existing: string[] = biz.media_urls || [];
     const updated = [...existing.filter((u: string) => u !== publicUrl), publicUrl].slice(0, 6);
-    await supabase.from('businesses').update({ media_urls: updated, cover_url: updated[0] }).eq('id', business_id);
+    await userClient.from('businesses').update({ media_urls: updated, cover_url: updated[0] }).eq('id', business_id);
   }
 
   return res.status(200).json({ url: publicUrl });
