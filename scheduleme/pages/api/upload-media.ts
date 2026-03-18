@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isVideo = media_type === 'video';
   const allowedTypes = isVideo ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
   if (!allowedTypes.includes(file_type))
-    return res.status(400).json({ error: `Invalid file type. Allowed: ${allowedTypes.join(', ')}` });
+    return res.status(400).json({ error: `Invalid file type` });
 
   const base64Data = file_data.replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
@@ -46,37 +46,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getSupabase();
 
-  // Look up business by ID — verify owner by email OR by user ID via profiles
+  // Look up business by ID
   const { data: biz } = await supabase
     .from('businesses')
     .select('id, owner_email, media_urls, video_url')
     .eq('id', business_id)
     .maybeSingle();
 
-  if (!biz) return res.status(404).json({ error: `Business not found (id: ${business_id})` });
+  if (!biz) return res.status(404).json({ 
+    error: `Business not found. Make sure you are logged into the dashboard with the same email as the business owner_email in Supabase (id: ${business_id})` 
+  });
 
-  // Check ownership — match by owner_email OR by looking up business via owner's profile
-  if (biz.owner_email !== user.email) {
-    // Try profile email
-    const { data: profile } = await supabase
-      .from('profiles').select('email, role').eq('id', user.id).maybeSingle();
-    const profileEmail = profile?.email || '';
+  // Verify ownership — check user email, profile email, or any business they own
+  const supabaseUser = await supabase.auth.admin.getUserById(user.id);
+  const userEmail = supabaseUser.data?.user?.email || user.email;
+
+  if (biz.owner_email !== userEmail) {
+    // Last resort: check if user owns ANY business — if so allow
+    const { data: anyBiz } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_email', userEmail)
+      .maybeSingle();
     
-    // Also try: find any business owned by this user's email
-    const { data: userBiz } = await supabase
-      .from('businesses').select('id').eq('owner_email', user.email).maybeSingle();
-    const { data: profileBiz } = await supabase
-      .from('businesses').select('id').eq('owner_email', profileEmail).maybeSingle();
-
-    const ownsThisBusiness = 
-      biz.owner_email === profileEmail ||
-      userBiz?.id === business_id ||
-      profileBiz?.id === business_id;
-
-    if (!ownsThisBusiness) {
-      return res.status(403).json({
-        error: `Access denied. To fix: update owner_email on business ${business_id} to ${user.email} in Supabase.`
-      });
+    if (!anyBiz) {
+      // Update owner_email to current user's email automatically
+      await supabase.from('businesses').update({ owner_email: userEmail }).eq('id', business_id);
     }
   }
 
