@@ -114,7 +114,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const navLinks = user ? appLinks : marketingLinks;
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-40 border-b ${isDark ? 'bg-neutral-900/95 backdrop-blur-md border-neutral-800' : 'bg-white/95 backdrop-blur-md border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}>
+    <header className={`fixed top-0 left-0 right-0 z-40 border-b ${isDark ? 'backdrop-blur-md border-neutral-800' : 'bg-white/95 backdrop-blur-md border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
+      style={isDark ? { background: 'rgba(10,10,10,0.97)' } : undefined}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between h-[72px]" aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}

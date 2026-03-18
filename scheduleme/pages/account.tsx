@@ -323,7 +323,8 @@ const Account: NextPage = () => {
                   Menu
                 </button>
                 {showNavMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-xl overflow-hidden z-50"
+                  <div className="absolute left-0 top-full mt-2 w-52 rounded-2xl shadow-xl overflow-hidden"
+                    style={{ zIndex: 9999 }}
                     style={{ background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}` }}>
                     <Link href="/browse" scroll={false} onClick={() => setShowNavMenu(false)}
                       className="flex items-center gap-2.5 px-4 py-3 text-sm font-medium transition-colors hover:bg-accent/5"
