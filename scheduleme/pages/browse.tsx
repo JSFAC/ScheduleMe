@@ -26,47 +26,96 @@ const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 function MapPlaceholder({ businesses, selected, onSelect, dm }: {
   businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean;
 }) {
-  return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: dm ? '#0d0d0d' : '#e8ecf0' }}>
-      <div className="absolute inset-0" style={{
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-        backgroundSize: '48px 48px',
-      }} />
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid slice">
-        <rect x="0" y="0" width="500" height="600" fill={dm ? '#0d0d0d' : '#e8ecf0'} />
-        <rect x="0" y="145" width="500" height="10" fill={dm ? '#262626' : '#fff'} opacity="0.7" />
-        <rect x="0" y="275" width="500" height="8" fill={dm ? '#262626' : '#fff'} opacity="0.6" />
-        <rect x="95" y="0" width="10" height="600" fill={dm ? '#262626' : '#fff'} opacity="0.7" />
-        <rect x="245" y="0" width="8" height="600" fill={dm ? '#262626' : '#fff'} opacity="0.6" />
-        <rect x="380" y="0" width="6" height="600" fill={dm ? '#262626' : '#fff'} opacity="0.5" />
-        <rect x="108" y="158" width="128" height="108" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
-        <rect x="258" y="158" width="112" height="75" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
-        <rect x="10" y="158" width="76" height="75" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
-        <rect x="108" y="290" width="128" height="90" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
-        <rect x="258" y="290" width="112" height="90" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
-        <rect x="396" y="158" width="90" height="90" fill={dm ? '#111111' : '#dde3e9'} rx="4" />
-      </svg>
-      {businesses.map((biz, i) => {
-        const x = 40 + (i * 51) % 400;
-        const y = 60 + (i * 67) % 460;
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMapRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !mapRef.current) return;
+    // Dynamically import leaflet to avoid SSR issues
+    import('leaflet').then(L => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+      // Default center: use first business with coords, else San Francisco
+      const validBiz = businesses.find(b => b.lat && b.lng && b.lat !== 0);
+      const center: [number, number] = validBiz ? [validBiz.lat!, validBiz.lng!] : [37.7749, -122.4194];
+      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
+      leafletMapRef.current = map;
+
+      // OpenStreetMap tiles — free, no API key
+      L.tileLayer(dm
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }
+      ).addTo(map);
+
+      map.setView(center, 13);
+
+      // Add markers
+      markersRef.current = businesses.filter(b => b.lat && b.lng && b.lat !== 0).map(biz => {
         const isSel = selected === biz.id;
-        return (
-          <button key={biz.id} onClick={() => onSelect(biz.id)}
-            style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -100%)', zIndex: isSel ? 10 : 1 }}>
-            <div className="flex flex-col items-center">
-              <div className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-md whitespace-nowrap transition-all ${isSel ? 'text-white scale-110 shadow-xl' : ''}`}
-                style={isSel ? { background: '#0A84FF' } : { background: dm ? '#171717' : 'white', color: dm ? '#f3f4f6' : '#171717' }}>
-                {biz.name.split(' ').slice(0, 2).join(' ')}
-              </div>
-              <div className="w-1.5 h-1.5 rotate-45 -mt-0.5 shadow-sm" style={{ background: isSel ? '#0A84FF' : (dm ? '#171717' : 'white') }} />
-            </div>
-          </button>
-        );
-      })}
-      <div className="absolute bottom-3 right-3 text-[10px] backdrop-blur-sm px-2 py-1 rounded-md font-medium" style={{ color: dm ? 'rgba(255,255,255,0.5)' : '#a3a3a3', background: dm ? 'rgba(26,29,39,0.8)' : 'rgba(255,255,255,0.8)' }}>Live map coming soon</div>
-    </div>
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="
+            background: ${isSel ? '#0A84FF' : (dm ? '#171717' : 'white')};
+            color: ${isSel ? 'white' : (dm ? '#f3f4f6' : '#171717')};
+            border: 2px solid ${isSel ? '#0066CC' : (dm ? '#404040' : '#e5e7eb')};
+            padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700;
+            white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transform: ${isSel ? 'scale(1.15)' : 'scale(1)'};
+            transition: all 0.2s ease;
+          ">${biz.name.split(' ').slice(0, 2).join(' ')}</div>`,
+          iconAnchor: [40, 32],
+        });
+        const marker = L.marker([biz.lat!, biz.lng!], { icon })
+          .addTo(map)
+          .on('click', () => onSelect(biz.id));
+        return { id: biz.id, marker };
+      });
+    });
+
+    return () => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+    };
+  }, [businesses, dm]);
+
+  // Update marker styles when selection changes without re-rendering the whole map
+  useEffect(() => {
+    if (!leafletMapRef.current) return;
+    import('leaflet').then(L => {
+      markersRef.current.forEach(({ id, marker }) => {
+        const biz = businesses.find(b => b.id === id);
+        if (!biz) return;
+        const isSel = selected === id;
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="
+            background: ${isSel ? '#0A84FF' : (dm ? '#171717' : 'white')};
+            color: ${isSel ? 'white' : (dm ? '#f3f4f6' : '#171717')};
+            border: 2px solid ${isSel ? '#0066CC' : (dm ? '#404040' : '#e5e7eb')};
+            padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700;
+            white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          ">${biz.name.split(' ').slice(0, 2).join(' ')}</div>`,
+          iconAnchor: [40, 32],
+        });
+        marker.setIcon(icon);
+      });
+    });
+  }, [selected]);
+
+  return (
+    <>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <div ref={mapRef} className="w-full h-full" />
+    </>
   );
 }
+
 
 // Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
 // Standard card used in grid view
@@ -578,7 +627,7 @@ const BrowsePage: NextPage = () => {
                     className={`flex-shrink-0 md:w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${
                       selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''
                     }`}
-                    style={{ animationDelay: `${i * 0.04}s` }}>
+                    style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.25s ease' }}>
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
                       <img src={biz.coverUrl} alt={biz.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
@@ -635,8 +684,8 @@ const BrowsePage: NextPage = () => {
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 flex flex-col gap-3 min-w-0">
-                  <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: dm ? '#262626' : '#e5e7eb', width: 520, height: 520, flexShrink: 0 }}>
+                <div className="flex flex-col gap-3" style={{ flex: "1 1 0", minWidth: 0 }}>
+                  <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb', aspectRatio: '1/1', minHeight: 0 }}>
                     <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
                   </div>
                   {selectedMapBizData && (

@@ -55,18 +55,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!biz) return res.status(404).json({ error: `Business not found (id: ${business_id})` });
 
-  // Check ownership: either owner_email matches OR user owns a profile linked to this business
-  const emailMatch = biz.owner_email === user.email;
-  if (!emailMatch) {
-    // Fallback: check if user's profile email matches
+  // Check ownership: owner_email must match authenticated user's email
+  // Also check profiles table in case email differs
+  if (biz.owner_email !== user.email) {
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (!profile || profile.email !== biz.owner_email) {
-      return res.status(403).json({ 
-        error: `Access denied. Business owner: ${biz.owner_email}, your email: ${user.email}` 
+      .from('profiles').select('email').eq('id', user.id).maybeSingle();
+    const profileEmail = profile?.email || '';
+    if (biz.owner_email !== profileEmail) {
+      return res.status(403).json({
+        error: `Access denied. Business owner: ${biz.owner_email}, your email: ${user.email}${profileEmail && profileEmail !== user.email ? ' / profile: ' + profileEmail : ''}`
       });
     }
   }

@@ -115,7 +115,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-40 border-b ${isDark ? 'backdrop-blur-md border-neutral-800' : 'bg-white/95 backdrop-blur-md border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
-      style={{ background: (isDark || darkMode) ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)', paddingTop: 'env(safe-area-inset-top)' }}>
+      style={{ background: (isDark || darkMode) ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)', paddingTop: 'env(safe-area-inset-top)', transition: 'background 0.2s ease' }}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 64, minHeight: 64 }} aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}
