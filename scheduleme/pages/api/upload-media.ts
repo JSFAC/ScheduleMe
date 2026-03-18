@@ -11,12 +11,14 @@ const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 export const config = { api: { bodyParser: { sizeLimit: '55mb' } } };
 
 function getSupabase() {
-  // Use service role key if available, otherwise anon key
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     key,
-    { auth: { persistSession: false } }
+    { 
+      auth: { persistSession: false },
+      global: { headers: { 'x-supabase-service-role': process.env.SUPABASE_SERVICE_ROLE_KEY ? '1' : '0' } }
+    }
   );
 }
 
@@ -48,20 +50,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getSupabase();
 
-  // Verify business exists — ownership verified by the fact that
-  // the business_id comes from the authenticated dashboard session
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('id, media_urls, video_url')
-    .eq('id', business_id)
-    .maybeSingle();
-
+  // Fetch business — try with service role first, then with anon
+  let biz: any = null;
+  { const { data } = await supabase.from('businesses').select('id, media_urls, video_url').eq('id', business_id).maybeSingle(); biz = data; }
+  
+  // If not found, it may be an RLS issue — try via user auth
   if (!biz) {
-    const hasServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-    return res.status(404).json({ 
-      error: `Business not found (id: ${business_id}). ${!hasServiceRole ? 'SUPABASE_SERVICE_ROLE_KEY is not set in Vercel env vars — add it to fix this.' : 'Check RLS policies on businesses table.'}` 
-    });
+    const anonClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const { data } = await anonClient.from('businesses').select('id, media_urls, video_url').eq('id', business_id).maybeSingle();
+    biz = data;
   }
+
+  if (!biz) return res.status(404).json({ 
+    error: `Business ${business_id} not found. In Supabase SQL editor run: ALTER TABLE businesses DISABLE ROW LEVEL SECURITY; then re-enable with a policy that allows service role access.`
+  });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;

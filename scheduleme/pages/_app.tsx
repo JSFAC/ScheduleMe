@@ -35,8 +35,11 @@ export default function App({ Component, pageProps }: AppProps) {
     return () => { observer.disconnect(); mq.removeEventListener('change', updateThemeColor); };
   }, []);
 
-  // Fade in on first mount
+  // Fade in on first mount + set theme-color from localStorage immediately
   useEffect(() => {
+    const isDark = localStorage.getItem('sm_dark_mode') === 'true';
+    const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
+    if (meta) meta.content = isDark ? '#0a0a0a' : '#EDF5FF';
     const raf = requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -57,13 +60,13 @@ export default function App({ Component, pageProps }: AppProps) {
     };
 
     const onDone = () => {
-      // Scroll to top instantly (no smooth) so there's no visible position jump
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+      // Fade overlay out — page content fades in simultaneously
       setTimeout(() => {
+        requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
         setOverlayFade(false);
-        setTimeout(() => setShowOverlay(false), 350);
-      }, 450);
+        setTimeout(() => setShowOverlay(false), 400);
+      }, 300);
     };
 
     const onError = () => { setVisible(true); setShowOverlay(false); };
@@ -83,7 +86,19 @@ export default function App({ Component, pageProps }: AppProps) {
       <Head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#EDF5FF" id="theme-color-meta" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var dark = localStorage.getItem('sm_dark_mode') === 'true';
+              var meta = document.getElementById('theme-color-meta');
+              if (meta) meta.content = dark ? '#0a0a0a' : '#EDF5FF';
+              if (dark) document.documentElement.classList.add('dark');
+              document.documentElement.style.overflowX = 'hidden';
+              document.body && (document.body.style.overflowX = 'hidden');
+            } catch(e) {}
+          })();
+        `}} />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ScheduleMe" />

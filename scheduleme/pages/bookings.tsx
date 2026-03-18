@@ -638,7 +638,9 @@ const BookingsPage: NextPage = () => {
 
   return (
     <>
-      <Head><title>Bookings — ScheduleMe</title></Head>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Bookings — ScheduleMe</title></Head>
 
       {/* Onboarding carousel — first time users only */}
       {showOverlay && (
