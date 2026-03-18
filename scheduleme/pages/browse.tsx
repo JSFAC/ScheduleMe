@@ -537,36 +537,37 @@ const BrowsePage: NextPage = () => {
           ) : (
             /* ── MAP VIEW ── */
             <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
-              {/* Map on top — full width on mobile */}
-              <div className="relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4"
-                style={{ height: 'clamp(260px, 40vw, 420px)' }}>
+              {/* Map on top — mobile only */}
+              <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4"
+                style={{ height: 300 }}>
                 <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
-                {selectedMapBizData && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-72 bg-white rounded-2xl shadow-2xl overflow-hidden"
-                    style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
-                    <div className="relative h-28 overflow-hidden bg-neutral-100">
-                      <img src={selectedMapBizData.coverUrl} alt={selectedMapBizData.name}
-                        className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)' }} />
-                      <button onClick={() => setSelectedMapBiz(null)}
-                        className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/50 flex items-center justify-center">
-                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                      <p className="absolute bottom-2 left-3 text-white text-sm font-black" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{selectedMapBizData.name}</p>
-                    </div>
-                    <div className="px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#EBF4FF', color: '#0A84FF' }}>{selectedMapBizData.category}</span>
-                      <button onClick={() => setActiveBiz(selectedMapBizData)}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl"
-                        style={{ background: '#0A84FF', color: 'white' }}>View →</button>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* Business list below map */}
+              {/* Selected business card — below map on mobile */}
+              {selectedMapBizData && (
+                <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3"
+                  style={{ background: dm ? '#171717' : 'white', borderColor: '#0A84FF' }}>
+                  <div className="flex items-center gap-3 p-3">
+                    <img src={selectedMapBizData.coverUrl} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
+                      <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
+                    </div>
+                    <button onClick={() => setActiveBiz(selectedMapBizData)}
+                      className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0"
+                      style={{ background: '#0A84FF', color: 'white' }}>View</button>
+                    <button onClick={() => setSelectedMapBiz(null)}
+                      className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: dm ? '#262626' : '#f5f5f5', color: dm ? '#9ca3af' : '#6b7280' }}>
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Business list below map — mobile */}
               <div className="md:hidden space-y-2.5">
                 <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em]">
                   {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
@@ -611,7 +612,7 @@ const BrowsePage: NextPage = () => {
               </div>
 
               {/* Desktop: two-column */}
-              <div className="hidden md:flex gap-4" style={{ height: 480 }}>
+              <div className="hidden md:flex gap-4" style={{ height: 520 }}>
                 <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
                   {filtered.map((biz, i) => (
                     <button key={biz.id}
@@ -635,7 +636,7 @@ const BrowsePage: NextPage = () => {
                   ))}
                 </div>
                 <div className="flex-1 flex flex-col gap-3 min-w-0">
-                  <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}>
+                  <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: dm ? '#262626' : '#e5e7eb', width: 520, height: 520, flexShrink: 0 }}>
                     <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
                   </div>
                   {selectedMapBizData && (

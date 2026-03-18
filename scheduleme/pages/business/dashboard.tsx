@@ -141,8 +141,8 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
     <div className="lg:hidden" style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999 }}>
       {/* Dropdown menu */}
       {open && (
-        <div className="absolute left-0 mb-2 w-52 rounded-2xl shadow-2xl overflow-hidden animate-fade-up"
-          style={{ background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}`, bottom: '100%', marginBottom: 8 }}>
+        <div className="absolute w-52 rounded-2xl shadow-2xl overflow-hidden animate-fade-up"
+          style={{ background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}`, ...(pos.y > window.innerHeight / 2 ? { bottom: '100%', marginBottom: 8 } : { top: '100%', marginTop: 8 }), ...(pos.x > window.innerWidth / 2 ? { right: 0 } : { left: 0 }) }}>
           {navItems.map(item => (
             <button key={item.id} onClick={() => { setTab(item.id); setOpen(false); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors"
@@ -1236,7 +1236,7 @@ const BusinessDashboard: NextPage = () => {
                   <form onSubmit={handleSaveSettings} className="space-y-4">
                     {settingsError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{settingsError}</div>}
                     {([
-                      { label: 'Business Name (contact support to change)', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true },
+                      { label: 'Business Name', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true, requestChange: true },
                       { label: 'Phone', v: editPhone, s: setEditPhone, ph: '(415) 555-0192', t: 'tel' },
                       { label: 'Address / City', v: editAddress, s: setEditAddress, ph: 'San Francisco, CA', t: 'text' },
                       { label: 'Website', v: editWebsite, s: setEditWebsite, ph: 'https://...', t: 'url' },
@@ -1244,7 +1244,18 @@ const BusinessDashboard: NextPage = () => {
                     ] as const).map((f) => (
                       <div key={f.label}>
                         <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">{f.label}</label>
-                        <input type={f.t} className="form-input" value={f.v} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
+                        <input type={f.t} className="form-input" value={f.v} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: dm ? '#1a1a1a' : '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
+                      {(f as any).requestChange && (
+                        <button type="button" onClick={() => {
+                          const newName = prompt('Enter requested new business name:');
+                          if (newName?.trim()) {
+                            fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-notify-secret': '' }, body: JSON.stringify({ type: 'new_business_application', to: 'hello@usescheduleme.com', name: `NAME CHANGE REQUEST: ${business?.name} → ${newName}`, ownerName: business?.owner_name || '', email: business?.owner_email || '', phone: '', category: '', city: '', campusProvider: false }) }).catch(() => {});
+                            alert('Request sent! We\'ll update your name within 24 hours.');
+                          }
+                        }} className="mt-1.5 text-xs font-semibold text-accent hover:underline">
+                          Request name change →
+                        </button>
+                      )}
                       </div>
                     ))}
                     <div>
