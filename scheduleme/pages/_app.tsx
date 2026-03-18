@@ -19,6 +19,22 @@ export default function App({ Component, pageProps }: AppProps) {
   // built-in scroll-restoration doesn't cause the jarring jump.
   const scrollRef = useRef(0);
 
+  // Sync theme-color meta tag with dark mode OS preference in real time
+  useEffect(() => {
+    function updateThemeColor() {
+      const isDark = document.documentElement.classList.contains('dark') ||
+        window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', isDark ? '#0a0a0a' : '#EDF5FF');
+    }
+    updateThemeColor();
+    const observer = new MutationObserver(updateThemeColor);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', updateThemeColor);
+    return () => { observer.disconnect(); mq.removeEventListener('change', updateThemeColor); };
+  }, []);
+
   // Fade in on first mount
   useEffect(() => {
     const raf = requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
@@ -66,8 +82,7 @@ export default function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#EDF5FF" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#EDF5FF" id="theme-color-meta" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ScheduleMe" />
