@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import { useDm } from '../../lib/DarkModeContext';
+import MediaUploader from '../../components/MediaUploader';
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
 
 function getSupabase() {
@@ -129,7 +130,6 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifying, setCampusVerifying] = useState(false);
   const [campusSending, setCampusSending] = useState(false);
   const [campusVerifyError, setCampusVerifyError] = useState('');
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('all');
 
   // Messages state
@@ -154,6 +154,8 @@ const BusinessDashboard: NextPage = () => {
   const [editWebsite, setEditWebsite] = useState('');
   const [editServices, setEditServices] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [mediaImages, setMediaImages] = useState<string[]>([]);
+  const [mediaVideo, setMediaVideo] = useState<string | null>(null);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [settingsError, setSettingsError] = useState('');
 
@@ -455,30 +457,50 @@ const BusinessDashboard: NextPage = () => {
           </div>
         </aside>
 
-        <div className="flex-1 lg:ml-60 flex flex-col min-h-screen">
-          {/* Mobile topbar */}
-          <header className="lg:hidden bg-white border-b border-neutral-100 px-4 py-3 flex items-center justify-between sticky top-0 z-20">
-            <span className="text-base font-black text-neutral-900" style={{ letterSpacing: '-0.02em' }}>{business?.name}</span>
-            <button onClick={() => setMobileNavOpen(!mobileNavOpen)} className="p-2 rounded-lg hover:bg-neutral-50">
-              <svg className="h-5 w-5 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                {mobileNavOpen ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />}
-              </svg>
-            </button>
+        <div className="flex-1 lg:ml-60 flex flex-col min-h-screen pb-20 lg:pb-0">
+          {/* Mobile topbar — just the business name */}
+          <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20"
+            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+            <span className="text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
           </header>
-          {mobileNavOpen && (
-            <div className="lg:hidden bg-white border-b border-neutral-100 px-4 pb-4">
-              <div className="flex flex-wrap gap-1.5 pt-3">
-                {NAV.map(item => (
-                  <button key={item.id} onClick={() => { setTab(item.id); setMobileNavOpen(false); history.replaceState(null, '', '#' + item.id); }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${tab === item.id ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
-                    {item.label}
-                    {item.id === 'bookings' && pendingCount > 0 && <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700'}`}>{pendingCount}</span>}
-                    {item.id === 'messages' && totalUnreadMsgs > 0 && <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-accent/10 text-accent'}`}>{totalUnreadMsgs}</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+
+          {/* Mobile bottom tab bar */}
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex items-center justify-around px-1"
+            style={{
+              background: dm ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)',
+              borderColor: dm ? '#262626' : '#f0f0f0',
+              backdropFilter: 'blur(12px)',
+              height: 64,
+              paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+            }}>
+            {NAV.map(item => {
+              const isActive = tab === item.id;
+              const navIcons: Record<string, string> = {
+                overview: 'M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5',
+                bookings: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5',
+                messages: 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z',
+                clients: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z',
+                settings: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+              };
+              return (
+                <button key={item.id}
+                  onClick={() => { setTab(item.id); history.replaceState(null, '', '#' + item.id); }}
+                  className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
+                  style={{ color: isActive ? '#0A84FF' : (dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3') }}>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isActive ? 2.2 : 1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={navIcons[item.id] || ''} />
+                  </svg>
+                  <span className="text-[10px] font-semibold">{item.label}</span>
+                  {item.id === 'bookings' && pendingCount > 0 && (
+                    <span className="absolute top-1 right-3 h-4 w-4 rounded-full bg-amber-500 text-white text-[9px] font-black flex items-center justify-center">{pendingCount}</span>
+                  )}
+                  {item.id === 'messages' && totalUnreadMsgs > 0 && (
+                    <span className="absolute top-1 right-3 h-4 w-4 rounded-full bg-accent text-white text-[9px] font-black flex items-center justify-center">{totalUnreadMsgs}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Stripe banner */}
           {business && !business.stripe_onboarded && (
@@ -1044,6 +1066,18 @@ const BusinessDashboard: NextPage = () => {
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Description</label>
                       <textarea className="form-input resize-none" rows={3} value={editDesc} placeholder="Tell customers about your business…" onChange={e => setEditDesc(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">Photos & Video</label>
+                      {business && (
+                        <MediaUploader
+                          businessId={business.id || (business as any).realId || ''}
+                          currentImages={mediaImages}
+                          currentVideo={mediaVideo}
+                          onUpdate={(imgs, vid) => { setMediaImages(imgs); setMediaVideo(vid); }}
+                          dm={dm}
+                        />
+                      )}
                     </div>
                     <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
                       {settingsSaved ? '✓ Saved!' : settingsSaving ? 'Saving…' : 'Save Changes'}
