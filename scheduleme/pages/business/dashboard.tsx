@@ -13,7 +13,7 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
-type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings';
+type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings' | 'preview';
 
 interface Booking {
   id: string; service: string; status: string; created_at: string;
@@ -46,6 +46,7 @@ const NAV: { id: TabId; label: string; d: string }[] = [
   { id: 'messages',  label: 'Messages',  d: 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z' },
   { id: 'clients',   label: 'Clients',   d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
   { id: 'calendar',  label: 'Calendar',  d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+  { id: 'preview',   label: 'Preview',   d: 'M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   { id: 'settings',  label: 'Settings',  d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
 
@@ -480,6 +481,7 @@ const BusinessDashboard: NextPage = () => {
                 bookings: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5',
                 messages: 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z',
                 clients: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z',
+                preview: 'M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
                 settings: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
               };
               return (
@@ -1045,6 +1047,88 @@ const BusinessDashboard: NextPage = () => {
 
             {/* MESSAGES */}
             {/* SETTINGS */}
+            {tab === 'preview' && (
+              <div className="space-y-5">
+                <div className="rounded-2xl border p-5" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+                  <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: '#0A84FF' }}>Profile Preview</p>
+                  <p className="text-sm mb-5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>This is how your listing appears to customers on ScheduleMe.</p>
+
+                  {/* Cover image */}
+                  <div className="rounded-2xl overflow-hidden mb-4" style={{ height: 220, background: '#c8d8e8' }}>
+                    {mediaImages[0] ? (
+                      <img src={mediaImages[0]} alt={business?.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f0f0f0' }}>
+                        <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo yet — add one in Settings</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Business info */}
+                  <div className="px-1">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <h2 className="text-xl font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name}</h2>
+                        <p className="text-sm mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{business?.address}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <svg className="h-4 w-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{business?.rating ?? '—'}</span>
+                      </div>
+                    </div>
+
+                    {business?.description && (
+                      <p className="text-sm leading-relaxed mb-4" style={{ color: dm ? '#d1d5db' : '#525252' }}>{business.description}</p>
+                    )}
+
+                    {/* Service tags */}
+                    {business?.service_tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {business.service_tags.map(tag => (
+                          <span key={tag} className="text-xs px-3 py-1.5 rounded-full font-semibold"
+                            style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
+                            {tag.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Photo gallery preview */}
+                    {mediaImages.length > 1 && (
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>PHOTOS</p>
+                        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                          {mediaImages.map((url, i) => (
+                            <div key={i} className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 80, height: 80 }}>
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Video indicator */}
+                    {mediaVideo && (
+                      <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
+                        <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                        <span className="text-sm font-medium" style={{ color: dm ? '#d1d5db' : '#525252' }}>Promo video uploaded</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border p-4" style={{ background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF', borderColor: dm ? 'rgba(10,132,255,0.2)' : 'rgba(10,132,255,0.15)' }}>
+                  <p className="text-xs font-semibold" style={{ color: '#0A84FF' }}>
+                    Go to Settings to update your photos, description, and service tags — they'll reflect here instantly.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {tab === 'settings' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div className="bg-white rounded-2xl border border-neutral-100 p-6">

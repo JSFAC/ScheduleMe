@@ -37,19 +37,30 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setError('Not authenticated'); setUploading(null); return; }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('business_id', businessId);
-    formData.append('media_type', type);
+    // Convert file to base64
+    const fileData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
-    // Simulate progress since fetch doesn't expose upload progress
     const interval = setInterval(() => setProgress(p => Math.min(p + 8, 85)), 200);
 
     try {
       const res = await fetch('/api/upload-media', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${session.access_token}` },
-        body: formData,
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          business_id: businessId,
+          media_type: type,
+          file_data: fileData,
+          file_type: file.type,
+          file_name: file.name,
+        }),
       });
       clearInterval(interval);
       setProgress(100);
