@@ -120,10 +120,14 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const navLinks = user ? appLinks : marketingLinks;
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-40 border-b ${isDark ? 'backdrop-blur-md border-neutral-800' : 'bg-white/95 backdrop-blur-md border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
-      style={{ background: (isDark || darkMode) ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)', transition: 'background 0.2s ease' }}>
-      {/* Safe area spacer — matches iOS notch height, colored correctly */}
-      <div style={{ height: 'env(safe-area-inset-top)', background: 'inherit' }} />
+    <header className={`fixed top-0 left-0 right-0 z-40 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
+      style={{
+        background: (isDark || darkMode) ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        transition: 'background 0.2s ease',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+      }}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 64 }} aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}

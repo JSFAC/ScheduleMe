@@ -329,8 +329,8 @@ const Account: NextPage = () => {
                   Menu
                 </button>
                 {showNavMenu && (
-                  <div className="fixed w-52 rounded-2xl shadow-xl overflow-hidden animate-fade-up"
-                    style={{ zIndex: 99999, top: 'auto', right: 16, background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}` }}>
+                  <div className="absolute left-0 top-full mt-1 w-52 rounded-2xl shadow-xl overflow-hidden animate-fade-up"
+                    style={{ zIndex: 99999, background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}` }}>
                     <Link href="/browse" scroll={false} onClick={() => setShowNavMenu(false)}
                       className="flex items-center gap-2.5 px-4 py-3 text-sm font-medium transition-colors hover:bg-accent/5"
                       style={{ color: dm ? '#f3f4f6' : '#171717' }}>

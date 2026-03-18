@@ -178,8 +178,8 @@ const MessagesPage: NextPage = () => {
 
         <div className="mx-auto max-w-5xl px-6 py-6">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="relative h-7 w-7"><div className="absolute inset-0 rounded-full border-2 border-neutral-200" /><div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" /></div>
+            <div className="space-y-0">
+              {Array.from({ length: 5 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
             </div>
           ) : threads.length === 0 ? (
             <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)' }}>
