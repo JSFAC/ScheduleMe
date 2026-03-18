@@ -66,15 +66,15 @@ function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
 }
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: 'settings', label: 'Profile', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg> },
   { key: 'addresses', label: 'Addresses', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg> },
   { key: 'notifications', label: 'Notifications', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg> },
   { key: 'security', label: 'Security', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg> },
-  { key: 'settings', label: 'Profile', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg> },
 ];
 
 const Account: NextPage = () => {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('addresses');
+  const [tab, setTab] = useState<Tab>('settings');
   const [user, setUser] = useState<any>(null);
   const { dm, toggle: toggleDark } = useDm();
   const darkMode = dm;
@@ -298,8 +298,8 @@ const Account: NextPage = () => {
 
         {/* Premium header — sm-panel */}
         <div className={`${dm ? 'bg-[#0d0d0d]' : 'sm-panel'} border-b`} style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
-          <div className="sm-glow" style={{ width: 500, height: 350, top: -175, right: '-5%' }} />
-          <div className="relative mx-auto max-w-5xl px-6 pt-8 pb-6 flex flex-col sm:flex-row items-start sm:items-end gap-5">
+
+          <div className="relative mx-auto max-w-5xl px-6 pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               {/* Avatar */}
               <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-white text-lg font-black flex-shrink-0"
@@ -319,7 +319,7 @@ const Account: NextPage = () => {
                 + New Request
               </Link>
               {/* Mobile: show a menu dropdown with nav options */}
-              <div className="relative sm:hidden" style={{ zIndex: 9999 }}>
+              <div style={{ position: "relative", zIndex: 9999 }} className="sm:hidden">
                 <button onClick={() => setShowNavMenu(v => !v)}
                   className="flex items-center gap-1.5 text-sm font-bold px-3 py-2 rounded-xl border transition-all"
                   style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#f3f4f6' : '#171717' }}>

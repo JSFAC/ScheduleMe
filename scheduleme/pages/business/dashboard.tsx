@@ -141,8 +141,14 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
     <div className="lg:hidden" style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999 }}>
       {/* Dropdown menu */}
       {open && (
-        <div className="absolute w-52 rounded-2xl shadow-2xl overflow-hidden animate-fade-up"
-          style={{ background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}`, ...(pos.y > window.innerHeight / 2 ? { bottom: '100%', marginBottom: 8 } : { top: '100%', marginTop: 8 }), ...(pos.x > window.innerWidth / 2 ? { right: 0 } : { left: 0 }) }}>
+        <div className="absolute w-52 rounded-2xl shadow-2xl overflow-hidden"
+          style={{
+            background: dm ? '#171717' : 'white',
+            border: `1px solid ${dm ? '#262626' : '#e5e7eb'}`,
+            ...(pos.y > window.innerHeight / 2 ? { bottom: '100%', marginBottom: 8 } : { top: '100%', marginTop: 8 }),
+            ...(pos.x > window.innerWidth / 2 ? { right: 0 } : { left: 0 }),
+            animation: 'fadeUp 0.2s ease forwards',
+          }}>
           {navItems.map(item => (
             <button key={item.id} onClick={() => { setTab(item.id); setOpen(false); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors"
@@ -1132,7 +1138,7 @@ const BusinessDashboard: NextPage = () => {
                       <img src={mediaImages[0]} alt={business?.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f0f0f0' }}>
-                        <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo yet — add one in Settings</p>
+                        <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo yet — upload one below</p>
                       </div>
                     )}
                   </div>
