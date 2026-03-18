@@ -66,7 +66,8 @@ export default function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0A84FF" />
+        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#EDF5FF" media="(prefers-color-scheme: light)" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ScheduleMe" />
