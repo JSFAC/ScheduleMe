@@ -59,14 +59,19 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const icon = L.divIcon({
           className: '',
           html: `<div style="
-            background: ${isSel ? '#0A84FF' : (dm ? '#171717' : 'white')};
+            background: ${isSel ? '#0A84FF' : (dm ? '#1a1a1a' : 'white')};
             color: ${isSel ? 'white' : (dm ? '#f3f4f6' : '#171717')};
-            border: 2px solid ${isSel ? '#0066CC' : (dm ? '#404040' : '#e5e7eb')};
-            padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700;
-            white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            transform: ${isSel ? 'scale(1.15)' : 'scale(1)'};
-            transition: all 0.2s ease;
-          ">${biz.name.split(' ').slice(0, 2).join(' ')}</div>`,
+            border: 2px solid ${isSel ? '#0A84FF' : (dm ? '#333' : '#d1d5db')};
+            padding: 5px 10px 5px 8px; border-radius: 20px; font-size: 11px; font-weight: 700;
+            white-space: nowrap; box-shadow: 0 2px 12px rgba(0,0,0,${dm ? '0.5' : '0.15'});
+            display: flex; align-items: center; gap: 5px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            transform-origin: bottom center;
+            transform: ${isSel ? 'scale(1.1)' : 'scale(1)'};
+          ">
+            <div style="width:6px;height:6px;border-radius:50%;background:${isSel ? 'rgba(255,255,255,0.8)' : '#0A84FF'};flex-shrink:0"></div>
+            ${biz.name.split(' ').slice(0, 2).join(' ')}
+          </div>`,
           iconAnchor: [40, 32],
         });
         const marker = L.marker([biz.lat!, biz.lng!], { icon })
@@ -95,12 +100,17 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const icon = L.divIcon({
           className: '',
           html: `<div style="
-            background: ${isSel ? '#0A84FF' : (dm ? '#171717' : 'white')};
+            background: ${isSel ? '#0A84FF' : (dm ? '#1a1a1a' : 'white')};
             color: ${isSel ? 'white' : (dm ? '#f3f4f6' : '#171717')};
-            border: 2px solid ${isSel ? '#0066CC' : (dm ? '#404040' : '#e5e7eb')};
-            padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700;
-            white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          ">${biz.name.split(' ').slice(0, 2).join(' ')}</div>`,
+            border: 2px solid ${isSel ? '#0A84FF' : (dm ? '#333' : '#d1d5db')};
+            padding: 5px 10px 5px 8px; border-radius: 20px; font-size: 11px; font-weight: 700;
+            white-space: nowrap; box-shadow: 0 2px 12px rgba(0,0,0,${dm ? '0.5' : '0.15'});
+            display: flex; align-items: center; gap: 5px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+          ">
+            <div style="width:6px;height:6px;border-radius:50%;background:${isSel ? 'rgba(255,255,255,0.8)' : '#0A84FF'};flex-shrink:0"></div>
+            ${biz.name.split(' ').slice(0, 2).join(' ')}
+          </div>`,
           iconAnchor: [40, 32],
         });
         marker.setIcon(icon);
@@ -111,6 +121,34 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
   return (
     <>
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <style>{`
+        .leaflet-control-zoom a {
+          font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif !important;
+          font-weight: 700 !important;
+          color: ${dm ? '#f3f4f6' : '#171717'} !important;
+          background: ${dm ? '#171717' : 'white'} !important;
+          border-color: ${dm ? '#404040' : '#e5e7eb'} !important;
+        }
+        .leaflet-control-zoom {
+          border: none !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+          border-radius: 10px !important;
+          overflow: hidden !important;
+        }
+        .leaflet-control-zoom a:hover {
+          background: ${dm ? '#262626' : '#f5f5f5'} !important;
+        }
+        .leaflet-control-attribution {
+          font-family: -apple-system, BlinkMacSystemFont, sans-serif !important;
+          font-size: 9px !important;
+          background: ${dm ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)'} !important;
+          color: ${dm ? '#9ca3af' : '#6b7280'} !important;
+          border-radius: 6px 0 0 0 !important;
+        }
+        .leaflet-control-attribution a {
+          color: ${dm ? '#60a5fa' : '#0A84FF'} !important;
+        }
+      `}</style>
       <div ref={mapRef} className="w-full h-full" />
     </>
   );
@@ -379,7 +417,7 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(72px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
         <Nav />
 
         {/* Hero header — flat solid blue, clean and readable */}
@@ -627,7 +665,7 @@ const BrowsePage: NextPage = () => {
                     className={`flex-shrink-0 md:w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${
                       selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''
                     }`}
-                    style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.25s ease' }}>
+                    style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.3 : 1, transition: 'opacity 0.25s ease', filter: selectedMapBiz && selectedMapBiz !== biz.id ? 'grayscale(0.3)' : 'none' }}>
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
                       <img src={biz.coverUrl} alt={biz.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
@@ -661,7 +699,7 @@ const BrowsePage: NextPage = () => {
               </div>
 
               {/* Desktop: two-column */}
-              <div className="hidden md:flex gap-4" style={{ height: 520 }}>
+              <div className="hidden md:flex gap-4" style={{ height: 560 }}>
                 <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
                   {filtered.map((biz, i) => (
                     <button key={biz.id}
