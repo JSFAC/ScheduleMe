@@ -129,15 +129,17 @@ export default function Nav({ variant = 'light' }: NavProps) {
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 41,
         height: 'env(safe-area-inset-top, 0px)',
         background: navBg,
+        transition: 'background 0.15s ease',
       }} />
-      <header className={`fixed left-0 right-0 z-40 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
+      <header className={`fixed left-0 right-0 z-40 border-b ${isDark || darkMode ? 'border-neutral-800' : 'border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
         style={{
           top: 'env(safe-area-inset-top, 0px)',
           background: navBg,
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
+          transition: 'background 0.15s ease',
         }}>
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 64, minHeight: 64, maxHeight: 64 }} aria-label="Main navigation">
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 64 }} aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}
         <div className="flex-1 flex items-center min-w-0">
