@@ -183,7 +183,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         className="h-12 w-12 rounded-2xl shadow-lg flex items-center justify-center touch-none select-none"
-        style={{ background: open ? '#0A84FF' : (dm ? '#171717' : 'white'), border: `1px solid ${dm ? '#262626' : '#e5e7eb'}`, cursor: 'grab' }}>
+        style={{ background: open ? '#0A84FF' : (dm ? '#171717' : 'white'), border: open ? '1px solid #0A84FF' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
         {open ? (
           <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

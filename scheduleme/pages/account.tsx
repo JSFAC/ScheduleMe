@@ -319,7 +319,7 @@ const Account: NextPage = () => {
                 + New Request
               </Link>
               {/* Mobile: show a menu dropdown with nav options */}
-              <div className="sm:hidden" style={{ position: "relative", zIndex: 10000, isolation: "isolate" }}>
+              <div className="sm:hidden" style={{ position: "relative" }}>
                 <button onClick={() => setShowNavMenu(v => !v)}
                   className="flex items-center gap-1.5 text-sm font-bold px-3 py-2 rounded-xl border transition-all"
                   style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#f3f4f6' : '#171717' }}>
@@ -329,8 +329,8 @@ const Account: NextPage = () => {
                   Menu
                 </button>
                 {showNavMenu && (
-                  <div className="absolute left-0 top-full mt-2 w-52 rounded-2xl shadow-xl overflow-hidden"
-                    style={{ zIndex: 9999, background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}` }}>
+                  <div className="fixed w-52 rounded-2xl shadow-xl overflow-hidden animate-fade-up"
+                    style={{ zIndex: 99999, top: 'auto', right: 16, background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}` }}>
                     <Link href="/browse" scroll={false} onClick={() => setShowNavMenu(false)}
                       className="flex items-center gap-2.5 px-4 py-3 text-sm font-medium transition-colors hover:bg-accent/5"
                       style={{ color: dm ? '#f3f4f6' : '#171717' }}>
