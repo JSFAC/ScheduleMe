@@ -535,11 +535,40 @@ const BrowsePage: NextPage = () => {
               )}
             </>
           ) : (
-            /* ── MAP VIEW — revamped ── */
-            <div className="flex flex-col md:flex-row gap-4 animate-fade-up" style={{ animationDuration: '0.3s' }}>
-              {/* Sidebar */}
-              <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto md:w-80 md:flex-shrink-0 pb-1 md:pb-0 md:pr-1" style={{ scrollbarWidth: 'none', background: 'transparent' }}>
-                <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] px-0.5 pt-1">
+            /* ── MAP VIEW ── */
+            <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
+              {/* Map on top — full width on mobile */}
+              <div className="relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4"
+                style={{ height: 'clamp(260px, 40vw, 420px)' }}>
+                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
+                {selectedMapBizData && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-72 bg-white rounded-2xl shadow-2xl overflow-hidden"
+                    style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="relative h-28 overflow-hidden bg-neutral-100">
+                      <img src={selectedMapBizData.coverUrl} alt={selectedMapBizData.name}
+                        className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)' }} />
+                      <button onClick={() => setSelectedMapBiz(null)}
+                        className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/50 flex items-center justify-center">
+                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      <p className="absolute bottom-2 left-3 text-white text-sm font-black" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{selectedMapBizData.name}</p>
+                    </div>
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#EBF4FF', color: '#0A84FF' }}>{selectedMapBizData.category}</span>
+                      <button onClick={() => setActiveBiz(selectedMapBizData)}
+                        className="text-xs font-bold px-3 py-1.5 rounded-xl"
+                        style={{ background: '#0A84FF', color: 'white' }}>View →</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Business list below map */}
+              <div className="md:hidden space-y-2.5">
+                <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em]">
                   {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
                 </p>
                 {filtered.map((biz, i) => (
@@ -581,46 +610,57 @@ const BrowsePage: NextPage = () => {
                 ))}
               </div>
 
-              {/* Map */}
-              <div className="relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm md:flex-1" style={{ height: 320 }}>
-                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
-                {selectedMapBizData && (
-                  <div className="absolute bottom-4 right-4 w-72 bg-white rounded-2xl shadow-2xl overflow-hidden"
-                    style={{ border: '1px solid rgba(0,0,0,0.07)' }}>
-                    <div className="relative h-36 overflow-hidden bg-neutral-100">
-                      <img src={selectedMapBizData.coverUrl} alt={selectedMapBizData.name}
-                        className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)' }} />
+              </div>
+
+              {/* Desktop: two-column */}
+              <div className="hidden md:flex gap-4" style={{ height: 480 }}>
+                <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
+                  {filtered.map((biz, i) => (
+                    <button key={biz.id}
+                      onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
+                      className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
+                      style={{
+                        opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1,
+                        transition: 'opacity 0.2s ease',
+                        borderColor: selectedMapBiz === biz.id ? '#0A84FF' : (dm ? '#262626' : 'rgba(10,132,255,0.1)'),
+                        background: dm ? '#171717' : 'white',
+                      }}>
+                      <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
+                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
+                        <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
+                        <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 flex flex-col gap-3 min-w-0">
+                  <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}>
+                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
+                  </div>
+                  {selectedMapBizData && (
+                    <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0"
+                      style={{ background: dm ? '#171717' : 'white', borderColor: '#0A84FF' }}>
+                      <img src={selectedMapBizData.coverUrl} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
+                        <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
+                      </div>
+                      <button onClick={() => setActiveBiz(selectedMapBizData)}
+                        className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0"
+                        style={{ background: '#0A84FF', color: 'white' }}>View</button>
                       <button onClick={() => setSelectedMapBiz(null)}
-                        className="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors">
-                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: dm ? '#262626' : '#f5f5f5' }}>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
-                      <div className="absolute bottom-0 left-0 right-0 px-3.5 pb-3">
-                        <p className="text-white font-black text-[15px] leading-tight" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>{selectedMapBizData.name}</p>
-                      </div>
                     </div>
-                    <div className="px-4 py-3.5">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{selectedMapBizData.category}</span>
-                        <div className="flex items-center gap-1.5">
-                          <svg className="h-3 w-3 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                          <span className="text-sm font-bold text-neutral-800">{selectedMapBizData.rating}</span>
-                          <span className="text-neutral-300">·</span>
-                          <span className="text-xs text-neutral-400">{selectedMapBizData.distance}</span>
-                        </div>
-                      </div>
-                      <p className="text-[11.5px] text-neutral-500 leading-snug mb-3 line-clamp-2">{selectedMapBizData.tagline}</p>
-                      <button onClick={() => setActiveBiz(selectedMapBizData)}
-                        className="btn-primary w-full text-sm py-2.5">
-                        View &amp; Book
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           )}
