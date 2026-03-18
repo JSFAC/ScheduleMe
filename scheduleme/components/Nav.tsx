@@ -115,7 +115,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-40 border-b ${isDark ? 'backdrop-blur-md border-neutral-800' : 'bg-white/95 backdrop-blur-md border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
-      style={isDark ? { background: 'rgba(10,10,10,0.97)' } : undefined}>
+      style={isDark ? { background: 'rgba(10,10,10,0.97)', paddingTop: 'env(safe-area-inset-top)' } : { paddingTop: 'env(safe-area-inset-top)' }}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between h-[72px]" aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}
@@ -183,7 +183,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 </svg>
               </button>
               {menuOpen && (
-                <div className="fixed z-[200]" style={{ top: 72, right: 'max(calc(50% - 576px + 24px), 24px)' }}>
+                <div className="fixed z-[200]" style={{ top: 'calc(72px + env(safe-area-inset-top, 0px))', right: 'max(calc(50% - 576px + 24px), 24px)' }}>
                   <div className="w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-neutral-50">
                       <p className="text-xs font-semibold text-neutral-700 truncate">{user.name}</p>

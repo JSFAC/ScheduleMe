@@ -330,7 +330,7 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pt-[72px] pb-20 md:pb-0" data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(72px + env(safe-area-inset-top, 0px))' }} data-page-bg="true" style={{ background: 'var(--page-bg, #EDF5FF)' }}>
         <Nav />
 
         {/* Hero header — flat solid blue, clean and readable */}
