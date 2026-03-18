@@ -1084,9 +1084,9 @@ const BusinessDashboard: NextPage = () => {
                     )}
 
                     {/* Service tags */}
-                    {business?.service_tags?.length > 0 && (
+                    {(business?.service_tags?.length ?? 0) > 0 && (
                       <div className="flex flex-wrap gap-2 mb-4">
-                        {business.service_tags.map(tag => (
+                        {(business!.service_tags ?? []).map(tag => (
                           <span key={tag} className="text-xs px-3 py-1.5 rounded-full font-semibold"
                             style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
                             {tag.replace(/_/g, ' ')}
