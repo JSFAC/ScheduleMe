@@ -1,13 +1,12 @@
-// pages/api/upload-media.ts — handle business media uploads to Supabase Storage
-// Uses base64 encoding to avoid needing formidable package
+// pages/api/upload-media.ts — business media uploads via base64
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
-const MAX_IMAGE_SIZE = 8 * 1024 * 1024;   // 8MB
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024;  // 50MB (base64 limit)
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
 export const config = { api: { bodyParser: { sizeLimit: '55mb' } } };
 
@@ -39,7 +38,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!allowedTypes.includes(file_type))
     return res.status(400).json({ error: `Invalid file type. Allowed: ${allowedTypes.join(', ')}` });
 
-  // Decode base64
   const base64Data = file_data.replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
   const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
@@ -48,17 +46,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getSupabase();
 
-  // Verify ownership
+  // Look up business by ID — verify owner by email OR by user ID via profiles
   const { data: biz } = await supabase
     .from('businesses')
     .select('id, owner_email, media_urls, video_url')
     .eq('id', business_id)
     .maybeSingle();
 
-  if (!biz) return res.status(404).json({ error: 'Business not found' });
-  if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+  if (!biz) return res.status(404).json({ error: `Business not found (id: ${business_id})` });
 
-  const ext = file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+  // Check ownership: either owner_email matches OR user owns a profile linked to this business
+  const emailMatch = biz.owner_email === user.email;
+  if (!emailMatch) {
+    // Fallback: check if user's profile email matches
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!profile || profile.email !== biz.owner_email) {
+      return res.status(403).json({ 
+        error: `Access denied. Business owner: ${biz.owner_email}, your email: ${user.email}` 
+      });
+    }
+  }
+
+  const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
@@ -77,10 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } else {
     const existing: string[] = biz.media_urls || [];
     const updated = [...existing.filter((u: string) => u !== publicUrl), publicUrl].slice(0, 6);
-    await supabase.from('businesses').update({
-      media_urls: updated,
-      cover_url: updated[0],
-    }).eq('id', business_id);
+    await supabase.from('businesses').update({ media_urls: updated, cover_url: updated[0] }).eq('id', business_id);
   }
 
   return res.status(200).json({ url: publicUrl });
