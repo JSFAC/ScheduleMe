@@ -259,6 +259,9 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
   const { dm } = useDm();
   const [activeImg, setActiveImg] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [allMedia, setAllMedia] = useState<string[]>(biz.allImages || []);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
   const [closing, setClosing] = useState(false);
   const [view, setView] = useState<'info' | 'book'>('info');
   const thumbsRef = useRef<HTMLDivElement>(null);
@@ -267,6 +270,21 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
     document.body.style.overflow = 'hidden';
+    // Fetch real media_urls and video_url from DB if we have a real business ID
+    const realId = (biz as any).realId;
+    if (realId) {
+      import('@supabase/supabase-js').then(({ createClient }) => {
+        const sb = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        sb.from('businesses').select('media_urls, video_url').eq('id', realId).maybeSingle()
+          .then(({ data }) => {
+            if (data?.media_urls?.length) setAllMedia(data.media_urls);
+            if (data?.video_url) setVideoUrl(data.video_url);
+          });
+      });
+    }
     return () => { document.body.style.overflow = ''; };
   }, []);
 
@@ -284,7 +302,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
 
   function goImg(dir: 1 | -1) {
     setActiveImg(cur => {
-      const next = (cur + dir + biz.allImages.length) % biz.allImages.length;
+      const next = (cur + dir + allMedia.length) % allMedia.length;
       setTimeout(() => {
         (thumbsRef.current?.children[next] as HTMLElement)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       }, 0);
@@ -325,12 +343,16 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
       >
         {/* Gallery */}
         <div className="relative flex-shrink-0 bg-neutral-900" style={{ height: 220 }}>
-          <img key={activeImg} src={biz.allImages[activeImg]} alt={biz.name}
+          {showVideo && videoUrl ? (
+            <video src={videoUrl} controls autoPlay className="w-full h-full object-contain" style={{ background: '#000' }} />
+          ) : (
+          <img key={activeImg} src={allMedia[activeImg] || biz.coverUrl} alt={biz.name}
             className="w-full h-full object-cover"
             style={{ opacity: ready ? 1 : 0, transition: 'opacity 0.15s ease' }} />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 pointer-events-none" />
 
-          {biz.allImages.length > 1 && (
+          {allMedia.length > 1 && (
             <>
               <PureBtn onClick={() => goImg(-1)}
                 className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center">
@@ -359,7 +381,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
               document.addEventListener('mousemove', onMove);
               document.addEventListener('mouseup', onUp);
             }}>
-            {biz.allImages.map((url, i) => (
+            {allMedia.map((url, i) => (
               <button key={i} type="button" onPointerDown={e => e.preventDefault()} onClick={() => pickThumb(i)}
                 className="flex-shrink-0 h-10 w-14 rounded-lg overflow-hidden transition-all"
                 style={{ border: `2px solid ${i === activeImg ? '#fff' : 'transparent'}`, opacity: i === activeImg ? 1 : 0.6 }}>
