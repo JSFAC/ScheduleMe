@@ -26,14 +26,14 @@ function writeCache(u: { email?: string; name?: string } | null) {
 
 export default function Nav({ variant = 'light' }: NavProps) {
   const isDark = variant === 'dark';
+  const router = useRouter();
+  const { dm: darkMode, toggle: toggleDark } = useDm();
 
   // Update theme-color meta instantly when dark mode toggles
   useEffect(() => {
     const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
     if (meta) meta.content = (isDark || darkMode) ? '#0a0a0a' : '#EDF5FF';
   }, [darkMode, isDark]);
-  const router = useRouter();
-  const { dm: darkMode, toggle: toggleDark } = useDm();
   // Initialise from cache synchronously — no layout shift on mount
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(readCache);
   const [menuOpen, setMenuOpen] = useState(false);
