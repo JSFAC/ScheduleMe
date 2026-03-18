@@ -185,7 +185,9 @@ const CampusPage: NextPage = () => {
 
   return (
     <>
-      <Head><title>Campus — ScheduleMe</title></Head>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Campus — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
 

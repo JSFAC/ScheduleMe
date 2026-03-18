@@ -415,7 +415,9 @@ const BrowsePage: NextPage = () => {
 
   return (
     <>
-      <Head><title>Browse — ScheduleMe</title></Head>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Browse — ScheduleMe</title></Head>
 
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
         <Nav />
