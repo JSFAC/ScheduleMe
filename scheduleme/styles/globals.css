@@ -714,3 +714,8 @@ html.dark .animate-shimmer {
 body:has(.onboarding-active) {
   background: #0a0a1a !important;
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

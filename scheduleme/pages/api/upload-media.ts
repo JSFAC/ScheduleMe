@@ -11,9 +11,11 @@ const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 export const config = { api: { bodyParser: { sizeLimit: '55mb' } } };
 
 function getSupabase() {
+  // Use service role key if available, otherwise anon key
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    key,
     { auth: { persistSession: false } }
   );
 }
@@ -54,7 +56,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('id', business_id)
     .maybeSingle();
 
-  if (!biz) return res.status(404).json({ error: `Business not found (id: ${business_id}). Check the business ID in Supabase.` });
+  if (!biz) {
+    const hasServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    return res.status(404).json({ 
+      error: `Business not found (id: ${business_id}). ${!hasServiceRole ? 'SUPABASE_SERVICE_ROLE_KEY is not set in Vercel env vars — add it to fix this.' : 'Check RLS policies on businesses table.'}` 
+    });
+  }
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;
