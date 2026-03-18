@@ -55,15 +55,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!biz) return res.status(404).json({ error: `Business not found (id: ${business_id})` });
 
-  // Check ownership: owner_email must match authenticated user's email
-  // Also check profiles table in case email differs
+  // Check ownership — match by owner_email OR by looking up business via owner's profile
   if (biz.owner_email !== user.email) {
+    // Try profile email
     const { data: profile } = await supabase
-      .from('profiles').select('email').eq('id', user.id).maybeSingle();
+      .from('profiles').select('email, role').eq('id', user.id).maybeSingle();
     const profileEmail = profile?.email || '';
-    if (biz.owner_email !== profileEmail) {
+    
+    // Also try: find any business owned by this user's email
+    const { data: userBiz } = await supabase
+      .from('businesses').select('id').eq('owner_email', user.email).maybeSingle();
+    const { data: profileBiz } = await supabase
+      .from('businesses').select('id').eq('owner_email', profileEmail).maybeSingle();
+
+    const ownsThisBusiness = 
+      biz.owner_email === profileEmail ||
+      userBiz?.id === business_id ||
+      profileBiz?.id === business_id;
+
+    if (!ownsThisBusiness) {
       return res.status(403).json({
-        error: `Access denied. Business owner: ${biz.owner_email}, your email: ${user.email}${profileEmail && profileEmail !== user.email ? ' / profile: ' + profileEmail : ''}`
+        error: `Access denied. To fix: update owner_email on business ${business_id} to ${user.email} in Supabase.`
       });
     }
   }

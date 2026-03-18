@@ -297,7 +297,7 @@ const Account: NextPage = () => {
       <div className="min-h-screen pb-24 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#f9fafb', opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
 
         {/* Premium header — sm-panel */}
-        <div className={`${dm ? 'bg-[#0d0d0d]' : 'sm-panel'} border-b`} style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+        <div className={`${dm ? 'bg-[#0d0d0d]' : 'sm-panel'} border-b`} style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)', isolation: 'auto' }}>
 
           <div className="relative mx-auto max-w-5xl px-6 pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -319,7 +319,7 @@ const Account: NextPage = () => {
                 + New Request
               </Link>
               {/* Mobile: show a menu dropdown with nav options */}
-              <div style={{ position: "relative", zIndex: 9999 }} className="sm:hidden">
+              <div className="sm:hidden" style={{ position: "relative", zIndex: 10000, isolation: "isolate" }}>
                 <button onClick={() => setShowNavMenu(v => !v)}
                   className="flex items-center gap-1.5 text-sm font-bold px-3 py-2 rounded-xl border transition-all"
                   style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#f3f4f6' : '#171717' }}>

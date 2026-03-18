@@ -652,7 +652,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(72px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
         {/* Header — flat solid blue */}
         <div className="border-b" style={{
           background: '#3b82f6',

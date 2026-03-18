@@ -487,7 +487,7 @@ const HomePage: NextPage = () => {
     <>
       <Head><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(72px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
 
         {/* Search hero — flat solid blue, clean */}
         <div className="border-b" style={{
