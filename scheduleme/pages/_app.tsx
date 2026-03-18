@@ -108,19 +108,9 @@ export default function App({ Component, pageProps }: AppProps) {
           }} />
           <div style={{ position: 'relative', textAlign: 'center' }}>
             <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toBusiness ? '#fff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: 4 }}>ScheduleMe</p>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0A84FF', marginBottom: 16 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0A84FF' }}>
               {toBusiness ? 'for Business' : 'for Everyone'}
             </p>
-            {toBusiness && (
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div style={{
-                  width: 20, height: 20, borderRadius: '50%',
-                  border: '2px solid rgba(10,132,255,0.2)',
-                  borderTopColor: '#0A84FF',
-                  animation: 'spin 0.8s linear infinite',
-                }} />
-              </div>
-            )}
           </div>
         </div>
       )}

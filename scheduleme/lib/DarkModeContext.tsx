@@ -8,16 +8,23 @@ interface DarkModeContextType {
 
 const DarkModeContext = createContext<DarkModeContextType>({ dm: false, toggle: () => {} });
 
+function setThemeColor(isDark: boolean) {
+  if (typeof document === 'undefined') return;
+  const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null
+    ?? document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+  if (meta) meta.content = isDark ? '#0a0a0a' : '#EDF5FF';
+}
+
 export function DarkModeProvider({ children }: { children: ReactNode }) {
   const [dm, setDm] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('sm_dark_mode');
-    // Only use dark mode if user has explicitly chosen it — default to light
     const isDark = saved === 'true';
     setDm(isDark);
     if (isDark) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
+    setThemeColor(isDark);
   }, []);
 
   function toggle() {
@@ -26,6 +33,7 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
     if (next) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
     localStorage.setItem('sm_dark_mode', String(next));
+    setThemeColor(next);
   }
 
   return (

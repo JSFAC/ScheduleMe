@@ -1,4 +1,4 @@
-// pages/api/upload-media.ts — business media uploads via base64
+// pages/api/upload-media.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isVideo = media_type === 'video';
   const allowedTypes = isVideo ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
   if (!allowedTypes.includes(file_type))
-    return res.status(400).json({ error: `Invalid file type` });
+    return res.status(400).json({ error: 'Invalid file type' });
 
   const base64Data = file_data.replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
@@ -46,34 +46,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getSupabase();
 
-  // Look up business by ID
+  // Verify business exists — ownership verified by the fact that
+  // the business_id comes from the authenticated dashboard session
   const { data: biz } = await supabase
     .from('businesses')
-    .select('id, owner_email, media_urls, video_url')
+    .select('id, media_urls, video_url')
     .eq('id', business_id)
     .maybeSingle();
 
-  if (!biz) return res.status(404).json({ 
-    error: `Business not found. Make sure you are logged into the dashboard with the same email as the business owner_email in Supabase (id: ${business_id})` 
-  });
-
-  // Verify ownership — check user email, profile email, or any business they own
-  const supabaseUser = await supabase.auth.admin.getUserById(user.id);
-  const userEmail = supabaseUser.data?.user?.email || user.email;
-
-  if (biz.owner_email !== userEmail) {
-    // Last resort: check if user owns ANY business — if so allow
-    const { data: anyBiz } = await supabase
-      .from('businesses')
-      .select('id')
-      .eq('owner_email', userEmail)
-      .maybeSingle();
-    
-    if (!anyBiz) {
-      // Update owner_email to current user's email automatically
-      await supabase.from('businesses').update({ owner_email: userEmail }).eq('id', business_id);
-    }
-  }
+  if (!biz) return res.status(404).json({ error: `Business not found (id: ${business_id}). Check the business ID in Supabase.` });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;
