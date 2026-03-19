@@ -158,7 +158,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
               </svg>
               {item.label}
               {item.id === 'bookings' && pendingCount > 0 && (
-                <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white">{pendingCount}</span>
+                <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-500 text-white tabular-nums min-w-[18px] text-center">{pendingCount}</span>
               )}
               {item.id === 'messages' && totalUnreadMsgs > 0 && (
                 <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full bg-accent text-white">{totalUnreadMsgs}</span>
@@ -532,6 +532,7 @@ const BusinessDashboard: NextPage = () => {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [campusEduEmail, setCampusEduEmail] = useState('');
   const [campusCodeSent, setCampusCodeSent] = useState(false);
+  const [campusBannerDismissed, setCampusBannerDismissed] = useState(false);
   const [campusCode, setCampusCode] = useState('');
   const [campusVerifying, setCampusVerifying] = useState(false);
   const [campusSending, setCampusSending] = useState(false);
@@ -895,10 +896,9 @@ const BusinessDashboard: NextPage = () => {
           )}
 
           {/* Campus verification banner */}
-          {business?.school_domain && !business?.edu_verified && (
-            <div className="rounded-2xl border p-4" style={{ background: dm ? 'rgba(139,92,246,0.1)' : '#f5f3ff', borderColor: dm ? 'rgba(139,92,246,0.3)' : '#ddd6fe' }}>
+          {business?.school_domain && !business?.edu_verified && !campusBannerDismissed && (
+            <div className="rounded-2xl border p-4 relative" style={{ background: dm ? 'rgba(139,92,246,0.1)' : '#f5f3ff', borderColor: dm ? 'rgba(139,92,246,0.3)' : '#ddd6fe' }}>
               <div className="flex items-start gap-3">
-                <span className="text-xl shrink-0">🎓</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold mb-0.5" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>
                     Complete your campus verification
@@ -937,27 +937,35 @@ const BusinessDashboard: NextPage = () => {
                   {campusVerifyError && <p className="text-xs text-red-500 mt-2">{campusVerifyError}</p>}
                 </div>
               </div>
+              <button onClick={() => setCampusBannerDismissed(true)} className="absolute top-3 right-3 h-6 w-6 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#ede9fe', color: dm ? '#a78bfa' : '#7c3aed' }}>
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
           )}
 
           {business?.edu_verified && (
-            <div className="rounded-2xl border px-4 py-3 flex items-center gap-2.5"
-              style={{ background: dm ? 'rgba(139,92,246,0.1)' : '#f5f3ff', borderColor: dm ? 'rgba(139,92,246,0.3)' : '#ddd6fe' }}>
-              <span>🎓</span>
-              <p className="text-sm font-semibold" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>
-                Campus verified — your business is live on the {business.school_domain} campus feed
-              </p>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg self-start" style={{ background: dm ? 'rgba(139,92,246,0.12)' : '#f5f3ff', border: `1px solid ${dm ? 'rgba(139,92,246,0.2)' : '#ddd6fe'}` }}>
+              <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+              <p className="text-xs font-semibold" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>Campus verified · {business.school_domain}</p>
             </div>
           )}
 
           <main className="flex-1 px-6 py-7 max-w-5xl mx-auto w-full">
             <div className="mb-7">
-              <h1 className="text-[1.5rem] font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{NAV.find(n => n.id === tab)?.label}</h1>
-              {tab === 'overview' && <p className="text-sm text-neutral-400 mt-0.5">Welcome back, {business?.owner_name?.split(' ')[0] || 'there'}</p>}
-              {tab === 'bookings' && <p className="text-sm text-neutral-400 mt-0.5">{bookings.length} total · {pendingCount} need attention</p>}
-              {tab === 'clients' && <p className="text-sm text-neutral-400 mt-0.5">{clients.length} unique clients served</p>}
-            {tab === 'messages' && <p className="text-sm text-neutral-400 mt-0.5">{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>}
+              <h1 className="text-[1.5rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f2f2f7' : '#1c1c1e' }}>{NAV.find(n => n.id === tab)?.label}</h1>
+              {tab === 'overview' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Welcome back, {business?.owner_name?.split(' ')[0] || 'there'}</p>}
+              {tab === 'bookings' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{bookings.length} total · {pendingCount} pending</p>}
+              {tab === 'clients' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{clients.length} unique clients</p>}
+            {tab === 'messages' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>}
             </div>
+
+            {/* Dismissed campus banner — show small indicator in overview */}
+            {campusBannerDismissed && business?.school_domain && !business?.edu_verified && tab === 'overview' && (
+              <button onClick={() => setCampusBannerDismissed(false)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg mb-4 self-start" style={{ background: dm ? 'rgba(139,92,246,0.12)' : '#f5f3ff', border: `1px solid ${dm ? 'rgba(139,92,246,0.2)' : '#ddd6fe'}` }}>
+                <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                <p className="text-xs font-semibold" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>Campus verification pending — tap to complete</p>
+              </button>
+            )}
 
             {/* OVERVIEW */}
             {tab === 'overview' && (
@@ -969,8 +977,8 @@ const BusinessDashboard: NextPage = () => {
                     { label: 'Pending', value: String(pendingCount), sub: 'need your action', icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', color: '#f59e0b', bg: 'bg-amber-50' },
                     { label: 'Clients', value: String(uniqueClients), sub: completedCount + ' jobs completed', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z', color: '#8b5cf6', bg: 'bg-violet-50' },
                   ].map(s => (
-                    <div key={s.label} className="bg-white rounded-2xl border border-neutral-100 p-5">
-                      <div className={`h-9 w-9 rounded-xl ${s.bg} flex items-center justify-center mb-3`}>
+                    <div key={s.label} className="rounded-2xl border p-5" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#f0f0f0' }}>
+                      <div className="h-9 w-9 rounded-xl flex items-center justify-center mb-3" style={{ background: dm ? 'rgba(255,255,255,0.06)' : undefined }}>
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                       </div>
                       <p className="text-2xl font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{s.value}</p>
@@ -1057,16 +1065,16 @@ const BusinessDashboard: NextPage = () => {
                                 <span className="text-accent text-sm font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-neutral-900">{b.profiles?.name || 'Unknown'}</p>
-                                <p className="text-[12px] text-neutral-500 mt-0.5 line-clamp-1">{b.service}</p>
+                                <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || 'Unknown'}</p>
+                                <p className="text-[12px] mt-0.5 line-clamp-1" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{b.service}</p>
                               </div>
                             </div>
                             <StatusBadge status={b.status} />
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400 mb-3">
-                            <span>📅 {fmtTime(b.created_at)}</span>
-                            {b.profiles?.phone && <span>📞 {b.profiles.phone}</span>}
-                            {b.profiles?.email && <span>✉ {b.profiles.email}</span>}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3" style={{ color: dm ? '#636366' : '#9ca3af' }}>
+                            <span>{fmtTime(b.created_at)}</span>
+                            {b.profiles?.phone && <span>{b.profiles.phone}</span>}
+                            {b.profiles?.email && <span>{b.profiles.email}</span>}
                             {b.amount_cents && <span className="text-neutral-700 font-semibold">{fmt(b.amount_cents)}</span>}
                           </div>
                           {(b.status === 'pending' || b.status === 'confirmed') && (
@@ -1383,7 +1391,7 @@ const BusinessDashboard: NextPage = () => {
                                   <span className="text-accent text-xs font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold text-neutral-900">{b.profiles?.name || 'Unknown'}</p>
+                                  <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || 'Unknown'}</p>
                                   <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{b.service}</p>
                                 </div>
                               </div>
@@ -1391,7 +1399,7 @@ const BusinessDashboard: NextPage = () => {
                             </div>
                             <div className="flex items-center gap-3 pl-11 text-[10px] text-neutral-400">
                               <span>📅 {bookingDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</span>
-                              {b.profiles?.phone && <span>📞 {b.profiles.phone}</span>}
+                              {b.profiles?.phone && <span>{b.profiles.phone}</span>}
                             </div>
                             {(b.status === 'pending' || b.status === 'confirmed') && (
                               <div className="flex gap-1.5 mt-2.5 pl-11">

@@ -157,6 +157,23 @@ const Account: NextPage = () => {
     });
   }, [router]);
 
+  async function handleAvatarUpload(file: File) {
+    if (!user) return;
+    setAvatarUploading(true);
+    try {
+      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `avatars/${session.user.id}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) { alert('Upload failed: ' + upErr.message); return; }
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', session.user.id);
+      setAvatarUrl(publicUrl);
+    } finally { setAvatarUploading(false); }
+  }
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true); setSaveError('');
@@ -276,6 +293,8 @@ const Account: NextPage = () => {
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
   const isGoogleAuth = authProvider === 'google';
 
@@ -301,11 +320,22 @@ const Account: NextPage = () => {
 
           <div className="relative mx-auto max-w-5xl px-6 pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">
-              {/* Avatar */}
-              <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-white text-lg font-black flex-shrink-0"
+              {/* Avatar — clickable to upload */}
+              <label className="relative h-14 w-14 rounded-2xl flex-shrink-0 cursor-pointer group overflow-hidden"
                 style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0055CC 100%)' }}>
-                {initials}
-              </div>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="flex items-center justify-center w-full h-full text-white text-lg font-black">{initials}</span>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {avatarUploading
+                    ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                  }
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); e.target.value = ''; }} />
+              </label>
               <div className="min-w-0">
                 <span className="sm-eyebrow mb-1 block">My Account</span>
                 <h1 className="text-xl font-black text-neutral-900 truncate" style={{ letterSpacing: '-0.025em' }}>{displayName}</h1>
