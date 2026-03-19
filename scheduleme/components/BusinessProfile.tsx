@@ -246,7 +246,8 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
             if (!canSubmit || submitting) return;
             setSubmitting(true); setSubmitError('');
             try {
-              const sb = (await import('../lib/supabaseClient')).default;
+              const { createClient } = await import('@supabase/supabase-js');
+              const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
               const { data: { session } } = await sb.auth.getSession();
               const realId = (biz as any).realId || biz.id;
               const res = await fetch('/api/bookings', {
