@@ -410,7 +410,7 @@ const BrowsePage: NextPage = () => {
       <Nav />
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
         <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} dm={dm} />)}
+          {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
       </div>
     </>
