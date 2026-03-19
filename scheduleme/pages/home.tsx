@@ -198,7 +198,7 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
   const cardBg = dm ? '#1c1c1e' : 'white';
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
-      style={{ width: 'clamp(160px, 42vw, 220px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
+      style={{ width: 'clamp(200px, 52vw, 260px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
       {/* Square image */}
       <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '1/1', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         <img src={biz.coverUrl} alt={biz.name}
