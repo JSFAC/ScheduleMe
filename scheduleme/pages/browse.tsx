@@ -156,70 +156,46 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
 
 
 // Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
-// Standard card used in grid view
+// Standard card — square image on mobile, clean vertical layout
 function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; hero?: boolean; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
-  const subtle = dm ? '#2c2c2e' : '#f2f2f7';
   return (
     <button onClick={onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
-      style={{ animationDelay: `${index * 0.05}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? 'none' : '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)' }}>
-      {/* Image */}
-      <div className="relative flex-shrink-0" style={{ height: 180, background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+      style={{ animationDelay: `${index * 0.05}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
+      {/* Square image */}
+      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '1/1', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
-        {/* Status pill */}
-        <div className="absolute top-2.5 left-2.5">
-          {biz.available ? (
-            <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(4px)' }}>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-bold text-emerald-700">Open</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-              <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
-              <span className="text-[10px] font-bold text-white/70">Booked</span>
-            </div>
-          )}
+        <div className="absolute top-2 left-2">
+          {biz.available
+            ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(4px)' }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-bold text-emerald-700">Open</span>
+              </div>
+            : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
+                <span className="text-[10px] font-bold text-white/70">Booked</span>
+              </div>
+          }
         </div>
-        {biz.badge && (
-          <div className="absolute top-2.5 right-2.5 text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', color: 'white' }}>
-            {biz.badge}
-          </div>
-        )}
       </div>
-
-      {/* Card body */}
-      <div className="flex-1 flex flex-col p-3" style={{ background: cardBg }}>
-        {/* Name + category */}
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <p className="font-bold text-[13px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 leading-tight" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{biz.category}</span>
-        </div>
-        {/* Stars + rating */}
-        <div className="flex items-center gap-1 mb-2">
+      {/* Body — one item per line */}
+      <div className="p-3 flex flex-col gap-1" style={{ background: cardBg }}>
+        <p className="font-bold text-[13px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full self-start" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{biz.category}</span>
+        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
+        <div className="flex items-center gap-0.5">
           {[1,2,3,4,5].map(i => (
             <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
           ))}
-          <span className="text-[11px] font-semibold ml-0.5" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
-          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>· {biz.reviews} reviews · {biz.distance}</span>
+          <span className="text-[11px] font-semibold ml-1" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
         </div>
-        {/* Review snippet */}
-        {biz.topReview && (
-          <div className="flex-1 rounded-xl px-3 py-2.5" style={{ background: subtle }}>
-            <p className="text-[11px] leading-relaxed line-clamp-2 italic" style={{ color: dm ? '#d1d5db' : '#525252' }}>"{biz.topReview}"</p>
-            {biz.reviewer && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <img src={biz.reviewer.avatarUrl} alt={biz.reviewer.name} className="h-4 w-4 rounded-full object-cover" />
-                <span className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.reviewer.name}</span>
-              </div>
-            )}
-          </div>
-        )}
+        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.reviews} review{biz.reviews !== 1 ? 's' : ''}</p>
       </div>
     </button>
   );
@@ -534,29 +510,21 @@ const BrowsePage: NextPage = () => {
                           </div>
                         ) : null}
                       </div>
-                      <div className="flex-1 min-w-0 py-2 flex flex-col gap-1.5">
-                        {/* Name + category on same row */}
+                      <div className="flex-1 min-w-0 py-1.5 flex flex-col gap-1">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" data-pill style={PILL_STYLE}>{biz.category}</span>
                         </div>
-                        {/* Tagline */}
-                        <p className="text-[11px] leading-snug line-clamp-2" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.tagline}</p>
-                        {/* Stars + reviews + distance */}
-                        <div className="flex items-center gap-1">
-                          <div className="flex gap-0.5">
-                            {[1,2,3,4,5].map(i => (
-                              <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            ))}
-                          </div>
-                          <span className="text-[11px] font-semibold" style={{ color: dm ? '#d1d5db' : '#404040' }}>{biz.rating}</span>
-                          <span style={{ color: dm ? '#4b5563' : '#d1d5db', fontSize: 11 }}>·</span>
-                          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
-                          <span style={{ color: dm ? '#4b5563' : '#d1d5db', fontSize: 11 }}>·</span>
-                          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</span>
+                        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
+                        <div className="flex items-center gap-0.5">
+                          {[1,2,3,4,5].map(i => (
+                            <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                          <span className="text-[11px] font-semibold ml-1" style={{ color: dm ? '#d1d5db' : '#404040' }}>{biz.rating}</span>
                         </div>
+                        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.reviews} review{biz.reviews !== 1 ? 's' : ''}</p>
                       </div>
                     </button>
                   ))}
