@@ -258,7 +258,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
       {user && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-40"
           style={{ background: darkMode ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', borderTop: `1px solid ${darkMode ? '#262626' : '#f0f0f0'}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', height: 56 }}>
+          <div style={{ display: 'flex', height: 56 }}>
             {[...appLinks, { label: 'Account', href: '/account' }].map((link) => {
               const isActive = !link.href.includes('#') && (router.pathname === link.href);
               const paths: Record<string, string> = {
@@ -269,13 +269,13 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 '/messages': 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z',
                 '/account': 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z',
               };
+              const col = isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.45)' : '#9ca3af');
               return (
-                <Link key={link.href} href={link.href} scroll={false}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, height: '100%', gap: 2, color: isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.4)' : '#a3a3a3'), textDecoration: 'none' }}>
-                  <svg style={{ width: 20, height: 20, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isActive ? 2.2 : 1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={paths[link.href] || ''} />
+                <Link key={link.href} href={link.href} scroll={false} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, color: col, textDecoration: 'none', WebkitTapHighlightColor: 'transparent' }}>
+                  <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={col} strokeWidth={isActive ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+                    <path d={paths[link.href] || ''} />
                   </svg>
-                  <span style={{ fontSize: 10, fontWeight: 600, lineHeight: 1 }}>{link.label.replace('🎓 ', '')}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.02em', color: col }}>{link.label.replace('🎓 ', '')}</span>
                 </Link>
               );
             })}

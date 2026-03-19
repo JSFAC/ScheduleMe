@@ -58,13 +58,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Now fetch the specific business
   const { data: biz, error: bizError } = await supabase
     .from('businesses')
-    .select('id, media_urls, video_url')
+    .select('id, cover_url')
     .eq('id', business_id)
     .maybeSingle();
 
   if (bizError) return res.status(500).json({ error: 'DB query error: ' + bizError.message });
   if (!biz) return res.status(404).json({ 
-    error: `Business ${business_id} not found. Total businesses in DB: ${testData?.length ?? 0}`
+    error: `Business ${business_id} not found in DB. Key works (found ${testData?.length ?? 0} businesses total)`
   });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
@@ -78,12 +78,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: { publicUrl } } = supabase.storage.from('business-media').getPublicUrl(fileName);
 
+  // Update cover_url (and video_url if those columns exist)
   if (isVideo) {
-    await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id);
+    await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id).then(() => {});
   } else {
-    const existing: string[] = biz.media_urls || [];
-    const updated = [...existing.filter((u: string) => u !== publicUrl), publicUrl].slice(0, 6);
-    await supabase.from('businesses').update({ media_urls: updated, cover_url: updated[0] }).eq('id', business_id);
+    // Always update cover_url with first image
+    await supabase.from('businesses').update({ cover_url: publicUrl }).eq('id', business_id);
   }
 
   return res.status(200).json({ url: publicUrl });
