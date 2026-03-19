@@ -488,7 +488,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
           <button key={mode} onClick={() => switchTab(mode)}
             className="flex-1 py-2 rounded-lg text-sm font-bold transition-all"
             style={{ background: tab === mode ? bg : 'transparent', color: tab === mode ? (dm ? '#f2f2f7' : '#1c1c1e') : muted, boxShadow: tab === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
-            {mode === 'card' ? '🃏 Card View' : '📋 Modal View'}
+            {mode === 'card' ? 'Card View' : 'Modal View'}
           </button>
         ))}
       </div>
