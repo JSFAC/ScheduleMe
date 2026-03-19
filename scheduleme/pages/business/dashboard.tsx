@@ -223,7 +223,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
   useEffect(() => { setImgs(mediaImages); }, [mediaImages]);
 
   async function getAuthHeaders() {
-    const { data: { session } } = await (await import('../lib/supabaseClient')).default.auth.getSession();
+    const { data: { session } } = await getSupabase().auth.getSession();
     return session ? { Authorization: `Bearer ${session.access_token}` } : {};
   }
 
