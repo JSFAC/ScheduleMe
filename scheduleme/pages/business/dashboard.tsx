@@ -214,10 +214,12 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
   setBusiness: (fn: (b: any) => any) => void; dm: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'card' | 'modal'>('card');
   const [imgs, setImgs] = useState(mediaImages);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
-  const [dragOver, setDragOver] = useState(false);
+  const [stripDragOver, setStripDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setImgs(mediaImages); }, [mediaImages]);
@@ -227,93 +229,87 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
     return session ? { Authorization: `Bearer ${session.access_token}` } : {};
   }
 
-  async function uploadFile(file: File) {
-    if (!business) return;
+  async function uploadFiles(files: File[]) {
+    if (!business || files.length === 0) return;
     setUploading(true);
-    const isVideo = file.type.startsWith('video/');
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string;
-      try {
-        const headers = await getAuthHeaders();
-        const res = await fetch('/api/upload-media', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify({ business_id: business.id, media_type: isVideo ? 'video' : 'image', file_data: base64, file_type: file.type, file_name: file.name }),
-        });
-        const data = await res.json();
-        if (data.url) {
-          if (isVideo) { setMediaVideo(data.url); }
-          else { const next = [...imgs, data.url]; setImgs(next); setMediaImages(next); }
-        }
-      } finally { setUploading(false); }
-    };
-    reader.readAsDataURL(file);
+    const results: string[] = [];
+    for (const file of files) {
+      const isVideo = file.type.startsWith('video/');
+      await new Promise<void>(resolve => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const base64 = e.target?.result as string;
+          try {
+            const headers = await getAuthHeaders();
+            const res = await fetch('/api/upload-media', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...headers },
+              body: JSON.stringify({ business_id: business.id, media_type: isVideo ? 'video' : 'image', file_data: base64, file_type: file.type, file_name: file.name }),
+            });
+            const data = await res.json();
+            if (data.url) {
+              if (isVideo) setMediaVideo(data.url);
+              else results.push(data.url);
+            }
+          } finally { resolve(); }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (results.length > 0) {
+      const next = [...imgs, ...results];
+      setImgs(next); setMediaImages(next);
+    }
+    setUploading(false);
   }
 
   function onDragStart(i: number) { setDragIdx(i); }
-  function onDragOver(e: React.DragEvent, i: number) {
+  function onDragOverImg(e: React.DragEvent, i: number) {
     e.preventDefault();
     if (dragIdx === null || dragIdx === i) return;
     const next = [...imgs]; const [moved] = next.splice(dragIdx, 1); next.splice(i, 0, moved);
     setImgs(next); setDragIdx(i);
   }
   async function onDragEnd() {
-    setDragIdx(null);
-    if (!business) return;
-    setMediaImages(imgs);
-    await getSupabase().from('businesses').update({ media_urls: imgs, cover_url: imgs[0] || null }).eq('id', business.id);
+    setDragIdx(null); setMediaImages(imgs);
+    if (business) await getSupabase().from('businesses').update({ media_urls: imgs, cover_url: imgs[0] || null }).eq('id', business.id);
   }
-
   async function removeImg(i: number) {
     const next = imgs.filter((_, j) => j !== i);
     setImgs(next); setMediaImages(next);
     if (business) await getSupabase().from('businesses').update({ media_urls: next, cover_url: next[0] || null }).eq('id', business.id);
   }
-
   async function saveDesc() {
     if (!business) return;
     await getSupabase().from('businesses').update({ description: editDesc }).eq('id', business.id);
     setBusiness((b: any) => b ? { ...b, description: editDesc } : b);
   }
-
-  function onFileDrop(e: React.DragEvent) {
-    e.preventDefault(); setDragOver(false);
+  function onStripDrop(e: React.DragEvent) {
+    e.preventDefault(); setStripDragOver(false);
     const files = Array.from(e.dataTransfer.files);
-    files.forEach(uploadFile);
+    if (files.length > 0) uploadFiles(files);
   }
 
-  return (
-    <div className="rounded-2xl overflow-hidden border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
-      {/* Cover image */}
+  const bg = dm ? '#171717' : 'white';
+  const border = dm ? '#262626' : '#f0f0f0';
+
+  // ── Card preview ──────────────────────────────────────────────────────────
+  const cardPreview = (
+    <div className="rounded-2xl overflow-hidden border" style={{ background: bg, borderColor: border }}>
       <div style={{ height: 200, background: dm ? '#262626' : '#e8ecf0', position: 'relative' }}>
-        {imgs[0] ? (
-          <img src={imgs[0]} alt={business?.name} className="w-full h-full object-cover" />
-        ) : (
+        {imgs[0] ? <img src={imgs[0]} alt={business?.name} className="w-full h-full object-cover" /> : (
           <div className="w-full h-full flex items-center justify-center">
             <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo yet</p>
           </div>
         )}
-        {/* Edit toggle */}
         <button onClick={() => setEditing(e => !e)}
           className="absolute top-3 right-3 flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-xl"
           style={{ background: editing ? '#0A84FF' : 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(8px)' }}>
-          {editing ? (
-            <>
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-              Done
-            </>
-          ) : (
-            <>
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
-              Edit
-            </>
-          )}
+          {editing ? <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Done</> 
+          : <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>Edit</>}
         </button>
       </div>
-
       <div className="p-5">
-        {/* Business name + rating */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <h2 className="text-xl font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name}</h2>
@@ -324,51 +320,43 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             <span className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{business?.rating ?? '—'}</span>
           </div>
         </div>
-
-        {/* Description — editable inline when editing */}
         {editing ? (
-          <textarea
-            value={editDesc}
-            onChange={e => setEditDesc(e.target.value)}
-            onBlur={saveDesc}
-            placeholder="Tell customers about your business…"
-            rows={3}
+          <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} onBlur={saveDesc}
+            placeholder="Tell customers about your business…" rows={3}
             className="w-full px-3 py-2.5 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-4"
-            style={{ background: dm ? '#0d0d0d' : '#f9fafb', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
-          />
-        ) : (
-          editDesc && <p className="text-sm leading-relaxed mb-4" style={{ color: dm ? '#d1d5db' : '#525252' }}>{editDesc}</p>
+            style={{ background: dm ? '#0d0d0d' : '#f9fafb', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+        ) : editDesc && (
+          <p className="text-sm leading-relaxed mb-4" style={{ color: dm ? '#d1d5db' : '#525252' }}>{editDesc}</p>
         )}
-
-        {/* Service tags */}
         {(business?.service_tags?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {(business!.service_tags ?? []).map((tag: string) => (
-              <span key={tag} className="text-xs px-3 py-1.5 rounded-full font-semibold"
-                style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
+              <span key={tag} className="text-xs px-3 py-1.5 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
                 {tag.replace(/_/g, ' ')}
               </span>
             ))}
           </div>
         )}
-
-        {/* Photo strip — always shown, draggable in edit mode */}
-        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}
-          onDragOver={e => e.preventDefault()}
-          onDrop={editing ? onFileDrop : undefined}>
+        {/* Photo/video strip */}
+        <div
+          className="flex gap-2 overflow-x-auto pb-1"
+          style={{ scrollbarWidth: 'none', background: editing && stripDragOver ? (dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF') : 'transparent', borderRadius: 12, transition: 'background 0.15s' }}
+          onDragOver={editing ? e => { e.preventDefault(); setStripDragOver(true); } : undefined}
+          onDragLeave={editing ? () => setStripDragOver(false) : undefined}
+          onDrop={editing ? onStripDrop : undefined}>
           {imgs.map((url, i) => (
-            <div key={url}
-              draggable={editing}
+            <div key={url} draggable={editing}
               onDragStart={editing ? () => onDragStart(i) : undefined}
-              onDragOver={editing ? (e) => onDragOver(e, i) : undefined}
+              onDragOver={editing ? e => onDragOverImg(e, i) : undefined}
               onDragEnd={editing ? onDragEnd : undefined}
               className="relative flex-shrink-0 rounded-xl overflow-hidden"
-              style={{ width: 72, height: 72, opacity: dragIdx === i ? 0.4 : 1, cursor: editing ? 'grab' : 'default',
-                border: i === 0 ? '2px solid #0A84FF' : `1px solid ${dm ? '#404040' : '#e5e7eb'}` }}>
+              style={{ width: 72, height: 72, opacity: dragIdx === i ? 0.4 : 1, cursor: editing ? 'grab' : 'pointer',
+                border: i === 0 ? '2px solid #0A84FF' : `1px solid ${dm ? '#404040' : '#e5e7eb'}` }}
+              onClick={() => !editing && setLightboxImg(url)}>
               <img src={url} alt="" className="w-full h-full object-cover" />
               {i === 0 && <div className="absolute top-0.5 left-0.5 text-[8px] font-black px-1 py-0.5 rounded" style={{ background: '#0A84FF', color: 'white' }}>COVER</div>}
               {editing && (
-                <button onClick={() => removeImg(i)}
+                <button onClick={e => { e.stopPropagation(); removeImg(i); }}
                   className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full flex items-center justify-center"
                   style={{ background: 'rgba(0,0,0,0.7)', color: 'white' }}>
                   <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -376,47 +364,102 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
               )}
             </div>
           ))}
-
-          {/* Add photo/video box — only in edit mode */}
           {editing && (
-            <div
-              className="flex-shrink-0 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors"
-              style={{ width: 72, height: 72, border: `2px dashed ${dragOver ? '#0A84FF' : (dm ? '#404040' : '#d1d5db')}`, background: dragOver ? (dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF') : 'transparent' }}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); Array.from(e.dataTransfer.files).forEach(uploadFile); }}>
-              {uploading ? (
-                <div className="h-5 w-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-              ) : (
-                <>
-                  <svg className="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke={dm ? '#6b7280' : '#9ca3af'} strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: dm ? '#6b7280' : '#9ca3af' }}>Add</span>
-                </>
+            <div className="flex-shrink-0 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors"
+              style={{ width: 72, height: 72, border: `2px dashed ${stripDragOver ? '#0A84FF' : (dm ? '#404040' : '#d1d5db')}`, background: 'transparent' }}
+              onClick={() => fileInputRef.current?.click()}>
+              {uploading ? <div className="h-5 w-5 rounded-full border-2 border-accent border-t-transparent animate-spin" /> : (
+                <><svg className="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke={dm ? '#6b7280' : '#9ca3af'} strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                <span style={{ fontSize: 9, fontWeight: 700, color: dm ? '#6b7280' : '#9ca3af' }}>Add</span></>
               )}
             </div>
           )}
         </div>
-
-        {/* Video indicator */}
+        {editing && imgs.length === 0 && !uploading && (
+          <p className="text-xs mt-2 text-center" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Drag photos or videos into the strip, or click + to browse</p>
+        )}
+        {editing && imgs.length > 0 && (
+          <p className="text-xs mt-2" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>First photo is your cover. Drag to reorder. Click × to remove. Drop files anywhere in the strip to add more.</p>
+        )}
         {mediaVideo && (
           <div className="mt-3 flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
             <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
             <span className="text-sm font-medium flex-1" style={{ color: dm ? '#d1d5db' : '#525252' }}>Promo video</span>
-            {editing && (
-              <button onClick={async () => { setMediaVideo(''); if (business) await getSupabase().from('businesses').update({ video_url: null }).eq('id', business.id); }}
-                className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
-            )}
+            {editing && <button onClick={async () => { setMediaVideo(''); if (business) await getSupabase().from('businesses').update({ video_url: null }).eq('id', business.id); }} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>}
           </div>
         )}
+      </div>
+    </div>
+  );
 
-        {editing && !mediaVideo && (
-          <p className="text-xs mt-2" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Drag a video file into the strip above to add a promo video.</p>
+  // ── Modal preview ──────────────────────────────────────────────────────────
+  const modalPreview = (
+    <div className="rounded-2xl border overflow-hidden" style={{ background: dm ? '#0d0d0d' : '#f9fafb', borderColor: border }}>
+      <div className="p-4 border-b" style={{ borderColor: border, background: bg }}>
+        <p className="text-xs font-black uppercase tracking-widest" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Modal View — as customers see it</p>
+      </div>
+      {/* Simplified modal preview */}
+      <div style={{ height: 160, background: dm ? '#262626' : '#e8ecf0', position: 'relative' }}>
+        {imgs[0] ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" /> : null}
+        {imgs.length > 1 && (
+          <div className="absolute bottom-2 right-2 flex gap-1">
+            {imgs.slice(0,4).map((url, i) => (
+              <div key={i} className="rounded-lg overflow-hidden" style={{ width: 36, height: 36, border: '1.5px solid rgba(255,255,255,0.5)' }}>
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+            {imgs.length > 4 && <div className="rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ width: 36, height: 36, background: 'rgba(0,0,0,0.5)' }}>+{imgs.length - 4}</div>}
+          </div>
         )}
       </div>
+      <div className="p-4 space-y-3">
+        <div>
+          <h2 className="text-lg font-black" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{business?.name}</h2>
+          <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{business?.address}</p>
+        </div>
+        {editDesc && <p className="text-sm" style={{ color: dm ? '#d1d5db' : '#525252' }}>{editDesc}</p>}
+        <div className="flex flex-wrap gap-1.5">
+          {(business?.service_tags ?? []).map((tag: string) => (
+            <span key={tag} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
+              {tag.replace(/_/g, ' ')}
+            </span>
+          ))}
+        </div>
+        <div className="rounded-xl p-3 text-center text-sm font-bold" style={{ background: '#0A84FF', color: 'white' }}>Book Now</div>
+        <p className="text-xs text-center" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Contact info, calendar, and reviews appear below in the full modal</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Tab switcher */}
+      <div className="flex rounded-xl p-1 gap-1" style={{ background: dm ? '#262626' : '#f0f0f0' }}>
+        {(['card', 'modal'] as const).map(mode => (
+          <button key={mode} onClick={() => setPreviewMode(mode)}
+            className="flex-1 py-2 rounded-lg text-sm font-bold transition-all"
+            style={{ background: previewMode === mode ? (dm ? '#171717' : 'white') : 'transparent', color: previewMode === mode ? (dm ? '#f3f4f6' : '#171717') : (dm ? '#6b7280' : '#a3a3a3'), boxShadow: previewMode === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
+            {mode === 'card' ? 'Card View' : 'Modal View'}
+          </button>
+        ))}
+      </div>
+
+      {previewMode === 'card' ? cardPreview : modalPreview}
+
+      {/* Lightbox */}
+      {lightboxImg && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.9)' }}
+          onClick={() => setLightboxImg(null)}>
+          <img src={lightboxImg} alt="" className="max-w-full max-h-full rounded-2xl object-contain" />
+          <button className="absolute top-4 right-4 h-10 w-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+      )}
 
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden"
-        onChange={e => { Array.from(e.target.files || []).forEach(uploadFile); e.target.value = ''; }} />
+        onChange={e => { uploadFiles(Array.from(e.target.files || [])); e.target.value = ''; }} />
     </div>
   );
 }

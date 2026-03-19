@@ -406,7 +406,7 @@ const BrowsePage: NextPage = () => {
 
   if (loading) return (
     <>
-      <Head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
+      <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(52px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
         <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -419,7 +419,7 @@ const BrowsePage: NextPage = () => {
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Browse — ScheduleMe</title></Head>
 
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(52px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">

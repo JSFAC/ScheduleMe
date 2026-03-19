@@ -639,7 +639,7 @@ const BookingsPage: NextPage = () => {
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Bookings — ScheduleMe</title></Head>
 
       {/* Onboarding carousel — first time users only */}
