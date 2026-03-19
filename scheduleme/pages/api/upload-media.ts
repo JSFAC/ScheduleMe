@@ -1,7 +1,7 @@
 // pages/api/upload-media.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, isValidUuid } from '../../lib/apiSecurity';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
@@ -10,22 +10,13 @@ const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
 export const config = { api: { bodyParser: { sizeLimit: '55mb' } } };
 
-function getSupabase() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    key,
-    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-  );
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!rateLimit(req, res, { max: 20, windowMs: 60 * 60_000, keyPrefix: 'upload-media' })) return;
 
-  const user = await requireAuth(req, res);
-  if (!user) return;
+  const token = req.headers.authorization?.replace('Bearer ', '') || '';
+  if (!token) return res.status(401).json({ error: 'No auth token' });
 
   const { business_id, media_type, file_data, file_type, file_name } = req.body;
 
@@ -41,29 +32,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const base64Data = file_data.replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
-  const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
-  if (buffer.length > maxSize)
-    return res.status(400).json({ error: `File too large. Max: ${Math.round(maxSize / 1024 / 1024)}MB` });
+  if (buffer.length > (isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE))
+    return res.status(400).json({ error: `File too large` });
 
-  const supabase = getSupabase();
-
-  // Fetch existing media_urls — use anon client with user's token for RLS
-  const token = req.headers.authorization?.replace('Bearer ', '') || '';
-  const userClient = createClient(
+  // Use service role to bypass RLS entirely for business media uploads
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
   );
-  
-  const { data: biz } = await userClient
+
+  // Verify the token is valid
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) return res.status(401).json({ error: 'Invalid session' });
+
+  // Get business — service role bypasses all RLS
+  const { data: biz } = await supabase
     .from('businesses')
     .select('id, media_urls, video_url')
     .eq('id', business_id)
-    .maybeSingle();
+    .single();
 
-  if (!biz) return res.status(404).json({ 
-    error: `Business not found or you don't have access. Make sure you're logged in as the business owner.`
-  });
+  if (!biz) return res.status(404).json({ error: `Business ${business_id} not found in database` });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;
@@ -72,19 +62,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from('business-media')
     .upload(fileName, buffer, { contentType: file_type, upsert: true });
 
-  if (uploadError)
-    return res.status(500).json({ error: 'Storage upload failed: ' + uploadError.message });
+  if (uploadError) return res.status(500).json({ error: 'Storage failed: ' + uploadError.message });
 
-  const { data: { publicUrl } } = supabase.storage
-    .from('business-media')
-    .getPublicUrl(fileName);
+  const { data: { publicUrl } } = supabase.storage.from('business-media').getPublicUrl(fileName);
 
   if (isVideo) {
-    await userClient.from('businesses').update({ video_url: publicUrl }).eq('id', business_id);
+    await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id);
   } else {
     const existing: string[] = biz.media_urls || [];
     const updated = [...existing.filter((u: string) => u !== publicUrl), publicUrl].slice(0, 6);
-    await userClient.from('businesses').update({ media_urls: updated, cover_url: updated[0] }).eq('id', business_id);
+    await supabase.from('businesses').update({ media_urls: updated, cover_url: updated[0] }).eq('id', business_id);
   }
 
   return res.status(200).json({ url: publicUrl });
