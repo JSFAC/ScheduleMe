@@ -260,6 +260,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
                   address,
                   scheduled_date: date?.toISOString(),
                   scheduled_slot: slot,
+                  user_id: session?.user?.id,
                   user_email: session?.user?.email,
                   user_name: session?.user?.user_metadata?.full_name,
                 }),

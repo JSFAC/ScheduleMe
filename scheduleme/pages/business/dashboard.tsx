@@ -597,8 +597,9 @@ const BusinessDashboard: NextPage = () => {
     setEditHours(biz.hours || {});
     setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
     setMediaVideo(biz.video_url || null);
-    const { data: bkgs } = await supabase.from('bookings').select('*, profiles(name, phone, email)').eq('business_id', biz.id).order('created_at', { ascending: false });
-    setBookings(bkgs || []);
+    // Use API to fetch bookings (bypasses RLS issues with anon key)
+    const bkgRes = await fetch('/api/bookings?business_id=' + biz.id, { headers: await getAuthHeaders() });
+    if (bkgRes.ok) { const bkgData = await bkgRes.json(); setBookings(bkgData.bookings || []); }
     // Pre-load message threads
     const msgsRes = await fetch('/api/messages?business_id=' + biz.id, { headers: await getAuthHeaders() });
     if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); }
