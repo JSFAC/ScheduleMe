@@ -294,7 +294,7 @@ const Account: NextPage = () => {
         .tab-panel { animation: tabIn 0.22s ease both; }
       `}</style>
 
-      <div className="min-h-screen pb-24 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#f9fafb', opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
+      <div className="min-h-screen pb-24 md:pb-0" style={{ paddingTop: 'calc(52px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#f9fafb', opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
 
         {/* Premium header — sm-panel */}
         <div className={`${dm ? 'bg-[#0d0d0d]' : 'sm-panel'} border-b`} style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)', overflow: 'visible' }}>

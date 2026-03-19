@@ -156,7 +156,7 @@ const MessagesPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Messages — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(52px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
 
         {/* Blue header */}
         <div className="border-b" style={{ background: '#3b82f6', borderColor: 'rgba(0,0,0,0.08)' }}>
