@@ -120,6 +120,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const navLinks = user ? appLinks : marketingLinks;
 
   const navBg = (isDark || darkMode) ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)';
+  const navFill = (isDark || darkMode) ? '#0a0a0a' : '#ffffff';
   const navBorder = (isDark || darkMode) ? '#262626' : 'rgba(0,0,0,0.07)';
 
   return (
@@ -128,7 +129,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
       <div aria-hidden="true" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 41,
         height: 'env(safe-area-inset-top, 0px)',
-        background: navBg,
+        background: navFill,
         transition: 'background 0.15s ease',
       }} />
       <header className={`fixed left-0 right-0 z-40 border-b ${isDark || darkMode ? 'border-neutral-800' : 'border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
@@ -139,7 +140,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           WebkitBackdropFilter: 'blur(12px)',
           transition: 'background 0.15s ease',
         }}>
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 64, alignItems: 'center' }} aria-label="Main navigation">
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 52, alignItems: 'center' }} aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}
         <div className="flex-1 flex items-center min-w-0">
