@@ -142,7 +142,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           WebkitBackdropFilter: 'blur(12px)',
           transition: 'background 0.15s ease',
         }}>
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 52 }} aria-label="Main navigation">
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 48 }} aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}
         <div className="flex-1 flex items-center min-w-0">
