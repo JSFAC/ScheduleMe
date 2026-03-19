@@ -456,14 +456,8 @@ const BusinessDashboard: NextPage = () => {
 
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
 
-  if (loading) return (
-    <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-      <div className="relative h-8 w-8">
-        <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
-      </div>
-    </div>
-  );
+  // While loading, render nothing — the _app.tsx overlay covers this transition
+  if (loading) return <div className="min-h-screen" style={{ background: '#0a0a0a' }} />;
 
   const totalEarned = bookings.filter(b => b.status === 'paid' || b.status === 'completed').reduce((s, b) => s + (b.amount_cents || 0), 0);
   const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
