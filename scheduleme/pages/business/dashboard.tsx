@@ -222,7 +222,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
 
   useEffect(() => { setImgs(mediaImages); }, [mediaImages]);
 
-  async function getAuthHeaders() {
+  async function getAuthHeaders(): Promise<Record<string, string>> {
     const { data: { session } } = await getSupabase().auth.getSession();
     return session ? { Authorization: `Bearer ${session.access_token}` } : {};
   }
