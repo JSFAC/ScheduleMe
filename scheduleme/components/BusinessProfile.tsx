@@ -319,7 +319,8 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
   const ready = mounted && !closing;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+      style={{ padding: `env(safe-area-inset-top, 44px) 16px 16px`, paddingTop: `calc(env(safe-area-inset-top, 44px) + 8px)` }}
       style={{
         background: `rgba(0,0,0,${ready ? 0.5 : 0})`,
         backdropFilter: `blur(${ready ? 6 : 0}px)`,
@@ -331,7 +332,8 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
       onClick={close}>
       <div
         onClick={e => e.stopPropagation()}
-        className="relative rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col"
+        className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col sm:max-h-[92vh]"
+        style={{ ...({} as any), maxHeight: 'calc(100vh - env(safe-area-inset-top, 44px) - 16px)' }}
         style={{
           background: dm ? '#171717' : 'white',
           opacity: ready ? 1 : 0,
@@ -361,7 +363,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
                 </svg>
               </PureBtn>
               <PureBtn onClick={() => goImg(1)}
-                className="absolute right-12 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center">
                 <svg className="h-4 w-4 text-white pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
@@ -372,8 +374,9 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
           {/* Draggable thumbnail carousel */}
           <div ref={thumbsRef}
             className="absolute bottom-2.5 left-3 flex gap-1.5 overflow-x-auto"
-            style={{ maxWidth: 'calc(100% - 52px)', scrollbarWidth: 'none', cursor: 'grab' } as React.CSSProperties}
+            style={{ maxWidth: 'calc(100% - 52px)', scrollbarWidth: 'none' } as React.CSSProperties}
             onMouseDown={e => {
+              if (e.pointerType === 'touch') return;
               const el = e.currentTarget;
               isDragging.current = false;
               const onMove = (ev: MouseEvent) => { isDragging.current = true; el.scrollLeft -= ev.movementX; };

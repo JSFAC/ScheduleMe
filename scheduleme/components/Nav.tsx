@@ -32,7 +32,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   // Update theme-color meta instantly when dark mode toggles
   useEffect(() => {
     const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
-    if (meta) meta.content = (isDark || darkMode) ? '#0a0a0a' : '#EDF5FF';
+    if (meta) meta.content = (isDark || darkMode) ? '#0F1117' : '#EDF5FF';
   }, [darkMode, isDark]);
   // Initialise from cache synchronously — no layout shift on mount
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(readCache);
@@ -119,8 +119,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
   ];
   const navLinks = user ? appLinks : marketingLinks;
 
-  const navBg = (isDark || darkMode) ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)';
-  const navFill = (isDark || darkMode) ? '#0a0a0a' : '#ffffff';
+  const navBg = (isDark || darkMode) ? 'rgba(15,17,23,0.97)' : 'rgba(255,255,255,0.97)';
+  const navFill = (isDark || darkMode) ? '#0F1117' : '#ffffff';
   const navBorder = (isDark || darkMode) ? '#262626' : 'rgba(0,0,0,0.07)';
 
   return (
@@ -267,7 +267,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           WebkitBackdropFilter: 'blur(12px)',
           borderTop: `1px solid ${darkMode ? '#262626' : '#f0f0f0'}`,
         }}>
-          <div style={{ display: 'flex', height: 56 }}>
+          <div style={{ display: 'flex', height: 52, alignItems: 'center' }}>
             {[...appLinks].map((link) => {
               const isActive = router.pathname === link.href;
               const paths: Record<string, string> = {
@@ -294,7 +294,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               );
             })}
           </div>
-          <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+          <div style={{ height: 'calc(env(safe-area-inset-bottom, 0px) + 2px)' }} />
         </div>
       )}
     </>
