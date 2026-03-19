@@ -394,39 +394,87 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
 
   // ── Modal preview ──────────────────────────────────────────────────────────
   const modalPreview = (
-    <div className="rounded-2xl border overflow-hidden" style={{ background: dm ? '#0d0d0d' : '#f9fafb', borderColor: border }}>
-      <div className="p-4 border-b" style={{ borderColor: border, background: bg }}>
-        <p className="text-xs font-black uppercase tracking-widest" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Modal View — as customers see it</p>
-      </div>
-      {/* Simplified modal preview */}
-      <div style={{ height: 160, background: dm ? '#262626' : '#e8ecf0', position: 'relative' }}>
-        {imgs[0] ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" /> : null}
+    <div className="rounded-2xl border overflow-hidden" style={{ background: dm ? '#171717' : 'white', borderColor: border }}>
+      {/* Gallery */}
+      <div style={{ height: 200, background: dm ? '#262626' : '#e8ecf0', position: 'relative' }}>
+        {imgs[0] ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" /> : (
+          <div className="w-full h-full flex items-center justify-center">
+            <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo</p>
+          </div>
+        )}
         {imgs.length > 1 && (
-          <div className="absolute bottom-2 right-2 flex gap-1">
-            {imgs.slice(0,4).map((url, i) => (
-              <div key={i} className="rounded-lg overflow-hidden" style={{ width: 36, height: 36, border: '1.5px solid rgba(255,255,255,0.5)' }}>
+          <div className="absolute bottom-2 left-3 flex gap-1.5 overflow-x-auto" style={{ maxWidth: 'calc(100% - 52px)', scrollbarWidth: 'none' }}>
+            {imgs.slice(0,5).map((url, i) => (
+              <div key={i} className="flex-shrink-0 rounded-lg overflow-hidden" style={{ width: 48, height: 34, border: `2px solid ${i === 0 ? '#fff' : 'rgba(255,255,255,0.4)'}`, opacity: i === 0 ? 1 : 0.65 }}>
                 <img src={url} alt="" className="w-full h-full object-cover" />
               </div>
             ))}
-            {imgs.length > 4 && <div className="rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ width: 36, height: 36, background: 'rgba(0,0,0,0.5)' }}>+{imgs.length - 4}</div>}
           </div>
         )}
       </div>
-      <div className="p-4 space-y-3">
-        <div>
-          <h2 className="text-lg font-black" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{business?.name}</h2>
-          <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{business?.address}</p>
+
+      <div className="p-5 space-y-4 overflow-y-auto" style={{ maxHeight: 480 }}>
+        {/* Name + rating */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name}</h2>
+            <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{business?.address}</p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-full" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
+            <svg className="h-3.5 w-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+            <span className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{business?.rating ?? '—'}</span>
+            {business?.review_count > 0 && <span className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>({business.review_count})</span>}
+          </div>
         </div>
-        {editDesc && <p className="text-sm" style={{ color: dm ? '#d1d5db' : '#525252' }}>{editDesc}</p>}
-        <div className="flex flex-wrap gap-1.5">
-          {(business?.service_tags ?? []).map((tag: string) => (
-            <span key={tag} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
-              {tag.replace(/_/g, ' ')}
-            </span>
-          ))}
+
+        {/* Description */}
+        {editDesc && <p className="text-sm leading-relaxed" style={{ color: dm ? '#d1d5db' : '#525252' }}>{editDesc}</p>}
+
+        {/* Tags */}
+        {(business?.service_tags?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {(business!.service_tags ?? []).map((tag: string) => (
+              <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
+                {tag.replace(/_/g, ' ')}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Contact info */}
+        <div className="rounded-xl p-4 space-y-2.5" style={{ background: dm ? '#262626' : '#f9fafb', border: `1px solid ${dm ? '#333' : '#e5e7eb'}` }}>
+          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Contact</p>
+          {business?.phone && (
+            <div className="flex items-center gap-2 text-sm" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: '#0A84FF' }}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+              {business.phone}
+            </div>
+          )}
+          {business?.owner_email && (
+            <div className="flex items-center gap-2 text-sm" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: '#0A84FF' }}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+              {business.owner_email}
+            </div>
+          )}
+          {business?.website && (
+            <div className="flex items-center gap-2 text-sm" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: '#0A84FF' }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" /></svg>
+              {business.website}
+            </div>
+          )}
+          {business?.address && (
+            <div className="flex items-center gap-2 text-sm" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: '#0A84FF' }}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+              {business.address}
+            </div>
+          )}
         </div>
-        <div className="rounded-xl p-3 text-center text-sm font-bold" style={{ background: '#0A84FF', color: 'white' }}>Book Now</div>
-        <p className="text-xs text-center" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Contact info, calendar, and reviews appear below in the full modal</p>
+
+        {/* Booking CTA */}
+        <div className="rounded-xl py-3.5 text-center text-sm font-bold" style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)', color: 'white' }}>
+          Book {business?.name}
+        </div>
+        <p className="text-xs text-center" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Calendar availability, reviews & more appear in the live modal</p>
       </div>
     </div>
   );

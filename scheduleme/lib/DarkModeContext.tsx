@@ -12,7 +12,7 @@ function setThemeColor(isDark: boolean) {
   if (typeof document === 'undefined') return;
   const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null
     ?? document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-  if (meta) meta.content = isDark ? '#0a0a0a' : '#EDF5FF';
+  if (meta) meta.content = isDark ? '#0F1117' : '#EDF5FF';
 }
 
 export function DarkModeProvider({ children }: { children: ReactNode }) {
