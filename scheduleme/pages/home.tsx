@@ -476,7 +476,7 @@ const HomePage: NextPage = () => {
 
   if (loading) return (
     <>
-      <Head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
+      <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(52px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
         <div className="border-b py-8" style={{ background: dm ? '#111' : '#3b82f6' }}>
@@ -492,7 +492,7 @@ const HomePage: NextPage = () => {
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Home — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(52px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
