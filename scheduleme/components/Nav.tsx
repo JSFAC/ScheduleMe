@@ -175,9 +175,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
               For Businesses
             </Link>
           )}
-          {/* Dark mode toggle */}
+          {/* Dark mode toggle — desktop only */}
           <button onClick={toggleDark} aria-label="Toggle dark mode"
-            className="flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
+            className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
             style={{ background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', transition: 'background 0.25s ease' }}>
             <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               style={{ color: darkMode ? 'white' : '#525252', transition: 'color 0.25s ease' }}>
@@ -206,7 +206,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 </svg>
               </button>
               {menuOpen && (
-                <div className="fixed z-[200]" style={{ top: 'calc(72px + env(safe-area-inset-top, 0px))', right: 'max(calc(50% - 576px + 24px), 24px)' }}>
+                <div className="absolute right-0 top-full mt-2 z-[200]">
                   <div className="w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-neutral-50">
                       <p className="text-xs font-semibold text-neutral-700 truncate">{user.name}</p>
@@ -265,7 +265,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           borderTop: `1px solid ${darkMode ? '#262626' : '#f0f0f0'}`,
         }}>
           <div style={{ display: 'flex', height: 56 }}>
-            {[...appLinks, { label: 'Account', href: '/account' }].map((link) => {
+            {[...appLinks].map((link) => {
               const isActive = router.pathname === link.href;
               const paths: Record<string, string> = {
                 '/campus': 'M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342',
