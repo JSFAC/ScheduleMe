@@ -559,6 +559,7 @@ const BusinessDashboard: NextPage = () => {
   const [editDesc, setEditDesc] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
   const [editServices, setEditServices] = useState('');
+  const [editHours, setEditHours] = useState<Record<string, string>>({});
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [mediaImages, setMediaImages] = useState<string[]>([]);
   const [mediaVideo, setMediaVideo] = useState<string | null>(null);
@@ -593,6 +594,7 @@ const BusinessDashboard: NextPage = () => {
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
     setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
     setEditServices((biz.service_tags || []).join(', '));
+    setEditHours(biz.hours || {});
     setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
     setMediaVideo(biz.video_url || null);
     const { data: bkgs } = await supabase.from('bookings').select('*, profiles(name, phone, email)').eq('business_id', biz.id).order('created_at', { ascending: false });
@@ -749,7 +751,7 @@ const BusinessDashboard: NextPage = () => {
     const { error } = await getSupabase().from('businesses').update({ name: editName, phone: editPhone, address: editAddress, description: editDesc, website: editWebsite, service_tags: tags }).eq('id', business.id);
     setSettingsSaving(false);
     if (error) { setSettingsError(error.message); return; }
-    setBusiness(b => b ? { ...b, name: editName, phone: editPhone, address: editAddress, description: editDesc, website: editWebsite, service_tags: tags } : b);
+    setBusiness(b => b ? { ...b, name: editName, phone: editPhone, address: editAddress, description: editDesc, website: editWebsite, service_tags: tags, hours: editHours } : b);
     setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
   }
 
@@ -1466,6 +1468,25 @@ const BusinessDashboard: NextPage = () => {
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Description</label>
                       <textarea className="form-input resize-none" rows={3} value={editDesc} placeholder="Tell customers about your business…" onChange={e => setEditDesc(e.target.value)} />
                     </div>
+                    {/* Business hours */}
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Business Hours</label>
+                      <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f9fafb' }}>
+                        {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(day => (
+                          <div key={day} className="flex items-center gap-3">
+                            <span className="text-xs font-medium w-20 shrink-0" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{day.slice(0,3)}</span>
+                            <input
+                              className="flex-1 text-xs px-2 py-1 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent"
+                              style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                              placeholder="e.g. 9:00 AM – 5:00 PM or Closed"
+                              value={editHours[day] || ''}
+                              onChange={e => setEditHours(h => ({ ...h, [day]: e.target.value }))}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
                       {settingsSaved ? '✓ Saved!' : settingsSaving ? 'Saving…' : 'Save Changes'}
                     </button>

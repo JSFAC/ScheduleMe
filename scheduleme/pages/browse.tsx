@@ -162,7 +162,7 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
     <button onClick={onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
       {/* Square image */}
-      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '16/9', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
@@ -496,7 +496,7 @@ const BrowsePage: NextPage = () => {
                       className="group w-full text-left flex gap-4 p-3 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
                       style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.1)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
                       {/* Image with rounded corners */}
-                      <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 100, height: 110 }}>
+                      <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 110, height: 130 }}>
                         <img src={biz.coverUrl} alt={biz.name}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                           style={{ objectPosition: 'center 25%' }} />
