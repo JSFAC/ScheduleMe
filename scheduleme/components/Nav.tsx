@@ -254,13 +254,19 @@ export default function Nav({ variant = 'light' }: NavProps) {
           )}
         </div>
       </nav>
-      {/* Mobile bottom tab bar */}
+    </header>
+      {/* Mobile bottom tab bar — outside header to avoid fixed-in-fixed stacking issues */}
       {user && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40"
-          style={{ background: darkMode ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', borderTop: `1px solid ${darkMode ? '#262626' : '#f0f0f0'}` }}>
+        <div className="md:hidden" style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+          background: darkMode ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderTop: `1px solid ${darkMode ? '#262626' : '#f0f0f0'}`,
+        }}>
           <div style={{ display: 'flex', height: 56 }}>
             {[...appLinks, { label: 'Account', href: '/account' }].map((link) => {
-              const isActive = !link.href.includes('#') && (router.pathname === link.href);
+              const isActive = router.pathname === link.href;
               const paths: Record<string, string> = {
                 '/campus': 'M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342',
                 '/home': 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25',
@@ -271,19 +277,23 @@ export default function Nav({ variant = 'light' }: NavProps) {
               };
               const col = isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.45)' : '#9ca3af');
               return (
-                <Link key={link.href} href={link.href} scroll={false} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, color: col, textDecoration: 'none', WebkitTapHighlightColor: 'transparent' }}>
+                <Link key={link.href} href={link.href} scroll={false} style={{
+                  flex: 1, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  gap: 3, color: col, textDecoration: 'none',
+                  WebkitTapHighlightColor: 'transparent',
+                }}>
                   <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={col} strokeWidth={isActive ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
                     <path d={paths[link.href] || ''} />
                   </svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.02em', color: col }}>{link.label.replace('🎓 ', '')}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: col }}>{link.label.replace('🎓 ', '')}</span>
                 </Link>
               );
             })}
           </div>
-          <div style={{ height: 'env(safe-area-inset-bottom, 0px)', background: 'inherit' }} />
+          <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
         </div>
       )}
-    </header>
     </>
   );
 }
