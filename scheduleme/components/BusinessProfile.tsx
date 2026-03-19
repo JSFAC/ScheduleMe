@@ -375,14 +375,14 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
           <div ref={thumbsRef}
             className="absolute bottom-2.5 left-3 flex gap-1.5 overflow-x-auto"
             style={{ maxWidth: 'calc(100% - 52px)', scrollbarWidth: 'none' } as React.CSSProperties}
-            onMouseDown={e => {
+            onPointerDown={e => {
               if (e.pointerType === 'touch') return;
               const el = e.currentTarget;
               isDragging.current = false;
               const onMove = (ev: MouseEvent) => { isDragging.current = true; el.scrollLeft -= ev.movementX; };
-              const onUp = () => { setTimeout(() => { isDragging.current = false; }, 50); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+              const onUp = () => { setTimeout(() => { isDragging.current = false; }, 50); document.removeEventListener('mousemove', onMove); document.removeEventListener('pointerup', onUp); };
               document.addEventListener('mousemove', onMove);
-              document.addEventListener('mouseup', onUp);
+              document.addEventListener('pointerup', onUp);
             }}>
             {allMedia.map((url, i) => (
               <button key={i} type="button" onPointerDown={e => e.preventDefault()} onClick={() => pickThumb(i)}
