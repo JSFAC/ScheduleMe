@@ -41,8 +41,9 @@ export default function App({ Component, pageProps }: AppProps) {
     const isDark = localStorage.getItem('sm_dark_mode') === 'true';
     const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
     if (meta) meta.content = isDark ? '#0a0a0a' : '#EDF5FF';
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
-    return () => cancelAnimationFrame(raf);
+    // Start visible immediately — no fade-in on mount
+    setVisible(true);
+    return () => {};
   }, []);
 
   useEffect(() => {

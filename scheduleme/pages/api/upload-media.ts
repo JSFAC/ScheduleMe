@@ -29,25 +29,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const buffer = Buffer.from(base64Data, 'base64');
   const maxSize = isVideo ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
   if (buffer.length > maxSize)
-    return res.status(400).json({ error: `File too large` });
+    return res.status(400).json({ error: 'File too large' });
 
-  // Service role client — bypasses ALL RLS
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  // Get business directly — service role bypasses RLS completely
+  if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured in Vercel env vars' });
+
+  // Use service role — bypasses RLS
+  const supabase = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    db: { schema: 'public' },
+  });
+
+  // Test the connection first
+  const { data: testData, error: testError } = await supabase
+    .from('businesses')
+    .select('id')
+    .limit(1);
+
+  if (testError) {
+    return res.status(500).json({ 
+      error: `DB connection failed: ${testError.message}. Service key prefix: ${serviceKey.slice(0, 20)}...`
+    });
+  }
+
+  // Now fetch the specific business
   const { data: biz, error: bizError } = await supabase
     .from('businesses')
     .select('id, media_urls, video_url')
     .eq('id', business_id)
     .maybeSingle();
 
-  if (bizError) return res.status(500).json({ error: 'DB error: ' + bizError.message });
+  if (bizError) return res.status(500).json({ error: 'DB query error: ' + bizError.message });
   if (!biz) return res.status(404).json({ 
-    error: `Business ${business_id} not found. Is SUPABASE_SERVICE_ROLE_KEY set in Vercel env vars? Current key starts with: ${(process.env.SUPABASE_SERVICE_ROLE_KEY || 'NOT SET').slice(0, 10)}...`
+    error: `Business ${business_id} not found. Total businesses in DB: ${testData?.length ?? 0}`
   });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
