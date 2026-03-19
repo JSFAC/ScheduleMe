@@ -21,9 +21,9 @@
     }
   },
   "hero": {
-    "eyebrow": "Your local services marketplace",
-    "headline": "The right pro,\nfound in seconds.",
-    "subheadline": "Need a haircut, tutor, photographer, or handyman? Stop texting everyone you know. ScheduleMe finds vetted, reviewed local pros \u2014 or students at your own school \u2014 instantly.",
+    "eyebrow": "Local services, done right",
+    "headline": "Book trusted local pros,\nin seconds.",
+    "subheadline": "From tutors to photographers to home repair \u2014 ScheduleMe connects you with vetted local professionals and student service providers on campus. Browse, book, and pay in one place.",
     "cta_primary": {
       "label": "Get Started for Free",
       "href": "/signin?mode=signup"
@@ -32,7 +32,7 @@
       "label": "See how it works",
       "href": "#how-it-works"
     },
-    "trust_line": "Used by students and homeowners across 12 cities"
+    "trust_line": "Free to use \u00b7 No commitment \u00b7 Cancel anytime"
   },
   "features": [
     {
