@@ -277,8 +277,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
             const label = link.label.replace('🎓 ', '');
             return (
               <Link key={link.href} href={link.href} scroll={false}
-                className="flex flex-col items-center justify-center gap-0 flex-1 transition-colors" style={{ height: 56 }}
-                style={{ color: isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.4)' : '#a3a3a3') }}>
+                className="flex flex-col items-center justify-center gap-0 flex-1 transition-colors"
+                style={{ height: 56, color: isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.4)' : '#a3a3a3') }}>
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isActive ? 2.2 : 1.8}>
                   {iconPath}
                 </svg>
