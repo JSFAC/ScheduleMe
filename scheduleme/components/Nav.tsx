@@ -262,7 +262,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
             borderColor: darkMode ? '#262626' : '#f0f0f0',
             backdropFilter: 'blur(12px)',
           }}>
-          <div className="flex items-center justify-around px-2" style={{ height: 56 }}>
+          <div className="flex items-end justify-around px-2 pb-1 pt-2">
           {[...appLinks, { label: 'Account', href: '/account' }].map((link) => {
             const isActive = !link.href.includes('#') && (router.pathname === link.href || router.pathname === link.href.split('?')[0]);
             const icons: Record<string, JSX.Element> = {
@@ -277,15 +277,13 @@ export default function Nav({ variant = 'light' }: NavProps) {
             const label = link.label.replace('🎓 ', '');
             return (
               <Link key={link.href} href={link.href} scroll={false}
-                className="flex flex-col items-center justify-center gap-0 flex-1 transition-colors"
-                style={{ height: 56, color: isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.4)' : '#a3a3a3') }}>
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-colors"
+                style={{ color: isActive ? '#0A84FF' : (darkMode ? 'rgba(255,255,255,0.4)' : '#a3a3a3') }}>
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isActive ? 2.2 : 1.8}>
                   {iconPath}
                 </svg>
                 <span className="text-[10px] font-semibold">{label}</span>
-                {isActive && (
-                  <div className="absolute bottom-1 h-0.5 w-5 rounded-full bg-accent" />
-                )}
+
               </Link>
             );
           })}

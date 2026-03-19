@@ -66,12 +66,12 @@ export default function App({ Component, pageProps }: AppProps) {
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
       if (isTransitioning.current) {
         isTransitioning.current = false;
-        // Keep overlay showing briefly so no gap, then fade out with page
+        // Keep overlay visible for longer so dashboard can finish loading
         setTimeout(() => {
           setVisible(true);
           setOverlayFade(false);
-          setTimeout(() => setShowOverlay(false), 380);
-        }, 200);
+          setTimeout(() => setShowOverlay(false), 450);
+        }, 800);
       } else {
         setVisible(true);
       }
