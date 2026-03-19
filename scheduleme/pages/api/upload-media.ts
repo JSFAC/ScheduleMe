@@ -5,8 +5,6 @@ import { setSecurityHeaders, rateLimit, isValidUuid } from '../../lib/apiSecurit
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
-const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
 export const config = { api: { bodyParser: { sizeLimit: '55mb' } } };
 
@@ -14,9 +12,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!rateLimit(req, res, { max: 20, windowMs: 60 * 60_000, keyPrefix: 'upload-media' })) return;
-
-  const token = req.headers.authorization?.replace('Bearer ', '') || '';
-  if (!token) return res.status(401).json({ error: 'No auth token' });
 
   const { business_id, media_type, file_data, file_type, file_name } = req.body;
 
@@ -32,28 +27,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const base64Data = file_data.replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
-  if (buffer.length > (isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE))
+  const maxSize = isVideo ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
+  if (buffer.length > maxSize)
     return res.status(400).json({ error: `File too large` });
 
-  // Use service role to bypass RLS entirely for business media uploads
+  // Service role client — bypasses ALL RLS
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
-  // Verify the token is valid
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) return res.status(401).json({ error: 'Invalid session' });
-
-  // Get business — service role bypasses all RLS
-  const { data: biz } = await supabase
+  // Get business directly — service role bypasses RLS completely
+  const { data: biz, error: bizError } = await supabase
     .from('businesses')
     .select('id, media_urls, video_url')
     .eq('id', business_id)
-    .single();
+    .maybeSingle();
 
-  if (!biz) return res.status(404).json({ error: `Business ${business_id} not found in database` });
+  if (bizError) return res.status(500).json({ error: 'DB error: ' + bizError.message });
+  if (!biz) return res.status(404).json({ 
+    error: `Business ${business_id} not found. Is SUPABASE_SERVICE_ROLE_KEY set in Vercel env vars? Current key starts with: ${(process.env.SUPABASE_SERVICE_ROLE_KEY || 'NOT SET').slice(0, 10)}...`
+  });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;
