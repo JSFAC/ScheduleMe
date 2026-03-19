@@ -147,7 +147,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
         {/* Logo — left-anchored in flex-1 so center links never push it */}
         <div className="flex-1 flex items-center min-w-0">
           <Link href={user ? '/home' : '/'} scroll={false} className="group shrink-0" aria-label="ScheduleMe home">
-            <span className={`font-black tracking-tight group-hover:opacity-70 transition-opacity ${isDark ? 'text-white' : 'text-neutral-900'} text-2xl md:text-3xl`} style={{ letterSpacing: '-0.04em' }}>
+            <span className={`font-black tracking-tight group-hover:opacity-70 transition-opacity ${isDark ? 'text-white' : 'text-neutral-900'} text-xl md:text-2xl`} style={{ letterSpacing: '-0.03em' }}>
               Schedule<span className="text-accent">Me</span>
             </span>
           </Link>
@@ -178,9 +178,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
               For Businesses
             </Link>
           )}
-          {/* Dark mode toggle — mobile only (hidden on desktop) */}
+          {/* Dark mode toggle — hidden on mobile, shown on desktop only */}
           <button onClick={toggleDark} aria-label="Toggle dark mode"
-            className="md:hidden flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
+            className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
             style={{ background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', transition: 'background 0.25s ease' }}>
             <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               style={{ color: darkMode ? 'white' : '#525252', transition: 'color 0.25s ease' }}>
@@ -251,7 +251,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               )}
             </div>
           ) : (
-            <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-2.5 text-center whitespace-nowrap">
+            <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
               Sign up
             </Link>
           )}

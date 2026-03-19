@@ -102,6 +102,8 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
   const [note, setNote] = useState('');
   const [address, setAddress] = useState('');
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   if (done) return (
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -237,14 +239,42 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
         </div>
 
         {/* Submit */}
+        {submitError && <p className="text-sm text-red-500 text-center px-4">{submitError}</p>}
         <button type="button"
-          disabled={!canSubmit}
-          onClick={() => { if (canSubmit) setDone(true); }}
+          disabled={!canSubmit || submitting}
+          onClick={async () => {
+            if (!canSubmit || submitting) return;
+            setSubmitting(true); setSubmitError('');
+            try {
+              const sb = (await import('../lib/supabaseClient')).default;
+              const { data: { session } } = await sb.auth.getSession();
+              const realId = (biz as any).realId || biz.id;
+              const res = await fetch('/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+                body: JSON.stringify({
+                  business_id: realId,
+                  service: serviceType || 'General Service',
+                  note,
+                  address,
+                  scheduled_date: date?.toISOString(),
+                  scheduled_slot: slot,
+                  user_email: session?.user?.email,
+                  user_name: session?.user?.user_metadata?.full_name,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || 'Failed to create booking');
+              setDone(true);
+            } catch (e: any) {
+              setSubmitError(e.message || 'Something went wrong');
+            } finally { setSubmitting(false); }
+          }}
           className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-colors ${
             canSubmit ? 'text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
           }`}
           style={canSubmit ? { background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' } : {}}>
-          {canSubmit
+          {submitting ? 'Sending request…' : canSubmit
             ? `Request ${date!.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${slot}`
             : 'Fill in the details above to continue'}
         </button>
