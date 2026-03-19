@@ -213,7 +213,7 @@ function BizCard({ biz, onClick, hero, dm, index = 0 }: { biz: Business; onClick
         </div>
       </div>
       {/* Card body */}
-      <div className="px-3.5 pt-3 pb-3.5 flex-1" style={{ minHeight: 118, overflow: 'hidden', background: dm ? '#171717' : 'white' }}>
+      <div className="px-3.5 pt-3 pb-4 flex-1" style={{ background: dm ? '#171717' : 'white' }}>
         <p className="text-[12px] leading-snug line-clamp-2 mb-2" style={{ color: dm ? '#9ca3af' : '#737373' }}>{biz.tagline}</p>
         {biz.topReview && (
           <div className="mb-2.5">
@@ -228,17 +228,7 @@ function BizCard({ biz, onClick, hero, dm, index = 0 }: { biz: Business; onClick
           </div>
         )}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <div className="flex" style={{ gap: 0 }}>
-              {biz.allImages.slice(1, 3).map((url, i) => (
-                <div key={i} className="h-5 w-5 rounded-full overflow-hidden bg-neutral-100 border-2 shadow-sm flex-shrink-0"
-                  style={{ borderColor: dm ? '#171717' : 'white', marginLeft: i === 0 ? 0 : -4, zIndex: 2 - i }}>
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
-            <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} reviews</span>
-          </div>
+          <span className="text-[10px] font-medium" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.reviews} review{biz.reviews !== 1 ? 's' : ''}</span>
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#0A84FF', border: dm ? '1px solid rgba(10,132,255,0.3)' : '1px solid transparent' }}>
             {biz.category}
           </span>
