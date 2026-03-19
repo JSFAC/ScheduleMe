@@ -219,7 +219,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [stripDragOver, setStripDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [activePreviewImg, setActivePreviewImg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setImgs(mediaImages); }, [mediaImages]);
@@ -297,7 +297,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
   const cardPreview = (
     <div className="rounded-2xl overflow-hidden border" style={{ background: bg, borderColor: border }}>
       <div style={{ height: 200, background: dm ? '#262626' : '#e8ecf0', position: 'relative' }}>
-        {imgs[0] ? <img src={imgs[0]} alt={business?.name} className="w-full h-full object-cover" /> : (
+        {(activePreviewImg || imgs[0]) ? <img src={activePreviewImg || imgs[0]} alt={business?.name} className="w-full h-full object-cover" /> : (
           <div className="w-full h-full flex items-center justify-center">
             <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo yet</p>
           </div>
@@ -352,7 +352,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
               className="relative flex-shrink-0 rounded-xl overflow-hidden"
               style={{ width: 72, height: 72, opacity: dragIdx === i ? 0.4 : 1, cursor: editing ? 'grab' : 'pointer',
                 border: i === 0 ? '2px solid #0A84FF' : `1px solid ${dm ? '#404040' : '#e5e7eb'}` }}
-              onClick={() => !editing && setLightboxImg(url)}>
+              onClick={() => setActivePreviewImg(url)}>
               <img src={url} alt="" className="w-full h-full object-cover" />
               {i === 0 && <div className="absolute top-0.5 left-0.5 text-[8px] font-black px-1 py-0.5 rounded" style={{ background: '#0A84FF', color: 'white' }}>COVER</div>}
               {editing && (
@@ -375,6 +375,9 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             </div>
           )}
         </div>
+        {!editing && imgs.length > 0 && (
+          <p className="text-[10px] mt-1.5 text-center" style={{ color: dm ? '#4b5563' : '#c4c4c4' }}>Tap a photo to preview it above</p>
+        )}
         {editing && imgs.length === 0 && !uploading && (
           <p className="text-xs mt-2 text-center" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Drag photos or videos into the strip, or click + to browse</p>
         )}
@@ -470,17 +473,33 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
           )}
         </div>
 
+        {/* Price tier */}
+        {business?.price_tier && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Price:</span>
+            <span className="text-xs font-semibold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{'$'.repeat(business.price_tier)}</span>
+          </div>
+        )}
+
         {/* Booking CTA */}
         <div className="rounded-xl py-3.5 text-center text-sm font-bold" style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)', color: 'white' }}>
           Book {business?.name}
         </div>
-        <p className="text-xs text-center" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Calendar availability, reviews & more appear in the live modal</p>
+        <p className="text-xs text-center" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Calendar, reviews & availability appear in the live modal on the Browse page</p>
       </div>
     </div>
   );
 
   return (
     <div className="space-y-4">
+      {/* Edit hint */}
+      {!editing && (
+        <div className="rounded-xl px-4 py-2.5 flex items-center gap-2.5" style={{ background: dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF', border: `1px solid ${dm ? 'rgba(10,132,255,0.2)' : 'rgba(10,132,255,0.15)'}` }}>
+          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A84FF" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+          <p className="text-sm font-medium" style={{ color: '#0A84FF' }}>Tap <strong>Edit</strong> on the cover photo to update your profile, photos, and description.</p>
+        </div>
+      )}
+
       {/* Tab switcher */}
       <div className="flex rounded-xl p-1 gap-1" style={{ background: dm ? '#262626' : '#f0f0f0' }}>
         {(['card', 'modal'] as const).map(mode => (
@@ -495,16 +514,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
       {previewMode === 'card' ? cardPreview : modalPreview}
 
       {/* Lightbox */}
-      {lightboxImg && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.9)' }}
-          onClick={() => setLightboxImg(null)}>
-          <img src={lightboxImg} alt="" className="max-w-full max-h-full rounded-2xl object-contain" />
-          <button className="absolute top-4 right-4 h-10 w-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-      )}
+
 
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden"
         onChange={e => { uploadFiles(Array.from(e.target.files || [])); e.target.value = ''; }} />
