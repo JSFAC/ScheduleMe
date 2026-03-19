@@ -383,7 +383,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             businessId={business.id}
             currentImages={imgs}
             currentVideo={mediaVideo}
-            onUpdate={(newImgs, vid) => { setImgs(newImgs); setMediaImages(newImgs); setMediaVideo(vid); }}
+            onUpdate={(newImgs, vid) => { setImgs(newImgs); setMediaImages(newImgs); setMediaVideo(vid ?? ''); }}
             dm={dm}
           />
         </div>
