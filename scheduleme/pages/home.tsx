@@ -475,12 +475,18 @@ const HomePage: NextPage = () => {
   }, [router]);
 
   if (loading) return (
-    <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-      <div className="relative h-6 w-6">
-        <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+    <>
+      <Head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
+      <Nav />
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+        <div className="border-b py-8" style={{ background: dm ? '#111' : '#3b82f6' }}>
+          <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
       </div>
-    </div>
+    </>
   );
 
   return (

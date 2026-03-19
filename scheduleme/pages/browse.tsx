@@ -405,12 +405,15 @@ const BrowsePage: NextPage = () => {
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? ALL_BUSINESSES.find(b => b.id === selectedMapBiz) ?? null;
 
   if (loading) return (
-    <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-      <div className="relative h-6 w-6">
-        <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+    <>
+      <Head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
+      <Nav />
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(64px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+        <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} dm={dm} />)}
+        </div>
       </div>
-    </div>
+    </>
   );
 
   return (
