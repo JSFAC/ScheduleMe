@@ -199,9 +199,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
           {user ? (
             <div className="relative" ref={menuRef}>
               <button onClick={() => setMenuOpen(!menuOpen)}
-                className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
                 aria-label="Account menu">
-                <div className="h-7 w-7 rounded-full bg-accent flex items-center justify-center text-white text-[11px] font-bold shrink-0">
+                <div className="h-6 w-6 rounded-full bg-accent flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                   {initials}
                 </div>
                 <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
