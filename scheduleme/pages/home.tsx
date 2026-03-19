@@ -243,7 +243,7 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
         </div>
       </div>
       {/* Card body — category + review snippet + reviewer */}
-      <div className="px-3.5 pt-2.5 pb-3" style={{ background: dm ? '#171717' : 'white', flexShrink: 0, flex: 1 }}>
+      <div className="px-3.5 pt-3 pb-4" style={{ background: dm ? '#171717' : 'white', flex: 1 }}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#EBF4FF', color: dm ? '#93c5fd' : '#0A84FF', border: dm ? '1px solid rgba(10,132,255,0.35)' : '1px solid transparent' }}>
             {biz.category}
@@ -256,10 +256,10 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
           <p className="text-[10.5px] italic leading-snug line-clamp-2 mb-2" style={{ color: dm ? '#d1d5db' : '#737373' }}>{biz.topReview}</p>
         )}
         {biz.reviewer && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 mt-2">
             <img src={biz.reviewer.avatarUrl} alt={biz.reviewer.name}
-              className="h-4 w-4 rounded-full object-cover border border-neutral-100 shrink-0" />
-            <span className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#a3a3a3' }}>{biz.reviewer.name}</span>
+              className="h-5 w-5 rounded-full object-cover border border-neutral-100 shrink-0" />
+            <span className="text-[11px] font-semibold truncate" style={{ color: dm ? '#9ca3af' : '#a3a3a3' }}>{biz.reviewer.name}</span>
           </div>
         )}
       </div>

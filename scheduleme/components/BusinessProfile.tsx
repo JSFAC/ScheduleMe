@@ -320,8 +320,8 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
-      style={{ padding: `env(safe-area-inset-top, 44px) 16px 16px`, paddingTop: `calc(env(safe-area-inset-top, 44px) + 8px)` }}
-      style={{
+      style={{ paddingTop: `calc(env(safe-area-inset-top, 44px) + 8px)`, padding: `calc(env(safe-area-inset-top, 44px) + 8px) 16px 16px`,
+
         background: `rgba(0,0,0,${ready ? 0.5 : 0})`,
         backdropFilter: `blur(${ready ? 6 : 0}px)`,
         // On close: fade backdrop, but don't scale the modal (to avoid shrinking text)
@@ -332,9 +332,9 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
       onClick={close}>
       <div
         onClick={e => e.stopPropagation()}
-        className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col sm:max-h-[92vh]"
-        style={{ ...({} as any), maxHeight: 'calc(100vh - env(safe-area-inset-top, 44px) - 16px)' }}
-        style={{
+        className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: `calc(100dvh - env(safe-area-inset-top, 44px) - 24px)`,
+
           background: dm ? '#171717' : 'white',
           opacity: ready ? 1 : 0,
           transform: !closing && !ready ? 'scale(0.96)' : 'scale(1)',
