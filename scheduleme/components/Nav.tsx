@@ -147,7 +147,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
         {/* Logo — left-anchored in flex-1 so center links never push it */}
         <div className="flex-1 flex items-center min-w-0">
           <Link href={user ? '/home' : '/'} scroll={false} className="group shrink-0" aria-label="ScheduleMe home">
-            <span className={`text-xl font-black tracking-tight group-hover:opacity-70 transition-opacity ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.03em' }}>
+            <span className={`text-2xl font-black tracking-tight group-hover:opacity-70 transition-opacity ${isDark ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.04em' }}>
               Schedule<span className="text-accent">Me</span>
             </span>
           </Link>
@@ -199,9 +199,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
           {user ? (
             <div className="relative" ref={menuRef}>
               <button onClick={() => setMenuOpen(!menuOpen)}
-                className="flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
                 aria-label="Account menu">
-                <div className="h-6 w-6 rounded-full bg-accent flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                <div className="h-7 w-7 rounded-full bg-accent flex items-center justify-center text-white text-[11px] font-bold shrink-0">
                   {initials}
                 </div>
                 <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
