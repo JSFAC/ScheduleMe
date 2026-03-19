@@ -1317,7 +1317,7 @@ const BusinessDashboard: NextPage = () => {
               <EditablePreview
                 business={business}
                 mediaImages={mediaImages}
-                mediaVideo={mediaVideo}
+                mediaVideo={mediaVideo ?? ''}
                 editDesc={editDesc}
                 setEditDesc={setEditDesc}
                 setMediaImages={setMediaImages}
