@@ -205,6 +205,199 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
   );
 }
 
+
+// ─── Editable Preview Component ───────────────────────────────────────────────
+function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditDesc, setMediaImages, setMediaVideo, setBusiness, dm }: {
+  business: any; mediaImages: string[]; mediaVideo: string;
+  editDesc: string; setEditDesc: (v: string) => void;
+  setMediaImages: (imgs: string[]) => void; setMediaVideo: (v: string) => void;
+  setBusiness: (fn: (b: any) => any) => void; dm: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [imgs, setImgs] = useState(mediaImages);
+
+  // Keep local imgs in sync
+  useEffect(() => { setImgs(mediaImages); }, [mediaImages]);
+
+  async function saveDesc() {
+    if (!business) return;
+    await getSupabase().from('businesses').update({ description: editDesc }).eq('id', business.id);
+    setBusiness((b: any) => b ? { ...b, description: editDesc } : b);
+  }
+
+  function onDragStart(i: number) { setDragIdx(i); }
+  function onDragOver(e: React.DragEvent, i: number) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === i) return;
+    const next = [...imgs];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(i, 0, moved);
+    setImgs(next);
+    setDragIdx(i);
+  }
+  async function onDragEnd() {
+    setDragIdx(null);
+    if (!business) return;
+    setMediaImages(imgs);
+    await getSupabase().from('businesses').update({ media_urls: imgs, cover_url: imgs[0] || null }).eq('id', business.id);
+  }
+
+  const card = (
+    <div className="rounded-2xl overflow-hidden border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+      {/* Cover */}
+      <div style={{ height: 220, background: dm ? '#262626' : '#e8ecf0', position: 'relative' }}>
+        {imgs[0] ? (
+          <img src={imgs[0]} alt={business?.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo yet</p>
+          </div>
+        )}
+        {!editing && (
+          <button onClick={() => setEditing(true)}
+            className="absolute top-3 right-3 flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-xl"
+            style={{ background: 'rgba(0,0,0,0.6)', color: 'white', backdropFilter: 'blur(8px)' }}>
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+            </svg>
+            Edit
+          </button>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h2 className="text-xl font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name}</h2>
+            <p className="text-sm mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{business?.address}</p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <svg className="h-4 w-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            <span className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{business?.rating ?? '—'}</span>
+          </div>
+        </div>
+
+        {business?.description && !editing && (
+          <p className="text-sm leading-relaxed mb-4" style={{ color: dm ? '#d1d5db' : '#525252' }}>{business.description}</p>
+        )}
+
+        {(business?.service_tags?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {(business!.service_tags ?? []).map((tag: string) => (
+              <span key={tag} className="text-xs px-3 py-1.5 rounded-full font-semibold"
+                style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
+                {tag.replace(/_/g, ' ')}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Photo strip */}
+        {imgs.length > 0 && !editing && (
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {imgs.map((url, i) => (
+              <div key={i} className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 72, height: 72 }}>
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {mediaVideo && !editing && (
+          <div className="mt-3 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
+            <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            <span className="text-sm font-medium" style={{ color: dm ? '#d1d5db' : '#525252' }}>Promo video uploaded</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (!editing) return <div className="space-y-0">{card}</div>;
+
+  return (
+    <div className="space-y-4">
+      {card}
+
+      {/* Description editor */}
+      <div className="rounded-2xl border p-5" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+        <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Description</p>
+        <textarea
+          value={editDesc}
+          onChange={e => setEditDesc(e.target.value)}
+          onBlur={saveDesc}
+          placeholder="Tell customers about your business…"
+          rows={4}
+          className="w-full px-4 py-3 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
+          style={{ background: dm ? '#0d0d0d' : '#f9fafb', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#f3f4f6' : '#171717' }}
+        />
+      </div>
+
+      {/* Drag-to-reorder photos */}
+      {imgs.length > 0 && (
+        <div className="rounded-2xl border p-5" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+          <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Photos</p>
+          <p className="text-xs mb-4" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Drag to reorder. First photo is your cover.</p>
+          <div className="grid grid-cols-3 gap-3">
+            {imgs.map((url, i) => (
+              <div key={url}
+                draggable
+                onDragStart={() => onDragStart(i)}
+                onDragOver={e => onDragOver(e, i)}
+                onDragEnd={onDragEnd}
+                className="relative rounded-xl overflow-hidden cursor-grab active:cursor-grabbing"
+                style={{ aspectRatio: '1', opacity: dragIdx === i ? 0.5 : 1, border: i === 0 ? '2px solid #0A84FF' : `1px solid ${dm ? '#262626' : '#e5e7eb'}` }}>
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                {i === 0 && (
+                  <div className="absolute top-1.5 left-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-md" style={{ background: '#0A84FF', color: 'white' }}>COVER</div>
+                )}
+                <button
+                  onClick={async () => {
+                    const next = imgs.filter((_, j) => j !== i);
+                    setImgs(next); setMediaImages(next);
+                    if (business) await getSupabase().from('businesses').update({ media_urls: next, cover_url: next[0] || null }).eq('id', business.id);
+                  }}
+                  className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Media uploader */}
+      {business && (
+        <div className="rounded-2xl border p-5" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+          <p className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Add Photos & Video</p>
+          <MediaUploader
+            businessId={business.id}
+            currentImages={imgs}
+            currentVideo={mediaVideo}
+            onUpdate={(newImgs, vid) => { setImgs(newImgs); setMediaImages(newImgs); setMediaVideo(vid); }}
+            dm={dm}
+          />
+        </div>
+      )}
+
+      <button onClick={() => setEditing(false)}
+        className="w-full py-3 rounded-2xl text-sm font-bold"
+        style={{ background: '#0A84FF', color: 'white' }}>
+        Done Editing
+      </button>
+    </div>
+  );
+}
+
 const BusinessDashboard: NextPage = () => {
   const router = useRouter();
   const { dm: darkMode, toggle: toggleDark } = useDm();
@@ -1121,112 +1314,17 @@ const BusinessDashboard: NextPage = () => {
             {/* MESSAGES */}
             {/* SETTINGS */}
             {tab === 'preview' && (
-              <div className="space-y-5">
-                <div className="rounded-2xl border p-5" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
-                  <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: '#0A84FF' }}>Profile Preview</p>
-                  <p className="text-sm mb-5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>This is how your listing appears to customers on ScheduleMe.</p>
-
-                  {/* Cover image */}
-                  <div className="rounded-2xl overflow-hidden mb-4" style={{ height: 220, background: '#c8d8e8' }}>
-                    {mediaImages[0] ? (
-                      <img src={mediaImages[0]} alt={business?.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f0f0f0' }}>
-                        <p className="text-sm" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>No cover photo yet — upload one below</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Business info */}
-                  <div className="px-1">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div>
-                        <h2 className="text-xl font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name}</h2>
-                        <p className="text-sm mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{business?.address}</p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <svg className="h-4 w-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        <span className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{business?.rating ?? '—'}</span>
-                      </div>
-                    </div>
-
-                    {business?.description && (
-                      <p className="text-sm leading-relaxed mb-4" style={{ color: dm ? '#d1d5db' : '#525252' }}>{business.description}</p>
-                    )}
-
-                    {/* Service tags */}
-                    {(business?.service_tags?.length ?? 0) > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {(business!.service_tags ?? []).map(tag => (
-                          <span key={tag} className="text-xs px-3 py-1.5 rounded-full font-semibold"
-                            style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF', color: '#0A84FF' }}>
-                            {tag.replace(/_/g, ' ')}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Photo gallery preview */}
-                    {mediaImages.length > 1 && (
-                      <div>
-                        <p className="text-xs font-semibold mb-2" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>PHOTOS</p>
-                        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                          {mediaImages.map((url, i) => (
-                            <div key={i} className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 80, height: 80 }}>
-                              <img src={url} alt="" className="w-full h-full object-cover" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Video indicator */}
-                    {mediaVideo && (
-                      <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
-                        <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                        <span className="text-sm font-medium" style={{ color: dm ? '#d1d5db' : '#525252' }}>Promo video uploaded</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Editable description in preview */}
-                <div className="rounded-2xl border p-5" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
-                  <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Description</p>
-                  <textarea
-                    value={editDesc}
-                    onChange={e => setEditDesc(e.target.value)}
-                    onBlur={async () => {
-                      if (!business) return;
-                      await getSupabase().from('businesses').update({ description: editDesc }).eq('id', business.id);
-                      setBusiness(b => b ? { ...b, description: editDesc } : b);
-                    }}
-                    placeholder="Tell customers about your business…"
-                    rows={4}
-                    className="w-full px-4 py-3 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
-                    style={{ background: dm ? '#0d0d0d' : '#f9fafb', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#f3f4f6' : '#171717' }}
-                  />
-                  <p className="text-xs mt-1.5" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Changes save automatically when you click away.</p>
-                </div>
-
-                {/* Photos & Video uploader */}
-                <div className="rounded-2xl border p-5" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
-                  <p className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Photos & Video</p>
-                  {business && (
-                    <MediaUploader
-                      businessId={business.id}
-                      currentImages={mediaImages}
-                      currentVideo={mediaVideo}
-                      onUpdate={(imgs, vid) => { setMediaImages(imgs); setMediaVideo(vid); }}
-                      dm={dm}
-                    />
-                  )}
-                </div>
-              </div>
+              <EditablePreview
+                business={business}
+                mediaImages={mediaImages}
+                mediaVideo={mediaVideo}
+                editDesc={editDesc}
+                setEditDesc={setEditDesc}
+                setMediaImages={setMediaImages}
+                setMediaVideo={setMediaVideo}
+                setBusiness={setBusiness}
+                dm={dm}
+              />
             )}
 
             {tab === 'settings' && (
