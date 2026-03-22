@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
-import { ALL_BUSINESSES, type Business } from '../lib/mockBusinesses';
+import type { Business } from '../lib/mockBusinesses';
 import { SkeletonCard, SkeletonBrowseCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
 
@@ -293,7 +293,7 @@ const BrowsePage: NextPage = () => {
               // Geo worked but no nearby results — fall back to all
               const all = await allPromise;
               if (all.length > 0) { setBizList(all); setUsingRealData(true); }
-              else { setBizList(ALL_BUSINESSES); }
+              else { setBizList([]); }
             }
             setBizLoading(false);
           },
@@ -301,7 +301,7 @@ const BrowsePage: NextPage = () => {
             // Geo denied or failed
             const real = await allPromise;
             if (real.length > 0) { setBizList(real); setUsingRealData(true); }
-            else { setBizList(ALL_BUSINESSES); }
+            else { setBizList([]); }
             setBizLoading(false);
           },
           { timeout: 3000 }
@@ -310,13 +310,13 @@ const BrowsePage: NextPage = () => {
         const real = await allPromise;
         if (!geoResolved) {
           if (real.length > 0) { setBizList(real); setUsingRealData(true); }
-          else { setBizList(ALL_BUSINESSES); }
+          else { setBizList([]); }
           setBizLoading(false);
         }
       } else {
         const real = await allPromise;
         if (real.length > 0) { setBizList(real); setUsingRealData(true); }
-        else { setBizList(ALL_BUSINESSES); }
+        else { setBizList([]); }
         setBizLoading(false);
       }
     });

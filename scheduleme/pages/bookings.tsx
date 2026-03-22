@@ -2,6 +2,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
+import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
@@ -297,9 +298,50 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
             )}
           </div>
 
+          {/* Pay Now — shown when booking is confirmed and has amount set */}
+          {booking.status === 'confirmed' && booking.amount_cents && !booking.paid_at && (
+            <div className="mt-6 pt-5 border-t border-neutral-100">
+              <div className="rounded-2xl p-4 mb-4" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <p className="text-sm font-bold text-green-800 mb-0.5">Ready to pay</p>
+                <p className="text-xs text-green-700">{booking.business_name} has confirmed your booking. Complete payment to secure your appointment.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) return;
+                  const res = await fetch('/api/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                    body: JSON.stringify({ booking_id: booking.id }),
+                  });
+                  const data = await res.json();
+                  if (data.url) window.location.href = data.url;
+                  else alert(data.error || 'Could not start checkout');
+                }}
+                className="w-full py-3.5 rounded-xl text-white font-bold text-sm"
+                style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' }}>
+                Pay ${(booking.amount_cents / 100).toFixed(2)} Now →
+              </button>
+            </div>
+          )}
+
+          {/* Paid confirmation */}
+          {booking.paid_at && (
+            <div className="mt-6 pt-5 border-t border-neutral-100">
+              <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <svg className="h-5 w-5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div>
+                  <p className="text-sm font-bold text-green-800">Payment confirmed</p>
+                  <p className="text-xs text-green-700">${(booking.amount_cents! / 100).toFixed(2)} paid · {new Date(booking.paid_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Cancel action */}
-          {['pending', 'confirmed'].includes(booking.status) && (
-            <div className="mt-8 pt-5 border-t border-neutral-100">
+          {['pending', 'confirmed'].includes(booking.status) && !booking.paid_at && (
+            <div className="mt-6 pt-5 border-t border-neutral-100">
               {cancelling ? (
                 <div className="flex items-center justify-center gap-2 py-3">
                   <div className="h-4 w-4 rounded-full border-2 border-red-300 border-t-red-500 animate-spin" />
