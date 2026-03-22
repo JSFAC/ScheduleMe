@@ -33,8 +33,65 @@ function Stars({ rating }: { rating: number }) {
 /* ─── Mini calendar ─── */
 const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
-
 type HourEntry = { day: string; time: string };
+
+function parseSlotMinutes(slot: string): number {
+  const m = slot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!m) return 0;
+  let h = parseInt(m[1]);
+  const mn = parseInt(m[2]);
+  const ap = m[3].toUpperCase();
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + mn;
+}
+
+function getHoursForDate(hours: HourEntry[], date: Date): { open: number; close: number } | null {
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dayName = dayNames[date.getDay()];
+  const abbrev: Record<string, string> = {
+    Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday',
+    Fri:'Friday', Sat:'Saturday', Sun:'Sunday'
+  };
+
+  function dayMatches(pattern: string): boolean {
+    if (pattern.toLowerCase().includes('closed')) return false;
+    if (pattern.includes('–') || pattern.includes('-')) {
+      const all = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+      const sep = pattern.includes('–') ? '–' : '-';
+      const pts = pattern.split(sep).map((p: string) => p.trim());
+      const s = all.indexOf(abbrev[pts[0]] || pts[0]);
+      const e = all.indexOf(abbrev[pts[1]] || pts[1]);
+      const d = all.indexOf(dayName);
+      if (s < 0 || e < 0 || d < 0) return false;
+      return s <= e ? (d >= s && d <= e) : (d >= s || d <= e);
+    }
+    return pattern.includes(dayName) || pattern.includes(dayName.slice(0, 3));
+  }
+
+  function parseT(t: string): number | null {
+    const mx = t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (!mx) return null;
+    let h = parseInt(mx[1]);
+    const mn = parseInt(mx[2]);
+    const ap = mx[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60 + mn;
+  }
+
+  for (const h of hours) {
+    if (dayMatches(h.day)) {
+      if (h.time.toLowerCase() === 'by appointment') return { open: 8 * 60, close: 20 * 60 };
+      const parts = h.time.split('–').map((p: string) => p.trim());
+      if (parts.length < 2) continue;
+      const open = parseT(parts[0]);
+      const close = parseT(parts[1]);
+      if (open !== null && close !== null) return { open, close };
+    }
+  }
+  return null;
+}
 
 function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
   if (!hours || !hours.length) return { open: true, label: 'Open' };
@@ -42,14 +99,13 @@ function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const todayName = dayNames[now.getDay()];
   const tomorrowName = dayNames[(now.getDay() + 1) % 7];
-
   const abbrevMap: Record<string, string> = {
     Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday',
     Fri:'Friday', Sat:'Saturday', Sun:'Sunday'
   };
 
   function parseTimeStr(t: string): number | null {
-    const m = t.trim().match(/^(d+):(d+)s*(AM|PM)$/i);
+    const m = t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
     if (!m) return null;
     let h = parseInt(m[1]);
     const mn = parseInt(m[2]);
@@ -64,9 +120,9 @@ function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
       const all = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
       const sep = pattern.includes('–') ? '–' : '-';
       const pts = pattern.split(sep).map((p: string) => p.trim());
-      const start = abbrevMap[pts[0]] || pts[0];
-      const end = abbrevMap[pts[1]] || pts[1];
-      const s = all.indexOf(start), e = all.indexOf(end), d = all.indexOf(name);
+      const s = all.indexOf(abbrevMap[pts[0]] || pts[0]);
+      const e = all.indexOf(abbrevMap[pts[1]] || pts[1]);
+      const d = all.indexOf(name);
       if (s < 0 || e < 0 || d < 0) return false;
       return s <= e ? (d >= s && d <= e) : (d >= s || d <= e);
     }
@@ -76,12 +132,8 @@ function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
   const nowM = now.getHours() * 60 + now.getMinutes();
 
   for (const h of hours) {
-    if (h.time.toLowerCase().includes('closed') && dayMatchesToday(h.day, todayName)) {
-      return { open: false, label: 'Closed today' };
-    }
-    if (h.time.toLowerCase() === 'by appointment' && dayMatchesToday(h.day, todayName)) {
-      return { open: true, label: 'By appt' };
-    }
+    if (h.time.toLowerCase().includes('closed') && dayMatchesToday(h.day, todayName)) return { open: false, label: 'Closed today' };
+    if (h.time.toLowerCase() === 'by appointment' && dayMatchesToday(h.day, todayName)) return { open: true, label: 'By appt' };
     const rp = h.time.split('–').map((p: string) => p.trim());
     if (rp.length < 2) continue;
     const oM = parseTimeStr(rp[0]);
@@ -93,9 +145,8 @@ function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
         const hh = Math.floor(oM / 60), mm = oM % 60;
         const ap = hh >= 12 ? 'PM' : 'AM';
         const dh = hh > 12 ? hh - 12 : hh === 0 ? 12 : hh;
-        return { open: false, label: 'Opens ' + dh + ':' + String(mm).padStart(2, '0') + ' ' + ap };
+        return { open: false, label: 'Opens ' + dh + ':' + String(mm).padStart(2,'0') + ' ' + ap };
       }
-      // After close — check tomorrow
       for (const h2 of hours) {
         if (dayMatchesToday(h2.day, tomorrowName)) {
           const rp2 = h2.time.split('–').map((p: string) => p.trim());
@@ -104,7 +155,7 @@ function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
             const hh2 = Math.floor(om2 / 60), mm2 = om2 % 60;
             const ap2 = hh2 >= 12 ? 'PM' : 'AM';
             const dh2 = hh2 > 12 ? hh2 - 12 : hh2 === 0 ? 12 : hh2;
-            return { open: false, label: 'Opens tomorrow ' + dh2 + ':' + String(mm2).padStart(2, '0') + ' ' + ap2 };
+            return { open: false, label: 'Opens tomorrow ' + dh2 + ':' + String(mm2).padStart(2,'0') + ' ' + ap2 };
           }
         }
       }
@@ -113,44 +164,6 @@ function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
   }
   return { open: true, label: 'Open' };
 }
-
-function parseSlotMinutes(slot) {
-  const m = slot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-  if (!m) return 0;
-  let h = parseInt(m[1]); const mn = parseInt(m[2]); const ap = m[3].toUpperCase();
-  if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
-  return h * 60 + mn;
-}
-function getHoursForDate(hours, date) {
-  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const dayName = dayNames[date.getDay()];
-  function dayMatches(pattern) {
-    if (pattern.toLowerCase().includes('closed')) return false;
-    if (pattern.includes('–')||pattern.includes('-')) {
-      const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-      const ab:Record<string,string>={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
-      const sep=pattern.includes('–')?'–':'-'; const pts=pattern.split(sep).map(p=>p.trim());
-      const s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(dayName);
-      if(s<0||e<0||d<0) return false; return s<=e?(d>=s&&d<=e):(d>=s||d<=e);
-    }
-    return pattern.includes(dayName)||pattern.includes(dayName.slice(0,3));
-  }
-  function parseT(t) {
-    const mx=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i); if(!mx) return null;
-    let h=parseInt(mx[1]); const mn=parseInt(mx[2]); const ap=mx[3].toUpperCase();
-    if(ap==='PM'&&h!==12) h+=12; if(ap==='AM'&&h===12) h=0; return h*60+mn;
-  }
-  for (const h of hours) {
-    if (dayMatches(h.day)) {
-      if (h.time.toLowerCase()==='by appointment') return {open:8*60,close:20*60};
-      const parts=h.time.split('–').map(p=>p.trim()); if(parts.length<2) continue;
-      const open=parseT(parts[0]),close=parseT(parts[1]);
-      if(open!==null&&close!==null) return {open,close};
-    }
-  }
-  return null;
-}
-
 
 function MiniCalendar({ selected, onSelect, bookedDates, hours }: { selected: Date | null; onSelect: (d: Date) => void; bookedDates?: Set<string>; hours?: {day:string;time:string}[]; }) {
   const { dm } = useDm();
