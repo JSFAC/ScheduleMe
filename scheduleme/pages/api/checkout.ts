@@ -30,7 +30,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
 
-  // Load booking with business details — join users table (not profiles)
   const { data: booking } = await supabase
     .from('bookings')
     .select('*, businesses(id, name, stripe_account_id, stripe_onboarded), users(id, name, email)')
@@ -61,16 +60,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         currency: 'usd',
         product_data: {
           name: booking.service || 'Service Booking',
-          description: `Booked with ${biz.name}`,
+          description: 'Booked with ' + biz.name,
         },
         unit_amount: amountCents,
       },
       quantity: 1,
     }],
     mode: 'payment',
-    // Point to dedicated success page
-    success_url: `${siteUrl}/payment-success?booking=${booking_id}`,
-    cancel_url: `${siteUrl}/bookings?payment=cancelled`,
+    success_url: siteUrl + '/payment-success?booking=' + booking_id,
+    cancel_url: siteUrl + '/bookings?payment=cancelled',
     metadata: { booking_id },
     payment_intent_data: {
       application_fee_amount: platformFeeCents,
