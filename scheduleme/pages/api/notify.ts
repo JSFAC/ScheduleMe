@@ -1,7 +1,12 @@
 // pages/api/notify.ts — SECURED (internal only, protected by NOTIFY_SECRET)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail, sendNewBookingBusinessEmail, sendReviewRequestEmail, sendNewBusinessApplicationEmail } from '../../lib/email';
+import {
+  sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail,
+  sendNewBookingBusinessEmail, sendReviewRequestEmail,
+  sendNewBusinessApplicationEmail,
+  sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
+} from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
 
 function getSupabase() {
@@ -15,12 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Must always have a valid NOTIFY_SECRET
   const secret = req.headers['x-notify-secret'];
   if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
     return res.status(401).json({ error: 'Unauthorized' });
 
-  // Rate limit: 100/min (internal use only)
   if (!rateLimit(req, res, { max: 100, windowMs: 60_000, keyPrefix: 'notify' })) return;
 
   const { type, to, name, ...rest } = req.body;
@@ -79,6 +82,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           to,
           name: name || 'there',
           service: rest.service || 'your service',
+          bookingId: rest.bookingId || '',
+        });
+        break;
+      // ── Payment emails ──────────────────────────────────────────────────────
+      case 'payment_receipt_customer':
+        result = await sendPaymentReceiptCustomer({
+          to, name: name || 'there',
+          service: rest.service || 'Service',
+          businessName: rest.businessName || 'Your provider',
+          amountDollars: rest.amountDollars || '0.00',
+          scheduledAt: rest.scheduledAt,
+          bookingId: rest.bookingId || '',
+        });
+        break;
+      case 'payment_notification_business':
+        result = await sendPaymentNotificationBusiness({
+          to,
+          businessName: rest.businessName || 'Your business',
+          customerName: rest.customerName || 'A customer',
+          service: rest.service || 'Service',
+          amountDollars: rest.amountDollars || '0.00',
+          platformFeePercent: rest.platformFeePercent ?? 12,
+          payoutDollars: rest.payoutDollars || '0.00',
+          bookingId: rest.bookingId || '',
+        });
+        break;
+      case 'payment_request_customer':
+        result = await sendPaymentRequestCustomer({
+          to, name: name || 'there',
+          service: rest.service || 'Service',
+          businessName: rest.businessName || 'Your provider',
+          amountDollars: rest.amountDollars || '0.00',
           bookingId: rest.bookingId || '',
         });
         break;

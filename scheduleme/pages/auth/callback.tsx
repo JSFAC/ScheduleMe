@@ -28,6 +28,7 @@ const AuthCallback: NextPage = () => {
         localStorage.removeItem('auth_intent');
 
         if (source === 'business') {
+          // Check businesses table for this email
           const { data: biz } = await supabase
             .from('businesses')
             .select('id')
@@ -35,14 +36,15 @@ const AuthCallback: NextPage = () => {
             .maybeSingle();
 
           if (biz) {
+            // Mark as business role in profiles
+            await supabase.from('profiles').upsert({
+              id: userId, email, name, role: 'business', has_seen_welcome: true,
+            }, { onConflict: 'id', ignoreDuplicates: false });
             router.replace('/business/dashboard');
           } else {
+            // Not a registered business — sign out but DO NOT delete their account
+            // They may be a consumer who accidentally hit the business login
             await supabase.auth.signOut();
-            await fetch('/api/cleanup-auth-user', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, email }),
-            });
             router.replace('/business/auth/login?error=not_a_business');
           }
         } else {
