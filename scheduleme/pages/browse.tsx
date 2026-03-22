@@ -35,18 +35,13 @@ function getOpenStatus(hours: BrowseHourEntry[]): { open: boolean; label: string
     Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday',
     Fri:'Friday', Sat:'Saturday', Sun:'Sunday'
   };
-
   function parseT(t: string): number | null {
     const m = t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
     if (!m) return null;
-    let h = parseInt(m[1]);
-    const mn = parseInt(m[2]);
-    const ap = m[3].toUpperCase();
-    if (ap === 'PM' && h !== 12) h += 12;
-    if (ap === 'AM' && h === 12) h = 0;
+    let h = parseInt(m[1]); const mn = parseInt(m[2]); const ap = m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
     return h * 60 + mn;
   }
-
   function dayMatches(pattern: string, name: string): boolean {
     if (pattern.includes('–') || pattern.includes('-')) {
       const all = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -60,34 +55,27 @@ function getOpenStatus(hours: BrowseHourEntry[]): { open: boolean; label: string
     }
     return pattern.includes(name) || pattern.includes(name.slice(0, 3));
   }
-
   const nowM = now.getHours() * 60 + now.getMinutes();
-
   for (const h of hours) {
     if (h.time.toLowerCase().includes('closed') && dayMatches(h.day, todayName)) return { open: false, label: 'Closed today' };
     if (h.time.toLowerCase() === 'by appointment' && dayMatches(h.day, todayName)) return { open: true, label: 'By appt' };
     const rp = h.time.split('–').map((p: string) => p.trim());
     if (rp.length < 2) continue;
-    const oM = parseT(rp[0]);
-    const cM = parseT(rp[1]);
+    const oM = parseT(rp[0]); const cM = parseT(rp[1]);
     if (oM === null || cM === null) continue;
     if (dayMatches(h.day, todayName)) {
       if (nowM >= oM && nowM < cM) return { open: true, label: 'Open' };
       if (nowM < oM) {
-        const hh = Math.floor(oM / 60), mm = oM % 60;
-        const ap = hh >= 12 ? 'PM' : 'AM';
-        const dh = hh > 12 ? hh - 12 : hh === 0 ? 12 : hh;
-        return { open: false, label: 'Opens ' + dh + ':' + String(mm).padStart(2,'0') + ' ' + ap };
+        const hh = Math.floor(oM/60), mm = oM%60, ap = hh>=12?'PM':'AM', dh = hh>12?hh-12:hh===0?12:hh;
+        return { open: false, label: 'Opens '+dh+':'+String(mm).padStart(2,'0')+' '+ap };
       }
       for (const h2 of hours) {
         if (dayMatches(h2.day, tomorrowName)) {
           const rp2 = h2.time.split('–').map((p: string) => p.trim());
           const om2 = parseT(rp2[0]);
           if (om2 !== null) {
-            const hh2 = Math.floor(om2 / 60), mm2 = om2 % 60;
-            const ap2 = hh2 >= 12 ? 'PM' : 'AM';
-            const dh2 = hh2 > 12 ? hh2 - 12 : hh2 === 0 ? 12 : hh2;
-            return { open: false, label: 'Opens tomorrow ' + dh2 + ':' + String(mm2).padStart(2,'0') + ' ' + ap2 };
+            const hh2=Math.floor(om2/60),mm2=om2%60,ap2=hh2>=12?'PM':'AM',dh2=hh2>12?hh2-12:hh2===0?12:hh2;
+            return { open:false, label:'Opens tomorrow '+dh2+':'+String(mm2).padStart(2,'0')+' '+ap2 };
           }
         }
       }
@@ -229,7 +217,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
 
 // Same card design as home — full-bleed image, gradient overlay, pill + arrow row below
 // Standard card — square image on mobile, clean vertical layout
-function BizCard({ biz, onClick, dm, index = 0 }) {
+function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; hero?: boolean; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours);
