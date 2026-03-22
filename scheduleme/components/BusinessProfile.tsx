@@ -34,12 +34,12 @@ function Stars({ rating }: { rating: number }) {
 const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
 
-function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
+function getOpenStatus(hours) {
   if (!hours||!hours.length) return {open:true,label:'Open'};
   const now=new Date(),dayNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const todayName=dayNames[now.getDay()],tomorrowName=dayNames[(now.getDay()+1)%7];
-  function parseT(t: string): number | null {const m=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);if(!m)return null;let h=parseInt(m[1]);const mn=parseInt(m[2]),ap=m[3].toUpperCase();if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h*60+mn;}
-  function dayM(p: string, n: string): boolean {if(p.includes('–')||p.includes('-')){const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],ab={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'},sep=p.includes('–')?'–':'-',pts=p.split(sep).map(x=>x.trim()),s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(n);if(s<0||e<0||d<0)return false;return s<=e?(d>=s&&d<=e):(d>=s||d<=e);}return p.includes(n)||p.includes(n.slice(0,3));}
+  function parseT(t){const m=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);if(!m)return null;let h=parseInt(m[1]);const mn=parseInt(m[2]),ap=m[3].toUpperCase();if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h*60+mn;}
+  function dayM(p,n){if(p.includes('–')||p.includes('-')){const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],ab:Record<string,string>={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'},sep=p.includes('–')?'–':'-',pts=p.split(sep).map(x=>x.trim()),s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(n);if(s<0||e<0||d<0)return false;return s<=e?(d>=s&&d<=e):(d>=s||d<=e);}return p.includes(n)||p.includes(n.slice(0,3));}
   const nowM=now.getHours()*60+now.getMinutes();
   for(const h of hours){
     if(h.time.toLowerCase().includes('closed')&&dayM(h.day,todayName))return{open:false,label:'Closed today'};
@@ -55,28 +55,28 @@ function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean;
   }
   return{open:true,label:'Open'};
 }
-function parseSlotMinutes(slot: string): number {
+function parseSlotMinutes(slot) {
   const m = slot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
   if (!m) return 0;
   let h = parseInt(m[1]); const mn = parseInt(m[2]); const ap = m[3].toUpperCase();
   if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
   return h * 60 + mn;
 }
-function getHoursForDate(hours: { day: string; time: string }[], date: Date): { open: number; close: number } | null {
+function getHoursForDate(hours, date) {
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const dayName = dayNames[date.getDay()];
-  function dayMatches(pattern: string): boolean {
+  function dayMatches(pattern) {
     if (pattern.toLowerCase().includes('closed')) return false;
     if (pattern.includes('–')||pattern.includes('-')) {
       const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-      const ab={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
+      const ab:Record<string,string>={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
       const sep=pattern.includes('–')?'–':'-'; const pts=pattern.split(sep).map(p=>p.trim());
       const s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(dayName);
       if(s<0||e<0||d<0) return false; return s<=e?(d>=s&&d<=e):(d>=s||d<=e);
     }
     return pattern.includes(dayName)||pattern.includes(dayName.slice(0,3));
   }
-  function parseT(t: string): number | null {
+  function parseT(t) {
     const mx=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i); if(!mx) return null;
     let h=parseInt(mx[1]); const mn=parseInt(mx[2]); const ap=mx[3].toUpperCase();
     if(ap==='PM'&&h!==12) h+=12; if(ap==='AM'&&h===12) h=0; return h*60+mn;
@@ -176,8 +176,8 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set());
-  const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
+  const [bookedSlots, setBookedSlots] = useState(new Set());
+  const [bookedDates, setBookedDates] = useState(new Set());
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
@@ -205,7 +205,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
       }
       setBookedSlots(slots);
       const full = new Set();
-      for (const [dk, cnt] of Object.entries(dateCounts) as [string, number][]) {
+      for (const [dk, cnt] of Object.entries(dateCounts)) {
         const dh = getHoursForDate(biz.hours, new Date(dk));
         if (!dh) continue;
         const avail = TIME_SLOTS.filter(s=>{const m=parseSlotMinutes(s);return m>=dh.open&&m<dh.close;});
