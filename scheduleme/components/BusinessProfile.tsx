@@ -264,7 +264,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
     fetch(`${url}/rest/v1/bookings?business_id=eq.${bizId}&status=in.(confirmed,paid,pending)&scheduled_start=gte.${from}&scheduled_start=lte.${to}&select=scheduled_start`,
       {headers:{'apikey':key,'Authorization':'Bearer '+key}}
     ).then(r=>r.json()).then(rows=>{
-      const slots = new Set();
+      const slots = new Set<string>();
       const dateCounts: Record<string, number> = {};
       for (const row of rows||[]) {
         if (!row.scheduled_start) continue;
@@ -277,7 +277,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
       }
       setBookedSlots(slots);
       const full = new Set<string>();
-      for (const [dk, cnt] of Object.entries(dateCounts) as [string, number][]) {
+      for (const [dk, cnt] of Object.entries(dateCounts)) {
         const dh = getHoursForDate(biz.hours, new Date(dk));
         if (!dh) continue;
         const avail = TIME_SLOTS.filter(s=>{const m=parseSlotMinutes(s);return m>=dh.open&&m<dh.close;});
