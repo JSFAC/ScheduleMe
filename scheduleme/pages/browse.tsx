@@ -329,7 +329,7 @@ const BrowsePage: NextPage = () => {
 
   useEffect(() => {
     if (router.query.biz) {
-      const biz = bizList.find(b => b.id === router.query.biz) || ALL_BUSINESSES.find(b => b.id === router.query.biz);
+      const biz = bizList.find(b => b.id === router.query.biz);
       if (biz) setActiveBiz(biz);
     }
   }, [router.query.biz]);
