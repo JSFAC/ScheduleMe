@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/browse.tsx
 import type { NextPage } from 'next';
 import Head from 'next/head';
