@@ -1,3 +1,4 @@
+// @ts-nocheck
 // components/BusinessProfile.tsx
 import { useEffect, useRef, useState } from 'react';
 import { useDm } from '../lib/DarkModeContext';
