@@ -33,7 +33,67 @@ function Stars({ rating }: { rating: number }) {
 /* ─── Mini calendar ─── */
 const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
-function MiniCalendar({ selected, onSelect }: { selected: Date | null; onSelect: (d: Date) => void }) {
+
+function getOpenStatus(hours) {
+  if (!hours||!hours.length) return {open:true,label:'Open'};
+  const now=new Date(),dayNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const todayName=dayNames[now.getDay()],tomorrowName=dayNames[(now.getDay()+1)%7];
+  function parseT(t){const m=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);if(!m)return null;let h=parseInt(m[1]);const mn=parseInt(m[2]),ap=m[3].toUpperCase();if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h*60+mn;}
+  function dayM(p,n){if(p.includes('–')||p.includes('-')){const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],ab={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'},sep=p.includes('–')?'–':'-',pts=p.split(sep).map(x=>x.trim()),s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(n);if(s<0||e<0||d<0)return false;return s<=e?(d>=s&&d<=e):(d>=s||d<=e);}return p.includes(n)||p.includes(n.slice(0,3));}
+  const nowM=now.getHours()*60+now.getMinutes();
+  for(const h of hours){
+    if(h.time.toLowerCase().includes('closed')&&dayM(h.day,todayName))return{open:false,label:'Closed today'};
+    if(h.time.toLowerCase()==='by appointment'&&dayM(h.day,todayName))return{open:true,label:'By appt'};
+    const rp=h.time.split('–').map(p=>p.trim());if(rp.length<2)continue;
+    const oM=parseT(rp[0]),cM=parseT(rp[1]);if(oM===null||cM===null)continue;
+    if(dayM(h.day,todayName)){
+      if(nowM>=oM&&nowM<cM)return{open:true,label:'Open'};
+      if(nowM<oM){const hh=Math.floor(oM/60),mm=oM%60,ap=hh>=12?'PM':'AM',dh=hh>12?hh-12:hh===0?12:hh;return{open:false,label:'Opens '+dh+':'+String(mm).padStart(2,'0')+' '+ap};}
+      for(const h2 of hours){if(dayM(h2.day,tomorrowName)){const rp2=h2.time.split('–').map(p=>p.trim()),om2=parseT(rp2[0]);if(om2!==null){const hh2=Math.floor(om2/60),mm2=om2%60,ap2=hh2>=12?'PM':'AM',dh2=hh2>12?hh2-12:hh2===0?12:hh2;return{open:false,label:'Opens tomorrow '+dh2+':'+String(mm2).padStart(2,'0')+' '+ap2};}}}
+      return{open:false,label:'Closed'};
+    }
+  }
+  return{open:true,label:'Open'};
+}
+function parseSlotMinutes(slot) {
+  const m = slot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!m) return 0;
+  let h = parseInt(m[1]); const mn = parseInt(m[2]); const ap = m[3].toUpperCase();
+  if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + mn;
+}
+function getHoursForDate(hours, date) {
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dayName = dayNames[date.getDay()];
+  function dayMatches(pattern) {
+    if (pattern.toLowerCase().includes('closed')) return false;
+    if (pattern.includes('–')||pattern.includes('-')) {
+      const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+      const ab={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
+      const sep=pattern.includes('–')?'–':'-'; const pts=pattern.split(sep).map(p=>p.trim());
+      const s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(dayName);
+      if(s<0||e<0||d<0) return false; return s<=e?(d>=s&&d<=e):(d>=s||d<=e);
+    }
+    return pattern.includes(dayName)||pattern.includes(dayName.slice(0,3));
+  }
+  function parseT(t) {
+    const mx=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i); if(!mx) return null;
+    let h=parseInt(mx[1]); const mn=parseInt(mx[2]); const ap=mx[3].toUpperCase();
+    if(ap==='PM'&&h!==12) h+=12; if(ap==='AM'&&h===12) h=0; return h*60+mn;
+  }
+  for (const h of hours) {
+    if (dayMatches(h.day)) {
+      if (h.time.toLowerCase()==='by appointment') return {open:8*60,close:20*60};
+      const parts=h.time.split('–').map(p=>p.trim()); if(parts.length<2) continue;
+      const open=parseT(parts[0]),close=parseT(parts[1]);
+      if(open!==null&&close!==null) return {open,close};
+    }
+  }
+  return null;
+}
+
+
+function MiniCalendar({ selected, onSelect, bookedDates, hours }: { selected: Date | null; onSelect: (d: Date) => void; bookedDates?: Set<string>; hours?: {day:string;time:string}[]; }) {
   const { dm } = useDm();
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [vm, setVm] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -67,18 +127,30 @@ function MiniCalendar({ selected, onSelect }: { selected: Date | null; onSelect:
           const isPast = date < today;
           const isToday = date.getTime() === today.getTime();
           const isSel = selected?.getTime() === date.getTime();
+          const dateKey = date.toISOString().split('T')[0];
+          const dayHours = hours ? getHoursForDate(hours, date) : null;
+          const isClosed = hours && hours.length > 0 && !dayHours;
+          const isFullyBooked = bookedDates?.has(dateKey);
+          const isUnavail = isPast || isClosed || isFullyBooked;
           return (
-            <PureBtn key={i} onClick={() => !isPast && onSelect(date)}
+            <div key={i} className="flex items-center justify-center relative">
+            <PureBtn onClick={() => !isUnavail && onSelect(date)}
               className={`mx-auto h-8 w-8 rounded-full text-xs font-medium flex items-center justify-center transition-colors ${
                 isSel ? 'bg-accent text-white' :
-                isToday ? 'border-2 border-accent text-accent hover:bg-blue-50' :
-                isPast ? 'text-neutral-300 cursor-not-allowed' :
-                'text-neutral-700 hover:bg-neutral-100'
-              }`}>
+                isToday && !isUnavail ? 'border-2 border-accent text-accent hover:bg-blue-50' :
+                isUnavail ? 'cursor-not-allowed' : 'hover:bg-neutral-100'
+              }`}
+              style={{ color: isUnavail?(dm?'rgba(255,255,255,0.18)':'#d1d5db'):isSel?'white':isToday?undefined:(dm?'#f3f4f6':'#171717'), textDecoration:isClosed?'line-through':undefined }}>
               {date.getDate()}
+              {isFullyBooked && !isPast && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-red-400" />}
             </PureBtn>
+            </div>
           );
         })}
+      </div>
+      <div className="flex items-center gap-4 mt-3 pt-3 border-t" style={{borderColor:dm?'#2a2d3a':'#f1f5f9'}}>
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400"/><span className="text-[10px]" style={{color:dm?'#9ca3af':'#8e8e93'}}>Fully booked</span></div>
+        <div className="flex items-center gap-1.5"><span className="text-[10px] line-through" style={{color:dm?'#9ca3af':'#8e8e93'}}>15</span><span className="text-[10px]" style={{color:dm?'#9ca3af':'#8e8e93'}}>Closed</span></div>
       </div>
     </div>
   );
@@ -104,6 +176,50 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [bookedSlots, setBookedSlots] = useState(new Set());
+  const [bookedDates, setBookedDates] = useState(new Set());
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  useEffect(() => {
+    const bizId = (biz).realId || biz.id;
+    if (!bizId) return;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return;
+    setLoadingSlots(true);
+    const from = new Date().toISOString();
+    const to = new Date(Date.now()+60*24*60*60*1000).toISOString();
+    fetch(`${url}/rest/v1/bookings?business_id=eq.${bizId}&status=in.(confirmed,paid,pending)&scheduled_start=gte.${from}&scheduled_start=lte.${to}&select=scheduled_start`,
+      {headers:{'apikey':key,'Authorization':'Bearer '+key}}
+    ).then(r=>r.json()).then(rows=>{
+      const slots = new Set();
+      const dateCounts = {};
+      for (const row of rows||[]) {
+        if (!row.scheduled_start) continue;
+        const d = new Date(row.scheduled_start);
+        const dk = d.toISOString().split('T')[0];
+        const mins = d.getHours()*60+d.getMinutes();
+        const matched = TIME_SLOTS.find(s=>Math.abs(parseSlotMinutes(s)-mins)<30);
+        if (matched) slots.add(dk+'|'+matched);
+        dateCounts[dk] = (dateCounts[dk]||0)+1;
+      }
+      setBookedSlots(slots);
+      const full = new Set();
+      for (const [dk, cnt] of Object.entries(dateCounts)) {
+        const dh = getHoursForDate(biz.hours, new Date(dk));
+        if (!dh) continue;
+        const avail = TIME_SLOTS.filter(s=>{const m=parseSlotMinutes(s);return m>=dh.open&&m<dh.close;});
+        if (cnt>=avail.length&&avail.length>0) full.add(dk);
+      }
+      setBookedDates(full);
+    }).catch(()=>{}).finally(()=>setLoadingSlots(false));
+  }, [biz.id]);
+
+  const availableSlots = date ? (() => {
+    const dk = date.toISOString().split('T')[0];
+    const dh = getHoursForDate(biz.hours, date);
+    return TIME_SLOTS.map(s=>({slot:s,booked:bookedSlots.has(dk+'|'+s),outside:dh?(parseSlotMinutes(s)<dh.open||parseSlotMinutes(s)>=dh.close):false}));
+  })() : [];
 
   if (done) return (
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -176,26 +292,42 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
         <div>
           <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Preferred date</p>
           <div className="bg-neutral-50 rounded-2xl p-4">
-            <MiniCalendar selected={date} onSelect={d => { setDate(d); setSlot(null); }} />
+            <MiniCalendar selected={date} onSelect={d=>{setDate(d);setSlot(null);}} bookedDates={bookedDates} hours={biz.hours} />
           </div>
         </div>
 
         {/* Time slots */}
         {date && (
           <div>
-            <p className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-2.5">
-              Available times — {date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {TIME_SLOTS.map(s => (
-                <PureBtn key={s} onClick={() => setSlot(s)}
-                  className={`py-2.5 rounded-xl text-xs font-semibold text-center border transition-colors ${
-                    slot === s ? 'bg-accent text-white border-accent' : ''
-                  }`}>
-                  {s}
-                </PureBtn>
-              ))}
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-xs font-bold uppercase tracking-wide" style={{color:dm?'rgba(255,255,255,0.4)':'#737373'}}>
+                {date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </p>
+              {loadingSlots && <div className="h-3 w-3 rounded-full border-2 border-accent border-t-transparent animate-spin" />}
             </div>
+            {availableSlots.every(s=>s.booked||s.outside) ? (
+              <div className="rounded-xl px-4 py-3 text-center" style={{background:dm?'#1a1a1a':'#fef2f2',border:'1px solid #fecaca'}}>
+                <p className="text-sm font-semibold text-red-600">Fully booked this day</p>
+                <p className="text-xs text-red-400 mt-0.5">Please pick another date</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {availableSlots.map(({slot:s,booked,outside}) => {
+                  const unavail = booked||outside;
+                  return (
+                    <PureBtn key={s} onClick={()=>!unavail&&setSlot(s)} disabled={unavail}
+                      className={`py-2.5 rounded-xl text-xs font-semibold text-center border transition-colors relative ${slot===s?'bg-accent text-white border-accent':unavail?'cursor-not-allowed':''}`}
+                      style={slot===s?{}:unavail?{background:dm?'#111':'#f9fafb',color:dm?'rgba(255,255,255,0.2)':'#d1d5db',borderColor:dm?'#1f2937':'#f1f5f9',textDecoration:booked?'line-through':undefined}:{background:dm?'#0d0d0d':'white',color:dm?'#d1d5db':'#404040',borderColor:dm?'#262626':'#e5e5e5'}}>
+                      {s}
+                      {booked&&<span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-400 border border-white"/>}
+                    </PureBtn>
+                  );
+                })}
+              </div>
+            )}
+            <p className="text-[10px] mt-1.5" style={{color:dm?'rgba(255,255,255,0.25)':'#d1d5db'}}>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block"/>Booked</span> · Greyed out = outside hours
+            </p>
           </div>
         )}
 
@@ -433,9 +565,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
           </PureBtn>
 
           <div className="absolute top-3 left-3 pointer-events-none">
-            {biz.available
-              ? <span className="flex items-center gap-1.5 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: dm ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.9)', color: dm ? 'white' : '#15803d' }}><span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />Open</span>
-              : <span className="backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold text-white/80" style={{ background: 'rgba(0,0,0,0.55)' }}>Fully Booked</span>}
+            {(() => { const s=getOpenStatus(biz.hours||[]); return (<span className="flex items-center gap-1.5 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs font-semibold" style={{background:'rgba(0,0,0,0.58)',color:'white'}}><span className={`h-1.5 w-1.5 rounded-full shrink-0 ${s.open?'bg-emerald-400':'bg-neutral-400'}`}/>{s.label}</span>); })()}
           </div>
         </div>
 
