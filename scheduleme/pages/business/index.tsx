@@ -47,9 +47,9 @@ const HOW_STEPS = [
 ];
 
 const TESTIMONIALS = [
-  { quote: "My schedule was half-empty. After joining ScheduleMe, I'm booked two weeks out. The leads are genuinely warm.", name: "Mike R.", biz: "Mike R. Plumbing", location: "Austin, TX" },
-  { quote: "The quality is night and day compared to other lead services. Customers already know what they need when they call.", name: "Sarah T.", biz: "CoolBreeze HVAC", location: "Austin, TX" },
-  { quote: "I was skeptical. One Pro lead paid for a year of the plan. The ROI speaks for itself.", name: "Dani L.", biz: "Volt Masters Electric", location: "Phoenix, AZ" },
+  { quote: "My schedule was half-empty. After joining ScheduleMe, I'm booked two weeks out. The leads are genuinely warm.", name: "Marcus R.", biz: "Plumbing Professional", location: "Austin, TX" },
+  { quote: "The quality is night and day compared to other lead services. Customers already know what they need when they call.", name: "Sarah T.", biz: "HVAC Services", location: "Austin, TX" },
+  { quote: "I was skeptical. One lead paid for a year of the plan. The ROI speaks for itself.", name: "Dani L.", biz: "Electrical Services", location: "Phoenix, AZ" },
 ];
 
 const FAQ = [
