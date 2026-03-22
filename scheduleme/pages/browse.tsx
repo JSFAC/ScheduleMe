@@ -354,7 +354,7 @@ const BrowsePage: NextPage = () => {
   // Reset to page 1 when filters change
   useEffect(() => { setPage(1); }, [activeCategory, searchQuery, sortMode]);
 
-  const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? ALL_BUSINESSES.find(b => b.id === selectedMapBiz) ?? null;
+  const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
 
   if (loading) return (
     <>
