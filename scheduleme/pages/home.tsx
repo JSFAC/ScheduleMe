@@ -599,7 +599,7 @@ const HomePage: NextPage = () => {
           {(() => {
             const pool = realBizList.length > 0
               ? realBizList
-              : [...SPONSORED, ...NEARBY, ...INDEPENDENT];
+              : [];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
             const t1 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
             const t2 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
