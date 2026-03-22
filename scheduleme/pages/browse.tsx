@@ -237,13 +237,9 @@ const BrowsePage: NextPage = () => {
   const [bizList, setBizList] = useState<Business[]>([]);
   const [bizLoading, setBizLoading] = useState(true);
   const [radius, setRadius] = useState(25);
-  const [radius, setRadius] = useState(25);
-  const [usingRealData, setUsingRealData] = useState(false);
+    const [usingRealData, setUsingRealData] = useState(false);
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
-  const dynamicCategories = bizLoading
-    ? ['All']
-    : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
   useEffect(() => {
     if (!sortOpen) return;
