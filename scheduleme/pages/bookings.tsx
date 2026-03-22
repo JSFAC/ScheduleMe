@@ -29,6 +29,7 @@ interface Booking {
   business_phone?: string;
   business_email?: string;
   amount_cents?: number;
+  paid_at?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
