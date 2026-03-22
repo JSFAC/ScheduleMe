@@ -34,27 +34,86 @@ function Stars({ rating }: { rating: number }) {
 const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
 
-function getOpenStatus(hours) {
-  if (!hours||!hours.length) return {open:true,label:'Open'};
-  const now=new Date(),dayNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const todayName=dayNames[now.getDay()],tomorrowName=dayNames[(now.getDay()+1)%7];
-  function parseT(t){const m=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);if(!m)return null;let h=parseInt(m[1]);const mn=parseInt(m[2]),ap=m[3].toUpperCase();if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h*60+mn;}
-  function dayM(p,n){if(p.includes('–')||p.includes('-')){const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],ab:Record<string,string>={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'},sep=p.includes('–')?'–':'-',pts=p.split(sep).map(x=>x.trim()),s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(n);if(s<0||e<0||d<0)return false;return s<=e?(d>=s&&d<=e):(d>=s||d<=e);}return p.includes(n)||p.includes(n.slice(0,3));}
-  const nowM=now.getHours()*60+now.getMinutes();
-  for(const h of hours){
-    if(h.time.toLowerCase().includes('closed')&&dayM(h.day,todayName))return{open:false,label:'Closed today'};
-    if(h.time.toLowerCase()==='by appointment'&&dayM(h.day,todayName))return{open:true,label:'By appt'};
-    const rp=h.time.split('–').map(p=>p.trim());if(rp.length<2)continue;
-    const oM=parseT(rp[0]),cM=parseT(rp[1]);if(oM===null||cM===null)continue;
-    if(dayM(h.day,todayName)){
-      if(nowM>=oM&&nowM<cM)return{open:true,label:'Open'};
-      if(nowM<oM){const hh=Math.floor(oM/60),mm=oM%60,ap=hh>=12?'PM':'AM',dh=hh>12?hh-12:hh===0?12:hh;return{open:false,label:'Opens '+dh+':'+String(mm).padStart(2,'0')+' '+ap};}
-      for(const h2 of hours){if(dayM(h2.day,tomorrowName)){const rp2=h2.time.split('–').map(p=>p.trim()),om2=parseT(rp2[0]);if(om2!==null){const hh2=Math.floor(om2/60),mm2=om2%60,ap2=hh2>=12?'PM':'AM',dh2=hh2>12?hh2-12:hh2===0?12:hh2;return{open:false,label:'Opens tomorrow '+dh2+':'+String(mm2).padStart(2,'0')+' '+ap2};}}}
-      return{open:false,label:'Closed'};
+type HourEntry = { day: string; time: string };
+
+function getOpenStatus(hours: HourEntry[]): { open: boolean; label: string } {
+  if (!hours || !hours.length) return { open: true, label: 'Open' };
+  const now = new Date();
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const todayName = dayNames[now.getDay()];
+  const tomorrowName = dayNames[(now.getDay() + 1) % 7];
+
+  const abbrevMap: Record<string, string> = {
+    Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday',
+    Fri:'Friday', Sat:'Saturday', Sun:'Sunday'
+  };
+
+  function parseTimeStr(t: string): number | null {
+    const m = t.trim().match(/^(d+):(d+)s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1]);
+    const mn = parseInt(m[2]);
+    const ap = m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60 + mn;
+  }
+
+  function dayMatchesToday(pattern: string, name: string): boolean {
+    if (pattern.includes('–') || pattern.includes('-')) {
+      const all = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+      const sep = pattern.includes('–') ? '–' : '-';
+      const pts = pattern.split(sep).map((p: string) => p.trim());
+      const start = abbrevMap[pts[0]] || pts[0];
+      const end = abbrevMap[pts[1]] || pts[1];
+      const s = all.indexOf(start), e = all.indexOf(end), d = all.indexOf(name);
+      if (s < 0 || e < 0 || d < 0) return false;
+      return s <= e ? (d >= s && d <= e) : (d >= s || d <= e);
+    }
+    return pattern.includes(name) || pattern.includes(name.slice(0, 3));
+  }
+
+  const nowM = now.getHours() * 60 + now.getMinutes();
+
+  for (const h of hours) {
+    if (h.time.toLowerCase().includes('closed') && dayMatchesToday(h.day, todayName)) {
+      return { open: false, label: 'Closed today' };
+    }
+    if (h.time.toLowerCase() === 'by appointment' && dayMatchesToday(h.day, todayName)) {
+      return { open: true, label: 'By appt' };
+    }
+    const rp = h.time.split('–').map((p: string) => p.trim());
+    if (rp.length < 2) continue;
+    const oM = parseTimeStr(rp[0]);
+    const cM = parseTimeStr(rp[1]);
+    if (oM === null || cM === null) continue;
+    if (dayMatchesToday(h.day, todayName)) {
+      if (nowM >= oM && nowM < cM) return { open: true, label: 'Open' };
+      if (nowM < oM) {
+        const hh = Math.floor(oM / 60), mm = oM % 60;
+        const ap = hh >= 12 ? 'PM' : 'AM';
+        const dh = hh > 12 ? hh - 12 : hh === 0 ? 12 : hh;
+        return { open: false, label: 'Opens ' + dh + ':' + String(mm).padStart(2, '0') + ' ' + ap };
+      }
+      // After close — check tomorrow
+      for (const h2 of hours) {
+        if (dayMatchesToday(h2.day, tomorrowName)) {
+          const rp2 = h2.time.split('–').map((p: string) => p.trim());
+          const om2 = parseTimeStr(rp2[0]);
+          if (om2 !== null) {
+            const hh2 = Math.floor(om2 / 60), mm2 = om2 % 60;
+            const ap2 = hh2 >= 12 ? 'PM' : 'AM';
+            const dh2 = hh2 > 12 ? hh2 - 12 : hh2 === 0 ? 12 : hh2;
+            return { open: false, label: 'Opens tomorrow ' + dh2 + ':' + String(mm2).padStart(2, '0') + ' ' + ap2 };
+          }
+        }
+      }
+      return { open: false, label: 'Closed' };
     }
   }
-  return{open:true,label:'Open'};
+  return { open: true, label: 'Open' };
 }
+
 function parseSlotMinutes(slot) {
   const m = slot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
   if (!m) return 0;
@@ -176,8 +235,8 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [bookedSlots, setBookedSlots] = useState(new Set());
-  const [bookedDates, setBookedDates] = useState(new Set());
+  const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set());
+  const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
