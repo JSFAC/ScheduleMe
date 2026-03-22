@@ -3,7 +3,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 import { triageUserInput } from '../../lib/claude';
-import { matchProviders } from '../../lib/mockProviders';
 import { setSecurityHeaders, rateLimit, getClientIp } from '../../lib/apiSecurity';
 
 interface IntakeRequestBody {
@@ -108,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!matches || matches.length === 0) {
-      matches = matchProviders(triage.service_category, message, location, 3);
+      matches = [];
     }
 
     const leadId = uuidv4();
