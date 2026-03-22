@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
-import { SPONSORED, INDEPENDENT, NEARBY, type Business } from '../lib/mockBusinesses';
+import type { Business } from '../lib/mockBusinesses';
 import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import FeedbackModal from '../components/FeedbackModal';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
@@ -437,9 +437,6 @@ const HomePage: NextPage = () => {
       if (real.length > 0) {
         setRealBizList(real);
         setUsingRealData(true);
-      } else {
-        // No real data — fall back to mock so page isn't empty
-        setRealBizList([...SPONSORED, ...NEARBY, ...INDEPENDENT]);
       }
       setDataLoading(false);
     });
@@ -600,14 +597,13 @@ const HomePage: NextPage = () => {
         {/* Scrollable business rows */}
         <div className="py-8 space-y-10">
           {(() => {
-            // Use real businesses if available, else fall back to mock
-            const pool = usingRealData
+            const pool = realBizList.length > 0
               ? realBizList
               : [...SPONSORED, ...NEARBY, ...INDEPENDENT];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
-            const t1 = activeCategory === 'All' ? (usingRealData ? pool.slice(0, 8) : [...SPONSORED, ...NEARBY]) : filtered;
-            const t2 = activeCategory === 'All' ? (usingRealData ? pool.slice(0, 8) : [...INDEPENDENT, ...SPONSORED.slice(0, 2)]) : filtered;
-            const t3 = activeCategory === 'All' ? (usingRealData ? pool.slice(0, 8) : [...NEARBY, ...INDEPENDENT]) : filtered;
+            const t1 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
+            const t2 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
+            const t3 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
             return (
               <>
                 <ScrollSection

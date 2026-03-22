@@ -533,6 +533,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusEduEmail, setCampusEduEmail] = useState('');
   const [campusCodeSent, setCampusCodeSent] = useState(false);
   const [campusBannerDismissed, setCampusBannerDismissed] = useState(false);
+  const [bookingPrices, setBookingPrices] = useState<Record<string, string>>({});
   const [campusCode, setCampusCode] = useState('');
   const [campusVerifying, setCampusVerifying] = useState(false);
   const [campusSending, setCampusSending] = useState(false);
@@ -739,6 +740,12 @@ const BusinessDashboard: NextPage = () => {
       setBusiness(b => b ? { ...b, edu_verified: true } : b);
     } catch { setCampusVerifyError('Something went wrong.'); }
     finally { setCampusVerifying(false); }
+  }
+
+  async function handleSetPrice(bookingId: string, amountCents: number) {
+    const supabase = getSupabase();
+    await supabase.from('bookings').update({ amount_cents: amountCents }).eq('id', bookingId);
+    setBookings(bs => bs.map(b => b.id === bookingId ? { ...b, amount_cents: amountCents } : b));
   }
 
   async function handleUpdateBooking(id: string, status: string) {
@@ -1079,9 +1086,39 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                           {(b.status === 'pending' || b.status === 'confirmed') && (
                             <div className="flex gap-2">
-                              <button onClick={() => handleUpdateBooking(b.id, 'completed')} className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">Mark Complete</button>
-                              {b.status === 'pending' && <button onClick={() => handleUpdateBooking(b.id, 'confirmed')} className="text-xs font-bold px-3.5 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">Confirm</button>}
-                              <button onClick={() => handleUpdateBooking(b.id, 'cancelled')} className="text-xs font-bold px-3.5 py-2 rounded-xl bg-neutral-100 text-neutral-500 border border-neutral-200 hover:bg-neutral-200 transition-colors ml-auto">Cancel</button>
+                              {/* Price setting — required before confirm */}
+                              {b.status === 'pending' && (
+                                <div className="w-full mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
+                                      <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+                                      <input
+                                        type="number" min="1" step="0.01" placeholder="Set price"
+                                        className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
+                                        style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
+                                        value={bookingPrices[b.id] ?? (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')}
+                                        onChange={e => setBookingPrices(p => ({ ...p, [b.id]: e.target.value }))}
+                                      />
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        const dollars = parseFloat(bookingPrices[b.id] || '0');
+                                        if (dollars > 0) handleSetPrice(b.id, Math.round(dollars * 100));
+                                        handleUpdateBooking(b.id, 'confirmed');
+                                      }}
+                                      disabled={!bookingPrices[b.id] && !b.amount_cents}
+                                      className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white disabled:opacity-40">
+                                      Confirm & Set Price
+                                    </button>
+                                  </div>
+                                  <p className="text-[10px] mt-1" style={{ color: dm ? '#636366' : '#9ca3af' }}>Set the price — customer will be prompted to pay after confirmation</p>
+                                </div>
+                              )}
+                              {b.status === 'confirmed' && (
+                                <button onClick={() => handleUpdateBooking(b.id, 'completed')} className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">Mark Complete</button>
+                              )}
+                              {b.paid_at && <span className="text-xs font-bold text-emerald-600 px-2">✓ Paid {fmt(b.amount_cents || 0)}</span>}
+                              <button onClick={() => handleUpdateBooking(b.id, 'cancelled')} className="text-xs font-bold px-3.5 py-2 rounded-xl ml-auto" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
                             </div>
                           )}
                         </div>
