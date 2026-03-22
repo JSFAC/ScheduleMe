@@ -199,7 +199,7 @@ function getOpenStatus(hours) {
   const now = new Date(), dn = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const tn = dn[now.getDay()], tmn = dn[(now.getDay()+1)%7];
   const ab = {Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
-  function pT(t) { const m=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i); if(!m)return null; let h=parseInt(m[1]); const mn=parseInt(m[2]),ap=m[3].toUpperCase(); if(ap==='PM'&&h!==12)h+=12; if(ap==='AM'&&h===12)h=0; return h*60+mn; }
+  function pT(t) { const m=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i); if(!m)return null; let hh=parseInt(m[1]); const mn=parseInt(m[2]),ap=m[3].toUpperCase(); if(ap==='PM'&&hh!==12)hh+=12; if(ap==='AM'&&hh===12)hh=0; return hh*60+mn; }
   function dM(p,n) { if(p.includes('\u2013')||p.includes('-')){const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],sep=p.includes('\u2013')?'\u2013':'-',pts=p.split(sep).map(x=>x.trim()),s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(n);if(s<0||e<0||d<0)return false;return s<=e?(d>=s&&d<=e):(d>=s||d<=e);}return p.includes(n)||p.includes(n.slice(0,3)); }
   const nM=now.getHours()*60+now.getMinutes();
   for(const h of hours){
