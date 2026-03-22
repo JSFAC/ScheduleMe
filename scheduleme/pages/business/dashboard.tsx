@@ -743,9 +743,22 @@ const BusinessDashboard: NextPage = () => {
   }
 
   async function handleSetPrice(bookingId: string, amountCents: number) {
-    const supabase = getSupabase();
-    await supabase.from('bookings').update({ amount_cents: amountCents }).eq('id', bookingId);
-    setBookings(bs => bs.map(b => b.id === bookingId ? { ...b, amount_cents: amountCents } : b));
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/set-booking-amount', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ booking_id: bookingId, amount_cents: amountCents, notify_customer: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Failed to set price'); return; }
+      setBookings(bs => bs.map(b => b.id === bookingId
+        ? { ...b, amount_cents: amountCents, status: data.status || b.status }
+        : b
+      ));
+    } catch {
+      alert('Failed to set price. Please try again.');
+    }
   }
 
   async function handleUpdateBooking(id: string, status: string) {
@@ -769,12 +782,19 @@ const BusinessDashboard: NextPage = () => {
   // While loading, render nothing — the _app.tsx overlay covers this transition
   if (loading) return <div className="min-h-screen" style={{ background: '#0a0a0a' }} />;
 
-  const totalEarned = bookings.filter(b => b.status === 'paid' || b.status === 'completed').reduce((s, b) => s + (b.amount_cents || 0), 0);
+  const PLATFORM_FEE = 0.12;
+  // Total gross charged (what customers paid)
+  const totalGross = bookings.filter(b => b.status === 'paid' || b.status === 'completed').reduce((s, b) => s + (b.amount_cents || 0), 0);
+  // Total payout to business (88% of gross)
+  const totalEarned = Math.round(totalGross * (1 - PLATFORM_FEE));
   const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const completedCount = bookings.filter(b => b.status === 'completed' || b.status === 'paid').length;
   const uniqueClients = new Set(bookings.map(b => b.profiles?.email).filter(Boolean)).size;
-  const thisMonthEarned = bookings.filter(b => (b.status === 'paid' || b.status === 'completed') && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth()).reduce((s, b) => s + (b.amount_cents || 0), 0);
+  const thisMonthGross = bookings.filter(b => (b.status === 'paid' || b.status === 'completed') && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth()).reduce((s, b) => s + (b.amount_cents || 0), 0);
+  const thisMonthEarned = Math.round(thisMonthGross * (1 - PLATFORM_FEE));
+  // Pending payments (confirmed + amount set, not yet paid)
+  const pendingPaymentAmount = bookings.filter(b => ['confirmed', 'payment_pending'].includes(b.status) && b.amount_cents && !b.paid_at).reduce((s, b) => s + (b.amount_cents || 0), 0);
 
   const filteredBookings = bookings.filter(b => {
     if (bkFilter === 'all') return true;
@@ -979,9 +999,9 @@ const BusinessDashboard: NextPage = () => {
               <div className="space-y-5">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { label: 'Total Earned', value: fmt(totalEarned), sub: 'after 12% commission', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: '#10b981', bg: 'bg-emerald-50' },
+                    { label: 'Total Payout', value: fmt(totalEarned), sub: 'after 12% platform fee', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: '#10b981', bg: 'bg-emerald-50' },
                     { label: 'This Month', value: fmt(thisMonthEarned), sub: new Date().toLocaleDateString('en-US',{month:'long'}), icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5', color: '#0A84FF', bg: 'bg-blue-50' },
-                    { label: 'Pending', value: String(pendingCount), sub: 'need your action', icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', color: '#f59e0b', bg: 'bg-amber-50' },
+                    { label: 'Awaiting Payment', value: pendingPaymentAmount > 0 ? fmt(pendingPaymentAmount) : String(pendingCount), sub: pendingPaymentAmount > 0 ? 'customer payment pending' : 'need your action', icon: pendingPaymentAmount > 0 ? 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z' : 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', color: '#f59e0b', bg: 'bg-amber-50' },
                     { label: 'Clients', value: String(uniqueClients), sub: completedCount + ' jobs completed', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z', color: '#8b5cf6', bg: 'bg-violet-50' },
                   ].map(s => (
                     <div key={s.label} className="rounded-2xl border p-5" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#f0f0f0' }}>

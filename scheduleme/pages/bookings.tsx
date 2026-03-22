@@ -10,7 +10,7 @@ import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 import { createClient } from '@supabase/supabase-js';
-import { SPONSORED } from '../lib/mockBusinesses';
+
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -583,6 +583,17 @@ const BookingsPage: NextPage = () => {
   const [reviewTarget, setReviewTarget] = useState<{ bookingId: string; businessId: string; businessName: string; serviceName: string } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
+  const [paymentToast, setPaymentToast] = useState<'cancelled' | null>(null);
+
+  // Show toast if redirected back after cancelled payment
+  useEffect(() => {
+    if (router.query.payment === 'cancelled') {
+      setPaymentToast('cancelled');
+      const t = setTimeout(() => setPaymentToast(null), 5000);
+      router.replace('/bookings', undefined, { shallow: true });
+      return () => clearTimeout(t);
+    }
+  }, [router.query.payment]);
 
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());
@@ -640,9 +651,8 @@ const BookingsPage: NextPage = () => {
           try {
             const { fetchAllBusinesses } = await import('../lib/realBusinesses');
             const real = await fetchAllBusinesses();
-            if (real.length > 0) setNearbyBizList(real.slice(0, 6));
-            else setNearbyBizList(SPONSORED.slice(0, 6));
-          } catch { setNearbyBizList(SPONSORED.slice(0, 6)); }
+            setNearbyBizList(real.slice(0, 6));
+          } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
           // Check for unreviewed completed bookings — show review prompt
           const unreviewed = bookingsData.find(
@@ -664,9 +674,8 @@ const BookingsPage: NextPage = () => {
           try {
             const { fetchAllBusinesses } = await import('../lib/realBusinesses');
             const real = await fetchAllBusinesses();
-            if (real.length > 0) setNearbyBizList(real.slice(0, 6));
-            else setNearbyBizList(SPONSORED.slice(0, 6));
-          } catch { setNearbyBizList(SPONSORED.slice(0, 6)); }
+            setNearbyBizList(real.slice(0, 6));
+          } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
       }
     });
@@ -897,6 +906,21 @@ const BookingsPage: NextPage = () => {
       {/* Detail sheet */}
       {selectedBooking && (
         <DetailSheet booking={selectedBooking} originRect={originRect} onClose={() => setSelectedBooking(null)} onCancel={cancelBooking} />
+      )}
+
+      {/* Payment cancelled toast */}
+      {paymentToast === 'cancelled' && (
+        <div
+          className="fixed bottom-24 md:bottom-6 left-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl"
+          style={{ transform: 'translateX(-50%)', background: '#1a1d27', border: '1px solid #2a2d3a', animation: 'fade-up 0.3s ease both' }}>
+          <svg className="h-4 w-4 shrink-0" style={{ color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p className="text-sm font-semibold text-white">Payment cancelled — no charge was made.</p>
+          <button onClick={() => setPaymentToast(null)} className="ml-1 text-neutral-400 hover:text-white transition-colors">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
       )}
     </>
   );

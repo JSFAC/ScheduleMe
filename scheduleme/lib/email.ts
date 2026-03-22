@@ -531,3 +531,195 @@ export async function sendWelcomeEmail(opts: { to: string; name: string }) {
     html: welcomeHtml({ name: opts.name }),
   });
 }
+
+// ─── Payment Receipt — Customer ──────────────────────────────────────────────
+export function paymentReceiptCustomerHtml(opts: {
+  name: string;
+  service: string;
+  businessName: string;
+  amountDollars: string;
+  scheduledAt?: string;
+  bookingId: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
+      <!-- Green checkmark header -->
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="display:inline-block;width:60px;height:60px;background:#dcfce7;border-radius:50%;line-height:60px;font-size:28px;margin-bottom:12px;">✓</div>
+        <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Payment confirmed</h1>
+        <p style="margin:0;font-size:15px;color:#64748b;">You're all set, ${opts.name}</p>
+      </div>
+
+      <!-- Amount box -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;margin-bottom:28px;border:1px solid #e2e8f0;">
+        <tr><td style="padding:24px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Amount paid</p>
+          <p style="margin:0;font-size:36px;font-weight:800;color:#0f172a;letter-spacing:-0.03em;">$${opts.amountDollars}</p>
+        </td></tr>
+      </table>
+
+      <!-- Booking details -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+        ${[
+          ['Service', opts.service],
+          ['Business', opts.businessName],
+          ...(opts.scheduledAt ? [['Scheduled', opts.scheduledAt]] : []),
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+
+      <!-- CTA -->
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;width:100%;max-width:320px;">
+        <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/bookings" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View Booking →</a>
+        </td></tr>
+      </table>
+
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">A 12% platform fee is included in this amount. ScheduleMe takes care of the rest.</p>
+    </td></tr>
+  `;
+  return layout('Payment confirmed', body, `$${opts.amountDollars} payment confirmed for ${opts.service}`);
+}
+
+// ─── Payment Notification — Business ─────────────────────────────────────────
+export function paymentNotificationBusinessHtml(opts: {
+  businessName: string;
+  customerName: string;
+  service: string;
+  amountDollars: string;
+  platformFeePercent: number;
+  payoutDollars: string;
+  bookingId: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="display:inline-block;width:60px;height:60px;background:#dbeafe;border-radius:50%;line-height:60px;font-size:28px;margin-bottom:12px;">💳</div>
+        <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Payment received</h1>
+        <p style="margin:0;font-size:15px;color:#64748b;">A customer just paid for their booking</p>
+      </div>
+
+      <!-- Payout box -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border-radius:12px;margin-bottom:28px;border:1px solid #bfdbfe;">
+        <tr><td style="padding:24px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:0.06em;">Your payout</p>
+          <p style="margin:0;font-size:36px;font-weight:800;color:#1e40af;letter-spacing:-0.03em;">$${opts.payoutDollars}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#3b82f6;">$${opts.amountDollars} total — ${opts.platformFeePercent}% platform fee</p>
+        </td></tr>
+      </table>
+
+      <!-- Details -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+        ${[
+          ['Service', opts.service],
+          ['Customer', opts.customerName],
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;width:100%;max-width:320px;">
+        <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/business/dashboard" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View Dashboard →</a>
+        </td></tr>
+      </table>
+
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Funds will be deposited to your connected bank account within 2 business days via Stripe.</p>
+    </td></tr>
+  `;
+  return layout('Payment received', body, `$${opts.payoutDollars} payout incoming for ${opts.service}`);
+}
+
+// ─── Payment Request — Customer (business requests payment) ──────────────────
+export function paymentRequestCustomerHtml(opts: {
+  name: string;
+  service: string;
+  businessName: string;
+  amountDollars: string;
+  bookingId: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="display:inline-block;width:60px;height:60px;background:#fef3c7;border-radius:50%;line-height:60px;font-size:28px;margin-bottom:12px;">🔔</div>
+        <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Payment requested</h1>
+        <p style="margin:0;font-size:15px;color:#64748b;">${opts.businessName} has set your price</p>
+      </div>
+
+      <!-- Amount -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border-radius:12px;margin-bottom:28px;border:1px solid #fde68a;">
+        <tr><td style="padding:24px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.06em;">Amount due</p>
+          <p style="margin:0;font-size:36px;font-weight:800;color:#92400e;letter-spacing:-0.03em;">$${opts.amountDollars}</p>
+        </td></tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+        ${[
+          ['Service', opts.service],
+          ['Business', opts.businessName],
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;width:100%;max-width:320px;">
+        <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/bookings" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">Pay Now →</a>
+        </td></tr>
+      </table>
+
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Payment is secured by Stripe. Your booking will be confirmed once paid.</p>
+    </td></tr>
+  `;
+  return layout('Payment requested', body, `$${opts.amountDollars} payment requested for ${opts.service}`);
+}
+
+export async function sendPaymentReceiptCustomer(opts: {
+  to: string; name: string; service: string; businessName: string;
+  amountDollars: string; scheduledAt?: string; bookingId: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Payment confirmed — $${opts.amountDollars} for ${opts.service}`,
+    html: paymentReceiptCustomerHtml(opts),
+  });
+}
+
+export async function sendPaymentNotificationBusiness(opts: {
+  to: string; businessName: string; customerName: string; service: string;
+  amountDollars: string; platformFeePercent: number; payoutDollars: string; bookingId: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Payment received — $${opts.payoutDollars} payout incoming`,
+    html: paymentNotificationBusinessHtml(opts),
+  });
+}
+
+export async function sendPaymentRequestCustomer(opts: {
+  to: string; name: string; service: string; businessName: string;
+  amountDollars: string; bookingId: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Payment requested — $${opts.amountDollars} due for ${opts.service}`,
+    html: paymentRequestCustomerHtml(opts),
+  });
+}
