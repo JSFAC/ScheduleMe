@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const triage = await triageUserInput(message);
     const supabase = getSupabase();
-    let matches = null;
+    let matches: Array<Record<string, unknown>> | null = null;
 
     if (supabase) {
       let lat = bodyLat;
