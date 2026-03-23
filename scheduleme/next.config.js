@@ -1,5 +1,5 @@
 // next.config.js
-// Build trigger: 1774305322025
+// Build trigger: 1774306698953
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
