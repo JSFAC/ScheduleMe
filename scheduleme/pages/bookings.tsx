@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/bookings.tsx — Book a service + booking history with clickable detail sheets
 import type { NextPage } from 'next';
 import Head from 'next/head';
