@@ -14,7 +14,7 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
-type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings' | 'preview';
+type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings' | 'preview' | 'services';
 
 interface Booking {
   id: string; service: string; status: string; created_at: string;
@@ -47,6 +47,7 @@ const NAV: { id: TabId; label: string; d: string }[] = [
   { id: 'messages',  label: 'Messages',  d: 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z' },
   { id: 'clients',   label: 'Clients',   d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
   { id: 'calendar',  label: 'Calendar',  d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+  { id: 'services', label: 'Services', d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
   { id: 'preview',   label: 'Edit',   d: 'M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   { id: 'settings',  label: 'Settings',  d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
@@ -508,6 +509,15 @@ const BusinessDashboard: NextPage = () => {
   const { dm: darkMode, toggle: toggleDark } = useDm();
   const dm = darkMode;
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','settings'];
+  const [services, setServices] = useState([]);
+  const [svcLoading, setSvcLoading] = useState(false);
+  const [svcName, setSvcName] = useState('');
+  const [svcDesc, setSvcDesc] = useState('');
+  const [svcPrice, setSvcPrice] = useState('');
+  const [svcDuration, setSvcDuration] = useState('60');
+  const [svcError, setSvcError] = useState('');
+  const [svcSaving, setSvcSaving] = useState(false);
+  const [editingSvc, setEditingSvc] = useState(null);
   const [tab, setTab] = useState<TabId>('overview');
 
   // Read tab from URL hash on mount and on hash change
@@ -613,6 +623,15 @@ const BusinessDashboard: NextPage = () => {
     if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); }
     setLoading(false);
   }, [router]);
+
+  useEffect(() => {
+    if (tab !== 'services' || !business) return;
+    setSvcLoading(true);
+    fetch('/api/services?business_id=' + business.id)
+      .then(r => r.json())
+      .then(data => { setServices(data.services || []); setSvcLoading(false); })
+      .catch(() => setSvcLoading(false));
+  }, [tab, business]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
 
@@ -746,6 +765,35 @@ const BusinessDashboard: NextPage = () => {
       setBusiness(b => b ? { ...b, edu_verified: true } : b);
     } catch { setCampusVerifyError('Something went wrong.'); }
     finally { setCampusVerifying(false); }
+  }
+
+  async function handleAddService() {
+    if (!business || !svcName.trim() || !svcPrice) { setSvcError('Name and price are required'); return; }
+    const priceCents = Math.round(parseFloat(svcPrice) * 100);
+    if (isNaN(priceCents) || priceCents < 1) { setSvcError('Enter a valid price'); return; }
+    setSvcSaving(true); setSvcError('');
+    const headers = await getAuthHeaders();
+    const res = await fetch('/api/services', { method: 'POST', headers, body: JSON.stringify({ business_id: business.id, name: svcName.trim(), description: svcDesc.trim() || null, price_cents: priceCents, duration_min: parseInt(svcDuration) || 60 }) });
+    const data = await res.json();
+    if (!res.ok) { setSvcError(data.error || 'Failed to add service'); setSvcSaving(false); return; }
+    setServices(s => [...s, data.service]);
+    setSvcName(''); setSvcDesc(''); setSvcPrice(''); setSvcDuration('60');
+    setSvcSaving(false);
+  }
+
+  async function handleDeleteService(id) {
+    if (!business) return;
+    const headers = await getAuthHeaders();
+    await fetch('/api/services', { method: 'DELETE', headers, body: JSON.stringify({ id, business_id: business.id }) });
+    setServices(s => s.filter(sv => sv.id !== id));
+  }
+
+  async function handleUpdateService(id, updates) {
+    if (!business) return;
+    const headers = await getAuthHeaders();
+    const res = await fetch('/api/services', { method: 'PATCH', headers, body: JSON.stringify({ id, business_id: business.id, ...updates }) });
+    const data = await res.json();
+    if (res.ok) { setServices(s => s.map(sv => sv.id === id ? data.service : sv)); setEditingSvc(null); }
   }
 
   async function handleSetPrice(bookingId: string, amountCents: number) {
@@ -1493,6 +1541,51 @@ const BusinessDashboard: NextPage = () => {
 
             {/* MESSAGES */}
             {/* SETTINGS */}
+            {tab === 'services' && (
+            <div className="flex flex-col gap-5 max-w-xl">
+              <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
+                <div className="flex flex-col gap-3">
+                  <input value={svcName} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                  <textarea value={svcDesc} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
+                      <input type="number" step="0.01" min="0" value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder="0.00" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>
+                      <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                    </div>
+                  </div>
+                  {svcError && <p className="text-red-500 text-sm">{svcError}</p>}
+                  <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#0A84FF' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
+                </div>
+              </div>
+              <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                <div className="px-5 py-4" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                  <h3 className="font-bold text-base" style={{ color: dm ? '#f2f2f7' : '#111' }}>Your Menu ({services.length})</h3>
+                </div>
+                {svcLoading ? <div className="p-6 text-center text-sm" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Loading...</div>
+                : services.length === 0 ? <div className="p-6 text-center text-sm" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>No services yet — add your first one above</div>
+                : <div>{services.map(svc => (
+                    <div key={svc.id} className="px-5 py-4 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm" style={{ color: dm ? '#f2f2f7' : '#111' }}>{svc.name}</p>
+                        {svc.description && <p className="text-xs mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{svc.description}</p>}
+                        <p className="text-xs mt-1" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{svc.duration_min} min</p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-[15px]" style={{ color: '#0A84FF' }}>${(svc.price_cents/100).toFixed(2)}</span>
+                        <button onClick={() => handleDeleteService(svc.id)} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ color: '#ef4444' }}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}</div>}
+              </div>
+            </div>
+            )}
             {tab === 'preview' && (
               <EditablePreview
                 business={business}
