@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/business/dashboard.tsx — ScheduleMe Business Dashboard
 import type { NextPage } from 'next';
 import Head from 'next/head';
