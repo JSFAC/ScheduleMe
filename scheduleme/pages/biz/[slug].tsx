@@ -188,7 +188,7 @@ export default function BizPage() {
                         <p className="text-xs mt-1.5 font-medium" style={{ color: muted }}>⏱ {svc.duration_min} min</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-bold text-[17px]" style={{ color: '#0A84FF' }}>${(svc.price_cents / 100).toFixed(2)}</p>
+                        <p className="font-bold text-[17px]" style={{ color: '#0A84FF' }}>{'$'}{(svc.price_cents / 100).toFixed(2)}</p>
                         <div className="mt-1 rounded-full px-2 py-0.5 text-xs font-bold" style={{ background: '#0A84FF', color: 'white' }}>Book</div>
                       </div>
                     </div>
@@ -312,7 +312,7 @@ function BookingSheet({ biz, service, dm, user, onClose }) {
                     <p className="font-semibold" style={{ color: text }}>{service.name}</p>
                     <p className="text-sm" style={{ color: muted }}>{service.duration_min} min</p>
                   </div>
-                  <p className="font-bold text-lg" style={{ color: '#0A84FF' }}>${(service.price_cents / 100).toFixed(2)}</p>
+                  <p className="font-bold text-lg" style={{ color: '#0A84FF' }}>{'$'}{(service.price_cents / 100).toFixed(2)}</p>
                 </div>
               </div>
             )}
