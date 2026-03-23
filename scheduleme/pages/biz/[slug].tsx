@@ -234,7 +234,7 @@ export default function BizPage() {
           <button onClick={() => setShowBooking(true)}
             className="w-full max-w-2xl mx-auto flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-[17px] shadow-lg active:scale-[0.97] transition-all"
             style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #5B5CFF 100%)', color: 'white' }}>
-            {selectedService ? `Book ${selectedService.name} — $${(selectedService.price_cents / 100).toFixed(2)}` : 'Book Appointment'}
+            {selectedService ? ('Book ${selectedService.name} — ' + '$' + String((selectedService.price_cents / 100).toFixed(2)) + '') : 'Book Appointment'}
           </button>
         </div>
 
