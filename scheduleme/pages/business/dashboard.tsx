@@ -1,4 +1,6 @@
 // @ts-nocheck
+
+export const config = { unstable_runtimeJS: true };
 // pages/business/dashboard.tsx — ScheduleMe Business Dashboard
 import type { NextPage } from 'next';
 import Head from 'next/head';
