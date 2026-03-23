@@ -1575,7 +1575,7 @@ const BusinessDashboard: NextPage = () => {
                         <p className="text-xs mt-1" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{svc.duration_min} min</p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-[15px]" style={{ color: '#0A84FF' }}>${(svc.price_cents/100).toFixed(2)}</span>
+                        <span className="font-bold text-[15px]" style={{ color: '#0A84FF' }}>{'$'}{(svc.price_cents/100).toFixed(2)}</span>
                         <button onClick={() => handleDeleteService(svc.id)} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ color: '#ef4444' }}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
