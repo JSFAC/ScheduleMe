@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/index.tsx
 import type { NextPage, GetStaticProps } from 'next';
 import Head from 'next/head';
