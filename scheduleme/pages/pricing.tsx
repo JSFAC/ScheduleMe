@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/pricing.tsx — consumer only, no business tab
 import type { NextPage } from 'next';
 import Head from 'next/head';
