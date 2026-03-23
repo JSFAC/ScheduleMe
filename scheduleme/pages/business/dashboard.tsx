@@ -593,6 +593,11 @@ const BusinessDashboard: NextPage = () => {
       router.replace('/business/auth/login?error=not_a_business');
       return;
     }
+    // Approval gate — business must be approved (is_onboarded) to access dashboard
+    if (!biz.is_onboarded) {
+      router.replace('/business/pending');
+      return;
+    }
     setBusiness(biz);
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
     setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
