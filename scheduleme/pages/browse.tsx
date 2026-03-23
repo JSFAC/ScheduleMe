@@ -94,7 +94,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const isSel = selected === biz.id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#0A84FF':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">${biz.name.split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#0A84FF':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         const marker = L.marker([biz.lat!, biz.lng!], { icon }).addTo(map).on('click', () => onSelect(biz.id));
@@ -113,7 +113,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const isSel = selected === id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#0A84FF':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">${biz.name.split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#0A84FF':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         marker.setIcon(icon);
