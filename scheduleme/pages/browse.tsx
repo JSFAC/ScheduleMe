@@ -143,9 +143,9 @@ function BizCard({ biz, onClick, dm, index = 0 }) {
   return (
     <button onClick={onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
-      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
       </div>
       <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
@@ -260,10 +260,8 @@ const BrowsePage: NextPage = () => {
       setLoading(false);
       
       if (navigator.geolocation) {
-        let geoResolved = false;
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
-            geoResolved = true;
             setUserLat(pos.coords.latitude);
             setUserLng(pos.coords.longitude);
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
@@ -272,7 +270,7 @@ const BrowsePage: NextPage = () => {
             setBizLoading(false);
           },
           () => { setBizList([]); setBizLoading(false); },
-          { timeout: 3000 }
+          { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
         );
 
       } else {
