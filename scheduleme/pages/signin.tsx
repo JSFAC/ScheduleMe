@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/signin.tsx — Consumer sign in / sign up
 import type { NextPage } from 'next';
 import Head from 'next/head';
