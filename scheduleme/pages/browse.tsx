@@ -237,6 +237,8 @@ const BrowsePage: NextPage = () => {
   const [bizList, setBizList] = useState<Business[]>([]);
   const [bizLoading, setBizLoading] = useState(true);
   const [radius, setRadius] = useState(25);
+  const [userLat, setUserLat] = useState(null);
+  const [userLng, setUserLng] = useState(null);
     const [usingRealData, setUsingRealData] = useState(false);
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
@@ -262,6 +264,8 @@ const BrowsePage: NextPage = () => {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
             geoResolved = true;
+            setUserLat(pos.coords.latitude);
+            setUserLng(pos.coords.longitude);
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
             if (real.length > 0) { setBizList(real); setUsingRealData(true); }
             else { const all = await allPromise; if (all.length > 0) { setBizList(all); setUsingRealData(true); } else { setBizList([]); } }
@@ -316,6 +320,16 @@ const BrowsePage: NextPage = () => {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
   useEffect(() => { setPage(1); }, [activeCategory, searchQuery, sortMode]);
+
+  // Re-fetch when radius changes if we have coords
+  useEffect(() => {
+    if (!userLat || !userLng) return;
+    setBizLoading(true);
+    fetchNearbyBusinesses(userLat, userLng, { limit: 40, radius })
+      .then(real => { setBizList(real.length > 0 ? real : []); if (real.length > 0) setUsingRealData(true); })
+      .catch(() => setBizList([]))
+      .finally(() => setBizLoading(false));
+  }, [radius]);
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
 
   if (loading) return (
@@ -419,7 +433,7 @@ const BrowsePage: NextPage = () => {
         </div>
 
         <div style={{ background: dm ? '#0f0f0f' : '#fafafa', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
-          <div className="flex items-center gap-2 px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex items-center justify-center gap-2 px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <span className="text-[11px] font-semibold shrink-0" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Within</span>
             {[5, 10, 25, 50, 100].map(r => (
               <button key={r} onClick={() => setRadius(r)} className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition-all" style={radius === r ? { background: '#0A84FF', color: 'white', borderColor: '#0A84FF' } : { background: 'transparent', color: dm ? '#9ca3af' : '#6b7280', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>{r} mi</button>
