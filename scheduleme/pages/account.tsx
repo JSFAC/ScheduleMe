@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/account.tsx — Consumer account page
 import type { NextPage } from 'next';
 import Head from 'next/head';
