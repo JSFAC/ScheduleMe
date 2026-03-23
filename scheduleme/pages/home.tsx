@@ -194,50 +194,35 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 }
 
 // Card — horizontal scroll card, clean stacked layout
-function getOpenStatus(hours) {
-  if (!hours || !hours.length) return { open: true, label: 'Open' };
-  const now = new Date(), dn = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const tn = dn[now.getDay()], tmn = dn[(now.getDay()+1)%7];
-  const ab = {Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
-  function pT(t) { const m=t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i); if(!m)return null; let hh=parseInt(m[1]); const mn=parseInt(m[2]),ap=m[3].toUpperCase(); if(ap==='PM'&&hh!==12)hh+=12; if(ap==='AM'&&hh===12)hh=0; return hh*60+mn; }
-  function dM(p,n) { if(p.includes('\u2013')||p.includes('-')){const all=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],sep=p.includes('\u2013')?'\u2013':'-',pts=p.split(sep).map(x=>x.trim()),s=all.indexOf(ab[pts[0]]||pts[0]),e=all.indexOf(ab[pts[1]]||pts[1]),d=all.indexOf(n);if(s<0||e<0||d<0)return false;return s<=e?(d>=s&&d<=e):(d>=s||d<=e);}return p.includes(n)||p.includes(n.slice(0,3)); }
-  const nM=now.getHours()*60+now.getMinutes();
-  for(const h of hours){
-    if(h.time.toLowerCase().includes('closed')&&dM(h.day,tn))return{open:false,label:'Closed today'};
-    if(h.time.toLowerCase()==='by appointment'&&dM(h.day,tn))return{open:true,label:'By appt'};
-    const rp=h.time.split('\u2013').map(p=>p.trim());if(rp.length<2)continue;
-    const oM=pT(rp[0]),cM=pT(rp[1]);if(oM===null||cM===null)continue;
-    if(dM(h.day,tn)){
-      if(nM>=oM&&nM<cM)return{open:true,label:'Open'};
-      if(nM<oM){const hh=Math.floor(oM/60),mm=oM%60,ap=hh>=12?'PM':'AM',dh=hh>12?hh-12:hh===0?12:hh;return{open:false,label:'Opens '+dh+':'+String(mm).padStart(2,'0')+' '+ap};}
-      for(const h2 of hours){if(dM(h2.day,tmn)){const rp2=h2.time.split('\u2013').map(p=>p.trim()),om2=pT(rp2[0]);if(om2!==null){const hh2=Math.floor(om2/60),mm2=om2%60,ap2=hh2>=12?'PM':'AM',dh2=hh2>12?hh2-12:hh2===0?12:hh2;return{open:false,label:'Opens tomorrow '+dh2+':'+String(mm2).padStart(2,'0')+' '+ap2};}}}
-      return{open:false,label:'Closed'};
-    }
-  }
-  return{open:true,label:'Open'};
-}
-
-function BizCard({ biz, onClick, dm, index = 0 }) {
+function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
-  const status = getOpenStatus(biz.hours);
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(180px, 48vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
+      {/* Square image */}
       <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-        <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
+        <img src={biz.coverUrl} alt={biz.name}
+          onLoad={() => setImgLoaded(true)}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
           style={{ objectPosition: '50% 20%', opacity: imgLoaded ? 1 : 0 }} />
+        <div className="absolute top-2 left-2">
+          {biz.available
+            ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(4px)' }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-bold text-emerald-700">Open</span>
+              </div>
+            : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
+                <span className="text-[10px] font-bold text-white/70">Booked</span>
+              </div>
+          }
+        </div>
       </div>
+      {/* Body — one item per line */}
       <div className="p-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
         <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{biz.category}</span>
-          {biz.price_tier ? <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{'$'.repeat(biz.price_tier)}</span> : null}
-          <span className="flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
-            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
-          </span>
-        </div>
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full self-start" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{biz.category}</span>
         <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
         <div className="flex items-center gap-0.5">
           {[1,2,3,4,5].map(i => (
@@ -247,11 +232,169 @@ function BizCard({ biz, onClick, dm, index = 0 }) {
           ))}
           <span className="text-[10px] font-semibold ml-1" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
         </div>
+        <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.reviews} review{biz.reviews !== 1 ? 's' : ''}</p>
       </div>
     </button>
   );
 }
 
+
+function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLoading }: {
+  title: string; subtitle: string; href: string;
+  businesses: Business[]; onBizClick: (b: Business) => void; dm?: boolean; isLoading?: boolean;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
+
+  // Reset scroll to start when businesses list changes (category filter)
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+  }, [businesses]);
+
+  // Non-passive wheel listener — prevents page scroll while hovering the scroll row
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      // Only intercept if cursor is in the card zone (not over the curtain margins)
+      // The curtains have pointer-events:none so this fires only over cards
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      el!.scrollLeft += e.deltaY * 1.4;
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  function onMouseDown(e: React.MouseEvent) {
+    dragRef.current = { active: true, startX: e.pageX - scrollRef.current!.offsetLeft, scrollLeft: scrollRef.current!.scrollLeft };
+    if (scrollRef.current) scrollRef.current.style.cursor = 'grabbing';
+  }
+  function onMouseMove(e: React.MouseEvent) {
+    if (!dragRef.current.active || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    scrollRef.current.scrollLeft = dragRef.current.scrollLeft - (x - dragRef.current.startX) * 1.2;
+  }
+  function onMouseUp() {
+    dragRef.current.active = false;
+    if (scrollRef.current) scrollRef.current.style.cursor = 'grab';
+  }
+
+  // edgePad must match exactly — cards start and end here, curtains cover outside
+  const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-[1.2rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>{title}</h2>
+          <span className="text-[11px] text-neutral-400 font-medium hidden sm:block">{subtitle}</span>
+        </div>
+        <Link href={href} scroll={false}
+          className="text-[11px] font-black uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0" style={{ color: '#0A84FF' }}>
+          See all →
+        </Link>
+      </div>
+
+      {/* Scroll container — full width, cards start at edgePad */}
+      <div className="relative">
+        {/* Left curtain — solid cover + very subtle 20px feather */}
+        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#EDF5FF' }} />
+        {/* Right curtain */}
+        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#EDF5FF' }} />
+
+        <div
+          ref={scrollRef}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseUp}
+          className="flex gap-3.5 overflow-x-auto pb-2 select-none"
+          style={{
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+            paddingLeft: edgePad,
+            paddingRight: edgePad,
+            cursor: 'grab',
+          } as React.CSSProperties}
+        >
+          {isLoading
+            ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+            : businesses.map((biz, i) => (
+                <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} index={i} />
+              ))
+          }
+          {/* See more — same total height as BizCard (image + body) */}
+          <Link href={href} scroll={false}
+            className="flex-shrink-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent/20 hover:border-accent/40 bg-white hover:bg-accent-wash transition-all group"
+            style={{
+              width: 'clamp(160px, 13vw, 200px)',
+              height: 'calc(clamp(185px, 15vw, 240px) + 68px)',
+              marginBottom: '8px',
+            }}>
+            <div className="h-10 w-10 rounded-full bg-accent/10 group-hover:bg-accent/15 flex items-center justify-center transition-colors">
+              <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </div>
+            <div className="text-center px-4">
+              <p className="text-[12px] font-black text-accent leading-tight">See all pros</p>
+              <p className="text-[10px] text-neutral-400 mt-1 leading-snug">Browse more in this category</p>
+            </div>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReferCard() {
+  const [open, setOpen] = useState(false);
+  const [bizName, setBizName] = useState('');
+  const [sent, setSent] = useState(false);
+
+  if (sent) return (
+    <div className="mx-6 rounded-2xl border border-green-100 bg-green-50 px-6 py-5 text-center">
+      <p className="text-sm font-bold text-green-800">Referral received — thanks.</p>
+      <p className="text-xs text-green-600 mt-1">We'll reach out to {bizName} and let you know if they join.</p>
+    </div>
+  );
+  if (!open) return (
+    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+      <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+        <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-neutral-900">Know a great local business?</p>
+        <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">Refer a plumber, cleaner, or tradesperson you trust.</p>
+      </div>
+      <button onClick={() => setOpen(true)}
+        className="shrink-0 text-xs font-black text-accent border border-accent/25 bg-blue-50 hover:bg-blue-100 px-4 py-2.5 rounded-xl transition-colors tracking-widest uppercase">
+        Refer
+      </button>
+    </div>
+  );
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold text-neutral-900">Who should we reach out to?</p>
+        <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
+      </div>
+      <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
+        placeholder="Business or person's name"
+        className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+      <button disabled={!bizName.trim()} onClick={() => { if (bizName.trim()) setSent(true); }}
+        className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${bizName.trim() ? 'bg-accent text-white hover:bg-accent-dark' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'}`}>
+        Submit referral
+      </button>
+    </div>
+  );
+}
 
 const HomePage: NextPage = () => {
   const router = useRouter();
@@ -364,7 +507,7 @@ const HomePage: NextPage = () => {
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
-            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS.filter(c => realBizList.length === 0 || realBizList.some(b => b.category === c.label))].map(cat => (
+            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS].map(cat => (
               <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label
