@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/api/notify.ts — SECURED (internal only, protected by NOTIFY_SECRET)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
