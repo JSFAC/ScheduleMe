@@ -201,10 +201,10 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(180px, 48vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
       {/* Square image */}
-      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }} className="overflow-hidden">
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
           style={{ objectPosition: '50% 20%', opacity: imgLoaded ? 1 : 0 }} />
         <div className="absolute top-2 left-2">
           {biz.available
