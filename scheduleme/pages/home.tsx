@@ -434,16 +434,18 @@ const HomePage: NextPage = () => {
         setShowInstallBanner(true);
       }
       // Geo-only business loading — never show out-of-area results
-      if (navigator.geolocation) {
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
-            const { fetchNearbyBusinesses: fnb } = await import('../lib/realBusinesses');
-            const real = await fnb(pos.coords.latitude, pos.coords.longitude, { limit: 20, radius: 25 });
-            if (real.length > 0) { setRealBizList(real); setUsingRealData(true); }
+            try {
+              const mod = await import('../lib/realBusinesses');
+              const real = await mod.fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 20, radius: 25 });
+              if (real.length > 0) { setRealBizList(real); setUsingRealData(true); }
+            } catch (e) { /* geo loaded but fetch failed */ }
             setDataLoading(false);
           },
           () => { setRealBizList([]); setDataLoading(false); },
-          { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
+          { timeout: 8000, maximumAge: 300000 }
         );
       } else {
         setRealBizList([]);
