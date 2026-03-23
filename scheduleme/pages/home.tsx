@@ -433,13 +433,22 @@ const HomePage: NextPage = () => {
       if (isMobile && !isStandalone && !dismissed) {
         setShowInstallBanner(true);
       }
-      // Load real businesses from DB
-      const real = await fetchAllBusinesses();
-      if (real.length > 0) {
-        setRealBizList(real);
-        setUsingRealData(true);
+      // Geo-only business loading — never show out-of-area results
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const { fetchNearbyBusinesses: fnb } = await import('../lib/realBusinesses');
+            const real = await fnb(pos.coords.latitude, pos.coords.longitude, { limit: 20, radius: 25 });
+            if (real.length > 0) { setRealBizList(real); setUsingRealData(true); }
+            setDataLoading(false);
+          },
+          () => { setRealBizList([]); setDataLoading(false); },
+          { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
+        );
+      } else {
+        setRealBizList([]);
+        setDataLoading(false);
       }
-      setDataLoading(false);
     });
   }, [router]);
 
@@ -507,7 +516,7 @@ const HomePage: NextPage = () => {
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
-            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS].map(cat => (
+            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS.filter(c => realBizList.length === 0 || realBizList.some(b => b.category === c.label))].map(cat => (
               <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label
