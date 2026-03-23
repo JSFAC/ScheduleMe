@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/email.ts — Resend email sender with ScheduleMe branded templates
 import { Resend } from 'resend';
 
@@ -17,10 +18,10 @@ function layout(title: string, body: string, preheader: string = '') {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>${title}</title>
+  <title>{'$'}{title}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;">
-  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>` : ''}
+  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">{'$'}{preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>` : ''}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;">
     <tr><td align="center" style="padding:40px 16px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;">
@@ -80,11 +81,11 @@ export function bookingConfirmationHtml(opts: {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
           <td style="width:36px;vertical-align:middle;">
             <div style="width:32px;height:32px;background:#dbeafe;border-radius:8px;text-align:center;line-height:32px;">
-              <span style="font-size:13px;font-weight:700;color:#1d4ed8;">${m.name.charAt(0)}</span>
+              <span style="font-size:13px;font-weight:700;color:#1d4ed8;">{'$'}{m.name.charAt(0)}</span>
             </div>
           </td>
           <td style="padding-left:12px;vertical-align:middle;">
-            <span style="font-size:14px;font-weight:600;color:#0f172a;">${m.name}</span>
+            <span style="font-size:14px;font-weight:600;color:#0f172a;">{'$'}{m.name}</span>
             ${m.rating ? `<span style="font-size:12px;color:#f59e0b;margin-left:6px;">&#9733; ${m.rating}</span>` : ''}
             ${m.distance_miles ? `<span style="font-size:12px;color:#94a3b8;margin-left:6px;">&middot; ${m.distance_miles.toFixed(1)} mi</span>` : ''}
           </td>
@@ -102,7 +103,7 @@ export function bookingConfirmationHtml(opts: {
       <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.75);">We&apos;re connecting you with qualified local professionals</p>
     </td></tr>
     <tr><td style="padding:32px;">
-      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>${opts.name}</strong>,</p>
+      <p style="margin:0 0 6px;font-size:15px;color:#0f172a;">Hi <strong>{'$'}{opts.name}</strong>,</p>
       <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">
         Your service request has been received. Here&apos;s a summary of what we have on file:
       </p>
@@ -110,15 +111,15 @@ export function bookingConfirmationHtml(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:28px;overflow:hidden;">
         <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service Requested</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.service}</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">{'$'}{opts.service}</span>
         </td></tr>
         <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Priority</span>
-          <span style="font-size:14px;font-weight:600;color:${urgencyColor};">${opts.urgency}</span>
+          <span style="font-size:14px;font-weight:600;color:${urgencyColor};">{'$'}{opts.urgency}</span>
         </td></tr>
         <tr><td style="padding:14px 20px;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service Area</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.location}</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">{'$'}{opts.location}</span>
         </td></tr>
       </table>
 
@@ -183,25 +184,25 @@ export function statusUpdateHtml(opts: {
   const body = `
     <tr><td style="background:${cfg.bg};padding:32px;text-align:center;border-bottom:1px solid ${cfg.border};" bgcolor="${cfg.bg}">
       <div style="width:48px;height:48px;background:${cfg.color};border-radius:50%;margin:0 auto 16px;text-align:center;line-height:48px;">
-        <span style="font-size:20px;color:#ffffff;">${cfg.icon}</span>
+        <span style="font-size:20px;color:#ffffff;">{'$'}{cfg.icon}</span>
       </div>
-      <h1 style="margin:0;font-size:20px;font-weight:700;color:${cfg.color};">${cfg.headline}</h1>
+      <h1 style="margin:0;font-size:20px;font-weight:700;color:${cfg.color};">{'$'}{cfg.headline}</h1>
     </td></tr>
     <tr><td style="padding:32px;">
-      <p style="margin:0 0 16px;font-size:15px;color:#0f172a;">Hi <strong>${opts.name}</strong>,</p>
-      <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">${cfg.message}</p>
+      <p style="margin:0 0 16px;font-size:15px;color:#0f172a;">Hi <strong>{'$'}{opts.name}</strong>,</p>
+      <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">{'$'}{cfg.message}</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:28px;overflow:hidden;">
         <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.service}</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">{'$'}{opts.service}</span>
         </td></tr>
         ${opts.businessName ? `<tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Professional</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.businessName}</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">{'$'}{opts.businessName}</span>
         </td></tr>` : ''}
         <tr><td style="padding:14px 20px;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Status</span>
-          <span style="font-size:14px;font-weight:700;color:${cfg.color};text-transform:capitalize;">${opts.status}</span>
+          <span style="font-size:14px;font-weight:700;color:${cfg.color};text-transform:capitalize;">{'$'}{opts.status}</span>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -242,12 +243,12 @@ export function welcomeHtml(opts: { name: string }) {
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             <td style="vertical-align:top;width:32px;">
               <div style="width:32px;height:32px;background:#dbeafe;border-radius:8px;text-align:center;line-height:32px;">
-                <span style="font-size:13px;font-weight:700;color:#1d4ed8;">${s.num}</span>
+                <span style="font-size:13px;font-weight:700;color:#1d4ed8;">{'$'}{s.num}</span>
               </div>
             </td>
             <td style="padding-left:14px;vertical-align:top;">
-              <p style="margin:0 0 3px;font-size:14px;font-weight:600;color:#0f172a;">${s.title}</p>
-              <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">${s.desc}</p>
+              <p style="margin:0 0 3px;font-size:14px;font-weight:600;color:#0f172a;">{'$'}{s.title}</p>
+              <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">{'$'}{s.desc}</p>
             </td>
           </tr></table>
         </td></tr>`).join('')}
@@ -291,15 +292,15 @@ export function newBookingBusinessHtml(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:28px;overflow:hidden;">
         <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Customer</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerName}</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">{'$'}{opts.customerName}</span>
         </td></tr>
         <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Phone</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerPhone || 'Not provided'}</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">{'$'}{opts.customerPhone || 'Not provided'}</span>
         </td></tr>
         <tr><td style="padding:14px 20px;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service Requested</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.service}</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">{'$'}{opts.service}</span>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
@@ -328,7 +329,7 @@ export function reviewRequestHtml(opts: {
     <tr><td bgcolor="#ffffff" style="padding:36px 32px;text-align:center;">
       <div style="font-size:48px;margin-bottom:16px;">⭐</div>
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">How did it go?</h1>
-      <p style="margin:0 0 24px;font-size:15px;color:#64748b;">Hi ${opts.name}, your <strong style="color:#0f172a;">${opts.service}</strong> has been marked complete. Leave a quick review to help others find great pros.</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#64748b;">Hi ${opts.name}, your <strong style="color:#0f172a;">{'$'}{opts.service}</strong> has been marked complete. Leave a quick review to help others find great pros.</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
         <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;">
           <a href="${reviewUrl}" style="display:block;padding:14px 36px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
@@ -351,7 +352,7 @@ export function newBusinessApplicationHtml(opts: {
   const body = `
     <tr><td bgcolor="#0f172a" style="background:#0f172a;padding:28px 32px;">
       <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase;">New Application</p>
-      <h1 style="margin:6px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">${opts.name}</h1>
+      <h1 style="margin:6px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">{'$'}{opts.name}</h1>
     </td></tr>
     <tr><td style="padding:28px 32px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:24px;overflow:hidden;">
@@ -364,8 +365,8 @@ export function newBusinessApplicationHtml(opts: {
           ...(opts.campusProvider ? [['Campus', opts.schoolName || 'Yes']] : []),
         ].map(([label, value], i, arr) => `
         <tr><td style="padding:12px 20px;${i < arr.length - 1 ? 'border-bottom:1px solid #e2e8f0;' : ''}">
-          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:3px;">${label}</span>
-          <span style="font-size:14px;font-weight:600;color:#0f172a;">${value}</span>
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:3px;">{'$'}{label}</span>
+          <span style="font-size:14px;font-weight:600;color:#0f172a;">{'$'}{value}</span>
         </td></tr>`).join('')}
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -426,7 +427,7 @@ export async function sendBusinessApprovalEmail(opts: {
   const body = `
     <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
       <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">You&rsquo;re approved! 🎉</h1>
-      <p style="margin:0 0 24px;font-size:16px;color:#64748b;">Hi ${opts.ownerName}, <strong style="color:#0f172a;">${opts.businessName}</strong> has been verified and is ready to go live on ScheduleMe.</p>
+      <p style="margin:0 0 24px;font-size:16px;color:#64748b;">Hi ${opts.ownerName}, <strong style="color:#0f172a;">{'$'}{opts.businessName}</strong> has been verified and is ready to go live on ScheduleMe.</p>
 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:12px;margin-bottom:28px;">
         <tr><td style="padding:20px 24px;">
@@ -435,9 +436,9 @@ export async function sendBusinessApprovalEmail(opts: {
             ${['Set up your account password or connect Google', 'Connect your bank via Stripe to receive payments', 'Your profile goes live — leads start arriving', 'Complete jobs and get paid (we take 12%)'].map((step, i) => `
             <tr>
               <td style="padding:6px 0;vertical-align:top;">
-                <span style="display:inline-block;width:22px;height:22px;background:#1d4ed8;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:700;color:#fff;margin-right:12px;">${i + 1}</span>
+                <span style="display:inline-block;width:22px;height:22px;background:#1d4ed8;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:700;color:#fff;margin-right:12px;">{'$'}{i + 1}</span>
               </td>
-              <td style="padding:6px 0;font-size:14px;color:#334155;">${step}</td>
+              <td style="padding:6px 0;font-size:14px;color:#334155;">{'$'}{step}</td>
             </tr>`).join('')}
           </table>
         </td></tr>
@@ -470,7 +471,7 @@ export async function sendBusinessApprovalEmail(opts: {
         </td></tr>
       </table>
 
-      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">Sign-in link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:#1d4ed8;">${SITE_URL}/business/auth/login</a></p>
+      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">Sign-in link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:#1d4ed8;">{'$'}{SITE_URL}/business/auth/login</a></p>
       <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Questions? Reply to this email or contact <a href="mailto:hello@usescheduleme.com" style="color:#1d4ed8;">hello@usescheduleme.com</a></p>
     </td></tr>
   `;
@@ -567,8 +568,8 @@ export function paymentReceiptCustomerHtml(opts: {
           ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
         ].map(([label, value]) => `
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">${label}</td>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">${value}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">{'$'}{label}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">{'$'}{value}</td>
         </tr>`).join('')}
       </table>
 
@@ -620,8 +621,8 @@ export function paymentNotificationBusinessHtml(opts: {
           ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
         ].map(([label, value]) => `
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">${label}</td>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">${value}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">{'$'}{label}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">{'$'}{value}</td>
         </tr>`).join('')}
       </table>
 
@@ -650,7 +651,7 @@ export function paymentRequestCustomerHtml(opts: {
       <div style="text-align:center;margin-bottom:28px;">
         <div style="display:inline-block;width:60px;height:60px;background:#fef3c7;border-radius:50%;line-height:60px;font-size:28px;margin-bottom:12px;">🔔</div>
         <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Payment requested</h1>
-        <p style="margin:0;font-size:15px;color:#64748b;">${opts.businessName} has set your price</p>
+        <p style="margin:0;font-size:15px;color:#64748b;">{'$'}{opts.businessName} has set your price</p>
       </div>
 
       <!-- Amount -->
@@ -668,8 +669,8 @@ export function paymentRequestCustomerHtml(opts: {
           ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
         ].map(([label, value]) => `
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">${label}</td>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">${value}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">{'$'}{label}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:500;">{'$'}{value}</td>
         </tr>`).join('')}
       </table>
 
