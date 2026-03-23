@@ -649,9 +649,20 @@ const BookingsPage: NextPage = () => {
           setLoadingBookings(false);
           // Also fetch nearby businesses for the "Available near you" section
           try {
-            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-            const real = await fetchAllBusinesses();
-            setNearbyBizList(real.slice(0, 6));
+            const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                  const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
+                  setNearbyBizList(nearby);
+                  setNearbyLoading(false);
+                },
+                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
+              );
+              return; // setNearbyLoading handled in callbacks above
+            }
+            setNearbyBizList([]);
           } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
           // Check for unreviewed completed bookings — show review prompt
@@ -672,9 +683,20 @@ const BookingsPage: NextPage = () => {
         setLoadingBookings(false);
           // Also fetch nearby businesses for the "Available near you" section
           try {
-            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-            const real = await fetchAllBusinesses();
-            setNearbyBizList(real.slice(0, 6));
+            const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                  const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
+                  setNearbyBizList(nearby);
+                  setNearbyLoading(false);
+                },
+                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
+              );
+              return; // setNearbyLoading handled in callbacks above
+            }
+            setNearbyBizList([]);
           } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
       }
