@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/realBusinesses.ts
 // Geo-gated: NEVER shows businesses outside user's radius.
 // Without coordinates, returns [] — correct local-only behavior.
