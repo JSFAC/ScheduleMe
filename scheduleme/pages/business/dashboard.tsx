@@ -1,6 +1,5 @@
 // @ts-nocheck
 
-export const config = { unstable_runtimeJS: true };
 // pages/business/dashboard.tsx — ScheduleMe Business Dashboard
 import type { NextPage } from 'next';
 import Head from 'next/head';
@@ -1697,6 +1696,10 @@ const BusinessDashboard: NextPage = () => {
     </>
   );
 };
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
 
 export default BusinessDashboard;
 
