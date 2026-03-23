@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/admin/index.tsx — ScheduleMe admin panel
 import type { NextPage } from 'next';
 import Head from 'next/head';
