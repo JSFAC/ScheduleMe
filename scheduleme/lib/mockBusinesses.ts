@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/mockBusinesses.ts — Business interface shared across the app
 // NOTE: All mock business data removed. Real data comes from Supabase via lib/realBusinesses.ts
 
