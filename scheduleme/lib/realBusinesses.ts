@@ -128,7 +128,7 @@ export async function fetchNearbyBusinesses(
 }
 
 // Fetch all approved businesses (no geo required — for home page fallback)
-export async function fetchAllBusinesses(): Promise<Business[]> {
+export async function fetchAllBusinesses(opts: { lat?: number; lng?: number; radius?: number; limit?: number } = {}): Promise<Business[]> {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
