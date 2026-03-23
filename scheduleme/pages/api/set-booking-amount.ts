@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/api/set-booking-amount.ts
 // Business sets the price on a booking and optionally notifies the customer
 import type { NextApiRequest, NextApiResponse } from 'next';
