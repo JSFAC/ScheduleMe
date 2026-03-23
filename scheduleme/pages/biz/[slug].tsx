@@ -49,7 +49,7 @@ export default function BizPage() {
     const supabase = getSupabase();
     supabase.from('businesses')
       .select('*')
-      .or('slug.eq.' + slug + ',id.eq.' + slug)
+      .eq('slug', slug)
       .eq('is_onboarded', true)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -240,7 +240,7 @@ export default function BizPage() {
 
         {/* ── BOOKING SHEET ── */}
         {showBooking && (
-          <BookingSheet biz={biz} service={selectedService} dm={dm} user={user} onClose={() => setShowBooking(false)} siteUrl={process.env.NEXT_PUBLIC_SITE_URL || ''} />
+          <BookingSheet biz={biz} service={selectedService} dm={dm} user={user} onClose={() => setShowBooking(false)} siteUrl={''} />
         )}
       </div>
     </>
