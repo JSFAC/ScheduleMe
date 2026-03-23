@@ -10,7 +10,6 @@ import Link from 'next/link';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
-import { mapDbBusiness } from '../lib/realBusinesses';
 import { SkeletonCard } from '../components/SkeletonCard';
 import type { Business } from '../lib/mockBusinesses';
 
@@ -85,7 +84,7 @@ const CampusPage: NextPage = () => {
       .limit(40);
     if (domain) query = (query as any).eq('school_domain', domain);
     const { data } = await query;
-    if (data?.length) setBusinesses(data.map((b: any) => mapDbBusiness(b)));
+    if (data?.length) setBusinesses(data.map((b: any) => (b)));
   }, []);
 
   useEffect(() => {
