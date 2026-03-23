@@ -293,7 +293,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Amount Paid</p>
-                  <p className="text-sm font-bold text-neutral-900 mt-0.5">${(booking.amount_cents / 100).toFixed(2)}</p>
+                  <p className="text-sm font-bold text-neutral-900 mt-0.5">{'$'}{(booking.amount_cents / 100).toFixed(2)}</p>
                 </div>
               </div>
             )}
@@ -334,7 +334,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                 <svg className="h-5 w-5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <div>
                   <p className="text-sm font-bold text-green-800">Payment confirmed</p>
-                  <p className="text-xs text-green-700">${(booking.amount_cents! / 100).toFixed(2)} paid · {new Date(booking.paid_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-green-700">{'$'}{(booking.amount_cents! / 100).toFixed(2)} paid · {new Date(booking.paid_at).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>
@@ -851,7 +851,7 @@ const BookingsPage: NextPage = () => {
                                   {b.amount_cents && (
                                     <>
                                       <span className="text-neutral-200">·</span>
-                                      <p className="text-[10px] font-bold text-neutral-500">${(b.amount_cents / 100).toFixed(2)} paid</p>
+                                      <p className="text-[10px] font-bold text-neutral-500">{'$'}{(b.amount_cents / 100).toFixed(2)} paid</p>
                                     </>
                                   )}
                                 </div>
