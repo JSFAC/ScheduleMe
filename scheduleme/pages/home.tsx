@@ -624,7 +624,7 @@ const HomePage: NextPage = () => {
                   subtitle="Available now — highly reviewed"
                   href="/browse"
                   businesses={t1.slice(0, 6)}
-                  onBizClick={setActiveBiz}
+                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
@@ -634,7 +634,7 @@ const HomePage: NextPage = () => {
                   subtitle="Solo tradespeople — your booking helps them grow"
                   href="/browse?category=Independent"
                   businesses={t2.slice(0, 6)}
-                  onBizClick={setActiveBiz}
+                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
@@ -644,7 +644,7 @@ const HomePage: NextPage = () => {
                   subtitle="Pros that pick up jobs fast"
                   href="/browse"
                   businesses={t3.slice(0, 6)}
-                  onBizClick={setActiveBiz}
+                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
