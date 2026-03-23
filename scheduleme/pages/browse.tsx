@@ -258,7 +258,7 @@ const BrowsePage: NextPage = () => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
       setLoading(false);
-      const allPromise = fetchAllBusinesses();
+      
       if (navigator.geolocation) {
         let geoResolved = false;
         navigator.geolocation.getCurrentPosition(
@@ -267,25 +267,16 @@ const BrowsePage: NextPage = () => {
             setUserLat(pos.coords.latitude);
             setUserLng(pos.coords.longitude);
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
-            if (real.length > 0) { setBizList(real); setUsingRealData(true); }
-            else { const all = await allPromise; if (all.length > 0) { setBizList(all); setUsingRealData(true); } else { setBizList([]); } }
+            setBizList(real);
+            if (real.length > 0) setUsingRealData(true);
             setBizLoading(false);
           },
-          async () => {
-            const real = await allPromise;
-            if (real.length > 0) { setBizList(real); setUsingRealData(true); } else { setBizList([]); }
-            setBizLoading(false);
-          },
+          () => { setBizList([]); setBizLoading(false); },
           { timeout: 3000 }
         );
-        const real = await allPromise;
-        if (!geoResolved) {
-          if (real.length > 0) { setBizList(real); setUsingRealData(true); } else { setBizList([]); }
-          setBizLoading(false);
-        }
+
       } else {
-        const real = await allPromise;
-        if (real.length > 0) { setBizList(real); setUsingRealData(true); } else { setBizList([]); }
+        setBizList([]);
         setBizLoading(false);
       }
     });
@@ -452,9 +443,16 @@ const BrowsePage: NextPage = () => {
                   {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="text-center py-24">
-                  <p className="text-neutral-500 font-semibold">No results found</p>
-                  <p className="text-neutral-400 text-sm mt-1">Try a different search or category</p>
+                <div className="text-center py-24 px-6">
+                  <div className="text-4xl mb-4">📍</div>
+                  <p className="font-semibold text-lg" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
+                    {searchQuery || activeCategory !== 'All' ? 'No results found' : 'No businesses found nearby'}
+                  </p>
+                  <p className="text-sm mt-2 max-w-xs mx-auto" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
+                    {searchQuery || activeCategory !== 'All'
+                      ? 'Try a different search or category'
+                      : 'Enable location access to see local pros near you, or try increasing your radius above'}
+                  </p>
                 </div>
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
