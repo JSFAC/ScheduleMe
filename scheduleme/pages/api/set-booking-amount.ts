@@ -36,18 +36,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
 
-  // Fetch booking with business + user info to verify ownership
+  // Fetch booking with business info to verify ownership
   const { data: booking } = await supabase
     .from('bookings')
-    .select('*, businesses(id, name, owner_email), users(id, name, email)')
+    .select('*, businesses!bookings_business_id_fkey(id, name, owner_email), users(id, name, email)')
     .eq('id', booking_id)
     .maybeSingle();
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-  const biz = booking.businesses as any;
-  if (biz?.owner_email !== user.email)
-    return res.status(403).json({ error: 'Access denied — you do not own this booking' });
+  // Verify the caller owns the business on this booking
+  // businesses join can return array or object depending on relationship type
+  const biz = Array.isArray(booking.businesses) ? booking.businesses[0] : booking.businesses as any;
+  if (!biz || biz.owner_email !== user.email) {
+    // Fallback: check businesses table directly
+    const { data: bizDirect } = await supabase
+      .from('businesses')
+      .select('owner_email')
+      .eq('id', booking.business_id)
+      .maybeSingle();
+    if (!bizDirect || bizDirect.owner_email !== user.email)
+      return res.status(403).json({ error: 'Access denied — you do not own this booking' });
+  }
 
   if (['paid', 'cancelled', 'completed'].includes(booking.status))
     return res.status(400).json({ error: `Cannot set price on a ${booking.status} booking` });
