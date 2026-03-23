@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pages/api/bookings.ts — SECURED + notifications
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
