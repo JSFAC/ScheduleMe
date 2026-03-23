@@ -518,8 +518,7 @@ const BusinessDashboard: NextPage = () => {
   const [svcError, setSvcError] = useState('');
   const [svcSaving, setSvcSaving] = useState(false);
   const [editingSvc, setEditingSvc] = useState(null);
-  const [tab, setTab] = useState<TabId>('overview');
-
+  
   // Read tab from URL hash on mount and on hash change
   useEffect(() => {
     function readHash() {
