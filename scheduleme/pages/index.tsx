@@ -195,13 +195,13 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               </div>
               <ul className="grid grid-cols-2 gap-4 w-full md:w-auto md:flex-shrink-0" role="list">
                 {[
-                  { icon: '📥', label: 'Instant lead alerts' },
-                  { icon: '🎯', label: 'Pre-qualified matches' },
-                  { icon: '📊', label: 'Business dashboard' },
-                  { icon: '💳', label: 'Pay per lead' },
+                  { label: 'Instant lead alerts' },
+                  { label: 'Pre-qualified matches' },
+                  { label: 'Business dashboard' },
+                  { label: 'Pay per lead' },
                 ].map((item) => (
                   <li key={item.label} className="js-biz-item bg-neutral-900 border border-neutral-800 rounded-2xl px-5 py-4 flex items-center gap-3">
-                    <span className="text-2xl" aria-hidden="true">{item.icon}</span>
+                    <span className="text-2xl" aria-hidden="true"></span>
                     <span className="text-sm font-medium text-neutral-200">{item.label}</span>
                   </li>
                 ))}
