@@ -715,7 +715,7 @@ const Account: NextPage = () => {
                   <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: textPrimary }}>EDU Verification</h2>
                   {eduVerified === true ? (
                     <div className="flex items-center gap-3 mt-3 p-3 rounded-xl" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', border: dm ? '1px solid rgba(52,211,153,0.25)' : '1px solid #bbf7d0' }}>
-                      <span className="text-lg">✅</span>
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full flex-shrink-0" style={{background:'#dcfce7'}}><svg className="h-3.5 w-3.5" style={{color:'#16a34a'}} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span>
                       <div>
                         <p className="text-sm font-bold" style={{ color: dm ? '#6ee7b7' : '#15803d' }}>EDU Verified</p>
                         <p className="text-xs mt-0.5" style={{ color: textMuted }}>{eduEmail}</p>
