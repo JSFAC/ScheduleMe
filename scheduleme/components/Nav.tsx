@@ -74,17 +74,20 @@ export default function Nav({ variant = 'light' }: NavProps) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  const [signingOut, setSigningOut] = useState(false);
   async function handleSignOut() {
+    setSigningOut(true);
     const supabase = getSupabase();
     await supabase.auth.signOut();
     writeCache(null);
     setUser(null);
     setMenuOpen(false);
-    router.push('/');
+    setTimeout(() => router.push('/'), 800);
   }
 
   // Cache edu_verified in localStorage so Campus tab never flashes on/off between pages
   const EDU_CACHE_KEY = 'sm_edu_verified';
+  const [isBiz, setIsBiz] = useState(false);
   const [eduVerified, setEduVerified] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(EDU_CACHE_KEY) === 'true';
@@ -92,6 +95,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   useEffect(() => {
     if (!user?.email) return;
+    // Check if user owns a business
+    const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    sbBiz.from('businesses').select('id').eq('owner_email', user.email).maybeSingle().then(({data}) => { if(data?.id) setIsBiz(true); });
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
       .then(({ data }) => {
@@ -126,6 +132,15 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   return (
     <>
+      {signingOut && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+          <div className="relative h-8 w-8 mb-4">
+            <div className="absolute inset-0 rounded-full border-2 border-white/20" />
+            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" />
+          </div>
+          <p className="text-white font-semibold text-sm">Signing you out…</p>
+        </div>
+      )}
       {/* Safe-area color fill — same style as header for perfect match */}
       <div aria-hidden="true" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 41,
@@ -224,7 +239,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                         </svg>
                         My Account
                       </Link>
-                      <Link href="/business/dashboard" scroll={false} onClick={() => setMenuOpen(false)}
+                      {isBiz ? <Link href="/business/dashboard" scroll={false} onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
                         <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 2.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
