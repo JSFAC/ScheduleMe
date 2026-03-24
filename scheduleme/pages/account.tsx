@@ -24,7 +24,6 @@ interface Booking {
   id: string; service: string; status: string; created_at: string; business_name?: string;
 }
 
-// Proper toggle component
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label?: string }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={onChange}
@@ -36,7 +35,6 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () =
   );
 }
 
-// Delete confirmation modal
 function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   const [confirmText, setConfirmText] = useState('');
   return (
@@ -87,7 +85,10 @@ const Account: NextPage = () => {
   const [fadeIn, setFadeIn] = useState(false);
   const [showNavMenu, setShowNavMenu] = useState(false);
 
-  // Close dropdown on scroll
+  // ── FIX: these must be at the top level, NOT after an early return ──
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
   useEffect(() => {
     const onScroll = () => setShowNavMenu(false);
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -121,11 +122,10 @@ const Account: NextPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Draft persistence — localStorage keys
   const DRAFT_PROFILE = 'sm_draft_profile';
   const DRAFT_ADDRESS = 'sm_draft_address';
   const DRAFT_PASSWORD = 'sm_draft_password';
-  const [profileDraft, setProfileDraft] = useState(false); // has unsaved draft
+  const [profileDraft, setProfileDraft] = useState(false);
   const [addressDraft, setAddressDraft] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState(false);
 
@@ -144,7 +144,6 @@ const Account: NextPage = () => {
         const res = await fetch(`/api/bookings?user_phone=${encodeURIComponent(u.phone || u.user_metadata?.phone || '')}`);
         if (res.ok) { const data = await res.json(); setBookings(data.bookings || []); }
       } catch {}
-      // Check for in-progress drafts
       if (typeof window !== 'undefined') {
         const pd = localStorage.getItem('sm_draft_profile');
         if (pd) { try { const d = JSON.parse(pd); if (d.name || d.phone) setProfileDraft(true); } catch {} }
@@ -283,7 +282,7 @@ const Account: NextPage = () => {
   if (loading) return (
     <>
       <Nav />
-      <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: dm ? '#0a0a0a' : '#f9fafb' }}>
         <div className="relative h-6 w-6">
           <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
           <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
@@ -294,10 +293,17 @@ const Account: NextPage = () => {
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarUploading, setAvatarUploading] = useState(false);
   const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
   const isGoogleAuth = authProvider === 'google';
+
+  const cardBg = dm ? '#1c1c1e' : 'white';
+  const cardBorder = dm ? '#2c2c2e' : '#f3f4f6';
+  const textPrimary = dm ? '#f2f2f7' : '#111827';
+  const textSecondary = dm ? '#8e8e93' : '#6b7280';
+  const textMuted = dm ? '#6b7280' : '#9ca3af';
+  const inputBg = dm ? '#2c2c2e' : 'white';
+  const inputBorder = dm ? '#3a3a3c' : '#e5e7eb';
+  const pageBg = dm ? '#0a0a0a' : '#f9fafb';
 
   return (
     <>
@@ -312,16 +318,21 @@ const Account: NextPage = () => {
       <style>{`
         @keyframes tabIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .tab-panel { animation: tabIn 0.22s ease both; }
+        .form-input { width: 100%; padding: 10px 14px; border-radius: 12px; font-size: 14px; outline: none; border: 1.5px solid ${inputBorder}; background: ${inputBg}; color: ${textPrimary}; }
+        .form-input:focus { border-color: #0A84FF; }
+        .form-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { display: inline-flex; align-items: center; justify-content: center; background: #0A84FF; color: white; font-weight: 700; font-size: 14px; padding: 10px 20px; border-radius: 12px; transition: opacity 0.15s; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .sm-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: ${textMuted}; }
       `}</style>
 
-      <div className="min-h-screen pb-24 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#f9fafb', opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
+      <div className="min-h-screen pb-24 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: pageBg, opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
 
-        {/* Premium header — sm-panel */}
-        <div className={`${dm ? 'bg-[#0d0d0d]' : 'sm-panel'} border-b`} style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)', overflow: 'visible' }}>
-
+        {/* Header */}
+        <div className="border-b" style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="relative mx-auto max-w-5xl px-6 pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">
-              {/* Avatar — clickable to upload */}
               <label className="relative h-14 w-14 rounded-2xl flex-shrink-0 cursor-pointer group overflow-hidden"
                 style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0055CC 100%)' }}>
                 {avatarUrl ? (
@@ -339,39 +350,36 @@ const Account: NextPage = () => {
               </label>
               <div className="min-w-0">
                 <span className="sm-eyebrow mb-1 block">My Account</span>
-                <h1 className="text-xl font-black text-neutral-900 truncate" style={{ letterSpacing: '-0.025em' }}>{displayName}</h1>
-                <p className="text-xs text-neutral-400 truncate">{user?.email}</p>
+                <h1 className="text-xl font-black truncate" style={{ letterSpacing: '-0.025em', color: textPrimary }}>{displayName}</h1>
+                <p className="text-xs truncate" style={{ color: textMuted }}>{user?.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              {memberSince && <p className="text-xs text-neutral-400 hidden sm:block">Since {memberSince}</p>}
-              {/* Desktop: show New Request button */}
+              {memberSince && <p className="text-xs hidden sm:block" style={{ color: textMuted }}>Since {memberSince}</p>}
               <Link href="/browse" scroll={false} className="btn-primary text-sm px-4 py-2 hidden sm:inline-flex">
                 + New Request
               </Link>
-
             </div>
           </div>
         </div>
 
-        <div className="mx-auto max-w-5xl px-6 py-7 space-y-5"
-          style={{ opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
+        <div className="mx-auto max-w-5xl px-6 py-7 space-y-5">
 
           {/* Stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length, icon: 'M4.5 12.75l6 6 9-13.5', color: 'text-green-600', bg: 'bg-green-50' },
-              { label: 'Saved Addresses', value: addresses.length, icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z', color: 'text-accent', bg: 'bg-blue-50' },
+              { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length, icon: 'M4.5 12.75l6 6 9-13.5', color: '#16a34a', bg: dm ? 'rgba(22,163,74,0.15)' : '#f0fdf4' },
+              { label: 'Saved Addresses', value: addresses.length, icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z', color: '#0A84FF', bg: dm ? 'rgba(10,132,255,0.15)' : '#eff6ff' },
             ].map(s => (
-              <div key={s.label} className="bg-white rounded-2xl border border-neutral-100 p-4 flex items-center gap-3">
-                <div className={`h-9 w-9 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
-                  <svg className={`h-4 w-4 ${s.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div key={s.label} className="rounded-2xl border p-4 flex items-center gap-3" style={{ background: cardBg, borderColor: cardBorder }}>
+                <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: s.bg }}>
+                  <svg className="h-4 w-4" style={{ color: s.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xl font-black text-neutral-900" style={{ letterSpacing: '-0.02em' }}>{s.value}</p>
-                  <p className="text-xs text-neutral-400 mt-0">{s.label}</p>
+                  <p className="text-xl font-black" style={{ letterSpacing: '-0.02em', color: textPrimary }}>{s.value}</p>
+                  <p className="text-xs" style={{ color: textMuted }}>{s.label}</p>
                 </div>
               </div>
             ))}
@@ -379,11 +387,8 @@ const Account: NextPage = () => {
 
           {/* Draft restore banners */}
           {(tab === 'settings' && profileDraft) && (
-            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
-              <div className="flex items-center gap-2.5">
-                <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
-                <p className="text-sm font-semibold text-amber-800">You have unsaved profile changes — continue where you left off?</p>
-              </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl px-5 py-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <p className="text-sm font-semibold text-amber-800">You have unsaved profile changes — continue where you left off?</p>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={restoreProfileDraft} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">Restore</button>
                 <button onClick={() => dismissDraft('sm_draft_profile', setProfileDraft)} className="text-xs text-amber-500 hover:text-amber-700 px-2 py-1.5">Dismiss</button>
@@ -391,11 +396,8 @@ const Account: NextPage = () => {
             </div>
           )}
           {(tab === 'addresses' && addressDraft) && (
-            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
-              <div className="flex items-center gap-2.5">
-                <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
-                <p className="text-sm font-semibold text-amber-800">You have an unfinished address — continue where you left off?</p>
-              </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl px-5 py-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <p className="text-sm font-semibold text-amber-800">You have an unfinished address — continue where you left off?</p>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={restoreAddressDraft} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">Restore</button>
                 <button onClick={() => dismissDraft('sm_draft_address', setAddressDraft)} className="text-xs text-amber-500 hover:text-amber-700 px-2 py-1.5">Dismiss</button>
@@ -403,11 +405,8 @@ const Account: NextPage = () => {
             </div>
           )}
           {(tab === 'security' && passwordDraft) && (
-            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
-              <div className="flex items-center gap-2.5">
-                <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
-                <p className="text-sm font-semibold text-amber-800">You started changing your password — continue where you left off?</p>
-              </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl px-5 py-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <p className="text-sm font-semibold text-amber-800">You started changing your password — continue where you left off?</p>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={restorePasswordDraft} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">Restore</button>
                 <button onClick={() => dismissDraft('sm_draft_password', setPasswordDraft)} className="text-xs text-amber-500 hover:text-amber-700 px-2 py-1.5">Dismiss</button>
@@ -416,14 +415,13 @@ const Account: NextPage = () => {
           )}
 
           {/* Tab bar */}
-          <div className="bg-white rounded-2xl border border-neutral-100 p-1.5 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div className="rounded-2xl border p-1.5 flex gap-1 overflow-x-auto" style={{ background: cardBg, borderColor: cardBorder, scrollbarWidth: 'none' }}>
             {TABS.map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-[14px] text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
-                  tab === t.key
-                    ? 'bg-accent text-white shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'
-                }`}>
+                className="flex items-center gap-2 px-4 py-2 rounded-[14px] text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0"
+                style={tab === t.key
+                  ? { background: '#0A84FF', color: 'white' }
+                  : { color: textSecondary, background: 'transparent' }}>
                 {t.icon}{t.label}
               </button>
             ))}
@@ -433,20 +431,19 @@ const Account: NextPage = () => {
           {tab === 'addresses' && (
             <div className="tab-panel space-y-3">
               {addresses.length === 0 && !showAddressForm && (
-                <div className="bg-white rounded-2xl border border-neutral-100 p-10 text-center">
-                  <div className="h-12 w-12 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-3">
-                    <svg className="h-6 w-6 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="rounded-2xl border p-10 text-center" style={{ background: cardBg, borderColor: cardBorder }}>
+                  <div className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: dm ? '#2c2c2e' : '#f3f4f6' }}>
+                    <svg className="h-6 w-6" style={{ color: textMuted }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                     </svg>
                   </div>
-                  <p className="font-bold text-neutral-700 mb-1">No saved addresses</p>
-                  <p className="text-neutral-400 text-sm mb-5">Save your home or office for faster booking.</p>
+                  <p className="font-bold mb-1" style={{ color: textPrimary }}>No saved addresses</p>
+                  <p className="text-sm mb-5" style={{ color: textMuted }}>Save your home or office for faster booking.</p>
                   <button onClick={() => setShowAddressForm(true)} className="btn-primary text-sm px-5 py-2">Add Address</button>
                 </div>
               )}
-
               {addresses.map(addr => (
-                <div key={addr.id} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4 flex items-center gap-4">
+                <div key={addr.id} className="rounded-2xl border px-5 py-4 flex items-center gap-4" style={{ background: cardBg, borderColor: cardBorder }}>
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#0d1f35' : '#eff6ff' }}>
                     <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
@@ -454,48 +451,48 @@ const Account: NextPage = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <p className="font-semibold text-neutral-900 text-sm">{addr.label}</p>
-                      {addr.default && <span className="text-[10px] px-2 py-0.5 rounded-full text-accent font-bold uppercase tracking-wide" style={{ background: dm ? '#0d1f35' : '#eff6ff' }}>Default</span>}
+                      <p className="font-semibold text-sm" style={{ color: textPrimary }}>{addr.label}</p>
+                      {addr.default && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide" style={{ background: dm ? '#0d1f35' : '#eff6ff', color: '#0A84FF' }}>Default</span>}
                     </div>
-                    <p className="text-sm text-neutral-500">{addr.address}</p>
-                    {addr.city && <p className="text-sm text-neutral-400">{addr.city}</p>}
+                    <p className="text-sm" style={{ color: textSecondary }}>{addr.address}</p>
+                    {addr.city && <p className="text-sm" style={{ color: textMuted }}>{addr.city}</p>}
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     {!addr.default && (
                       <button onClick={() => persistAddresses(addresses.map(a => ({ ...a, default: a.id === addr.id })))}
-                        className="text-xs text-neutral-400 hover:text-accent transition-colors">Set default</button>
+                        className="text-xs hover:text-accent transition-colors" style={{ color: textMuted }}>Set default</button>
                     )}
                     <button onClick={() => persistAddresses(addresses.filter(a => a.id !== addr.id))}
                       className="text-xs text-red-400 hover:text-red-600 transition-colors">Remove</button>
                   </div>
                 </div>
               ))}
-
               {showAddressForm ? (
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-                  <h3 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Add Address</h3>
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                  <h3 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Add Address</h3>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Label</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Label</label>
                       <input type="text" className="form-input" placeholder="Home, Office, etc." value={addrLabel} onChange={e => { setAddrLabel(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: e.target.value, street: addrStreet, city: addrCity })); }} />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Street Address</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Street Address</label>
                       <input type="text" className="form-input" placeholder="123 Main St" value={addrStreet} onChange={e => { setAddrStreet(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: e.target.value, city: addrCity })); }} />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">City, State ZIP</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>City, State ZIP</label>
                       <input type="text" className="form-input" placeholder="Austin, TX 78701" value={addrCity} onChange={e => { setAddrCity(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: addrStreet, city: e.target.value })); }} />
                     </div>
                     <div className="flex gap-2 pt-1">
                       <button onClick={addAddress} className="btn-primary text-sm px-5 py-2">Save</button>
-                      <button onClick={() => setShowAddressForm(false)} className="text-sm text-neutral-400 hover:text-neutral-700 px-4 py-2">Cancel</button>
+                      <button onClick={() => setShowAddressForm(false)} className="text-sm px-4 py-2 transition-colors" style={{ color: textMuted }}>Cancel</button>
                     </div>
                   </div>
                 </div>
               ) : addresses.length > 0 && (
                 <button onClick={() => setShowAddressForm(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-dashed border-neutral-200 text-neutral-400 hover:border-accent hover:text-accent transition-colors text-sm font-medium">
+                  className="w-full flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-dashed text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+                  style={{ borderColor: dm ? '#3a3a3c' : '#e5e7eb', color: textMuted }}>
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                   Add Another Address
                 </button>
@@ -506,15 +503,15 @@ const Account: NextPage = () => {
           {/* ── NOTIFICATIONS ── */}
           {tab === 'notifications' && (
             <div className="tab-panel space-y-3">
-              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                 <div className="flex items-center justify-between mb-1">
                   <div>
                     <span className="sm-eyebrow mb-2 block">Activity</span>
-                    <h2 className="font-bold text-neutral-900" style={{ letterSpacing: '-0.01em' }}>Alert Preferences</h2>
+                    <h2 className="font-bold" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Alert Preferences</h2>
                   </div>
                   {notifSaved && <span className="text-xs text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full">✓ Saved</span>}
                 </div>
-                <p className="text-sm text-neutral-400 mb-5 mt-1">Choose what you want to be notified about.</p>
+                <p className="text-sm mb-5 mt-1" style={{ color: textMuted }}>Choose what you want to be notified about.</p>
                 <div className="space-y-5">
                   {([
                     { key: 'bookingConfirmed', label: 'Booking confirmations', desc: 'When a business confirms your request' },
@@ -524,8 +521,8 @@ const Account: NextPage = () => {
                   ] as const).map(item => (
                     <div key={item.key} className="flex items-center justify-between gap-6">
                       <div>
-                        <p className="text-sm font-semibold text-neutral-800">{item.label}</p>
-                        <p className="text-xs text-neutral-400 mt-0.5">{item.desc}</p>
+                        <p className="text-sm font-semibold" style={{ color: textPrimary }}>{item.label}</p>
+                        <p className="text-xs mt-0.5" style={{ color: textMuted }}>{item.desc}</p>
                       </div>
                       <Toggle label={item.label} checked={notifPrefs[item.key]}
                         onChange={() => handleSaveNotifs({ ...notifPrefs, [item.key]: !notifPrefs[item.key] })} />
@@ -533,24 +530,23 @@ const Account: NextPage = () => {
                   ))}
                 </div>
               </div>
-
-              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                 <span className="sm-eyebrow mb-2 block">Channels</span>
-                <h2 className="font-bold text-neutral-900 mb-1" style={{ letterSpacing: '-0.01em' }}>Delivery Method</h2>
-                <p className="text-sm text-neutral-400 mb-5 mt-1">How you'd like to receive notifications.</p>
+                <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Delivery Method</h2>
+                <p className="text-sm mb-5 mt-1" style={{ color: textMuted }}>How you'd like to receive notifications.</p>
                 <div className="space-y-5">
                   <div className="flex items-center justify-between gap-6">
                     <div>
-                      <p className="text-sm font-semibold text-neutral-800">Email</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">{user?.email}</p>
+                      <p className="text-sm font-semibold" style={{ color: textPrimary }}>Email</p>
+                      <p className="text-xs mt-0.5" style={{ color: textMuted }}>{user?.email}</p>
                     </div>
                     <Toggle label="Email" checked={notifPrefs.emailChannel}
                       onChange={() => handleSaveNotifs({ ...notifPrefs, emailChannel: !notifPrefs.emailChannel })} />
                   </div>
                   <div className="flex items-center justify-between gap-6">
                     <div>
-                      <p className="text-sm font-semibold text-neutral-800">Text (SMS)</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">
+                      <p className="text-sm font-semibold" style={{ color: textPrimary }}>Text (SMS)</p>
+                      <p className="text-xs mt-0.5" style={{ color: textMuted }}>
                         {phone ? phone : (
                           <button onClick={() => setTab('settings')} className="text-accent hover:underline">Add phone in Profile →</button>
                         )}
@@ -560,8 +556,8 @@ const Account: NextPage = () => {
                       onChange={() => handleSaveNotifs({ ...notifPrefs, smsChannel: !notifPrefs.smsChannel })} />
                   </div>
                 </div>
-                <div className="mt-5 pt-4 border-t border-neutral-100">
-                  <p className="text-xs text-neutral-400">Email and SMS delivery is coming soon. Your preferences are saved and will activate automatically.</p>
+                <div className="mt-5 pt-4 border-t" style={{ borderColor: cardBorder }}>
+                  <p className="text-xs" style={{ color: textMuted }}>Email and SMS delivery is coming soon. Your preferences are saved and will activate automatically.</p>
                 </div>
               </div>
             </div>
@@ -571,9 +567,9 @@ const Account: NextPage = () => {
           {tab === 'security' && (
             <div className="tab-panel space-y-3">
               {isGoogleAuth ? (
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                   <span className="sm-eyebrow mb-2 block">Authentication</span>
-                  <h2 className="font-bold text-neutral-900 mb-3" style={{ letterSpacing: '-0.01em' }}>Password</h2>
+                  <h2 className="font-bold mb-3" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Password</h2>
                   <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: dm ? '#0d1f35' : '#eff6ff', border: dm ? '1px solid rgba(59,130,246,0.3)' : '1px solid #dbeafe' }}>
                     <svg className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -588,42 +584,41 @@ const Account: NextPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                   <span className="sm-eyebrow mb-2 block">Authentication</span>
                   <div className="flex items-center justify-between mb-1">
-                    <h2 className="font-bold text-neutral-900" style={{ letterSpacing: '-0.01em' }}>Password</h2>
+                    <h2 className="font-bold" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Password</h2>
                     {!showPasswordForm && (
                       <button onClick={() => setShowPasswordForm(true)} className="text-sm font-semibold text-accent">Change →</button>
                     )}
                   </div>
-                  <p className="text-sm text-neutral-400 mt-1">Keep your account secure with a strong password.</p>
+                  <p className="text-sm mt-1" style={{ color: textMuted }}>Keep your account secure with a strong password.</p>
                   {showPasswordForm && (
                     <form onSubmit={handleChangePassword} className="mt-5 space-y-3">
                       {pwError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{pwError}</div>}
                       {pwSaved && <div className="rounded-xl bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">✓ Password updated.</div>}
                       <div>
-                        <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">New Password</label>
+                        <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>New Password</label>
                         <input type="password" required className="form-input" placeholder="At least 8 characters" value={newPw} onChange={e => { setNewPw(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_password', JSON.stringify({ newPw: e.target.value })); }} />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Confirm Password</label>
+                        <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Confirm Password</label>
                         <input type="password" required className="form-input" placeholder="••••••••" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
                       </div>
                       <div className="flex gap-2 pt-1">
                         <button type="submit" disabled={pwSaving} className="btn-primary text-sm px-5 py-2.5">
                           {pwSaving ? 'Updating…' : 'Update Password'}
                         </button>
-                        <button type="button" onClick={() => { setShowPasswordForm(false); setPwError(''); }} className="text-sm text-neutral-400 hover:text-neutral-700 px-4 py-2">Cancel</button>
+                        <button type="button" onClick={() => { setShowPasswordForm(false); setPwError(''); }} className="text-sm px-4 py-2 transition-colors" style={{ color: textMuted }}>Cancel</button>
                       </div>
                     </form>
                   )}
                 </div>
               )}
-
-              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                 <span className="sm-eyebrow mb-2 block">Sign-in</span>
-                <h2 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Connected Method</h2>
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-neutral-50 border border-neutral-100">
+                <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Connected Method</h2>
+                <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: dm ? '#2c2c2e' : '#f9fafb', border: `1px solid ${cardBorder}` }}>
                   {isGoogleAuth ? (
                     <>
                       <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -633,18 +628,18 @@ const Account: NextPage = () => {
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                       </svg>
                       <div>
-                        <p className="text-sm font-semibold text-neutral-800">Google</p>
-                        <p className="text-xs text-neutral-400">{user?.email}</p>
+                        <p className="text-sm font-semibold" style={{ color: textPrimary }}>Google</p>
+                        <p className="text-xs" style={{ color: textMuted }}>{user?.email}</p>
                       </div>
                     </>
                   ) : (
                     <>
-                      <svg className="h-5 w-5 text-neutral-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <svg className="h-5 w-5 flex-shrink-0" style={{ color: textMuted }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                       </svg>
                       <div>
-                        <p className="text-sm font-semibold text-neutral-800">Email & Password</p>
-                        <p className="text-xs text-neutral-400">{user?.email}</p>
+                        <p className="text-sm font-semibold" style={{ color: textPrimary }}>Email & Password</p>
+                        <p className="text-xs" style={{ color: textMuted }}>{user?.email}</p>
                       </div>
                     </>
                   )}
@@ -656,24 +651,24 @@ const Account: NextPage = () => {
           {/* ── PROFILE SETTINGS ── */}
           {tab === 'settings' && (
             <div className="tab-panel grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                 <span className="sm-eyebrow mb-2 block">Personal</span>
-                <h2 className="font-bold text-neutral-900 mb-5" style={{ letterSpacing: '-0.01em' }}>Your Info</h2>
+                <h2 className="font-bold mb-5" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Your Info</h2>
                 <form onSubmit={handleSaveProfile} className="space-y-4">
                   {saveError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{saveError}</div>}
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Full name</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Full name</label>
                     <input type="text" className="form-input" value={name} onChange={e => { setName(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name: e.target.value, phone })); }} placeholder="Jane Smith" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Email address</label>
-                    <input type="email" className="form-input bg-neutral-50 cursor-not-allowed" value={user?.email || ''} disabled />
-                    <p className="text-xs text-neutral-400 mt-1">{isGoogleAuth ? 'Managed by Google.' : 'Contact support to change.'}</p>
+                    <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Email address</label>
+                    <input type="email" className="form-input" value={user?.email || ''} disabled style={{ opacity: 0.5, cursor: 'not-allowed', background: inputBg, borderColor: inputBorder, color: textPrimary }} />
+                    <p className="text-xs mt-1" style={{ color: textMuted }}>{isGoogleAuth ? 'Managed by Google.' : 'Contact support to change.'}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Phone number</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Phone number</label>
                     <input type="tel" className="form-input" value={phone} onChange={e => { setPhone(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name, phone: e.target.value })); }} placeholder="(555) 000-1234" />
-                    <p className="text-xs text-neutral-400 mt-1">Used for SMS and matching with local pros.</p>
+                    <p className="text-xs mt-1" style={{ color: textMuted }}>Used for SMS and matching with local pros.</p>
                   </div>
                   <button type="submit" disabled={saving} className="btn-primary w-full py-2.5 text-sm">
                     {saved ? '✓ Saved!' : saving ? 'Saving…' : 'Save Changes'}
@@ -682,17 +677,19 @@ const Account: NextPage = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                   <span className="sm-eyebrow mb-2 block">Preferences</span>
-                  <h2 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Service Settings</h2>
+                  <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Service Settings</h2>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Preferred contact</label>
-                      <select className="form-input"><option>Text message</option><option>Phone call</option><option>Email</option></select>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Preferred contact</label>
+                      <select className="form-input" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }}>
+                        <option>Text message</option><option>Phone call</option><option>Email</option>
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Service radius</label>
-                      <select className="form-input">
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Service radius</label>
+                      <select className="form-input" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }}>
                         <option>Within 5 miles</option><option>Within 10 miles</option>
                         <option>Within 25 miles</option><option>Any distance</option>
                       </select>
@@ -700,20 +697,19 @@ const Account: NextPage = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                   <span className="sm-eyebrow mb-2 block">Account</span>
-                  <h2 className="font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.01em' }}>Manage</h2>
+                  <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Manage</h2>
                   <div className="space-y-2">
-                    {/* Dark mode toggle */}
-                    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-neutral-200">
+                    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl border" style={{ borderColor: cardBorder }}>
                       <div className="flex items-center gap-2.5">
-                        <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <svg className="h-4 w-4" style={{ color: textMuted }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                           {darkMode
                             ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
                             : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
                           }
                         </svg>
-                        <span className="text-sm font-medium text-neutral-700">Dark Mode</span>
+                        <span className="text-sm font-medium" style={{ color: textPrimary }}>Dark Mode</span>
                       </div>
                       <button onClick={toggleDark}
                         className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
@@ -723,14 +719,15 @@ const Account: NextPage = () => {
                       </button>
                     </div>
                     <button onClick={handleSignOut}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition-colors">
-                      <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+                      style={{ borderColor: cardBorder, color: textPrimary, background: 'transparent' }}>
+                      <svg className="h-4 w-4" style={{ color: textMuted }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                       </svg>
                       Sign Out
                     </button>
-                    <div className="pt-3 border-t border-neutral-100 mt-2">
-                      <p className="text-xs text-neutral-400 mb-2 uppercase tracking-wide font-semibold">Danger Zone</p>
+                    <div className="pt-3 border-t mt-2" style={{ borderColor: cardBorder }}>
+                      <p className="text-xs mb-2 uppercase tracking-wide font-semibold" style={{ color: textMuted }}>Danger Zone</p>
                       <button onClick={() => setShowDeleteModal(true)}
                         className="w-full text-left text-sm text-red-500 hover:text-red-700 transition-colors px-4 py-2.5 rounded-xl hover:bg-red-50">
                         Delete my account
