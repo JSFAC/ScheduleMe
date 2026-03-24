@@ -86,22 +86,41 @@ export default function Hero({
         {/* Mock UI preview */}
         <div className="mt-16 mx-auto max-w-2xl opacity-0-init animate-fade-up animate-delay-500">
           <div className="p-1 shadow-modal rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
-            <div className="rounded-xl p-6 text-left space-y-4" style={{ background: dm ? '#0f0f0f' : '#fafafa' }}>
-              {/* Mock chat bubble */}
-              <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-full flex-shrink-0" style={{ background: dm ? '#262626' : '#e5e5e5' }} />
-                <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-sm shadow-card max-w-xs" style={{ background: dm ? '#1a1a1a' : 'white', color: dm ? '#d1d5db' : '#404040' }}>
-                  My kitchen faucet is leaking and getting worse. Need someone ASAP.
+            <div className="rounded-2xl text-left space-y-3 p-5" style={{ background: dm ? '#0f0f0f' : '#f5f5f7', border: dm ? '1px solid #1c1c1e' : '1px solid rgba(0,0,0,0.06)' }}>
+              {/* User message */}
+              <div className="flex items-end gap-2.5 justify-end">
+                <div className="rounded-2xl rounded-br-sm px-4 py-2.5 text-sm text-white max-w-[220px]" style={{ background: '#0A84FF' }}>
+                  <p className="leading-snug">My kitchen faucet won't stop dripping. Getting worse every day.</p>
                 </div>
+                <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg,#0A84FF,#0055CC)' }}>J</div>
               </div>
-              {/* Mock triage result */}
-              <div className="flex items-start gap-3 justify-end">
-                <div className="bg-accent rounded-2xl rounded-tr-sm px-4 py-3 text-sm text-white shadow-card max-w-xs">
-                  <p className="font-medium mb-1">Triage complete ✓</p>
-                  <p className="opacity-90 text-xs">Plumbing · Urgent · Est. $120–$200</p>
+              {/* System match result */}
+              <div className="flex items-end gap-2.5">
+                <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5' }}>
+                  <svg className="h-3.5 w-3.5" style={{ color: '#0A84FF' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-accent flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">
-                  AI
+                <div className="rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[240px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717' }}>
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                    <p className="text-xs font-semibold" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>3 pros available near you</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {[{ name: 'Mike R.', tag: 'Plumbing', rating: '4.9', time: '~30 min' }, { name: 'Sarah K.', tag: 'Plumbing', rating: '4.8', time: '~1 hr' }].map((pro,i) => (
+                      <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl" style={{ background: dm ? '#2c2c2e' : '#f5f5f7' }}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: '#0A84FF' }}>{pro.name[0]}</div>
+                          <div>
+                            <p className="text-xs font-semibold leading-none" style={{ color: dm ? '#f2f2f7' : '#171717' }}>{pro.name}</p>
+                            <p className="text-[10px] mt-0.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{pro.tag}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold" style={{ color: '#0A84FF' }}>★ {pro.rating}</p>
+                          <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{pro.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
               {/* Matched provider cards */}
