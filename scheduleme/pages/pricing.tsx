@@ -1,10 +1,11 @@
 // @ts-nocheck
-// pages/pricing.tsx — consumer only, no business tab
+// pages/pricing.tsx — consumer only, with dark mode support
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect } from 'react';
 import Nav from '../components/Nav';
+import { useDm } from '../lib/DarkModeContext';
 
 function useReveal(selector: string, delay = 90) {
   useEffect(() => {
@@ -26,6 +27,18 @@ function useReveal(selector: string, delay = 90) {
 
 const Pricing: NextPage = () => {
   useReveal('.js-psec', 0);
+  const { dm } = useDm();
+
+  const bg = dm ? '#0a0a0a' : 'white';
+  const textPrimary = dm ? '#f2f2f7' : '#111827';
+  const textSecondary = dm ? '#8e8e93' : '#6b7280';
+  const textMuted = dm ? '#6b7280' : '#9ca3af';
+  const cardBg = dm ? '#1c1c1e' : 'white';
+  const cardBorder = dm ? '#2c2c2e' : '#e5e7eb';
+  const featureCardBg = dm ? 'rgba(10,132,255,0.12)' : '#eff6ff';
+  const featureCardBorder = dm ? 'rgba(10,132,255,0.3)' : '#bfdbfe';
+  const darkBannerBg = dm ? '#1c1c1e' : '#0f172a';
+  const darkBannerBorder = dm ? '#2c2c2e' : 'transparent';
 
   return (
     <>
@@ -37,33 +50,36 @@ const Pricing: NextPage = () => {
 
       <Nav />
 
-      <main className="pt-28 pb-24 bg-white">
+      <main style={{ paddingTop: 72, paddingBottom: 96, background: bg, minHeight: '100vh' }}>
+
         {/* Header */}
-        <section className="py-16 px-6 text-center">
-          <div className="js-psec mx-auto max-w-3xl">
-            <span className="section-eyebrow mb-4 block">Pricing</span>
-            <h1 className="text-5xl md:text-6xl font-bold text-neutral-900 mb-5" style={{ letterSpacing: '-0.025em' }}>
+        <section style={{ padding: '64px 24px', textAlign: 'center' }}>
+          <div className="js-psec mx-auto" style={{ maxWidth: 720 }}>
+            <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#0A84FF', marginBottom: 16 }}>
+              Pricing
+            </span>
+            <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 800, color: textPrimary, letterSpacing: '-0.025em', marginBottom: 20, lineHeight: 1.1 }}>
               Simple, honest pricing.
             </h1>
-            <p className="text-xl text-neutral-500 max-w-xl mx-auto leading-relaxed">
+            <p style={{ fontSize: 18, color: textSecondary, maxWidth: 480, margin: '0 auto', lineHeight: 1.6 }}>
               Free for the people who need help. Businesses pay only for results.
             </p>
           </div>
         </section>
 
         {/* User pricing card */}
-        <section className="px-6 mb-16">
-          <div className="mx-auto max-w-2xl text-center js-psec">
-            <div className="rounded-3xl border-2 border-accent bg-accent-light p-12 mb-10">
-              <p className="text-7xl mb-6" aria-hidden="true">🎉</p>
-              <h2 className="text-4xl font-bold text-neutral-900 mb-4" style={{ letterSpacing: '-0.025em' }}>
+        <section style={{ padding: '0 24px', marginBottom: 64 }}>
+          <div className="js-psec mx-auto" style={{ maxWidth: 640, textAlign: 'center' }}>
+            <div style={{ borderRadius: 24, border: `2px solid ${featureCardBorder}`, background: featureCardBg, padding: 48, marginBottom: 40 }}>
+              <p style={{ fontSize: 56, marginBottom: 24 }} aria-hidden="true">🎉</p>
+              <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 800, color: textPrimary, letterSpacing: '-0.025em', marginBottom: 16 }}>
                 Always free for users.
               </h2>
-              <p className="text-lg text-neutral-600 mb-8 leading-relaxed">
+              <p style={{ fontSize: 17, color: textSecondary, marginBottom: 32, lineHeight: 1.65 }}>
                 No account required. No credit card. No hidden fees.<br />
                 Describe your issue and get matched with a vetted pro — completely free, every time.
               </p>
-              <ul className="space-y-3 mb-10 text-left max-w-sm mx-auto" role="list">
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 auto 40px', maxWidth: 320, textAlign: 'left' }}>
                 {[
                   'AI triage of your issue',
                   'Instant matching with local pros',
@@ -71,31 +87,31 @@ const Pricing: NextPage = () => {
                   'Direct contact with providers',
                   'No booking fees or commissions',
                 ].map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-sm text-neutral-700">
-                    <span className="text-accent font-bold" aria-hidden="true">✓</span>
+                  <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, fontSize: 14, color: textSecondary }}>
+                    <span style={{ color: '#0A84FF', fontWeight: 800, fontSize: 16 }} aria-hidden="true">✓</span>
                     {f}
                   </li>
                 ))}
               </ul>
-              <Link href="/demo" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">
+              <Link href="/demo" style={{ display: 'inline-block', background: '#0A84FF', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
                 Find a Pro Now — Free →
               </Link>
             </div>
-            <p className="text-sm text-neutral-500">
+            <p style={{ fontSize: 13, color: textMuted }}>
               ScheduleMe is funded by service businesses, not by users. This is our promise.
             </p>
           </div>
         </section>
 
         {/* Business CTA banner */}
-        <section className="px-6 mb-16">
-          <div className="mx-auto max-w-3xl">
-            <div className="rounded-2xl bg-neutral-950 px-10 py-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <section style={{ padding: '0 24px', marginBottom: 64 }}>
+          <div className="mx-auto" style={{ maxWidth: 720 }}>
+            <div style={{ borderRadius: 20, background: darkBannerBg, border: `1px solid ${darkBannerBorder}`, padding: '32px 40px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
               <div>
-                <p className="text-white font-bold text-lg mb-1">Are you a service business?</p>
-                <p className="text-neutral-400 text-sm">See plans, pricing, and how leads work on our business page.</p>
+                <p style={{ color: 'white', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Are you a service business?</p>
+                <p style={{ color: dm ? '#8e8e93' : '#94a3b8', fontSize: 14 }}>See plans, pricing, and how leads work on our business page.</p>
               </div>
-              <Link href="/business/pricing" className="btn-primary flex-shrink-0 px-6 py-3">
+              <Link href="/business/pricing" style={{ display: 'inline-block', background: '#0A84FF', color: 'white', fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 View Business Pricing →
               </Link>
             </div>
@@ -103,13 +119,16 @@ const Pricing: NextPage = () => {
         </section>
 
         {/* CTA */}
-        <section className="px-6">
-          <div className="mx-auto max-w-3xl text-center js-psec">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-4">Ready to get started?</h2>
-            <p className="text-neutral-500 mb-6">No account needed. Describe your issue and find a pro in seconds.</p>
-            <Link href="/bookings" className="btn-primary px-10 py-4 text-base shadow-lg shadow-accent/20">Get Started for Free →</Link>
+        <section style={{ padding: '0 24px' }}>
+          <div className="js-psec mx-auto" style={{ maxWidth: 720, textAlign: 'center' }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: textPrimary, marginBottom: 16 }}>Ready to get started?</h2>
+            <p style={{ color: textSecondary, marginBottom: 24 }}>No account needed. Describe your issue and find a pro in seconds.</p>
+            <Link href="/bookings" style={{ display: 'inline-block', background: '#0A84FF', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
+              Get Started for Free →
+            </Link>
           </div>
         </section>
+
       </main>
     </>
   );
