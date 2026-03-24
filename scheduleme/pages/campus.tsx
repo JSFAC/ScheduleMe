@@ -50,7 +50,7 @@ function detectNearestCampus(lat: number, lng: number) {
   return nearest;
 }
 
-const CAMPUS_CATEGORIES = ['All', 'Hair & Beauty', 'Photography', 'Tutoring', 'Arts & Crafts', 'Moving', 'Handyman', 'Other'];
+const CAMPUS_CATEGORIES_DEFAULT = ['All', 'Hair & Beauty', 'Photography', 'Tutoring', 'Arts & Crafts', 'Moving', 'Handyman', 'Other'];
 
 const CampusPage: NextPage = () => {
   const router = useRouter();
@@ -304,7 +304,7 @@ const CampusPage: NextPage = () => {
 
             {/* Category pills */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
-              {CAMPUS_CATEGORIES.map(cat => (
+              {(businesses.length > 0 ? ['All', ...Array.from(new Set(businesses.map(b=>b.category).filter(Boolean)))] : CAMPUS_CATEGORIES_DEFAULT).map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)}
                   className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border transition-all"
                   style={activeCategory === cat
