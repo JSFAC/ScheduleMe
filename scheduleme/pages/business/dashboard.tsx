@@ -511,6 +511,7 @@ const BusinessDashboard: NextPage = () => {
   const dm = darkMode;
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','settings'];
   const [tab, setTab] = useState<TabId>('overview');
+  const [signingOut, setSigningOut] = useState(false);
   const [services, setServices] = useState([]);
   const [svcLoading, setSvcLoading] = useState(false);
   const [svcName, setSvcName] = useState('');
@@ -731,7 +732,8 @@ const BusinessDashboard: NextPage = () => {
   async function handleStripeConnect() {
     if (!business) return; setStripeLoading(true);
     try {
-      const res = await fetch('/api/stripe-connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: business.id }) });
+      const headers = await getAuthHeaders();
+    const res = await fetch('/api/stripe-connect', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: business.id }) });
       const data = await res.json(); if (data.url) window.location.href = data.url;
     } catch { alert('Failed to connect Stripe.'); } finally { setStripeLoading(false); }
   }
@@ -878,6 +880,15 @@ const BusinessDashboard: NextPage = () => {
 
   return (
     <>
+      {signingOut && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(8px)' }}>
+          <div className="relative h-8 w-8 mb-4">
+            <div className="absolute inset-0 rounded-full border-2 border-white/20" />
+            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" />
+          </div>
+          <p className="text-white font-semibold text-sm tracking-wide">Signing you out…</p>
+        </div>
+      )}
       <Head><title>{business?.name || 'Dashboard'} — ScheduleMe for Business</title></Head>
       <div className="min-h-screen flex" style={{ background: 'var(--section-bg, #f8fafc)' }}>
 
@@ -938,6 +949,7 @@ const BusinessDashboard: NextPage = () => {
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
               Consumer site
             </Link>
+            <Link href="/business" scroll={false} target="_blank" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"><svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>Business landing page</Link>
             <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
               Sign out
@@ -1636,24 +1648,64 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                     {/* Business hours */}
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Business Hours</label>
+                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Business Hours <span className="normal-case font-normal">(optional — leave blank if you come to the client)</span></label>
                       <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f9fafb' }}>
                         {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(day => (
                           <div key={day} className="flex items-center gap-3">
                             <span className="text-xs font-medium w-20 shrink-0" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{day.slice(0,3)}</span>
-                            <input
-                              className="flex-1 text-xs px-2 py-1 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent"
+                            <select
+                              className="flex-1 text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent"
                               style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
-                              placeholder="e.g. 9:00 AM – 5:00 PM or Closed"
                               value={editHours[day] || ''}
                               onChange={e => setEditHours(h => ({ ...h, [day]: e.target.value }))}
-                            />
+                            >
+                              <option value="">Closed (optional)</option>
+                              <option value="By appointment">By appointment</option>
+                              <option value="7:00 AM – 3:00 PM">7:00 AM – 3:00 PM</option>
+                              <option value="8:00 AM – 4:00 PM">8:00 AM – 4:00 PM</option>
+                              <option value="8:00 AM – 5:00 PM">8:00 AM – 5:00 PM</option>
+                              <option value="9:00 AM – 5:00 PM">9:00 AM – 5:00 PM</option>
+                              <option value="9:00 AM – 6:00 PM">9:00 AM – 6:00 PM</option>
+                              <option value="10:00 AM – 6:00 PM">10:00 AM – 6:00 PM</option>
+                              <option value="10:00 AM – 8:00 PM">10:00 AM – 8:00 PM</option>
+                              <option value="11:00 AM – 7:00 PM">11:00 AM – 7:00 PM</option>
+                              <option value="12:00 PM – 8:00 PM">12:00 PM – 8:00 PM</option>
+                              <option value="24 Hours">24 Hours</option>
+                            </select
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
+                    {/* Student Business EDU Section */}
+                      <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f9fafb' }}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Student Business</p>
+                            <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Link your .edu email to appear on the campus marketplace.</p>
+                          </div>
+                          {business?.edu_verified && <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', color: '#16a34a' }}><svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Verified</span>}
+                        </div>
+                        {!business?.edu_verified && (
+                          campusStep === 'email' ? (
+                            <div className="flex gap-2">
+                              <input type="email" value={campusEmail} onChange={e => setCampusEmail(e.target.value)} placeholder="you@university.edu" className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+                              <button type="button" disabled={!campusEmail.endsWith('.edu') || campusSending} onClick={handleCampusSendCode} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusEmail.endsWith('.edu') ? '#0A84FF' : '#9ca3af' }}>{campusSending ? 'Sending…' : 'Send Code'}</button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-xs" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Enter the 6-digit code sent to {campusEmail}</p>
+                              <div className="flex gap-2">
+                                <input type="text" value={campusCode} onChange={e => setCampusCode(e.target.value)} placeholder="123456" maxLength={6} className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent text-center tracking-widest font-bold" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+                                <button type="button" disabled={campusCode.length !== 6 || campusSending} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#0A84FF' : '#9ca3af' }}>{campusSending ? 'Verifying…' : 'Verify'}</button>
+                              </div>
+                              {campusVerifyError && <p className="text-xs text-red-500">{campusVerifyError}</p>}
+                              <button type="button" onClick={() => setCampusStep('email')} className="text-xs" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>← Use different email</button>
+                            </div>
+                          )
+                        )}
+                      </div>
+                      <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
                       {settingsSaved ? '✓ Saved!' : settingsSaving ? 'Saving…' : 'Save Changes'}
                     </button>
                   </form>
