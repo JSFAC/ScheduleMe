@@ -260,6 +260,15 @@ const BrowsePage: NextPage = () => {
       if (!session) { router.replace('/signin'); return; }
       setLoading(false);
       
+      // IP geo fallback — loads businesses instantly without permission prompt
+      try {
+        const _ipRes = await fetch('https://ipapi.co/json/');
+        const _ipData = await _ipRes.json();
+        if (_ipData.latitude && _ipData.longitude && !bizList.length) {
+          const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 40, radius });
+          if (_ipBiz.length > 0) { setBizList(_ipBiz); setUsingRealData(true); setUserLat(_ipData.latitude); setUserLng(_ipData.longitude); setBizLoading(false); }
+        }
+      } catch (_e) {}
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
