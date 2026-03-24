@@ -409,6 +409,9 @@ const HomePage: NextPage = () => {
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showReferModal, setShowReferModal] = useState(false);
+  const [referName, setReferName] = useState('');
+  const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
 
   useEffect(() => {
@@ -494,8 +497,22 @@ const HomePage: NextPage = () => {
                   { label: 'My Bookings', sub: 'Track your jobs', href: '/bookings', d: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
                   { label: 'Browse Services', sub: 'See all services', href: '/browse', d: 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' },
                   { label: 'How It Works', sub: 'Pricing & info', href: '/pricing', d: 'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z' },
-                  { label: 'Refer a Pro', sub: 'Know someone good?', href: '#refer', d: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
-                ] as const).map((tile) => (
+                  { label: 'Refer a Pro', sub: 'Know someone good?', href: '#refer', isModal: true, d: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
+                ] as const).map((tile) => tile.label === 'Refer a Pro' ? (
+                  <button key={tile.label} onClick={() => setShowReferModal(true)}
+                    className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md text-left"
+                    style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
+                      <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
+                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#3b82f6' }}>{tile.sub}</p>
+                    </div>
+                  </button>
+                ) : (
                   <Link key={tile.label} href={tile.href} scroll={false}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
                     style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -550,6 +567,7 @@ const HomePage: NextPage = () => {
                 style={{ background: '#0A84FF', color: 'white' }}>
                 Verify Now →
               </Link>
+              <button onClick={() => setEduVerified(true)} className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full ml-1" style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}><svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
           </div>
         )}
@@ -655,7 +673,35 @@ const HomePage: NextPage = () => {
         </div>
 
       </div>
-      {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
+      {showReferModal && (
+  <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-6 sm:pb-0" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} onClick={() => setShowReferModal(false)}>
+    <div className="w-full max-w-md rounded-3xl p-6 shadow-2xl" style={{ background: dm ? '#1c1c1e' : 'white' }} onClick={e => e.stopPropagation()}>
+      {referSent ? (
+        <div className="text-center py-4">
+          <div className="text-4xl mb-3">🎉</div>
+          <p className="font-bold text-lg mb-1" style={{ color: dm ? '#f2f2f7' : '#111' }}>Referral received!</p>
+          <p className="text-sm mb-6" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>We'll reach out to {referName} and let you know if they join.</p>
+          <button onClick={() => { setShowReferModal(false); setReferSent(false); setReferName(''); }} className="w-full py-3 rounded-2xl font-bold text-white" style={{ background: '#0A84FF' }}>Done</button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-lg font-bold" style={{ color: dm ? '#f2f2f7' : '#111', letterSpacing: '-0.02em' }}>Refer a Pro</h3>
+              <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Know a great local business? Tell us.</p>
+            </div>
+            <button onClick={() => setShowReferModal(false)} className="h-8 w-8 flex items-center justify-center rounded-full" style={{ background: dm ? '#2c2c2e' : '#f5f5f5' }}>
+              <svg className="h-4 w-4" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <input type="text" value={referName} onChange={e => setReferName(e.target.value)} placeholder="Business or person's name" className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-4" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#f2f2f7' : '#111', border: dm ? '1.5px solid #3a3a3c' : '1.5px solid #e5e7eb' }} />
+          <button disabled={!referName.trim()} onClick={() => { if (referName.trim()) setReferSent(true); }} className="w-full py-3.5 rounded-2xl font-bold text-sm" style={{ background: referName.trim() ? '#0A84FF' : (dm ? '#2c2c2e' : '#e5e7eb'), color: referName.trim() ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}>Submit Referral</button>
+        </>
+      )}
+    </div>
+  </div>
+)}
+{activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
       {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
       {/* Floating feedback button */}
       <button onClick={() => setShowFeedback(true)}
