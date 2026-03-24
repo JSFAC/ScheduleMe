@@ -511,7 +511,6 @@ const BusinessDashboard: NextPage = () => {
   const dm = darkMode;
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','settings'];
   const [tab, setTab] = useState<TabId>('overview');
-  const [tab, setTab] = useState<TabId>('overview');
   const [services, setServices] = useState([]);
   const [svcLoading, setSvcLoading] = useState(false);
   const [svcName, setSvcName] = useState('');
