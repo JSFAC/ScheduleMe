@@ -1671,7 +1671,7 @@ const BusinessDashboard: NextPage = () => {
                               <option value="11:00 AM – 7:00 PM">11:00 AM – 7:00 PM</option>
                               <option value="12:00 PM – 8:00 PM">12:00 PM – 8:00 PM</option>
                               <option value="24 Hours">24 Hours</option>
-                            </select
+                            </select>
                           </div>
                         ))}
                       </div>
