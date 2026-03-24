@@ -106,8 +106,8 @@ export default function Hero({
               </div>
               {/* Matched provider cards */}
               <div className="grid grid-cols-3 gap-2 pt-2">
-                {[{label:'Verified Pro',color:'#0A84FF'},{label:'Top Rated',color:'#22c55e'},{label:'Nearby',color:'#f59e0b'}].map((item) => (
-                  <div key={item.label} className="rounded-xl p-3 shadow-card text-center" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined }}>
+                {[{label:'Verified Pro',color:'#0A84FF'},{label:'Top Rated',color:'#0A84FF'},{label:'Nearby',color:'#0A84FF'}].map((item) => (
+                  <div key={item.label} className="rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined }}>
                     <div className="h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold" style={{ background: item.color }}>✓</div>
                     <p className="text-xs font-semibold truncate" style={{ color: dm ? '#d1d5db' : '#262626' }}>{item.label}</p>
                     <p className="text-xs" style={{ color: dm ? '#525252' : '#a3a3a3' }}>★★★★★</p>
