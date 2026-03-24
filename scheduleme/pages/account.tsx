@@ -126,6 +126,12 @@ const Account: NextPage = () => {
   const DRAFT_ADDRESS = 'sm_draft_address';
   const DRAFT_PASSWORD = 'sm_draft_password';
   const [profileDraft, setProfileDraft] = useState(false);
+  const [eduVerified, setEduVerified] = useState<boolean | null>(null);
+  const [eduEmail, setEduEmail] = useState('');
+  const [eduCode, setEduCode] = useState('');
+  const [eduStep, setEduStep] = useState<'email'|'code'|'done'>('email');
+  const [eduLoading, setEduLoading] = useState(false);
+  const [eduError, setEduError] = useState('');
   const [addressDraft, setAddressDraft] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState(false);
 
@@ -138,6 +144,12 @@ const Account: NextPage = () => {
       setName(u.user_metadata?.full_name || '');
       setPhone(u.user_metadata?.phone || '');
       setAuthProvider(u.app_metadata?.provider || 'email');
+      // Load edu verified status
+      const sb2 = getSupabase();
+      sb2.from('profiles').select('edu_verified,school_email').eq('id', u.id).maybeSingle().then(({data}) => {
+        setEduVerified(data?.edu_verified ?? false);
+        if (data?.school_email) setEduEmail(data.school_email);
+      });
       if (u.user_metadata?.notif_prefs) setNotifPrefs(p => ({ ...p, ...u.user_metadata.notif_prefs }));
       if (u.user_metadata?.addresses) setAddresses(u.user_metadata.addresses);
       try {
@@ -698,7 +710,40 @@ const Account: NextPage = () => {
                 </div>
 
                 <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
-                  <span className="sm-eyebrow mb-2 block">Account</span>
+                  <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                  <span className="sm-eyebrow mb-2 block">Campus</span>
+                  <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: textPrimary }}>EDU Verification</h2>
+                  {eduVerified === true ? (
+                    <div className="flex items-center gap-3 mt-3 p-3 rounded-xl" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', border: dm ? '1px solid rgba(52,211,153,0.25)' : '1px solid #bbf7d0' }}>
+                      <span className="text-lg">✅</span>
+                      <div>
+                        <p className="text-sm font-bold" style={{ color: dm ? '#6ee7b7' : '#15803d' }}>EDU Verified</p>
+                        <p className="text-xs mt-0.5" style={{ color: textMuted }}>{eduEmail}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs" style={{ color: textMuted }}>Link your .edu email to unlock campus features on the home page.</p>
+                      {eduStep === 'email' && (
+                        <>
+                          <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@school.edu" className="form-input" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
+                          {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                          <button disabled={!eduEmail.endsWith('.edu') || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({school_email: eduEmail, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Failed'); } else { setEduStep('code'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduEmail.endsWith('.edu') ? '#0A84FF' : (dm?'#2c2c2e':'#e5e7eb'), color: eduEmail.endsWith('.edu')?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading ? 'Sending…' : 'Send Verification Code'}</button>
+                        </>
+                      )}
+                      {eduStep === 'code' && (
+                        <>
+                          <p className="text-xs" style={{ color: textMuted }}>Enter the 6-digit code sent to {eduEmail}</p>
+                          <input type="text" value={eduCode} onChange={e => setEduCode(e.target.value)} placeholder="123456" maxLength={6} className="form-input text-center text-xl font-bold tracking-[0.2em]" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
+                          {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                          <button disabled={eduCode.length !== 6 || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({action:'verify', code: eduCode, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Wrong code'); } else { setEduVerified(true); setEduStep('done'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduCode.length===6?'#0A84FF':(dm?'#2c2c2e':'#e5e7eb'), color: eduCode.length===6?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading?'Verifying…':'Verify Code'}</button>
+                          <button onClick={() => { setEduStep('email'); setEduCode(''); setEduError(''); }} className="w-full text-xs text-center" style={{ color: textMuted }}>← Use a different email</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <span className="sm-eyebrow mb-2 block">Account</span>
                   <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Manage</h2>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between px-4 py-2.5 rounded-xl border" style={{ borderColor: cardBorder }}>
