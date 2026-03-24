@@ -103,7 +103,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
             </div>
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
               {features.map((feature) => (
-                <li key={feature.title} className="js-feat p-7 group hover:-translate-y-1 transition-transform duration-300 rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)', boxShadow: dm ? 'none' : '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <li key={feature.title} className="js-feat p-7 group hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)', boxShadow: dm ? 'none' : '0 1px 3px rgba(0,0,0,0.06)' }}>
                   <div className="h-11 w-11 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#E8F3FF', color: '#0A84FF' }}>
                     {ICONS[feature.icon] ?? null}
                   </div>
@@ -128,7 +128,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "James T.", location: "Phoenix, AZ", service: "HVAC" },
                 { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Sandra K.", location: "Denver, CO", service: "Home Repair" },
               ].map((t) => (
-                <li key={t.name} className="js-testimonial p-7 rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
+                <li key={t.name} className="js-testimonial p-7 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
                   <div className="flex gap-0.5 mb-4" aria-label="5 stars">
                     {Array.from({ length: 5 }).map((_, i) => <span key={i} className="text-amber-400 text-sm" aria-hidden="true">★</span>)}
                   </div>
@@ -190,6 +190,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 <div className="flex flex-wrap gap-3">
                   <Link href="/business" className="btn-primary px-7 py-3">Learn More</Link>
                   <Link href="/business/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Join for Free</Link>
+                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Business Dashboard →</Link>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-4 w-full md:w-auto md:flex-shrink-0" role="list">
