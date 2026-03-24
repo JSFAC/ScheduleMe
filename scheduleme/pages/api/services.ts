@@ -35,7 +35,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Verify business ownership
   async function verifyOwner(business_id: string) {
-    const { data } = await supabase.from('businesses').select('id').eq('id', business_id).eq('owner_email', user.email).maybeSingle();
+    const { data } = await supabase.from('businesses').select('id').eq('id', business_id)
+      .or(`owner_email.eq.${user.email},owner_id.eq.${user.id}`)
+      .maybeSingle();
     return !!data;
   }
 
