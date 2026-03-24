@@ -57,6 +57,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // ─── STEP 1: Send verification code ──────────────────────────────────────
   if (!school_email || !isValidEmail(school_email)) return res.status(400).json({ error: 'Valid .edu email required' });
   if (!school_email.toLowerCase().endsWith('.edu')) return res.status(400).json({ error: 'Must be a .edu email address' });
+  const { data: _existEdu } = await supabase.from('profiles').select('id').eq('school_email', school_email.toLowerCase()).eq('edu_verified', true).neq('id', user.id).maybeSingle();
+  if (_existEdu) return res.status(409).json({ error: 'This .edu email is already linked to another account.' });
+  const { data: _existBiz } = await supabase.from('businesses').select('id').eq('school_email', school_email.toLowerCase()).eq('edu_verified', true).maybeSingle();
+  if (_existBiz) return res.status(409).json({ error: 'This .edu email is already linked to a business account.' });
   const submittedDomain = extractDomain(school_email.toLowerCase());
 
   if (account_type === 'business') {
