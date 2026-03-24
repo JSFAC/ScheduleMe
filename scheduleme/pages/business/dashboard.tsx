@@ -1687,20 +1687,20 @@ const BusinessDashboard: NextPage = () => {
                           {business?.edu_verified && <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', color: '#16a34a' }}><svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Verified</span>}
                         </div>
                         {!business?.edu_verified && (
-                          campusStep === 'email' ? (
+                          !campusCodeSent ? (
                             <div className="flex gap-2">
-                              <input type="email" value={campusEmail} onChange={e => setCampusEmail(e.target.value)} placeholder="you@university.edu" className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
-                              <button type="button" disabled={!campusEmail.endsWith('.edu') || campusSending} onClick={handleCampusSendCode} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusEmail.endsWith('.edu') ? '#0A84FF' : '#9ca3af' }}>{campusSending ? 'Sending…' : 'Send Code'}</button>
+                              <input type="email" value={campusEduEmail} onChange={e => setCampusEmail(e.target.value)} placeholder="you@university.edu" className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+                              <button type="button" disabled={!campusEduEmail.endsWith('.edu') || campusSending} onClick={handleCampusSendCode} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusEduEmail.endsWith('.edu') ? '#0A84FF' : '#9ca3af' }}>{campusSending ? 'Sending…' : 'Send Code'}</button>
                             </div>
                           ) : (
                             <div className="space-y-2">
-                              <p className="text-xs" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Enter the 6-digit code sent to {campusEmail}</p>
+                              <p className="text-xs" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Enter the 6-digit code sent to {campusEduEmail}</p>
                               <div className="flex gap-2">
                                 <input type="text" value={campusCode} onChange={e => setCampusCode(e.target.value)} placeholder="123456" maxLength={6} className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent text-center tracking-widest font-bold" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
                                 <button type="button" disabled={campusCode.length !== 6 || campusSending} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#0A84FF' : '#9ca3af' }}>{campusSending ? 'Verifying…' : 'Verify'}</button>
                               </div>
                               {campusVerifyError && <p className="text-xs text-red-500">{campusVerifyError}</p>}
-                              <button type="button" onClick={() => setCampusStep('email')} className="text-xs" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>← Use different email</button>
+                              <button type="button" onClick={() => setCampusCodeSent(false)} className="text-xs" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>← Use different email</button>
                             </div>
                           )
                         )}
