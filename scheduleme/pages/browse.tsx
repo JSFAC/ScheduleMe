@@ -240,6 +240,7 @@ const BrowsePage: NextPage = () => {
   const [userLat, setUserLat] = useState(null);
   const [userLng, setUserLng] = useState(null);
     const [usingRealData, setUsingRealData] = useState(false);
+  const [geoError, setGeoError] = useState(false);
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
 
@@ -269,7 +270,7 @@ const BrowsePage: NextPage = () => {
             if (real.length > 0) setUsingRealData(true);
             setBizLoading(false);
           },
-          () => { setBizList([]); setBizLoading(false); },
+          () => { setBizList([]); setBizLoading(false); setGeoError(true); },
           { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
         );
 
@@ -449,8 +450,11 @@ const BrowsePage: NextPage = () => {
                   <p className="text-sm mt-2 max-w-xs mx-auto" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
                     {searchQuery || activeCategory !== 'All'
                       ? 'Try a different search or category'
-                      : 'Enable location access to see local pros near you, or try increasing your radius above'}
+                      : 'Enable location access and click the button below to see local pros near you'}
                   </p>
+                  {geoError && (
+                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizList(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizList([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0 }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#0A84FF' }}>📍 Use My Location</button>
+                  )}
                 </div>
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
