@@ -31,13 +31,13 @@ html, body {
   }
 
   ::selection {
-    background: #0A84FF;
+    background: #007e6d;
     color: #ffffff;
   }
 
   /* Dark mode selection */
   html.dark ::selection {
-    background: #60a5fa;
+    background: #1e554c;
     color: #0a0a0a;
   }
 
@@ -47,7 +47,7 @@ html, body {
   }
 
   :focus-visible {
-    outline: 2px solid #0A84FF;
+    outline: 2px solid #007e6d;
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -203,7 +203,7 @@ html, body {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #0A84FF;
+  color: #007e6d;
 }
 .sm-eyebrow::before {
   content: '';
@@ -211,7 +211,7 @@ html, body {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #0A84FF;
+  background: #007e6d;
   flex-shrink: 0;
   animation: pulseDot 2.2s ease-in-out infinite;
 }
@@ -222,7 +222,7 @@ html, body {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(10,132,255,0.12);
-  box-shadow: 0 2px 12px rgba(10,132,255,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 12px rgba(0,126,109,0.08), 0 1px 3px rgba(0,0,0,0.04);
   transition: box-shadow 0.25s ease, transform 0.25s ease;
   cursor: pointer;
   padding: 0;
@@ -242,7 +242,7 @@ html, body {
   background: white;
   border-radius: 18px;
   border: 1px solid rgba(10,132,255,0.10);
-  box-shadow: 0 1px 6px rgba(10,132,255,0.05), 0 1px 3px rgba(0,0,0,0.03);
+  box-shadow: 0 1px 6px rgba(0,126,109,0.06), 0 1px 3px rgba(0,0,0,0.03);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
   cursor: pointer;
 }
@@ -449,7 +449,7 @@ html.dark .booking-card {
 /* Accent-wash pills */
 html.dark .bg-accent-wash.border-accent\/15 {
   background: #0d1f35 !important;
-  border-color: rgba(10,132,255,0.25) !important;
+  border-color: rgba((0,126,109,0.10)) !important;
 }
 
 /* White category bar */
@@ -524,7 +524,7 @@ html.dark [data-page-btn] {
   color: #9ca3af !important;
 }
 html.dark [data-page-btn-active] {
-  background: #0A84FF !important;
+  background: #007e6d !important;
   color: white !important;
 }
 
@@ -570,7 +570,7 @@ html.dark .biz-card [style*="rgba(255,255,255,0.95)"] {
 /* Pill/category tags using inline style — targeted via data-pill */
 html.dark [data-pill] {
   background: #0d2040 !important;
-  color: #60a5fa !important;
+  color: #1e554c !important;
 }
 
 /* Nav tiles right of chat box */
@@ -804,7 +804,7 @@ body:has(.onboarding-active) {
   width: 100%;
 }
 .input-premium:focus {
-  border-color: #0A84FF;
+  border-color: #007e6d;
   box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
 }
 .dark .input-premium {
@@ -813,13 +813,13 @@ body:has(.onboarding-active) {
   color: #f2f2f7;
 }
 .dark .input-premium:focus {
-  border-color: #0A84FF;
+  border-color: #007e6d;
   box-shadow: 0 0 0 4px rgba(10,132,255,0.2);
 }
 
 /* Glow button — premium CTA */
 .btn-glow {
-  background: #0A84FF;
+  background: #007e6d;
   color: white;
   font-weight: 700;
   border-radius: 14px;
@@ -827,7 +827,7 @@ body:has(.onboarding-active) {
   font-size: 15px;
   letter-spacing: -0.01em;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(10,132,255,0.35), 0 1px 3px rgba(10,132,255,0.3);
+  box-shadow: 0 4px 16px rgba(0,126,109,0.35), 0 1px 3px rgba(10,132,255,0.3);
   position: relative;
   overflow: hidden;
 }
@@ -846,7 +846,7 @@ body:has(.onboarding-active) {
 
 /* Premium tab indicator */
 .tab-active {
-  background: #0A84FF;
+  background: #007e6d;
   color: white;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(10,132,255,0.3);
@@ -887,14 +887,14 @@ body:has(.onboarding-active) {
 
 /* Message bubble — iMessage style */
 .bubble-user {
-  background: #0A84FF;
+  background: #007e6d;
   color: white;
   border-radius: 20px 20px 4px 20px;
   padding: 10px 14px;
   font-size: 15px;
   line-height: 1.4;
   max-width: 280px;
-  box-shadow: 0 2px 8px rgba(10,132,255,0.25);
+  box-shadow: 0 2px 8px rgba((0,126,109,0.10));
 }
 .bubble-system {
   background: white;

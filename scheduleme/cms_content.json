@@ -22,8 +22,8 @@
   },
   "hero": {
     "eyebrow": "Local services, done right",
-    "headline": "Book trusted local pros,\nin seconds.",
-    "subheadline": "From tutors to photographers to home repair \u2014 ScheduleMe connects you with vetted local professionals and student service providers on campus. Browse, book, and pay in one place.",
+    "headline": "Book trusted students,\nin seconds.",
+    "subheadline": "From stylists to photographers to home repair \u2014 ScheduleMe connects you with vetted local professionals and student service providers on campus. Browse, book, and pay in one place.",
     "cta_primary": {
       "label": "Get Started for Free",
       "href": "/signin?mode=signup"

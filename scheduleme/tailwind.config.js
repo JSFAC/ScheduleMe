@@ -10,8 +10,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        accent: '#0A84FF',
-        'accent-dark': '#0066CC',
+        accent: '#007e6d',
+        'accent-dark': '#1e554c',
         'accent-light': '#E8F3FF',
         'accent-wash': '#EDF5FF',
         'accent-wash-deep': '#DCF0FF',
@@ -30,7 +30,7 @@ module.exports = {
       },
       fontFamily: {
         sans: [
-          'SF Pro Display',
+          'Plus Jakarta Sans',
           '-apple-system',
           'BlinkMacSystemFont',
           '"Segoe UI"',

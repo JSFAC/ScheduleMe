@@ -126,7 +126,7 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
           <button onClick={() => imgInputRef.current?.click()}
             disabled={uploading === 'image' || images.length >= 6}
             className="text-xs font-bold px-3 py-1.5 rounded-xl transition-all disabled:opacity-40"
-            style={{ background: 'rgba(10,132,255,0.1)', color: '#0A84FF' }}>
+            style={{ background: 'rgba(10,132,255,0.1)', color: '#007e6d' }}>
             + Add Photo
           </button>
         </div>
@@ -137,7 +137,7 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           className="rounded-2xl border-2 border-dashed transition-all p-3 min-h-[120px]"
-          style={{ borderColor: dragOver ? '#0A84FF' : border, background: dragOver ? 'rgba(10,132,255,0.05)' : 'transparent' }}>
+          style={{ borderColor: dragOver ? '#007e6d' : border, background: dragOver ? 'rgba(10,132,255,0.05)' : 'transparent' }}>
 
           {images.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -154,7 +154,7 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   {i === 0 && (
                     <div className="absolute top-1.5 left-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-md"
-                      style={{ background: '#0A84FF', color: 'white' }}>Cover</div>
+                      style={{ background: '#007e6d', color: 'white' }}>Cover</div>
                   )}
                   <button onClick={() => deleteMedia(url, 'image')}
                     className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -181,7 +181,7 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
         {/* Upload progress */}
         {uploading === 'image' && progress > 0 && (
           <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: border }}>
-            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: '#0A84FF' }} />
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: '#007e6d' }} />
           </div>
         )}
       </div>
@@ -197,7 +197,7 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
             <button onClick={() => vidInputRef.current?.click()}
               disabled={uploading === 'video'}
               className="text-xs font-bold px-3 py-1.5 rounded-xl transition-all disabled:opacity-40"
-              style={{ background: 'rgba(10,132,255,0.1)', color: '#0A84FF' }}>
+              style={{ background: 'rgba(10,132,255,0.1)', color: '#007e6d' }}>
               + Add Video
             </button>
           )}
@@ -218,13 +218,13 @@ export default function MediaUploader({ businessId, currentImages, currentVideo,
           <button onClick={() => vidInputRef.current?.click()} disabled={uploading === 'video'}
             onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)}
             className="w-full rounded-2xl border-2 border-dashed py-8 flex flex-col items-center gap-2 transition-all disabled:opacity-50"
-            style={{ borderColor: dragOver ? '#0A84FF' : border }}>
+            style={{ borderColor: dragOver ? '#007e6d' : border }}>
             <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} style={{ color: text2 }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
             </svg>
             {uploading === 'video' ? (
               <div className="w-32 h-1.5 rounded-full overflow-hidden" style={{ background: border }}>
-                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: '#0A84FF' }} />
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: '#007e6d' }} />
               </div>
             ) : (
               <p className="text-sm" style={{ color: text2 }}>Drag video here or click Add Video</p>

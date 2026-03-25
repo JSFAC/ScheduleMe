@@ -224,7 +224,7 @@ const CampusPage: NextPage = () => {
             {!eduVerified && canView && (
               <button onClick={() => setShowVerify(true)}
                 className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl border transition-all"
-                style={{ borderColor: '#0A84FF', color: '#0A84FF', background: dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF' }}>
+                style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF' }}>
                 Verify .edu →
               </button>
             )}
@@ -284,7 +284,7 @@ const CampusPage: NextPage = () => {
                 </span>
                 <button onClick={() => setShowVerify(true)}
                   className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
-                  style={{ background: '#0A84FF', color: 'white' }}>
+                  style={{ background: '#007e6d', color: 'white' }}>
                   Verify
                 </button>
               </div>
@@ -308,8 +308,8 @@ const CampusPage: NextPage = () => {
                 <button key={cat} onClick={() => setActiveCategory(cat)}
                   className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border transition-all"
                   style={activeCategory === cat
-                    ? { background: '#0A84FF', borderColor: '#0A84FF', color: 'white' }
-                    : { background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'transparent', color: dm ? '#93c5fd' : '#0A84FF' }}>
+                    ? { background: '#007e6d', borderColor: '#007e6d', color: 'white' }
+                    : { background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'transparent', color: dm ? '#93c5fd' : '#007e6d' }}>
                   {cat}
                 </button>
               ))}
@@ -352,7 +352,7 @@ const CampusPage: NextPage = () => {
                     <div className="px-4 py-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                          style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#0A84FF' }}>
+                          style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#007e6d' }}>
                           {biz.category}
                         </span>
                         <div className="flex items-center gap-1">

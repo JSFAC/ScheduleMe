@@ -121,7 +121,7 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
 
             <button onClick={submit} disabled={!rating || submitting}
               className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all disabled:opacity-40"
-              style={{ background: rating ? '#0A84FF' : (dm ? '#262626' : '#e5e7eb'), color: rating ? 'white' : (dm ? '#6b7280' : '#a3a3a3') }}>
+              style={{ background: rating ? '#007e6d' : (dm ? '#262626' : '#e5e7eb'), color: rating ? 'white' : (dm ? '#6b7280' : '#a3a3a3') }}>
               {submitting ? 'Submitting…' : 'Submit Review'}
             </button>
           </div>

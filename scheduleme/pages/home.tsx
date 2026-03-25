@@ -559,7 +559,7 @@ const HomePage: NextPage = () => {
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: dm ? '#93c5fd' : '#1d4ed8' }}>Are you a student?</p>
-                  <p className="text-xs truncate" style={{ color: dm ? '#60a5fa' : '#3b82f6' }}>Verify your .edu email to unlock your campus marketplace</p>
+                  <p className="text-xs truncate" style={{ color: dm ? '#1e554c' : '#3b82f6' }}>Verify your .edu email to unlock your campus marketplace</p>
                 </div>
               </div>
               <Link href="/campus" scroll={false}
