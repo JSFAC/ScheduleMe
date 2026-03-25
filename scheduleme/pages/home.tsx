@@ -46,6 +46,13 @@ const QUICK_CATS = [
   { label: 'Painting',   d: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
 ];
 
+const CAMPUS_PULSE = [
+  { title: 'Trending on campus', value: 'Haircuts + tutoring', sub: 'Updated today' },
+  { title: 'Avg response time', value: '~18 minutes', sub: 'Last 7 days' },
+  { title: 'New pros nearby', value: '12 this week', sub: 'Verified students' },
+];
+
+
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {
   const { dm } = useDm();
   const [query, setQuery] = useState('');
@@ -550,6 +557,39 @@ const HomePage: NextPage = () => {
           </div>
         </div>
 
+        {/* Campus pulse strip */}
+        <section className="border-b" style={{ background: dm ? '#0f1117' : '#F7F1EA', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+          <div className="mx-auto max-w-6xl px-6 py-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: dm ? '#9ca3af' : '#6b5f55' }}>
+                Campus Pulse
+              </p>
+              <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#8a7f74' }}>
+                Updated daily
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {CAMPUS_PULSE.map((p) => (
+                <div
+                  key={p.title}
+                  className="rounded-2xl px-4 py-3"
+                  style={{
+                    background: dm ? '#151515' : 'white',
+                    border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.06)',
+                    boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)',
+                  }}
+                >
+                  <p className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{p.title}</p>
+                  <p className="text-[16px] font-black mt-1" style={{ color: dm ? '#f3f4f6' : '#171717', letterSpacing: '-0.02em' }}>
+                    {p.value}
+                  </p>
+                  <p className="text-[10px] mt-1" style={{ color: dm ? '#6b7280' : '#8a7f74' }}>{p.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && (
           <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
@@ -625,7 +665,7 @@ const HomePage: NextPage = () => {
         )}
 
         {/* Scrollable business rows */}
-        <div className="py-8 space-y-10">
+        <div className="py-6 space-y-8">
           {(() => {
             const pool = realBizList.length > 0
               ? realBizList

@@ -112,7 +112,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
               {features.map((feature) => (
                 <li key={feature.title} className="js-feat p-7 group hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)', boxShadow: dm ? 'none' : '0 1px 3px rgba(0,0,0,0.06)' }}>
-                  <div className="h-11 w-11 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300" style={{ background: dm ? 'rgba(10, 255, 108, 0.15)' : 'rgb(213, 225, 222)', color: '#007e6d' }}>
+                  <div className="h-11 w-11 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300" style={{ background: dm ? 'rgba(213, 225, 222, 0.15)' : 'rgb(213, 225, 222)', color: '#007e6d' }}>
                     {ICONS[feature.icon] ?? null}
                   </div>
                   <h3 className="text-base font-semibold mb-2" style={{ color: dm ? 'white' : '#171717' }}>{feature.title}</h3>
@@ -142,7 +142,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                   </div>
                   <blockquote className="text-sm leading-relaxed mb-5" style={{ color: dm ? '#a3a3a3' : '#404040' }}>&ldquo;{t.quote}&rdquo;</blockquote>
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full flex items-center justify-center text-accent font-bold text-sm flex-shrink-0" style={{ background: dm ? 'rgba(10,132,255,0.15)' : 'rgb(213, 225, 222)' }}>{t.name.charAt(0)}</div>
+                    <div className="h-9 w-9 rounded-full flex items-center justify-center text-accent font-bold text-sm flex-shrink-0" style={{ background: dm ? 'rgba(213, 225, 222,0.15)' : 'rgb(213, 225, 222)' }}>{t.name.charAt(0)}</div>
                     <div>
                       <p className="text-sm font-semibold" style={{ color: dm ? 'white' : '#171717' }}>{t.name}</p>
                       <p className="text-xs" style={{ color: dm ? '#525252' : '#a3a3a3' }}>{t.location} · {t.service}</p>
