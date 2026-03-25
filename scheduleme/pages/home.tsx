@@ -137,7 +137,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
       <h1 className="text-[2.6rem] font-black text-white mb-5" style={{ letterSpacing: '-0.035em', lineHeight: '1.05' }} style={{ letterSpacing: '-0.03em', lineHeight: 1.08 }}>
         What do you need<br />done today?
       </h1>
-      <div className={`relative rounded-2xl border transition-all duration-200 ${focused ? 'border-accent shadow-[0_0_0_4px_rgba(10,132,255,0.12),0_8px_32px_rgba(0,0,0,0.08)]' : ''}`}
+      <div className={`relative rounded-2xl border transition-all duration-200 ${focused ? 'border-accent shadow-[0_0_0_4px_rgba(0,126,109,0.12),0_10px_28px_rgba(0,0,0,0.10)]' : 'shadow-[0_6px_18px_rgba(0,0,0,0.08)]'}`}
         style={{ background: dm ? '#111111' : 'white', borderColor: focused ? undefined : (dm ? '#262626' : '#e5e5e5') }}>
         <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
           <svg className="h-3.5 w-3.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -187,7 +187,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
             <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
               className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? '#93c5fd' : '#2563eb', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
+              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? 'rgb(213, 225, 222)d' : '#007e6d', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)'; }}>
               {label}
@@ -206,7 +206,7 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
   const cardBg = dm ? '#1c1c1e' : 'white';
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
-      style={{ width: 'clamp(180px, 48vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
+      style={{ width: 'clamp(150px, 22vw, 200px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
       {/* Square image */}
       <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }} className="overflow-hidden">
         <img src={biz.coverUrl} alt={biz.name}
@@ -227,13 +227,13 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
         </div>
       </div>
       {/* Body — one item per line */}
-      <div className="p-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
+      <div className="p-2 flex flex-col gap-0.5" style={{ background: cardBg }}>
         <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full self-start" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{biz.category}</span>
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full self-start" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#007e6d' }}>{biz.category}</span>
         <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
         <div className="flex items-center gap-0.5">
           {[1,2,3,4,5].map(i => (
-            <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+            <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? (dm ? 'text-emerald-400' : 'text-emerald-600') : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
           ))}
@@ -299,7 +299,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
           <span className="text-[11px] text-neutral-400 font-medium hidden sm:block">{subtitle}</span>
         </div>
         <Link href={href} scroll={false}
-          className="text-[11px] font-black uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0" style={{ color: '#0A84FF' }}>
+          className="text-[11px] font-black uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0" style={{ color: '#007e6d' }}>
           See all →
         </Link>
       </div>
@@ -308,10 +308,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#EDF5FF' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#FCFAF6' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#EDF5FF' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#FCFAF6' }} />
 
         <div
           ref={scrollRef}
@@ -468,8 +468,8 @@ const HomePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
-        <div className="border-b py-8" style={{ background: dm ? '#111' : '#3b82f6' }}>
+      <div className="min-h-screen pb-20 md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#FCFAF6' }}>
+        <div className="border-b py-8" style={{ background: dm ? '#111' : '#007e6d' }}>
           <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
         </div>
         <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -485,14 +485,16 @@ const HomePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #FCFAF6)' }} data-page-bg="true">
 
         {/* Search hero — flat solid blue, clean */}
-        <div className="border-b" style={{
-          background: '#3b82f6',
-          borderColor: 'rgba(0,0,0,0.08)'
-        }}>
-          <div className="relative mx-auto max-w-4xl px-6 pt-9 pb-9">
+          <div className="border-b" style={{
+            background: dm
+              ? '#0f1117'
+              : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)',
+            borderColor: 'rgba(0,0,0,0.06)'
+          }}>
+          <div className="relative mx-auto max-w-4xl px-6 pt-7 pb-7">
             <div className="flex items-center gap-10">
               {/* Search — constrained width */}
               <div className="flex-1 min-w-0 max-w-lg">
@@ -510,13 +512,13 @@ const HomePage: NextPage = () => {
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md text-left"
                     style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
                     <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
-                      <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                       </svg>
                     </div>
                     <div>
                       <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
-                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#3b82f6' }}>{tile.sub}</p>
+                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#007e6d' }}>{tile.sub}</p>
                     </div>
                   </button>
                 ) : (
@@ -524,13 +526,13 @@ const HomePage: NextPage = () => {
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
                     style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
                     <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
-                      <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                       </svg>
                     </div>
                     <div>
                       <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
-                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#3b82f6' }}>{tile.sub}</p>
+                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#007e6d' }}>{tile.sub}</p>
                     </div>
                   </Link>
                 ))}
@@ -546,12 +548,12 @@ const HomePage: NextPage = () => {
               <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label
-                  ? { background: '#0A84FF', borderColor: '#0A84FF' }
-                  : { background: dm ? 'rgba(10,132,255,0.2)' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.4)' : 'rgba(10,132,255,0.15)' }}>
-                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0A84FF') }}>
+                  ? { background: '#007e6d', borderColor: '#007e6d' }
+                  : { background: dm ? 'rgba(10,132,255,0.2)' : '#FCFAF6', borderColor: dm ? 'rgba(10,132,255,0.4)' : 'rgba(10,132,255,0.15)' }}>
+                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)d' : '#007e6d') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0A84FF') }}>{cat.label}</span>
+                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)d' : '#007e6d') }}>{cat.label}</span>
               </button>
             ))}
           </div>
@@ -594,17 +596,17 @@ const HomePage: NextPage = () => {
         {eduVerified === false && (
           <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
             <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
-              style={{ background: dm ? 'rgba(10,132,255,0.12)' : '#EBF4FF', border: dm ? '1px solid rgba(10,132,255,0.3)' : '1px solid rgba(10,132,255,0.2)' }}>
+              style={{ background: dm ? 'rgba(213, 225, 222, 0.15)' : '#EBF4FF', border: dm ? '1px solid rgba(213, 225, 222, 0.15)' : '1px solid rgba(213, 225, 222, 0.15)' }}>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#93c5fd' : '#1d4ed8' }}>Are you a student?</p>
-                  <p className="text-xs truncate" style={{ color: dm ? '#1e554c' : '#3b82f6' }}>Verify your .edu email to unlock your campus marketplace</p>
+                  <p className="text-sm font-bold truncate" style={{ color: dm ? 'rgb(213, 225, 222)d' : '#1d4ed8' }}>Are you a student?</p>
+                  <p className="text-xs truncate" style={{ color: dm ? '#1e554c' : '#007e6d' }}>Verify your .edu email to unlock your campus marketplace</p>
                 </div>
               </div>
               <Link href="/campus" scroll={false}
                 className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
-                style={{ background: '#0A84FF', color: 'white' }}>
+                style={{ background: '#007e6d', color: 'white' }}>
                 Verify Now →
               </Link>
               <button onClick={() => setEduVerified(true)} className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full ml-1" style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}><svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
@@ -620,7 +622,7 @@ const HomePage: NextPage = () => {
               {/* Header */}
               <div className="flex items-center justify-between px-4 pt-4 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0A84FF' }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#007e6d' }}>
                     <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
                     </svg>
@@ -665,7 +667,7 @@ const HomePage: NextPage = () => {
         )}
 
         {/* Scrollable business rows */}
-        <div className="py-6 space-y-8">
+        <div className="py-5 space-y-6">
           {(() => {
             const pool = realBizList.length > 0
               ? realBizList
@@ -721,7 +723,7 @@ const HomePage: NextPage = () => {
           <div className="text-4xl mb-3">🎉</div>
           <p className="font-bold text-lg mb-1" style={{ color: dm ? '#f2f2f7' : '#111' }}>Referral received!</p>
           <p className="text-sm mb-6" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>We'll reach out to {referName} and let you know if they join.</p>
-          <button onClick={() => { setShowReferModal(false); setReferSent(false); setReferName(''); }} className="w-full py-3 rounded-2xl font-bold text-white" style={{ background: '#0A84FF' }}>Done</button>
+          <button onClick={() => { setShowReferModal(false); setReferSent(false); setReferName(''); }} className="w-full py-3 rounded-2xl font-bold text-white" style={{ background: '#007e6d' }}>Done</button>
         </div>
       ) : (
         <>
@@ -735,7 +737,7 @@ const HomePage: NextPage = () => {
             </button>
           </div>
           <input type="text" value={referName} onChange={e => setReferName(e.target.value)} placeholder="Business or person's name" className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-4" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#f2f2f7' : '#111', border: dm ? '1.5px solid #3a3a3c' : '1.5px solid #e5e7eb' }} />
-          <button disabled={!referName.trim()} onClick={() => { if (referName.trim()) setReferSent(true); }} className="w-full py-3.5 rounded-2xl font-bold text-sm" style={{ background: referName.trim() ? '#0A84FF' : (dm ? '#2c2c2e' : '#e5e7eb'), color: referName.trim() ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}>Submit Referral</button>
+          <button disabled={!referName.trim()} onClick={() => { if (referName.trim()) setReferSent(true); }} className="w-full py-3.5 rounded-2xl font-bold text-sm" style={{ background: referName.trim() ? '#007e6d' : (dm ? '#2c2c2e' : '#e5e7eb'), color: referName.trim() ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}>Submit Referral</button>
         </>
       )}
     </div>
@@ -746,7 +748,7 @@ const HomePage: NextPage = () => {
       {/* Floating feedback button */}
       <button onClick={() => setShowFeedback(true)}
         className="fixed bottom-24 md:bottom-6 right-4 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
-        style={{ background: '#0A84FF', color: 'white' }}>
+        style={{ background: '#007e6d', color: 'white' }}>
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
         </svg>
