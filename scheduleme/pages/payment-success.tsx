@@ -100,7 +100,7 @@ const PaymentSuccessPage: NextPage = () => {
       {!confettiDone && (
         <div className="fixed inset-0 z-10 pointer-events-none overflow-hidden">
           {Array.from({ length: 24 }).map((_, i) => {
-            const colors = ['#0A84FF', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
+            const colors = ['#007e6d', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
             const color = colors[i % colors.length];
             const angle = (i / 24) * 360;
             const delay = (i % 6) * 0.08;
@@ -234,7 +234,7 @@ const PaymentSuccessPage: NextPage = () => {
                           {booking.business_phone && (
                             <a href={`tel:${booking.business_phone}`}
                               className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg"
-                              style={{ background: dm ? 'rgba(10,132,255,0.12)' : '#eff6ff', color: '#0A84FF', border: `1px solid ${dm ? 'rgba(10,132,255,0.2)' : '#bfdbfe'}` }}>
+                              style={{ background: dm ? 'rgba(10,132,255,0.12)' : '#eff6ff', color: '#007e6d', border: `1px solid ${dm ? 'rgba(10,132,255,0.2)' : '#bfdbfe'}` }}>
                               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                               </svg>
@@ -326,7 +326,7 @@ const PaymentSuccessPage: NextPage = () => {
             <Link
               href="/bookings"
               className="w-full py-4 rounded-2xl text-white font-black text-base text-center block transition-all active:scale-95"
-              style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
+              style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
               View All Bookings
             </Link>
             <Link

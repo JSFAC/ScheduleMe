@@ -94,7 +94,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const isSel = selected === biz.id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#0A84FF':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         const marker = L.marker([biz.lat!, biz.lng!], { icon }).addTo(map).on('click', () => onSelect(biz.id));
@@ -113,7 +113,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const isSel = selected === id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#0A84FF':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         marker.setIcon(icon);
@@ -151,8 +151,8 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
       <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
         <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{biz.category}</span>
-          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#0A84FF' }}>{'$'.repeat(biz.price_tier)}</span> : null}
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#007e6d' }}>{biz.category}</span>
+          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
           <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
           </span>
@@ -366,7 +366,7 @@ const BrowsePage: NextPage = () => {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#0A84FF', border: dm ? '1px solid #262626' : 'none' }
+                      ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#007e6d', border: dm ? '1px solid #262626' : 'none' }
                       : { color: 'white', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
@@ -401,7 +401,7 @@ const BrowsePage: NextPage = () => {
                     {(['distance', 'rating', 'reviews'] as const).map(mode => (
                       <button key={mode} onClick={() => { setSortMode(mode); setSortOpen(false); }}
                         className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent-wash flex items-center justify-between gap-3"
-                        style={{ color: sortMode === mode ? '#0A84FF' : (dm ? '#d1d5db' : '#374151') }}>
+                        style={{ color: sortMode === mode ? '#007e6d' : (dm ? '#d1d5db' : '#374151') }}>
                         {SORT_LABELS[mode]}
                         {sortMode === mode && (
                           <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -423,8 +423,8 @@ const BrowsePage: NextPage = () => {
               <button key={cat} onClick={() => setActiveCategory(cat)}
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
                 style={activeCategory === cat
-                  ? { background: '#0A84FF', color: 'white', borderColor: '#0A84FF' }
-                  : { background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#0A84FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
+                  ? { background: '#007e6d', color: 'white', borderColor: '#007e6d' }
+                  : { background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#007e6d', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
                 {cat}
               </button>
             ))}
@@ -435,7 +435,7 @@ const BrowsePage: NextPage = () => {
           <div className="flex items-center justify-center gap-2 px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <span className="text-[11px] font-semibold shrink-0" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Within</span>
             {[5, 10, 25, 50, 100].map(r => (
-              <button key={r} onClick={() => setRadius(r)} className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition-all" style={radius === r ? { background: '#0A84FF', color: 'white', borderColor: '#0A84FF' } : { background: 'transparent', color: dm ? '#9ca3af' : '#6b7280', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>{r} mi</button>
+              <button key={r} onClick={() => setRadius(r)} className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition-all" style={radius === r ? { background: '#007e6d', color: 'white', borderColor: '#007e6d' } : { background: 'transparent', color: dm ? '#9ca3af' : '#6b7280', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>{r} mi</button>
             ))}
           </div>
         </div>
@@ -462,7 +462,7 @@ const BrowsePage: NextPage = () => {
                       : 'Enable location access and click the button below to see local pros near you'}
                   </p>
                   {geoError && (
-                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizList(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizList([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0 }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#0A84FF' }}>📍 Use My Location</button>
+                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizList(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizList([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0 }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#007e6d' }}>📍 Use My Location</button>
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
@@ -528,7 +528,7 @@ const BrowsePage: NextPage = () => {
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
                     <button key={p} onClick={() => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       className="w-9 h-9 rounded-xl text-sm font-bold transition-all"
-                      style={page === p ? { background: '#0A84FF', color: 'white' } : { background: dm ? '#171717' : 'white', color: dm ? '#9ca3af' : '#6b7280', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e7eb' }}>
+                      style={page === p ? { background: '#007e6d', color: 'white' } : { background: dm ? '#171717' : 'white', color: dm ? '#9ca3af' : '#6b7280', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e7eb' }}>
                       {p}
                     </button>
                   ))}
@@ -550,14 +550,14 @@ const BrowsePage: NextPage = () => {
                 <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
               </div>
               {selectedMapBizData && (
-                <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#0A84FF' }}>
+                <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
                   <div className="flex items-center gap-3 p-3">
                     <img src={selectedMapBizData.coverUrl} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                     </div>
-                    <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#0A84FF', color: 'white' }}>View</button>
+                    <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
                     <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5', color: dm ? '#9ca3af' : '#6b7280' }}>
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -589,7 +589,7 @@ const BrowsePage: NextPage = () => {
                   {filtered.map((biz, i) => (
                     <button key={biz.id} onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
                       className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
-                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#0A84FF' : (dm ? '#262626' : 'rgba(10,132,255,0.1)'), background: dm ? '#171717' : 'white' }}>
+                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#007e6d' : (dm ? '#262626' : 'rgba(10,132,255,0.1)'), background: dm ? '#171717' : 'white' }}>
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
                         <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
                       </div>
@@ -606,13 +606,13 @@ const BrowsePage: NextPage = () => {
                     <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
                   </div>
                   {selectedMapBizData && (
-                    <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#0A84FF' }}>
+                    <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
                       <img src={selectedMapBizData.coverUrl} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                         <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                       </div>
-                      <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#0A84FF', color: 'white' }}>View</button>
+                      <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
                       <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: dm ? '#9ca3af' : '#6b7280' }}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>

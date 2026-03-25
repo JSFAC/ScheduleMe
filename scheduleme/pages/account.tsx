@@ -28,7 +28,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () =
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={onChange}
       className="relative inline-flex flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
-      style={{ width: '44px', height: '24px', backgroundColor: checked ? '#0A84FF' : '#d1d5db' }}>
+      style={{ width: '44px', height: '24px', backgroundColor: checked ? '#007e6d' : '#d1d5db' }}>
       <span className="pointer-events-none inline-block rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ease-in-out"
         style={{ width: '20px', height: '20px', marginTop: '2px', transform: checked ? 'translateX(22px)' : 'translateX(2px)' }} />
     </button>
@@ -331,9 +331,9 @@ const Account: NextPage = () => {
         @keyframes tabIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .tab-panel { animation: tabIn 0.22s ease both; }
         .form-input { width: 100%; padding: 10px 14px; border-radius: 12px; font-size: 14px; outline: none; border: 1.5px solid ${inputBorder}; background: ${inputBg}; color: ${textPrimary}; }
-        .form-input:focus { border-color: #0A84FF; }
+        .form-input:focus { border-color: #007e6d; }
         .form-input:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { display: inline-flex; align-items: center; justify-content: center; background: #0A84FF; color: white; font-weight: 700; font-size: 14px; padding: 10px 20px; border-radius: 12px; transition: opacity 0.15s; }
+        .btn-primary { display: inline-flex; align-items: center; justify-content: center; background: #007e6d; color: white; font-weight: 700; font-size: 14px; padding: 10px 20px; border-radius: 12px; transition: opacity 0.15s; }
         .btn-primary:hover { opacity: 0.9; }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         .sm-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: ${textMuted}; }
@@ -346,7 +346,7 @@ const Account: NextPage = () => {
           <div className="relative mx-auto max-w-5xl px-6 pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <label className="relative h-14 w-14 rounded-2xl flex-shrink-0 cursor-pointer group overflow-hidden"
-                style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0055CC 100%)' }}>
+                style={{ background: 'linear-gradient(135deg,#007e6d 0%,#0055CC 100%)' }}>
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
                 ) : (
@@ -381,7 +381,7 @@ const Account: NextPage = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length, icon: 'M4.5 12.75l6 6 9-13.5', color: '#16a34a', bg: dm ? 'rgba(22,163,74,0.15)' : '#f0fdf4' },
-              { label: 'Saved Addresses', value: addresses.length, icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z', color: '#0A84FF', bg: dm ? 'rgba(10,132,255,0.15)' : '#eff6ff' },
+              { label: 'Saved Addresses', value: addresses.length, icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z', color: '#007e6d', bg: dm ? 'rgba(10,132,255,0.15)' : '#eff6ff' },
             ].map(s => (
               <div key={s.label} className="rounded-2xl border p-4 flex items-center gap-3" style={{ background: cardBg, borderColor: cardBorder }}>
                 <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: s.bg }}>
@@ -432,7 +432,7 @@ const Account: NextPage = () => {
               <button key={t.key} onClick={() => setTab(t.key)}
                 className="flex items-center gap-2 px-4 py-2 rounded-[14px] text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0"
                 style={tab === t.key
-                  ? { background: '#0A84FF', color: 'white' }
+                  ? { background: '#007e6d', color: 'white' }
                   : { color: textSecondary, background: 'transparent' }}>
                 {t.icon}{t.label}
               </button>
@@ -464,7 +464,7 @@ const Account: NextPage = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="font-semibold text-sm" style={{ color: textPrimary }}>{addr.label}</p>
-                      {addr.default && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide" style={{ background: dm ? '#0d1f35' : '#eff6ff', color: '#0A84FF' }}>Default</span>}
+                      {addr.default && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide" style={{ background: dm ? '#0d1f35' : '#eff6ff', color: '#007e6d' }}>Default</span>}
                     </div>
                     <p className="text-sm" style={{ color: textSecondary }}>{addr.address}</p>
                     {addr.city && <p className="text-sm" style={{ color: textMuted }}>{addr.city}</p>}
@@ -728,7 +728,7 @@ const Account: NextPage = () => {
                         <>
                           <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@school.edu" className="form-input" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
                           {eduError && <p className="text-xs text-red-500">{eduError}</p>}
-                          <button disabled={!eduEmail.endsWith('.edu') || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({school_email: eduEmail, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Failed'); } else { setEduStep('code'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduEmail.endsWith('.edu') ? '#0A84FF' : (dm?'#2c2c2e':'#e5e7eb'), color: eduEmail.endsWith('.edu')?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading ? 'Sending…' : 'Send Verification Code'}</button>
+                          <button disabled={!eduEmail.endsWith('.edu') || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({school_email: eduEmail, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Failed'); } else { setEduStep('code'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduEmail.endsWith('.edu') ? '#007e6d' : (dm?'#2c2c2e':'#e5e7eb'), color: eduEmail.endsWith('.edu')?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading ? 'Sending…' : 'Send Verification Code'}</button>
                         </>
                       )}
                       {eduStep === 'code' && (
@@ -736,7 +736,7 @@ const Account: NextPage = () => {
                           <p className="text-xs" style={{ color: textMuted }}>Enter the 6-digit code sent to {eduEmail}</p>
                           <input type="text" value={eduCode} onChange={e => setEduCode(e.target.value)} placeholder="123456" maxLength={6} className="form-input text-center text-xl font-bold tracking-[0.2em]" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
                           {eduError && <p className="text-xs text-red-500">{eduError}</p>}
-                          <button disabled={eduCode.length !== 6 || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({action:'verify', code: eduCode, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Wrong code'); } else { setEduVerified(true); setEduStep('done'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduCode.length===6?'#0A84FF':(dm?'#2c2c2e':'#e5e7eb'), color: eduCode.length===6?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading?'Verifying…':'Verify Code'}</button>
+                          <button disabled={eduCode.length !== 6 || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({action:'verify', code: eduCode, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Wrong code'); } else { setEduVerified(true); setEduStep('done'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduCode.length===6?'#007e6d':(dm?'#2c2c2e':'#e5e7eb'), color: eduCode.length===6?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading?'Verifying…':'Verify Code'}</button>
                           <button onClick={() => { setEduStep('email'); setEduCode(''); setEduError(''); }} className="w-full text-xs text-center" style={{ color: textMuted }}>← Use a different email</button>
                         </>
                       )}
@@ -758,7 +758,7 @@ const Account: NextPage = () => {
                       </div>
                       <button onClick={toggleDark}
                         className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
-                        style={{ background: darkMode ? '#0A84FF' : '#d1d5db' }}>
+                        style={{ background: darkMode ? '#007e6d' : '#d1d5db' }}>
                         <span className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200"
                           style={{ transform: darkMode ? 'translateX(20px)' : 'translateX(0px)' }} />
                       </button>

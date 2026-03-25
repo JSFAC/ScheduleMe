@@ -171,7 +171,7 @@ const MessagesPage: NextPage = () => {
               </div>
               <Link href="/bookings" scroll={false}
                 className="flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl"
-                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#0A84FF' }}>
+                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#007e6d' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                 Bookings
               </Link>
@@ -315,7 +315,7 @@ const MessagesPage: NextPage = () => {
                       />
                       <button onClick={sendMessage} disabled={!input.trim() || sending}
                         className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
-                        style={{ background: input.trim() ? '#0A84FF' : '#e5e7eb' }}>
+                        style={{ background: input.trim() ? '#007e6d' : '#e5e7eb' }}>
                         <svg className={`h-4 w-4 ${input.trim() ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                         </svg>

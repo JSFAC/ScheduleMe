@@ -53,7 +53,7 @@ export default function FeedbackModal({ onClose }: Props) {
               We read every single piece of feedback. It directly shapes what we build next.
             </p>
             <button onClick={onClose} className="w-full py-3 rounded-2xl text-sm font-bold"
-              style={{ background: '#0A84FF', color: 'white' }}>
+              style={{ background: '#007e6d', color: 'white' }}>
               Close
             </button>
           </div>
@@ -82,9 +82,9 @@ export default function FeedbackModal({ onClose }: Props) {
                 <button key={t} onClick={() => setTopic(t === topic ? '' : t)}
                   className="text-xs px-3 py-1.5 rounded-full border font-medium transition-all"
                   style={{
-                    background: topic === t ? '#0A84FF' : (dm ? '#1a1a1a' : '#f5f5f5'),
+                    background: topic === t ? '#007e6d' : (dm ? '#1a1a1a' : '#f5f5f5'),
                     color: topic === t ? 'white' : text2,
-                    borderColor: topic === t ? '#0A84FF' : inputBorder,
+                    borderColor: topic === t ? '#007e6d' : inputBorder,
                   }}>
                   {t}
                 </button>
@@ -114,7 +114,7 @@ export default function FeedbackModal({ onClose }: Props) {
 
             <button onClick={submit} disabled={!message.trim() || submitting}
               className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all disabled:opacity-40"
-              style={{ background: message.trim() ? '#0A84FF' : (dm ? '#262626' : '#e5e7eb'), color: message.trim() ? 'white' : text2 }}>
+              style={{ background: message.trim() ? '#007e6d' : (dm ? '#262626' : '#e5e7eb'), color: message.trim() ? 'white' : text2 }}>
               {submitting ? 'Sending…' : 'Send Feedback'}
             </button>
           </div>

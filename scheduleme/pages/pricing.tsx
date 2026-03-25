@@ -55,7 +55,7 @@ const Pricing: NextPage = () => {
         {/* Header */}
         <section style={{ padding: '64px 24px', textAlign: 'center' }}>
           <div className="js-psec mx-auto" style={{ maxWidth: 720 }}>
-            <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#0A84FF', marginBottom: 16 }}>
+            <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#007e6d', marginBottom: 16 }}>
               Pricing
             </span>
             <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 800, color: textPrimary, letterSpacing: '-0.025em', marginBottom: 20, lineHeight: 1.1 }}>
@@ -88,12 +88,12 @@ const Pricing: NextPage = () => {
                   'No booking fees or commissions',
                 ].map((f) => (
                   <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, fontSize: 14, color: textSecondary }}>
-                    <span style={{ color: '#0A84FF', fontWeight: 800, fontSize: 16 }} aria-hidden="true">✓</span>
+                    <span style={{ color: '#007e6d', fontWeight: 800, fontSize: 16 }} aria-hidden="true">✓</span>
                     {f}
                   </li>
                 ))}
               </ul>
-              <Link href="/demo" style={{ display: 'inline-block', background: '#0A84FF', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
+              <Link href="/demo" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
                 Find a Pro Now — Free →
               </Link>
             </div>
@@ -111,7 +111,7 @@ const Pricing: NextPage = () => {
                 <p style={{ color: 'white', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Are you a service business?</p>
                 <p style={{ color: dm ? '#8e8e93' : '#94a3b8', fontSize: 14 }}>See plans, pricing, and how leads work on our business page.</p>
               </div>
-              <Link href="/business/pricing" style={{ display: 'inline-block', background: '#0A84FF', color: 'white', fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              <Link href="/business/pricing" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 View Business Pricing →
               </Link>
             </div>
@@ -123,7 +123,7 @@ const Pricing: NextPage = () => {
           <div className="js-psec mx-auto" style={{ maxWidth: 720, textAlign: 'center' }}>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: textPrimary, marginBottom: 16 }}>Ready to get started?</h2>
             <p style={{ color: textSecondary, marginBottom: 24 }}>No account needed. Describe your issue and find a pro in seconds.</p>
-            <Link href="/bookings" style={{ display: 'inline-block', background: '#0A84FF', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
+            <Link href="/bookings" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
               Get Started for Free →
             </Link>
           </div>

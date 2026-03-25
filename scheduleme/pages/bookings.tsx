@@ -321,7 +321,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                   else alert(data.error || 'Could not start checkout');
                 }}
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm"
-                style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' }}>
+                style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' }}>
                 Pay ${(booking.amount_cents / 100).toFixed(2)} Now →
               </button>
             </div>
@@ -433,7 +433,7 @@ function CantFindThem() {
           className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${
             bizName.trim() ? 'text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
           }`}
-          style={bizName.trim() ? { background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' } : {}}>
+          style={bizName.trim() ? { background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' } : {}}>
           Submit recommendation
         </button>
         <p className="text-center text-xs text-neutral-400">We'll contact them on your behalf. Your name won't be shared.</p>
@@ -510,7 +510,7 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
         <div className="flex justify-center gap-2">
           {ONBOARDING_STEPS.map((_, i) => (
             <div key={i} className="rounded-full transition-all duration-300"
-              style={{ width: i === step ? 20 : 6, height: 6, background: i === step ? '#0A84FF' : 'rgba(255,255,255,0.2)' }} />
+              style={{ width: i === step ? 20 : 6, height: 6, background: i === step ? '#007e6d' : 'rgba(255,255,255,0.2)' }} />
           ))}
         </div>
 
@@ -553,7 +553,7 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
         </p>
         <button onClick={next}
           className="w-full py-4 rounded-2xl text-base font-bold transition-all active:scale-95"
-          style={{ background: '#0A84FF', color: 'white', boxShadow: '0 8px 32px rgba(10,132,255,0.4)' }}>
+          style={{ background: '#007e6d', color: 'white', boxShadow: '0 8px 32px rgba(10,132,255,0.4)' }}>
           {s.cta}
         </button>
       </div>
@@ -743,7 +743,7 @@ const BookingsPage: NextPage = () => {
               </div>
               <Link href="/browse" scroll={false}
                 className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl transition-colors mt-1"
-                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#0A84FF', border: '1px solid rgba(255,255,255,0.3)' }}>
+                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#007e6d', border: '1px solid rgba(255,255,255,0.3)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -759,7 +759,7 @@ const BookingsPage: NextPage = () => {
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
                 <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
-                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0A84FF' }}>{s.value}</p>
+                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#007e6d' }}>{s.value}</p>
                   <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>{s.label}</p>
                 </div>
               ))}
@@ -790,7 +790,7 @@ const BookingsPage: NextPage = () => {
                 <>
                   {activeBookings.length > 0 && (
                     <div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: '#0A84FF' }}>Active</h2>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: '#007e6d' }}>Active</h2>
                       <div className="space-y-3">
                         {activeBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;

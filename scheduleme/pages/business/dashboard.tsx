@@ -83,7 +83,7 @@ function RevenueChart({ bookings }: { bookings: Booking[] }) {
       {weeks.map((w, i) => (
         <div key={i} className="flex-1 flex flex-col items-center gap-1">
           <div className="w-full rounded-t-md transition-all duration-500"
-            style={{ height: Math.max((w.earned / max) * 88, w.earned > 0 ? 6 : 2) + 'px', background: w.earned > 0 ? '#0A84FF' : '#e5e7eb' }} />
+            style={{ height: Math.max((w.earned / max) * 88, w.earned > 0 ? 6 : 2) + 'px', background: w.earned > 0 ? '#007e6d' : '#e5e7eb' }} />
           {w.earned > 0 && <span className="text-[9px] text-neutral-400 whitespace-nowrap">{w.label}</span>}
         </div>
       ))}
@@ -155,7 +155,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
           {navItems.map(item => (
             <button key={item.id} onClick={() => { setTab(item.id); setOpen(false); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors"
-              style={{ background: tab === item.id ? (dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF') : 'transparent', color: tab === item.id ? '#0A84FF' : (dm ? '#d1d5db' : '#374151') }}>
+              style={{ background: tab === item.id ? (dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF') : 'transparent', color: tab === item.id ? '#007e6d' : (dm ? '#d1d5db' : '#374151') }}>
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
               </svg>
@@ -186,7 +186,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         className="h-12 w-12 rounded-2xl shadow-lg flex items-center justify-center touch-none select-none"
-        style={{ background: open ? '#0A84FF' : (dm ? '#171717' : 'white'), border: open ? '1px solid #0A84FF' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
+        style={{ background: open ? '#007e6d' : (dm ? '#171717' : 'white'), border: open ? '1px solid #007e6d' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
         {open ? (
           <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -302,7 +302,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             onDragOver={editing ? e => onDragOverImg(e, i) : undefined}
             onDragEnd={editing ? onDragEnd : undefined}
             className="relative flex-shrink-0 rounded-xl overflow-hidden"
-            style={{ width: 72, height: 72, opacity: dragIdx === i ? 0.4 : 1, cursor: editing ? 'grab' : 'pointer', border: (activeImg === url || (!activeImg && i === 0)) ? '2px solid #0A84FF' : `1px solid ${border}` }}
+            style={{ width: 72, height: 72, opacity: dragIdx === i ? 0.4 : 1, cursor: editing ? 'grab' : 'pointer', border: (activeImg === url || (!activeImg && i === 0)) ? '2px solid #007e6d' : `1px solid ${border}` }}
             onClick={() => setActiveImg(url)}>
             <img src={url} alt="" className="w-full h-full object-cover" />
             {i === 0 && <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5" style={{ background: 'rgba(10,132,255,0.85)', color: 'white' }}>COVER</div>}
@@ -317,7 +317,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
         ))}
         {editing && (
           <div className="flex-shrink-0 rounded-xl flex flex-col items-center justify-center cursor-pointer"
-            style={{ width: 72, height: 72, border: `2px dashed ${stripDragOver ? '#0A84FF' : border}`, background: stripDragOver ? (dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF') : 'transparent' }}
+            style={{ width: 72, height: 72, border: `2px dashed ${stripDragOver ? '#007e6d' : border}`, background: stripDragOver ? (dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF') : 'transparent' }}
             onClick={() => fileInputRef.current?.click()}>
             {uploading ? <div className="h-5 w-5 rounded-full border-2 border-accent border-t-transparent animate-spin" /> : (
               <><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke={muted} strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -351,7 +351,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
           )}
           <button onClick={() => setEditingCard(e => !e)}
             className="absolute top-3 right-3 flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-xl"
-            style={{ background: editingCard ? '#0A84FF' : 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(8px)' }}>
+            style={{ background: editingCard ? '#007e6d' : 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(8px)' }}>
             {editingCard ? <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Done</> : <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>Edit</>}
           </button>
         </div>
@@ -380,7 +380,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
           {(business?.service_tags?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {(business!.service_tags ?? []).map((tag: string) => (
-                <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#0A84FF' }}>{tag.replace(/_/g, ' ')}</span>
+                <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{tag.replace(/_/g, ' ')}</span>
               ))}
             </div>
           )}
@@ -410,7 +410,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
         )}
         <button onClick={() => setEditingModal(e => !e)}
           className="absolute top-3 right-3 flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-xl"
-          style={{ background: editingModal ? '#0A84FF' : 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(8px)' }}>
+          style={{ background: editingModal ? '#007e6d' : 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(8px)' }}>
           {editingModal ? <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Done</> : <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>Edit</>}
         </button>
       </div>
@@ -444,7 +444,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
         {(business?.service_tags?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {(business!.service_tags ?? []).map((tag: string) => (
-              <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#0A84FF' }}>{tag.replace(/_/g, ' ')}</span>
+              <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{tag.replace(/_/g, ' ')}</span>
             ))}
           </div>
         )}
@@ -458,7 +458,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             { icon: 'M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3', val: business?.website, edit: 'website', placeholder: 'https://yourwebsite.com' },
           ].map(({ icon, val, edit, placeholder }) => (
             <div key={icon} className="flex items-center gap-2.5">
-              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A84FF" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#007e6d" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
               {editingModal && edit ? (
                 <input className="flex-1 text-sm bg-transparent border-b focus:outline-none focus:border-accent"
                   style={{ color: dm ? '#f2f2f7' : '#1c1c1e', borderColor: dm ? '#404040' : '#d1d5db' }}
@@ -475,7 +475,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
         {photoStrip(editingModal)}
 
         {/* Book CTA */}
-        <div className="rounded-xl py-3.5 text-center text-sm font-bold" style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)', color: 'white' }}>
+        <div className="rounded-xl py-3.5 text-center text-sm font-bold" style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)', color: 'white' }}>
           Book {business?.name}
         </div>
         <p className="text-xs text-center" style={{ color: muted }}>Calendar availability and reviews appear in the live modal</p>
@@ -903,7 +903,7 @@ const BusinessDashboard: NextPage = () => {
           <div className="px-4 py-4 border-b border-neutral-100">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-sm font-black shrink-0"
-                style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #0055CC 100%)' }}>{initials}</div>
+                style={{ background: 'linear-gradient(135deg, #007e6d 0%, #0055CC 100%)' }}>{initials}</div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-neutral-900 truncate">{business?.name}</p>
                 <p className="text-[10px] text-neutral-400 truncate">{business?.owner_email}</p>
@@ -940,7 +940,7 @@ const BusinessDashboard: NextPage = () => {
                 {darkMode ? 'Light Mode' : 'Dark Mode'}
               </div>
               <div className="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors"
-                style={{ background: darkMode ? '#0A84FF' : '#d1d5db' }}>
+                style={{ background: darkMode ? '#007e6d' : '#d1d5db' }}>
                 <span className="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
                   style={{ transform: darkMode ? 'translateX(16px)' : 'translateX(0)' }} />
               </div>
@@ -1067,7 +1067,7 @@ const BusinessDashboard: NextPage = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
                     { label: 'Total Payout', value: fmt(totalEarned), sub: 'after 12% platform fee', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: '#10b981', bg: 'bg-emerald-50' },
-                    { label: 'This Month', value: fmt(thisMonthEarned), sub: new Date().toLocaleDateString('en-US',{month:'long'}), icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5', color: '#0A84FF', bg: 'bg-blue-50' },
+                    { label: 'This Month', value: fmt(thisMonthEarned), sub: new Date().toLocaleDateString('en-US',{month:'long'}), icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5', color: '#007e6d', bg: 'bg-blue-50' },
                     { label: 'Awaiting Payment', value: pendingPaymentAmount > 0 ? fmt(pendingPaymentAmount) : String(pendingCount), sub: pendingPaymentAmount > 0 ? 'customer payment pending' : 'need your action', icon: pendingPaymentAmount > 0 ? 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z' : 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', color: '#f59e0b', bg: 'bg-amber-50' },
                     { label: 'Clients', value: String(uniqueClients), sub: completedCount + ' jobs completed', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z', color: '#8b5cf6', bg: 'bg-violet-50' },
                   ].map(s => (
@@ -1384,7 +1384,7 @@ const BusinessDashboard: NextPage = () => {
                             setMsgSending(false);
                           }}
                           className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
-                          style={{ background: msgInput.trim() ? '#0A84FF' : '#e5e7eb' }}>
+                          style={{ background: msgInput.trim() ? '#007e6d' : '#e5e7eb' }}>
                           <svg className={`h-4 w-4 ${msgInput.trim() ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                           </svg>
@@ -1572,7 +1572,7 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                   </div>
                   {svcError && <p className="text-red-500 text-sm">{svcError}</p>}
-                  <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#0A84FF' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
+                  <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#007e6d' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
                 </div>
               </div>
               <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
@@ -1589,7 +1589,7 @@ const BusinessDashboard: NextPage = () => {
                         <p className="text-xs mt-1" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{svc.duration_min} min</p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-[15px]" style={{ color: '#0A84FF' }}>{'$'}{(svc.price_cents/100).toFixed(2)}</span>
+                        <span className="font-bold text-[15px]" style={{ color: '#007e6d' }}>{'$'}{(svc.price_cents/100).toFixed(2)}</span>
                         <button onClick={() => handleDeleteService(svc.id)} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ color: '#ef4444' }}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
@@ -1690,14 +1690,14 @@ const BusinessDashboard: NextPage = () => {
                           !campusCodeSent ? (
                             <div className="flex gap-2">
                               <input type="email" value={campusEduEmail} onChange={e => setCampusEmail(e.target.value)} placeholder="you@university.edu" className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
-                              <button type="button" disabled={!campusEduEmail.endsWith('.edu') || campusSending} onClick={handleCampusSendCode} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusEduEmail.endsWith('.edu') ? '#0A84FF' : '#9ca3af' }}>{campusSending ? 'Sending…' : 'Send Code'}</button>
+                              <button type="button" disabled={!campusEduEmail.endsWith('.edu') || campusSending} onClick={handleCampusSendCode} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusEduEmail.endsWith('.edu') ? '#007e6d' : '#9ca3af' }}>{campusSending ? 'Sending…' : 'Send Code'}</button>
                             </div>
                           ) : (
                             <div className="space-y-2">
                               <p className="text-xs" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Enter the 6-digit code sent to {campusEduEmail}</p>
                               <div className="flex gap-2">
                                 <input type="text" value={campusCode} onChange={e => setCampusCode(e.target.value)} placeholder="123456" maxLength={6} className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent text-center tracking-widest font-bold" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
-                                <button type="button" disabled={campusCode.length !== 6 || campusSending} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#0A84FF' : '#9ca3af' }}>{campusSending ? 'Verifying…' : 'Verify'}</button>
+                                <button type="button" disabled={campusCode.length !== 6 || campusSending} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#007e6d' : '#9ca3af' }}>{campusSending ? 'Verifying…' : 'Verify'}</button>
                               </div>
                               {campusVerifyError && <p className="text-xs text-red-500">{campusVerifyError}</p>}
                               <button type="button" onClick={() => setCampusCodeSent(false)} className="text-xs" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>← Use different email</button>

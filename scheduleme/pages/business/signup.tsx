@@ -291,7 +291,7 @@ const SignupPage: NextPage = () => {
                     </div>
                     <div className="relative shrink-0">
                       <input type="checkbox" className="sr-only" checked={form.campusProvider} onChange={e => set('campusProvider', e.target.checked)} />
-                      <div className="w-10 h-5 rounded-full transition-colors" style={{ background: form.campusProvider ? '#0A84FF' : '#404040' }} />
+                      <div className="w-10 h-5 rounded-full transition-colors" style={{ background: form.campusProvider ? '#007e6d' : '#404040' }} />
                       <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: form.campusProvider ? '22px' : '2px' }} />
                     </div>
                   </label>

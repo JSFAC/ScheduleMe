@@ -103,6 +103,10 @@ export default function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <link rel="manifest" href="/manifest.json" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        />
         <meta name="theme-color" content="#EDF5FF" id="theme-color-meta" />
         <script
           dangerouslySetInnerHTML={{
@@ -158,7 +162,7 @@ export default function App({ Component, pageProps }: AppProps) {
             <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toBusiness ? '#fff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: 4 }}>
               ScheduleMe
             </p>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0A84FF', marginBottom: 20 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#007e6d', marginBottom: 20 }}>
               {toBusiness ? 'for Business' : 'for Everyone'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -168,7 +172,7 @@ export default function App({ Component, pageProps }: AppProps) {
                   height: 18,
                   borderRadius: '50%',
                   border: '2px solid rgba(10,132,255,0.25)',
-                  borderTopColor: '#0A84FF',
+                  borderTopColor: '#007e6d',
                   animation: 'spin 0.7s linear infinite',
                 }}
               />

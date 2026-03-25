@@ -480,7 +480,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
           className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-colors ${
             canSubmit ? 'text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
           }`}
-          style={canSubmit ? { background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' } : {}}>
+          style={canSubmit ? { background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' } : {}}>
           {submitting ? 'Sending request…' : canSubmit
             ? `Request ${date!.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${slot}`
             : 'Fill in the details above to continue'}
@@ -706,7 +706,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
               <div className="px-6 py-5">
                 <button type="button" onClick={() => setView('book')}
                   className="w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-colors"
-                  style={{ background: 'linear-gradient(135deg,#0A84FF 0%,#0066CC 100%)' }}>
+                  style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' }}>
                   Book {biz.name}
                 </button>
                 <p className="text-center text-xs text-neutral-400 mt-2">Free to request · No commitment</p>
