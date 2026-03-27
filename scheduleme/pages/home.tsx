@@ -578,7 +578,7 @@ const HomePage: NextPage = () => {
                 <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)' : '#007e6d') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)d' : '#007e6d') }}>{cat.label}</span>
+                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)' : '#007e6d') }}>{cat.label}</span>
               </button>
             ))}
           </div>
@@ -631,12 +631,11 @@ const HomePage: NextPage = () => {
         </section>
 
 
-      {/* EDU Campus banner — only shown to non-verified users */}
-      {eduVerified === false && (
-        <div style={{ background: dm ? '#0a0a0a' : '#EAF3FB' }}>
-          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24, paddingBottom: 8 }}>
+        {/* EDU Campus banner — only shown to non-verified users */}
+        {eduVerified === false && (
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
             <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
-              style={{ background: dm ? 'rgba(0,126,109,0.10)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
+              style={{ background: dm ? 'rgba(0, 126, 109, 0.18)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
@@ -662,9 +661,7 @@ const HomePage: NextPage = () => {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )}
 
 
         {/* Install app banner — mobile only, not shown if already installed */}
