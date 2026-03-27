@@ -585,7 +585,7 @@ const HomePage: NextPage = () => {
         </div>
 
         {/* Campus pulse strip */}
-        <section className="border-b" style={{ background: dm ? '#0f0f0f' : '#FCFAF6', borderColor: dm ? '#262626' : 'rgba(0, 0, 0, 0.06)' }}>
+        <section className="border-b" style={{ background: dm ? '#0f0f0f' : 'rgb(252, 250, 246)', borderColor: dm ? '#262626' : 'rgba(0, 0, 0, 0.06)' }}>
           <div className="mx-auto max-w-6xl px-6 py-6">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: dm ? '#9ca3af' : '#6b5f55' }}>
@@ -633,7 +633,7 @@ const HomePage: NextPage = () => {
 
       {/* EDU Campus banner — only shown to non-verified users */}
       {eduVerified === false && (
-        <div style={{ background: dm ? '#0a0a0a' : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)' }}>
+        <div style={{ background: dm ? '#0a0a0a' : '#FCFAF6' }}>
           <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24, paddingBottom: 8 }}>
             <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
               style={{ background: dm ? 'rgba(0,126,109,0.10)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>

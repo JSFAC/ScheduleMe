@@ -421,7 +421,7 @@ const BrowsePage: NextPage = () => {
           </div>
         </div>
 
-        <div className="border-b" style={{ background: dm ? '#111111' : '#FCFAF6', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+        <div className="border-b" style={{ background: dm ? '#111111' : 'white', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
           <div className="flex justify-center gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
             {dynamicCategories.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
@@ -435,7 +435,7 @@ const BrowsePage: NextPage = () => {
           </div>
         </div>
 
-        <div style={{ background: dm ? '#0f0f0f' : '#FCFAF6', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
+        <div style={{ background: dm ? '#0f0f0f' : 'white', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
           <div className="flex items-center justify-center gap-2 px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <span className="text-[11px] font-semibold shrink-0" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Within</span>
             {[5, 10, 25, 50, 100].map(r => (
@@ -443,8 +443,7 @@ const BrowsePage: NextPage = () => {
             ))}
           </div>
         </div>
-                <div className="mx-auto max-w-6xl px-6 py-7">
-
+                <div className="mx-auto max-w-6xl px-6 py-7"> 
           {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
