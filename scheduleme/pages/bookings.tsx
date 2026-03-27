@@ -731,7 +731,7 @@ const BookingsPage: NextPage = () => {
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
         {/* Header — flat solid blue */}
         <div className="border-b" style={{
-          background: '#3b82f6',
+          background: '#007e6d',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
           <div className="relative mx-auto max-w-3xl px-6 pt-8 pb-7">
@@ -743,7 +743,7 @@ const BookingsPage: NextPage = () => {
               </div>
               <Link href="/browse" scroll={false}
                 className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl transition-colors mt-1"
-                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#007e6d', border: '1px solid rgba(255,255,255,0.3)' }}>
+                style={{ background: dm ? 'rgb(17,17,17)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#007e6d', border: '1px solid rgba(255,255,255,0.3)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -759,7 +759,7 @@ const BookingsPage: NextPage = () => {
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
                 <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
-                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#007e6d' }}>{s.value}</p>
+                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'rgb(17,17,17)' : '#007e6d' }}>{s.value}</p>
                   <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>{s.label}</p>
                 </div>
               ))}

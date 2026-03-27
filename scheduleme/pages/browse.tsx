@@ -148,8 +148,8 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
       </div>
-      <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
-        <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
+      <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
+        <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
           {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
@@ -157,7 +157,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
           </span>
         </div>
-        <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
+        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
           <div className="flex items-center gap-0.5">
             {[1,2,3,4,5].map(i => (
@@ -166,8 +166,8 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
               </svg>
             ))}
           </div>
-          <span className="text-[13px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
-          <span className="text-[12px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
+          <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
         </div>
       </div>
     </button>
@@ -335,7 +335,7 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#FCFAF6' }}>
         <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
@@ -349,13 +349,13 @@ const BrowsePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #FCFAF6)' }} data-page-bg="true">
         <Nav />
 
         <div className="border-b" style={{   background: dm ? '#0c0c0c' : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
-          <div className="relative mx-auto max-w-6xl px-6 pt-7 pb-6">
+          <div className="relative mx-auto max-w-6xl px-6 pt-5 pb-5">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#0f0f0f' }}>Explore</p>
-            <div className="flex items-center justify-between gap-4 mb-5">
+            <div className="flex items-center justify-between gap-4 mb-3">
               <h1 className="text-[1.9rem] font-black text-white" style={{ color: dm ? 'white' : '#0f0f0f', letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
               <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 {([
@@ -383,20 +383,20 @@ const BrowsePage: NextPage = () => {
                 </svg>
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
                   style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)' }}
                 />
               </div>
               <div className="relative flex-shrink-0" data-sort-dropdown>
                 <button onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
+                  className="flex items-center gap-2 pl-3.5 pr-3 py-3 rounded-2xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
                   <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 </button>
                 {sortOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 rounded-xl shadow-lg overflow-hidden z-50"
+                  <div className="absolute right-0 top-full mt-2 rounded-2xl shadow-lg overflow-hidden z-50"
                     style={{ minWidth: 150, background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(0,0,0,0.07)' }}>
                     {(['distance', 'rating', 'reviews'] as const).map(mode => (
                       <button key={mode} onClick={() => { setSortMode(mode); setSortOpen(false); }}
@@ -417,7 +417,7 @@ const BrowsePage: NextPage = () => {
           </div>
         </div>
 
-        <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+        <div className="border-b" style={{ background: dm ? '#111111' : '#FCFAF6', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex justify-center gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
             {dynamicCategories.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
@@ -431,7 +431,7 @@ const BrowsePage: NextPage = () => {
           </div>
         </div>
 
-        <div style={{ background: dm ? '#0f0f0f' : '#fafafa', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
+        <div style={{ background: dm ? '#0f0f0f' : '#FCFAF6', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
           <div className="flex items-center justify-center gap-2 px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <span className="text-[11px] font-semibold shrink-0" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Within</span>
             {[5, 10, 25, 50, 100].map(r => (
@@ -466,7 +466,7 @@ const BrowsePage: NextPage = () => {
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                   {paginated.map((biz, i) => (
                     <BizCard key={biz.id} biz={biz} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }} dm={dm} index={i} />
                   ))}
@@ -493,7 +493,7 @@ const BrowsePage: NextPage = () => {
                           <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
                           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" data-pill style={PILL_STYLE}>{biz.category}</span>
                         </div>
-                        <p className="text-[13px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
+                        <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
                         <div className="flex items-center gap-1.5">
                           <div className="flex items-center gap-0.5">
                             {[1,2,3,4,5].map(i => (
@@ -502,11 +502,11 @@ const BrowsePage: NextPage = () => {
                               </svg>
                             ))}
                           </div>
-                          <span className="text-[13px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
-                          <span className="text-[12px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews} reviews)</span>
+                          <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+                          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews} reviews)</span>
                         </div>
                         {biz.tagline && (
-                          <p className="text-[12px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>{biz.tagline}</p>
+                          <p className="text-[11px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>{biz.tagline}</p>
                         )}
                       </div>
                     </button>
@@ -574,7 +574,7 @@ const BrowsePage: NextPage = () => {
                       <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" style={{ objectPosition: 'center 25%' }} />
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' }} />
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-                        <p className="text-white text-[12px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.name}</p>
+                        <p className="text-white text-[11px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.name}</p>
                       </div>
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
@@ -589,7 +589,7 @@ const BrowsePage: NextPage = () => {
                   {filtered.map((biz, i) => (
                     <button key={biz.id} onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
                       className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
-                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#007e6d' : (dm ? '#262626' : 'rgba(10,132,255,0.1)'), background: dm ? '#171717' : 'white' }}>
+                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#007e6d' : (dm ? '#262626' : 'rgba(0,126,109,0.12)'), background: dm ? '#171717' : 'white' }}>
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
                         <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
                       </div>
