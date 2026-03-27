@@ -717,8 +717,9 @@ const HomePage: NextPage = () => {
         )}
 
         {/* Scrollable business rows */}
-        <div className="py-5 space-y-6">
-          {(() => {
+        <div style={{ background: dm ? '#0a0a0a' : '#FCFAF6' }}>
+          <div className="py-5 space-y-6">
+            {(() => {
             const pool = realBizList.length > 0
               ? realBizList
               : [];
@@ -763,8 +764,9 @@ const HomePage: NextPage = () => {
                 />
               </>
             );
-          })()}
-          <ReferCard />
+            })()}
+            <ReferCard />
+          </div>
         </div>
 
       </div>
