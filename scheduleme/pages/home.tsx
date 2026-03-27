@@ -633,35 +633,38 @@ const HomePage: NextPage = () => {
 
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && (
-          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
-            <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
-              style={{ background: dm ? 'rgba(0, 126, 109, 0.18)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-xl shrink-0">🎓</span>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#d5e1de' : '#0f3f36' }}>Are you a student?</p>
-                  <p className="text-xs truncate" style={{ color: dm ? '#9ca3af' : '#1e554c' }}>Verify your .edu email to unlock your campus marketplace</p>
+          <div style={{ background: dm ? '#0a0a0a' : '#EAF3FB' }}>
+            <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24, paddingBottom: 8 }}>
+              <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
+                style={{ background: dm ? 'rgba(0,126,109,0.10)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xl shrink-0">🎓</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: dm ? '#d5e1de' : '#0f3f36' }}>Are you a student?</p>
+                    <p className="text-xs truncate" style={{ color: dm ? '#9ca3af' : '#1e554c' }}>Verify your .edu email to unlock your campus marketplace</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2 ml-auto">
-                <Link href="/campus" scroll={false}
-                  className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-90"
-                  style={{ background: '#007e6d', color: 'white', boxShadow: '0 4px 12px rgba(0,126,109,0.25)' }}>
-                  Verify Now →
-                </Link>
-                <button
-                  onClick={() => setEduVerified(true)}
-                  className="shrink-0 h-8 w-8 flex items-center justify-center rounded-xl"
-                  style={{ background: dm ? '#1f2937' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2 ml-auto">
+                  <Link href="/campus" scroll={false}
+                    className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-90"
+                    style={{ background: '#007e6d', color: 'white', boxShadow: '0 4px 12px rgba(0,126,109,0.25)' }}>
+                    Verify Now →
+                  </Link>
+                  <button
+                    onClick={() => setEduVerified(true)}
+                    className="shrink-0 h-8 w-8 flex items-center justify-center rounded-xl"
+                    style={{ background: dm ? '#1f2937' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
+
 
 
         {/* Install app banner — mobile only, not shown if already installed */}
