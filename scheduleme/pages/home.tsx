@@ -444,6 +444,7 @@ const HomePage: NextPage = () => {
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const sectionBg = dm ? '#0a0a0a' : '#EAF3FB';
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -725,7 +726,7 @@ const HomePage: NextPage = () => {
                   onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
-                  const sectionBg = dm ? '#0a0a0a' : '#EAF3FB';
+                  bg={sectionBg}
                 />
                 <ScrollSection
                   key={`indie-${activeCategory}`}
