@@ -249,32 +249,26 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
 }
 
 
-function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLoading }: {
+function ScrollSection({
+  title,
+  subtitle,
+  href,
+  businesses,
+  onBizClick,
+  dm,
+  isLoading,
+  bg,
+}: {
   title: string; subtitle: string; href: string;
   businesses: Business[]; onBizClick: (b: Business) => void; dm?: boolean; isLoading?: boolean;
+  bg: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
 
-  // Reset scroll to start when businesses list changes (category filter)
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   }, [businesses]);
-
-  // Non-passive wheel listener — prevents page scroll while hovering the scroll row
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    function onWheel(e: WheelEvent) {
-      // Only intercept if cursor is in the card zone (not over the curtain margins)
-      // The curtains have pointer-events:none so this fires only over cards
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      e.preventDefault();
-      el!.scrollLeft += e.deltaY * 1.4;
-    }
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, []);
 
   function onMouseDown(e: React.MouseEvent) {
     dragRef.current = { active: true, startX: e.pageX - scrollRef.current!.offsetLeft, scrollLeft: scrollRef.current!.scrollLeft };
@@ -291,7 +285,12 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
     if (scrollRef.current) scrollRef.current.style.cursor = 'grab';
   }
 
-  // edgePad must match exactly — cards start and end here, curtains cover outside
+  function scrollByAmount(dir: 'left' | 'right') {
+    if (!scrollRef.current) return;
+    const amount = Math.round(scrollRef.current.clientWidth * 0.9);
+    scrollRef.current.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' });
+  }
+
   const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
@@ -301,20 +300,42 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
           <h2 className="text-[1.2rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>{title}</h2>
           <span className="text-[11px] text-neutral-400 font-medium hidden sm:block">{subtitle}</span>
         </div>
-        <Link href={href} scroll={false}
-          className="text-[11px] font-black uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0" style={{ color: '#007e6d' }}>
-          See all →
-        </Link>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => scrollByAmount('left')}
+            className="h-7 w-7 rounded-full border flex items-center justify-center transition-colors"
+            style={{ background: dm ? '#111111' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e7eb', color: dm ? '#d1d5db' : '#525252' }}
+            aria-label="Scroll left"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <button
+            onClick={() => scrollByAmount('right')}
+            className="h-7 w-7 rounded-full border flex items-center justify-center transition-colors"
+            style={{ background: dm ? '#111111' : 'white', borderColor: dm ? '#2a2d3a' : '#e5e7eb', color: dm ? '#d1d5db' : '#525252' }}
+            aria-label="Scroll right"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+
+          <Link href={href} scroll={false}
+            className="ml-1 text-[11px] font-black uppercase tracking-widest hover:opacity-70 transition-opacity shrink-0"
+            style={{ color: '#007e6d' }}>
+            See all →
+          </Link>
+        </div>
       </div>
 
-      {/* Scroll container — full width, cards start at edgePad */}
       <div className="relative">
-        {/* Left curtain — solid cover + very subtle 20px feather */}
-        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#FCFAF6' }} />
-        {/* Right curtain */}
-        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#FCFAF6' }} />
+        <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-none"
+          style={{ width: edgePad, background: bg }} />
+        <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-none"
+          style={{ width: edgePad, background: bg }} />
 
         <div
           ref={scrollRef}
@@ -337,7 +358,6 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
                 <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} index={i} />
               ))
           }
-          {/* See more — same total height as BizCard (image + body) */}
           <Link href={href} scroll={false}
             className="flex-shrink-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-accent/20 hover:border-accent/40 bg-white hover:bg-accent-wash transition-all group"
             style={{
@@ -360,6 +380,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
     </section>
   );
 }
+
 
 function ReferCard() {
   const [open, setOpen] = useState(false);
@@ -704,6 +725,7 @@ const HomePage: NextPage = () => {
                   onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
+                  bg={sectionBg}
                 />
                 <ScrollSection
                   key={`indie-${activeCategory}`}
@@ -714,6 +736,7 @@ const HomePage: NextPage = () => {
                   onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
+                  bg={sectionBg}
                 />
                 <ScrollSection
                   key={`quick-${activeCategory}`}
@@ -724,6 +747,7 @@ const HomePage: NextPage = () => {
                   onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
+                  bg={sectionBg}
                 />
               </>
             );
