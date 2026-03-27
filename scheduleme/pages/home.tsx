@@ -444,7 +444,7 @@ const HomePage: NextPage = () => {
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
-  const sectionBg = dm ? '#0a0a0a' : '#EAF3FB';
+  const sectionBg = dm ? '#0a0a0a' : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)';
 
   useEffect(() => {
     const supabase = getSupabase();
