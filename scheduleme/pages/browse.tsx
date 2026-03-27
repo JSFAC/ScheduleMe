@@ -357,11 +357,12 @@ const BrowsePage: NextPage = () => {
             : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
-          <div className="relative mx-auto max-w-6xl px-6 pt-7 pb-7">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#0f0f0f' }}>Explore</p>
+          <div className="relative mx-auto max-w-6xl px-6 pt-[28px] pb-[22px]">
+
+            <p className="mt-0 text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#0f0f0f' }}>Explore</p>
             <div className="flex items-center justify-between gap-4 mb-3">
-              <h1 className="text-[1.9rem] font-black text-white" style={{ color: dm ? 'white' : '#0f0f0f', letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
-              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
+              <h1 className="mt-0 text-[1.9rem] font-black" style={{ color: dm ? 'white' : '#0f0f0f', letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
+              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255, 255, 255, 0.6)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 {([
                   ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
                   ['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
@@ -455,7 +456,7 @@ const BrowsePage: NextPage = () => {
                   {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="rounded-3xl border px-6 py-20 text-center" style={{ background: dm ? '#121212' : '#FCFAF6', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+                <div className="rounded-3xl border px-6 py-20 text-center" style={{ background: dm ? '#121212' : '#FCFAF6', borderColor: dm ? '#262626' : 'white' }}>
                   <div className="text-4xl mb-4">📍</div>
                   <p className="font-semibold text-lg" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
                     {searchQuery || activeCategory !== 'All' ? 'No results found' : 'No businesses found nearby'}
