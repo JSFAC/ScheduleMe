@@ -20,7 +20,7 @@ function getSupabase() {
 // CATEGORIES is now dynamic — built from loaded businesses below
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
-const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
+const PILL_STYLE = { background: 'rgba(0,126,109,0.12)', color: '#007e6d' };
 
 function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
   if (!hours || hours.length === 0) return { open: true, label: 'Open' };
@@ -94,7 +94,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const isSel = selected === biz.id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(0,126,109,0.35)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         const marker = L.marker([biz.lat!, biz.lng!], { icon }).addTo(map).on('click', () => onSelect(biz.id));
@@ -113,7 +113,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
         const isSel = selected === id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(10,132,255,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(0,126,109,0.35)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         marker.setIcon(icon);
@@ -151,8 +151,8 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
       <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
         <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#007e6d' }}>{biz.category}</span>
-          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
+          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
           <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
           </span>
@@ -161,7 +161,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
         <div className="flex items-center gap-1.5 mt-0.5">
           <div className="flex items-center gap-0.5">
             {[1,2,3,4,5].map(i => (
-              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             ))}
@@ -198,7 +198,7 @@ function ReferInline() {
         <p className="text-xs text-neutral-500 mt-0.5">Refer a local business you trust and we'll invite them.</p>
       </div>
       <button onClick={() => setOpen(true)}
-        className="shrink-0 text-xs font-bold text-accent bg-blue-50 border border-blue-100 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors uppercase tracking-wide">
+        className="shrink-0 text-xs font-bold text-accent bg-accent/10 border border-accent/20 px-4 py-2 rounded-xl hover:bg-accent/15 transition-colors uppercase tracking-wide">
         Refer a Business
       </button>
     </div>
@@ -352,11 +352,11 @@ const BrowsePage: NextPage = () => {
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #EDF5FF)' }} data-page-bg="true">
         <Nav />
 
-        <div className="border-b" style={{ background: '#3b82f6', borderColor: 'rgba(0,0,0,0.08)' }}>
+        <div className="border-b" style={{   background: dm ? '#0c0c0c' : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
           <div className="relative mx-auto max-w-6xl px-6 pt-7 pb-6">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Explore</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#0f0f0f' }}>Explore</p>
             <div className="flex items-center justify-between gap-4 mb-5">
-              <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
+              <h1 className="text-[1.9rem] font-black text-white" style={{ color: dm ? 'white' : '#0f0f0f', letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
               <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 {([
                   ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
@@ -424,7 +424,7 @@ const BrowsePage: NextPage = () => {
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
                 style={activeCategory === cat
                   ? { background: '#007e6d', color: 'white', borderColor: '#007e6d' }
-                  : { background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', color: dm ? '#93c5fd' : '#007e6d', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'rgba(10,132,255,0.15)' }}>
+                  : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', color: dm ? '#6ee7b7' : '#007e6d', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)' }}>
                 {cat}
               </button>
             ))}
@@ -497,7 +497,7 @@ const BrowsePage: NextPage = () => {
                         <div className="flex items-center gap-1.5">
                           <div className="flex items-center gap-0.5">
                             {[1,2,3,4,5].map(i => (
-                              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+                              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                               </svg>
                             ))}
