@@ -758,8 +758,8 @@ const BookingsPage: NextPage = () => {
                 { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
-                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
-                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'rgb(17,17,17)' : '#007e6d' }}>{s.value}</p>
+                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgb(20,20,20)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
+                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#007e6d' : '#007e6d' }}>{s.value}</p>
                   <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>{s.label}</p>
                 </div>
               ))}
