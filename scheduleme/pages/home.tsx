@@ -131,12 +131,15 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 
   return (
     <div className="w-full">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-3"
+        style={{ color: dm ? 'rgba(255,255,255,0.7)' : '#0f0f0f' }}>
         Good {timeOfDay()}, {userName}
       </p>
-      <h1 className="text-[2.6rem] font-black text-white mb-5" style={{ letterSpacing: '-0.035em', lineHeight: '1.05' }} style={{ letterSpacing: '-0.03em', lineHeight: 1.08 }}>
+      <h1 className="text-[2.6rem] font-black mb-5"
+          style={{ color: dm ? 'white' : '#0f0f0f', letterSpacing: '-0.03em', lineHeight: 1.08 }}>
         What do you need<br />done today?
       </h1>
+
       <div className={`relative rounded-2xl border transition-all duration-200 ${focused ? 'border-accent shadow-[0_0_0_4px_rgba(0,126,109,0.12),0_10px_28px_rgba(0,0,0,0.10)]' : 'shadow-[0_6px_18px_rgba(0,0,0,0.08)]'}`}
         style={{ background: dm ? '#111111' : 'white', borderColor: focused ? undefined : (dm ? '#262626' : '#e5e5e5') }}>
         <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
@@ -489,9 +492,9 @@ const HomePage: NextPage = () => {
 
         {/* Search hero — flat solid blue, clean */}
           <div className="border-b" style={{
-            background: dm
-              ? '#0f1117'
-              : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)',
+          background: dm
+            ? '#0c0c0c'
+            : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)',
             borderColor: 'rgba(0,0,0,0.06)'
           }}>
           <div className="relative mx-auto max-w-4xl px-6 pt-7 pb-7">
@@ -549,7 +552,7 @@ const HomePage: NextPage = () => {
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label
                   ? { background: '#007e6d', borderColor: '#007e6d' }
-                  : { background: dm ? 'rgba(10,132,255,0.2)' : '#FCFAF6', borderColor: dm ? 'rgba(10,132,255,0.4)' : 'rgba(10,132,255,0.15)' }}>
+                  : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)' }}>
                 <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)d' : '#007e6d') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
@@ -560,7 +563,7 @@ const HomePage: NextPage = () => {
         </div>
 
         {/* Campus pulse strip */}
-        <section className="border-b" style={{ background: dm ? '#0f1117' : '#F7F1EA', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+        <section className="border-b" style={{ background: dm ? '#0f0f0f' : '#F7F1EA', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="mx-auto max-w-6xl px-6 py-6">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: dm ? '#9ca3af' : '#6b5f55' }}>
@@ -570,27 +573,41 @@ const HomePage: NextPage = () => {
                 Updated daily
               </span>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {CAMPUS_PULSE.map((p) => (
                 <div
                   key={p.title}
                   className="rounded-2xl px-4 py-3"
                   style={{
-                    background: dm ? '#151515' : 'white',
+                    background: dm ? '#141414' : 'white',
                     border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.06)',
                     boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)',
                   }}
                 >
-                  <p className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{p.title}</p>
-                  <p className="text-[16px] font-black mt-1" style={{ color: dm ? '#f3f4f6' : '#171717', letterSpacing: '-0.02em' }}>
-                    {p.value}
-                  </p>
-                  <p className="text-[10px] mt-1" style={{ color: dm ? '#6b7280' : '#8a7f74' }}>{p.sub}</p>
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.12)' }}>
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+                          style={{ color: '#007e6d' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round"
+                              d="M12 6v6l4 2M20.25 12A8.25 8.25 0 113 12a8.25 8.25 0 0117.25 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{p.title}</p>
+                      <p className="text-[16px] font-black mt-1" style={{ color: dm ? '#f3f4f6' : '#171717', letterSpacing: '-0.02em' }}>
+                        {p.value}
+                      </p>
+                      <p className="text-[10px] mt-1" style={{ color: dm ? '#6b7280' : '#8a7f74' }}>{p.sub}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </section>
+
 
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && (
