@@ -349,7 +349,7 @@ const BrowsePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #FCFAF6)' }} data-page-bg="true">
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#FCFAF6' }} data-page-bg="true">
         <Nav />
         <div className="border-b" style={{
           background: dm
