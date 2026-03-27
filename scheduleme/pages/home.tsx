@@ -190,7 +190,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
             <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
               className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? 'rgb(213, 225, 222)d' : '#007e6d', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
+              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? 'rgb(213, 225, 222)' : '#007e6d', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)'; }}>
               {label}
@@ -211,7 +211,7 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(150px, 22vw, 200px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
       {/* Square image */}
-      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }} className="overflow-hidden">
+      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
@@ -574,7 +574,7 @@ const HomePage: NextPage = () => {
                 style={activeCategory === cat.label
                   ? { background: '#007e6d', borderColor: '#007e6d' }
                   : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)' }}>
-                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)d' : '#007e6d') }}>
+                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)' : '#007e6d') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
                 <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)d' : '#007e6d') }}>{cat.label}</span>
@@ -638,7 +638,7 @@ const HomePage: NextPage = () => {
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: dm ? 'rgb(213, 225, 222)d' : '#1d4ed8' }}>Are you a student?</p>
+                  <p className="text-sm font-bold truncate" style={{ color: dm ? 'rgb(213, 225, 222)' : '#007e6d' }}>Are you a student?</p>
                   <p className="text-xs truncate" style={{ color: dm ? '#1e554c' : '#007e6d' }}>Verify your .edu email to unlock your campus marketplace</p>
                 </div>
               </div>
@@ -725,7 +725,7 @@ const HomePage: NextPage = () => {
                   onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
-                  bg={sectionBg}
+                  const sectionBg = dm ? '#0a0a0a' : '#EAF3FB';
                 />
                 <ScrollSection
                   key={`indie-${activeCategory}`}
