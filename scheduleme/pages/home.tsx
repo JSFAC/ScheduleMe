@@ -190,7 +190,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
             <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
               className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? 'rgb(213, 225, 222)' : '#007e6d', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
+              style={{ background: dm ? 'rgb(17,17,17)' : 'rgba(255,255,255,0.88)', color: dm ? 'rgb(213, 225, 222)' : '#007e6d', border: dm ? '1px solid rgb(35,35,35)' : '1px solid rgba(255,255,255,0.95)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)'; }}>
               {label}
@@ -535,8 +535,8 @@ const HomePage: NextPage = () => {
                 ] as const).map((tile) => tile.label === 'Refer a Pro' ? (
                   <button key={tile.label} onClick={() => setShowReferModal(true)}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md text-left"
-                    style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
-                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
+                    style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid rgb(38, 38, 38)' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(0, 126, 109, 0.18)' }}>
                       <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                       </svg>
@@ -550,7 +550,7 @@ const HomePage: NextPage = () => {
                   <Link key={tile.label} href={tile.href} scroll={false}
                     className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
                     style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
-                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(59,130,246,0.10)' }}>
+                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(0, 126, 109, 0.18)' }}>
                       <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                       </svg>
