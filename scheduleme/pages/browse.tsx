@@ -351,9 +351,13 @@ const BrowsePage: NextPage = () => {
 
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #FCFAF6)' }} data-page-bg="true">
         <Nav />
-
-        <div className="border-b" style={{   background: dm ? '#0c0c0c' : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
-          <div className="relative mx-auto max-w-6xl px-6 pt-5 pb-5">
+        <div className="border-b" style={{
+          background: dm
+            ? 'linear-gradient(180deg, #0c0c0c 0%, #0f0f0f 100%)'
+            : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)',
+          borderColor: 'rgba(0,0,0,0.08)'
+        }}>
+          <div className="relative mx-auto max-w-6xl px-6 pt-7 pb-7">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#0f0f0f' }}>Explore</p>
             <div className="flex items-center justify-between gap-4 mb-3">
               <h1 className="text-[1.9rem] font-black text-white" style={{ color: dm ? 'white' : '#0f0f0f', letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
@@ -366,8 +370,8 @@ const BrowsePage: NextPage = () => {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#007e6d', border: dm ? '1px solid #262626' : 'none' }
-                      : { color: 'white', background: 'transparent' }}>
+                      ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#007e6d', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.06)' }
+                      : { color: dm ? 'rgba(255,255,255,0.7)' : '#6b7280', background: dm ? 'transparent' : 'rgba(255,255,255,0.6)', border: dm ? 'none' : '1px solid rgba(0,0,0,0.06)' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
                     </svg>
@@ -440,6 +444,7 @@ const BrowsePage: NextPage = () => {
           </div>
         </div>
                 <div className="mx-auto max-w-6xl px-6 py-7">
+
           {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
@@ -451,7 +456,7 @@ const BrowsePage: NextPage = () => {
                   {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="text-center py-24 px-6">
+                <div className="rounded-3xl border px-6 py-20 text-center" style={{ background: dm ? '#121212' : '#FCFAF6', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
                   <div className="text-4xl mb-4">📍</div>
                   <p className="font-semibold text-lg" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
                     {searchQuery || activeCategory !== 'All' ? 'No results found' : 'No businesses found nearby'}

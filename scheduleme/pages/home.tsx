@@ -585,7 +585,7 @@ const HomePage: NextPage = () => {
         </div>
 
         {/* Campus pulse strip */}
-        <section className="border-b" style={{ background: dm ? '#0f0f0f' : '#F7F1EA', borderColor: dm ? '#262626' : 'rgb(38,38,38)' }}>
+        <section className="border-b" style={{ background: dm ? '#0f0f0f' : '#FCFAF6', borderColor: dm ? '#262626' : 'rgba(0, 0, 0, 0.06)' }}>
           <div className="mx-auto max-w-6xl px-6 py-6">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: dm ? '#9ca3af' : '#6b5f55' }}>
