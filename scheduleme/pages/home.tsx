@@ -444,7 +444,7 @@ const HomePage: NextPage = () => {
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
-  const sectionBg = dm ? '#0a0a0a' : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)';
+  const sectionBg = dm ? '#0a0a0a' : '#FCFAF6';
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -631,11 +631,12 @@ const HomePage: NextPage = () => {
         </section>
 
 
-        {/* EDU Campus banner — only shown to non-verified users */}
-        {eduVerified === false && (
-          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
+      {/* EDU Campus banner — only shown to non-verified users */}
+      {eduVerified === false && (
+        <div style={{ background: dm ? '#0a0a0a' : '#EAF3FB' }}>
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24, paddingBottom: 8 }}>
             <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
-              style={{ background: dm ? 'rgba(0, 126, 109, 0.18)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
+              style={{ background: dm ? 'rgba(0,126,109,0.10)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
@@ -661,7 +662,9 @@ const HomePage: NextPage = () => {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
 
 
         {/* Install app banner — mobile only, not shown if already installed */}
