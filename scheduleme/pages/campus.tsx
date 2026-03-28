@@ -88,34 +88,22 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
-function deriveCampusTag(domain?: string | null, campus?: { name: string } | null): string | null {
-  if (campus?.name) return campus.name;
+function deriveCampusTag(domain?: string | null): string | null {
   if (!domain) return null;
   const base = domain.split('.')[0]?.trim();
   if (!base) return null;
   return base.toUpperCase();
 }
 
-const CAMPUS_CATEGORIES_DEFAULT = ['All', 'Hair & Beauty', 'Photography', 'Tutoring', 'Arts & Crafts', 'Moving', 'Handyman', 'Other'];
-
 const CampusPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
   const [loading, setLoading] = useState(true);
-  const [eduVerified, setEduVerified] = useState(false);
+  const [eduVerified, setEduVerified] = useState<boolean | null>(null);
   const [schoolDomain, setSchoolDomain] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
-
-  // EDU verification flow
-  const [showVerify, setShowVerify] = useState(false);
-  const [schoolEmail, setSchoolEmail] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-  const [code, setCode] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [verifyError, setVerifyError] = useState('');
 
   const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
     if (!tag && !domain) { setBusinesses([]); return; }
@@ -145,8 +133,15 @@ const CampusPage: NextPage = () => {
       const { data: profile } = await supabase
         .from('profiles').select('edu_verified, school_name, school_domain')
         .eq('id', session.user.id).maybeSingle();
-      const schoolName = profile?.school_name || profile?.school_domain || null;
-      setEduVerified(Boolean(profile?.edu_verified));
+      if (!profile?.edu_verified) {
+        setEduVerified(false);
+        router.replace('/home');
+        return;
+      }
+
+      const emailDomain = session.user.email?.split('@')[1] || null;
+      const schoolName = profile?.school_name || profile?.school_domain || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
+      setEduVerified(true);
       setSchoolDomain(schoolName);
       if (schoolName) loadCampusBusinesses(deriveCampusTag(schoolName), schoolName);
 
@@ -154,49 +149,12 @@ const CampusPage: NextPage = () => {
     });
   }, [router, loadCampusBusinesses]);
 
-  async function sendCode() {
-    setSending(true); setVerifyError('');
-    try {
-      const supabase = getSupabase();
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/verify-edu', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ school_email: schoolEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setVerifyError(data.error); return; }
-      setCodeSent(true);
-    } catch { setVerifyError('Something went wrong.'); }
-    finally { setSending(false); }
-  }
-
-  async function verifyCode() {
-    setVerifying(true); setVerifyError('');
-    try {
-      const supabase = getSupabase();
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/verify-edu', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ action: 'verify', code }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setVerifyError(data.error); return; }
-      setEduVerified(true);
-      setSchoolDomain(data.school_domain);
-      setShowVerify(false);
-      const tag = deriveCampusTag(data.school_domain);
-      loadCampusBusinesses(tag, data.school_domain);
-    } catch { setVerifyError('Something went wrong.'); }
-    finally { setVerifying(false); }
-  }
 
   const filtered = businesses.filter(b =>
     activeCategory === 'All' || b.category === activeCategory
   );
 
-  const canView = true;
+  const canView = eduVerified === true;
   const campusCategories = businesses.length > 0
     ? ['All', ...Array.from(new Set(businesses.map(b => b.category).filter(Boolean))).sort()]
     : [];
@@ -221,6 +179,8 @@ const CampusPage: NextPage = () => {
     </>
   );
 
+  if (eduVerified === false) return null;
+
   return (
     <>
       <Head>
@@ -244,16 +204,9 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
               <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
-                {eduVerified ? 'Showing campus providers for your school' : 'Browse campus providers — verify .edu to message or book'}
+                Showing campus providers for your school
               </p>
             </div>
-            {!eduVerified && (
-              <button onClick={() => setShowVerify(true)}
-                className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl border transition-all"
-                style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF' }}>
-                Verify .edu →
-              </button>
-            )}
           </div>
         </div>
 
@@ -262,31 +215,8 @@ const CampusPage: NextPage = () => {
           <div className="max-w-5xl mx-auto px-6 py-8">
 
             {/* .edu verify prompt */}
-            {!eduVerified && (
-              <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl"
-                style={{ background: dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF', border: '1px solid rgba(10,132,255,0.2)' }}>
-                <span className="text-sm" style={{ color: dm ? '#93c5fd' : '#1d4ed8' }}>
-                  🔒 You can browse freely, but you'll need to verify your .edu email to message or book.
-                </span>
-                <button onClick={() => setShowVerify(true)}
-                  className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
-                  style={{ background: '#007e6d', color: 'white' }}>
-                  Verify
-                </button>
-              </div>
-            )}
 
             {/* Inline verify form */}
-            {showVerify && !eduVerified && (
-              <div className="mb-6 p-5 rounded-2xl border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Verify your .edu email</p>
-                  <button onClick={() => { setShowVerify(false); setCodeSent(false); setCode(''); setVerifyError(''); }}
-                    className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>Cancel</button>
-                </div>
-                {renderVerifyForm()}
-              </div>
-            )}
 
             {/* Category pills */}
             {campusCategories.length > 0 && (
@@ -319,7 +249,7 @@ const CampusPage: NextPage = () => {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                 {filtered.map((biz, i) => (
-                  <BizCard key={biz.id} biz={biz} onClick={() => { if (!eduVerified) { setShowVerify(true); return; } setActiveBiz(biz); }} dm={dm} index={i} />
+                  <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} dm={dm} index={i} />
                 ))}
               </div>
             )}

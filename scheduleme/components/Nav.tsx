@@ -95,16 +95,19 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   useEffect(() => {
     if (!user?.email) return;
-    // Check if user owns a business
     const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     sbBiz.from('businesses').select('id').eq('owner_email', user.email).maybeSingle().then(({data}) => { if(data?.id) setIsBiz(true); });
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-    supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
-      .then(({ data }) => {
-        const verified = data?.edu_verified === true;
-        setEduVerified(verified);
-        localStorage.setItem(EDU_CACHE_KEY, String(verified));
-      });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      supabase.from('profiles').select('edu_verified').eq('id', userId).maybeSingle()
+        .then(({ data }) => {
+          const verified = data?.edu_verified === true;
+          setEduVerified(verified);
+          localStorage.setItem(EDU_CACHE_KEY, String(verified));
+        });
+    });
   }, [user?.email]);
 
   const initials = user?.name
