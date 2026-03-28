@@ -325,10 +325,10 @@ function writeCoords(lat: number, lng: number) {
             if (real.length > 0) {
               setBizListSafe(real);
               setUsingRealData(true);
-            } else if (!hasBizRef.current) {
-              setBizListSafe([]);
             }
+            // if empty, keep the current list
             setBizLoading(false);
+
           },
           () => {
             if (!hasBizRef.current) setBizListSafe([]);
