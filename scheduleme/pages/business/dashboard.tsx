@@ -538,6 +538,7 @@ const BusinessDashboard: NextPage = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
+  const stripeSuccess = router.query.stripe === 'success';
   const [campusEduEmail, setCampusEduEmail] = useState('');
   const [campusCodeSent, setCampusCodeSent] = useState(false);
   const [campusBannerDismissed, setCampusBannerDismissed] = useState(false);
@@ -632,6 +633,17 @@ const BusinessDashboard: NextPage = () => {
   }, [tab, business]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
+
+  useEffect(() => {
+    if (!business || business.stripe_onboarded) return;
+    if (stripeLoading) return;
+    if (router.query.stripe) return;
+    if (router.query.onboard !== 'stripe') return;
+    const key = `sm_stripe_autostart_${business.id}`;
+    if (typeof window !== 'undefined' && localStorage.getItem(key) === '1') return;
+    if (typeof window !== 'undefined') localStorage.setItem(key, '1');
+    handleStripeConnect();
+  }, [business, stripeLoading, router.query, handleStripeConnect]);
 
   // Load + subscribe to thread list when on messages tab
   useEffect(() => {
@@ -982,10 +994,23 @@ const BusinessDashboard: NextPage = () => {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
                 <div className="flex items-center gap-2.5 text-sm">
                   <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  <span className="text-amber-800"><strong>Connect your bank account</strong> to start receiving payments.</span>
+                  <span className="text-amber-800 font-semibold">Step 1/2: Connect bank & get paid</span>
                 </div>
                 <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors">
-                  {stripeLoading ? 'Loading…' : 'Connect Stripe →'}
+                  {stripeLoading ? 'Loading…' : 'Connect bank & get paid →'}
+                </button>
+              </div>
+            </div>
+          )}
+          {business && business.stripe_onboarded && stripeSuccess && (
+            <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
+                <div className="flex items-center gap-2.5 text-sm">
+                  <svg className="h-4 w-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span className="text-emerald-800 font-semibold">Step 2/2: Your profile is live.</span>
+                </div>
+                <button onClick={() => setTab('bookings')} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                  See leads →
                 </button>
               </div>
             </div>
@@ -1123,12 +1148,12 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-neutral-900">Payment Account</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">{business?.stripe_onboarded ? 'Bank connected — payments deposit automatically.' : 'Connect your bank to receive payments.'}</p>
+                      <p className="text-xs text-neutral-400 mt-0.5">{business?.stripe_onboarded ? 'Step 2/2: Bank connected — payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     </div>
                   </div>
                   {business?.stripe_onboarded
                     ? <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 shrink-0">Connected ✓</span>
-                    : <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : 'Connect →'}</button>}
+                    : <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : 'Connect bank & get paid →'}</button>}
                 </div>
               </div>
             )}
@@ -1707,10 +1732,10 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
-                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Connected via Stripe. Payments deposit automatically.' : 'Connect your bank account to receive payments.'}</p>
+                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     {business?.stripe_onboarded
                       ? <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Bank account connected</div>
-                      : <button onClick={handleStripeConnect} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5">{stripeLoading ? 'Loading…' : 'Connect Bank Account →'}</button>
+                      : <button onClick={handleStripeConnect} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5">{stripeLoading ? 'Loading…' : 'Connect bank & get paid →'}</button>
                     }
                   </div>
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">

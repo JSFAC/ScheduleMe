@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       type: 'magiclink',
       email: business.owner_email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/business/dashboard`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/business/dashboard?onboard=stripe`,
       },
     });
 

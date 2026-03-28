@@ -100,6 +100,7 @@ const CampusPage: NextPage = () => {
   const { dm } = useDm();
   const [loading, setLoading] = useState(true);
   const [eduVerified, setEduVerified] = useState<boolean | null>(null);
+  const eduCache = typeof window !== 'undefined' ? localStorage.getItem('sm_edu_verified') : null;
   const [schoolDomain, setSchoolDomain] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
@@ -126,28 +127,41 @@ const CampusPage: NextPage = () => {
 
   useEffect(() => {
     const supabase = getSupabase();
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    let cancelled = false;
+
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/signin'); return; }
+
+      if (eduCache === 'true') setEduVerified(true);
 
       // Check existing EDU verification
       const { data: profile } = await supabase
         .from('profiles').select('edu_verified, school_name, school_domain')
         .eq('id', session.user.id).maybeSingle();
-      if (!profile?.edu_verified) {
+
+      if (cancelled) return;
+
+      if (profile?.edu_verified !== true) {
         setEduVerified(false);
+        if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'false');
         router.replace('/home');
         return;
       }
 
+      setEduVerified(true);
+      if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'true');
+
       const emailDomain = session.user.email?.split('@')[1] || null;
       const schoolName = profile?.school_name || profile?.school_domain || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
-      setEduVerified(true);
       setSchoolDomain(schoolName);
       if (schoolName) loadCampusBusinesses(deriveCampusTag(schoolName), schoolName);
 
       setLoading(false);
-    });
-  }, [router, loadCampusBusinesses]);
+    })();
+
+    return () => { cancelled = true; };
+  }, [router, loadCampusBusinesses, eduCache]);
 
 
   const filtered = businesses.filter(b =>
