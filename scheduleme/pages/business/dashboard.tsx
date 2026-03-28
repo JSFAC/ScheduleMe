@@ -546,6 +546,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifying, setCampusVerifying] = useState(false);
   const [campusSending, setCampusSending] = useState(false);
   const [campusVerifyError, setCampusVerifyError] = useState('');
+  const [showCampusModal, setShowCampusModal] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('all');
 
   // Messages state
@@ -770,13 +771,19 @@ const BusinessDashboard: NextPage = () => {
     const priceCents = Math.round(parseFloat(svcPrice) * 100);
     if (isNaN(priceCents) || priceCents < 1) { setSvcError('Enter a valid price'); return; }
     setSvcSaving(true); setSvcError('');
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/services', { method: 'POST', headers, body: JSON.stringify({ business_id: business.id, name: svcName.trim(), description: svcDesc.trim() || null, price_cents: priceCents, duration_min: parseInt(svcDuration) || 60 }) });
-    const data = await res.json();
-    if (!res.ok) { setSvcError(data.error || 'Failed to add service'); setSvcSaving(false); return; }
-    setServices(s => [...s, data.service]);
-    setSvcName(''); setSvcDesc(''); setSvcPrice(''); setSvcDuration('60');
-    setSvcSaving(false);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/services', { method: 'POST', headers, body: JSON.stringify({ business_id: business.id, name: svcName.trim(), description: svcDesc.trim() || null, price_cents: priceCents, duration_min: parseInt(svcDuration) || 60 }) });
+      let data: any = null;
+      try { data = await res.json(); } catch { data = null; }
+      if (!res.ok) { setSvcError(data?.error || 'Failed to add service'); return; }
+      setServices(s => [...s, data.service]);
+      setSvcName(''); setSvcDesc(''); setSvcPrice(''); setSvcDuration('60');
+    } catch {
+      setSvcError('Network error. Please try again.');
+    } finally {
+      setSvcSaving(false);
+    }
   }
 
   async function handleDeleteService(id) {
@@ -1672,34 +1679,10 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                     </div>
 
-                    {/* Student Business EDU Section */}
-                      <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f9fafb' }}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Student Business</p>
-                            <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Link your .edu email to appear on the campus marketplace.</p>
-                          </div>
-                          {business?.edu_verified && <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', color: '#16a34a' }}><svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Verified</span>}
-                        </div>
-                        {!business?.edu_verified && (
-                          !campusCodeSent ? (
-                            <div className="flex gap-2">
-                              <input type="email" value={campusEduEmail} onChange={e => setCampusEmail(e.target.value)} placeholder="you@university.edu" className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
-                              <button type="button" disabled={!campusEduEmail.endsWith('.edu') || campusSending} onClick={handleCampusSendCode} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusEduEmail.endsWith('.edu') ? '#007e6d' : '#9ca3af' }}>{campusSending ? 'Sending…' : 'Send Code'}</button>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <p className="text-xs" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Enter the 6-digit code sent to {campusEduEmail}</p>
-                              <div className="flex gap-2">
-                                <input type="text" value={campusCode} onChange={e => setCampusCode(e.target.value)} placeholder="123456" maxLength={6} className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent text-center tracking-widest font-bold" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
-                                <button type="button" disabled={campusCode.length !== 6 || campusSending} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#007e6d' : '#9ca3af' }}>{campusSending ? 'Verifying…' : 'Verify'}</button>
-                              </div>
-                              {campusVerifyError && <p className="text-xs text-red-500">{campusVerifyError}</p>}
-                              <button type="button" onClick={() => setCampusCodeSent(false)} className="text-xs" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>← Use different email</button>
-                            </div>
-                          )
-                        )}
-                      </div>
+                    <button type="button" onClick={() => setShowCampusModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                        style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
+                        {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
+                      </button>
                       <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
                       {settingsSaved ? '✓ Saved!' : settingsSaving ? 'Saving…' : 'Save Changes'}
                     </button>
@@ -1741,6 +1724,41 @@ const BusinessDashboard: NextPage = () => {
           </main>
         </div>
       </div>
+      {showCampusModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <button onClick={() => setShowCampusModal(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+            <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Student Business</p>
+            <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Link your .edu email to appear on the campus marketplace.</p>
+            {business?.edu_verified && (
+              <div className="mt-3 flex items-center gap-2 text-emerald-600 text-sm font-semibold">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Verified
+              </div>
+            )}
+            {!business?.edu_verified && (
+              <div className="mt-4 space-y-3">
+                {!campusCodeSent ? (
+                  <div className="flex gap-2">
+                    <input type="email" value={campusEduEmail} onChange={e => setCampusEduEmail(e.target.value)} placeholder="you@university.edu" className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+                    <button type="button" disabled={!campusEduEmail.endsWith('.edu') || campusSending} onClick={handleCampusSendCode} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusEduEmail.endsWith('.edu') ? '#007e6d' : '#9ca3af' }}>{campusSending ? 'Sending…' : 'Send Code'}</button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Enter the 6-digit code sent to {campusEduEmail}</p>
+                    <div className="flex gap-2">
+                      <input type="text" value={campusCode} onChange={e => setCampusCode(e.target.value)} placeholder="123456" maxLength={6} className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent text-center tracking-widest font-bold" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+                      <button type="button" disabled={campusCode.length !== 6 || campusSending} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#007e6d' : '#9ca3af' }}>{campusSending ? 'Verifying…' : 'Verify'}</button>
+                    </div>
+                    {campusVerifyError && <p className="text-xs text-red-500">{campusVerifyError}</p>}
+                    <button type="button" onClick={() => setCampusCodeSent(false)} className="text-xs" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>← Use different email</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };
