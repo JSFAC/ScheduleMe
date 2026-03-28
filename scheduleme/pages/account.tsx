@@ -714,7 +714,8 @@ const Account: NextPage = () => {
                   </div>
                 </div>
 
-                <span className="sm-eyebrow mb-2 block">Account</span>
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                  <span className="sm-eyebrow mb-2 block">Account</span>
                   <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Manage</h2>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between px-4 py-2.5 rounded-xl border" style={{ borderColor: cardBorder }}>
