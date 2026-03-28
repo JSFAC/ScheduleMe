@@ -495,6 +495,22 @@ const HomePage: NextPage = () => {
   const [isIOSDevice, setIsIOSDevice] = useState(false);
   const sectionBg = dm ? '#0a0a0a' : '#FCFAF6';
 
+const COORDS_KEY = 'sm_last_coords';
+function readCoords(): { lat: number; lng: number } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(COORDS_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') return null;
+    return v;
+  } catch { return null; }
+}
+function writeCoords(lat: number, lng: number) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
+}
+
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -518,13 +534,21 @@ const HomePage: NextPage = () => {
         setShowInstallBanner(true);
       }
       // Geo-only business loading — never show out-of-area results
+      const cached = readCoords();
+      if (cached?.lat && cached?.lng) {
+        const mod = await import('../lib/realBusinesses');
+        mod.fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 20, radius: 25 })
+          .then((real) => { if (real.length > 0) { setNearbySafe(real); setUsingRealData(true); } })
+          .finally(() => setDataLoading(false));
+      }
+
       try {
         const _ipRes = await fetch('https://ipapi.co/json/');
         const _ipData = await _ipRes.json();
         if (_ipData.latitude && _ipData.longitude) {
           const mod = await import('../lib/realBusinesses');
           const _ipBiz = await mod.fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 20, radius: 25 });
-          if (_ipBiz.length > 0) { setNearbySafe(_ipBiz); setUsingRealData(true); setDataLoading(false); }
+          if (_ipBiz.length > 0) { setNearbySafe(_ipBiz); setUsingRealData(true); setDataLoading(false); writeCoords(_ipData.latitude, _ipData.longitude); }
         }
       } catch (_e) {}
 
@@ -532,6 +556,7 @@ const HomePage: NextPage = () => {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
             try {
+              writeCoords(pos.coords.latitude, pos.coords.longitude);
               const mod = await import('../lib/realBusinesses');
               const real = await mod.fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 20, radius: 25 });
               if (real.length > 0) { setNearbySafe(real); setUsingRealData(true); }

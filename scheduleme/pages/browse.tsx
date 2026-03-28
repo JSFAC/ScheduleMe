@@ -103,7 +103,14 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
       });
     });
     return () => { if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; } };
-  }, [businesses, dm]);
+  }, [businesses, dm, center]);
+
+  useEffect(() => {
+    if (!leafletMapRef.current || !center) return;
+    try {
+      leafletMapRef.current.setView(center, leafletMapRef.current.getZoom() || 13);
+    } catch { /* ignore */ }
+  }, [center]);
 
   useEffect(() => {
     if (!leafletMapRef.current) return;
@@ -249,6 +256,22 @@ const BrowsePage: NextPage = () => {
   }
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
+const COORDS_KEY = 'sm_last_coords';
+function readCoords(): { lat: number; lng: number } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(COORDS_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') return null;
+    return v;
+  } catch { return null; }
+}
+function writeCoords(lat: number, lng: number) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
+}
+
 
   useEffect(() => {
     if (!sortOpen) return;
@@ -266,6 +289,16 @@ const BrowsePage: NextPage = () => {
       if (!session) { router.replace('/signin'); return; }
       setLoading(false);
       
+      // Cached coords (avoid empty map if user already allowed once)
+      const cached = readCoords();
+      if (cached?.lat && cached?.lng) {
+        setUserLat(cached.lat);
+        setUserLng(cached.lng);
+        fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 40, radius })
+          .then((real) => { if (real.length > 0) { setBizListSafe(real); setUsingRealData(true); } })
+          .finally(() => setBizLoading(false));
+      }
+
       // IP geo fallback — loads businesses instantly without permission prompt
       try {
         const _ipRes = await fetch('https://ipapi.co/json/');
@@ -277,6 +310,7 @@ const BrowsePage: NextPage = () => {
             setUsingRealData(true);
             setUserLat(_ipData.latitude);
             setUserLng(_ipData.longitude);
+            writeCoords(_ipData.latitude, _ipData.longitude);
             setBizLoading(false);
           }
         }
@@ -286,6 +320,7 @@ const BrowsePage: NextPage = () => {
           async (pos) => {
             setUserLat(pos.coords.latitude);
             setUserLng(pos.coords.longitude);
+            writeCoords(pos.coords.latitude, pos.coords.longitude);
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
             if (real.length > 0) {
               setBizListSafe(real);
