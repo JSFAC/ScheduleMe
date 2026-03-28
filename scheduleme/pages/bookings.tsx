@@ -707,7 +707,7 @@ function writeCoords(lat: number, lng: number) {
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
                   if (nearby.length > 0) setNearbySafe(nearby);
-                  else if (!hasNearbyRef.current) setNearbySafe([]);
+                  // if empty, keep existing list
                   setNearbyLoading(false);
                 },
                 () => { if (!hasNearbyRef.current) setNearbySafe([]); setNearbyLoading(false); },
@@ -763,7 +763,7 @@ function writeCoords(lat: number, lng: number) {
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
                   if (nearby.length > 0) setNearbySafe(nearby);
-                  else if (!hasNearbyRef.current) setNearbySafe([]);
+                  // if empty, keep existing list
                   setNearbyLoading(false);
                 },
                 () => { if (!hasNearbyRef.current) setNearbySafe([]); setNearbyLoading(false); },
