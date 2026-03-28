@@ -768,14 +768,25 @@ const BookingsPage: NextPage = () => {
           </div>
         </div>
 
-        <div className="mx-auto max-w-3xl px-6 py-8">
-          <div className="space-y-3.5">
+        <div className="relative mx-auto max-w-3xl px-6 py-10">
+          {/* Soft ambient glow for a little warmth */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-8 left-1/2 h-48 w-[38rem] -translate-x-1/2 rounded-full blur-3xl"
+            style={{
+              opacity: dm ? 0.2 : 0.45,
+              background: dm
+                ? 'radial-gradient(closest-side, rgba(0,126,109,0.35), transparent 70%)'
+                : 'radial-gradient(closest-side, rgba(0,126,109,0.25), transparent 70%)',
+            }}
+          />
+          <div className="relative z-10 space-y-6">
               {loadingBookings ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => <SkeletonBookingCard key={i} dm={dm} />)}
             </div>
           ) : bookings.length === 0 ? (
-                <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.08)' }}>
+                <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.08)', boxShadow: dm ? '0 12px 24px rgba(0,0,0,0.35)' : '0 18px 40px rgba(0, 73, 128, 0.08)' }}>
                   <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
@@ -789,14 +800,23 @@ const BookingsPage: NextPage = () => {
               ) : (
                 <>
                   {activeBookings.length > 0 && (
-                    <div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: '#007e6d' }}>Active</h2>
-                      <div className="space-y-3">
+                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#141414' : 'rgba(255,255,255,0.92)', border: dm ? '1px solid #262626' : '1px solid rgba(10,132,255,0.12)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#007e6d' }} />
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: '#007e6d' }}>Active</h2>
+                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(10,132,255,0.12)' }} />
+                      </div>
+                      <div className="space-y-4">
                         {activeBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                              className="w-full text-left booking-card group overflow-hidden flex transition-all hover:-translate-y-0.5"
+                              style={{
+                                background: dm ? '#171717' : 'white',
+                                borderColor: dm ? '#262626' : undefined,
+                                boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.35)' : '0 10px 24px rgba(0, 73, 128, 0.08)',
+                              }}>
                               {/* Left accent bar — status color */}
                               <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
                               <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
@@ -835,12 +855,21 @@ const BookingsPage: NextPage = () => {
                   )}
 
                   {pastBookings.length > 0 && (
-                    <div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>Past</h2>
-                      <div className="space-y-3">
+                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#131313' : 'rgba(255,255,255,0.92)', border: dm ? '1px solid #262626' : '1px solid rgba(10,132,255,0.08)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.06)' }}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.35)' : '#a3a3a3' }} />
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>Past</h2>
+                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(10,132,255,0.08)' }} />
+                      </div>
+                      <div className="space-y-4">
                         {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
-                            className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                            className="w-full text-left booking-card group overflow-hidden flex opacity-70 hover:opacity-100 transition-all hover:-translate-y-0.5"
+                            style={{
+                              background: dm ? '#171717' : 'white',
+                              borderColor: dm ? '#262626' : undefined,
+                              boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.3)' : '0 10px 24px rgba(0, 73, 128, 0.06)',
+                            }}>
                             <div className="w-[6px] shrink-0 bg-neutral-200" />
                             <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
                               <div className="flex-1 min-w-0">
@@ -872,7 +901,7 @@ const BookingsPage: NextPage = () => {
               )}
 
           {/* Nearby pros — horizontal scroll row, no grid */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.09)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.09)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>
             <div className="px-5 pt-5 pb-2 flex items-center justify-between">
               <div>
                 <h3 className="text-[1rem] font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>Available near you</h3>
