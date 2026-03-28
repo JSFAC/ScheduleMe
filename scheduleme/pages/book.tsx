@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import { useDm } from '../lib/DarkModeContext';
 
 function getSupabase() {
   return createClient(
@@ -33,6 +34,13 @@ type BookingStep = 'details' | 'calendly' | 'done';
 
 const BookPage: NextPage = () => {
   const router = useRouter();
+  const { dm } = useDm();
+  const pageBg = dm ? '#0a0a0a' : '#f8fafc';
+  const cardBg = dm ? '#171717' : 'white';
+  const cardBorder = dm ? '#262626' : '#e5e7eb';
+  const textPrimary = dm ? '#f3f4f6' : '#111827';
+  const textSecondary = dm ? '#9ca3af' : '#6b7280';
+  const textMuted = dm ? '#6b7280' : '#9ca3af';
   const [provider, setProvider] = useState<Provider | null>(null);
   const [step, setStep] = useState<BookingStep>('details');
   const [form, setForm] = useState({ name: '', phone: '', email: '', service: '' });
@@ -147,9 +155,9 @@ const BookPage: NextPage = () => {
     return (
       <>
         <Nav />
-        <div className="min-h-screen bg-neutral-50 flex items-center justify-center pt-20">
+        <div className="min-h-screen flex items-center justify-center pt-20" style={{ background: pageBg }}>
           <div className="text-center">
-            <p className="text-neutral-500 mb-4">No provider selected.</p>
+            <p className="mb-4" style={{ color: textSecondary }}>No provider selected.</p>
             <a href="/bookings" className="btn-primary">Find a Pro</a>
           </div>
         </div>
@@ -166,51 +174,51 @@ const BookPage: NextPage = () => {
         )}
       </Head>
       <Nav />
-      <main className="min-h-screen bg-neutral-50 pt-20 pb-16 px-6">
+      <main className="min-h-screen pt-20 pb-16 px-6" style={{ background: pageBg }}>
         <div className="mx-auto max-w-lg">
 
           {/* Provider card */}
-          <div className="card p-6 mb-6">
+          <div className="card p-6 mb-6" style={{ background: cardBg, borderColor: cardBorder }}>
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xl flex-shrink-0">
                 {provider.name.charAt(0)}
               </div>
               <div>
-                <h1 className="text-xl font-bold text-neutral-900">{provider.name}</h1>
-                <p className="text-sm text-neutral-500">{provider.service} · {provider.location}</p>
+                <h1 className="text-xl font-bold" style={{ color: textPrimary }}>{provider.name}</h1>
+                <p className="text-sm" style={{ color: textSecondary }}>{provider.service} · {provider.location}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <span className="text-amber-400 text-sm">{'★'.repeat(Math.floor(provider.rating))}</span>
-                  <span className="text-xs text-neutral-400">{provider.rating.toFixed(1)}</span>
+                  <span className="text-xs" style={{ color: textMuted }}>{provider.rating.toFixed(1)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {step === 'details' && (
-            <div className="card p-6">
-              <h2 className="text-lg font-semibold text-neutral-900 mb-1">Your details</h2>
-              <p className="text-sm text-neutral-400 mb-5">Pre-filled from your account — update if needed.</p>
+            <div className="card p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+              <h2 className="text-lg font-semibold mb-1" style={{ color: textPrimary }}>Your details</h2>
+              <p className="text-sm mb-5" style={{ color: textMuted }}>Pre-filled from your account — update if needed.</p>
               {error && (
                 <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 mb-4">{error}</div>
               )}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Your name *</label>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: textSecondary }}>Your name *</label>
                   <input className="form-input" placeholder="Jane Smith" value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone *</label>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: textSecondary }}>Phone *</label>
                   <input className="form-input" type="tel" placeholder="(512) 555-0100" value={form.phone}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: textSecondary }}>Email</label>
                   <input className="form-input" type="email" placeholder="jane@example.com" value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Service needed</label>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: textSecondary }}>Service needed</label>
                   <input className="form-input" placeholder="e.g. Leaking faucet repair" value={form.service}
                     onChange={e => setForm(f => ({ ...f, service: e.target.value }))} />
                 </div>
@@ -221,7 +229,7 @@ const BookPage: NextPage = () => {
                 >
                   {loading ? 'Booking…' : provider.calendly_url ? 'Continue to Schedule →' : 'Request Booking →'}
                 </button>
-                <a href={`tel:${provider.phone}`} className="btn-secondary w-full py-3 text-center block">
+                <a href={`tel:${provider.phone}`} className="w-full py-3 text-center block rounded-xl font-semibold text-sm border" style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : 'rgba(0,126,109,0.08)' }}>
                   Or call directly
                 </a>
               </div>
@@ -229,36 +237,36 @@ const BookPage: NextPage = () => {
           )}
 
           {step === 'calendly' && provider.calendly_url && (
-            <div className="card p-6">
-              <h2 className="text-lg font-semibold text-neutral-900 mb-2">Pick a time</h2>
-              <p className="text-sm text-neutral-500 mb-5">Choose a slot that works for you.</p>
+            <div className="card p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+              <h2 className="text-lg font-semibold mb-2" style={{ color: textPrimary }}>Pick a time</h2>
+              <p className="text-sm mb-5" style={{ color: textSecondary }}>Choose a slot that works for you.</p>
               <div
                 className="calendly-inline-widget"
                 data-url={provider.calendly_url}
                 style={{ minWidth: '320px', height: '630px' }}
               />
-              <button className="btn-secondary w-full mt-4" onClick={() => setStep('done')}>
+              <button className="w-full mt-4 rounded-xl font-semibold text-sm border py-3" style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : 'rgba(0,126,109,0.08)' }} onClick={() => setStep('done')}>
                 I&apos;ve scheduled my appointment →
               </button>
             </div>
           )}
 
           {step === 'done' && (
-            <div className="card p-8 text-center">
+            <div className="card p-8 text-center" style={{ background: cardBg, borderColor: cardBorder }}>
               <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5">
                 <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-neutral-900 mb-2">Booking requested!</h2>
-              <p className="text-neutral-500 mb-2">{provider.name} will confirm shortly.</p>
+              <h2 className="text-2xl font-bold mb-2" style={{ color: textPrimary }}>Booking requested!</h2>
+              <p className="mb-2" style={{ color: textSecondary }}>{provider.name} will confirm shortly.</p>
               {form.email && (
-                <p className="text-sm text-neutral-400 mb-2">A confirmation email was sent to {form.email}</p>
+                <p className="text-sm mb-2" style={{ color: textMuted }}>A confirmation email was sent to {form.email}</p>
               )}
-              {bookingId && <p className="text-xs text-neutral-400 mb-6">Booking ID: {bookingId}</p>}
+              {bookingId && <p className="text-xs mb-6" style={{ color: textMuted }}>Booking ID: {bookingId}</p>}
               <div className="flex flex-col gap-3">
                 <a href={`tel:${provider.phone}`} className="btn-primary">Call {provider.name}</a>
-                <a href="/bookings" className="btn-secondary">Find another pro</a>
+                <a href="/bookings" className="w-full text-center block rounded-xl font-semibold text-sm border py-3" style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : 'rgba(0,126,109,0.08)' }}>Find another pro</a>
               </div>
             </div>
           )}
