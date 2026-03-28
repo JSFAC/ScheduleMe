@@ -78,7 +78,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   async function handleSignOut() {
     setSigningOut(true);
     const supabase = getSupabase();
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
     writeCache(null);
     setUser(null);
     setMenuOpen(false);

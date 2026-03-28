@@ -6,6 +6,17 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Business } from './mockBusinesses';
 
+function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const R = 3958.8; // Earth radius in miles
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 const CATEGORY_COVERS: Record<string, string> = {
   plumbing: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=900&q=80',
   electrical: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=900&q=80',
@@ -81,8 +92,34 @@ export async function fetchNearbyBusinesses(
       p_radius: opts.radius ?? 25,
       p_limit: opts.limit ?? 40,
     });
-    if (error || !data) return [];
-    return (data as any[]).map(b => mapBusiness(b, b.distance_miles));
+    if (!error && data && (data as any[]).length > 0) {
+      return (data as any[]).map(b => mapBusiness(b, b.distance_miles));
+    }
+
+    // Fallback: client-side distance filter if RPC is unavailable
+    const { data: rows, error: listErr } = await supabase
+      .from('businesses')
+      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier')
+      .not('lat', 'is', null)
+      .not('lng', 'is', null)
+      .limit(opts.limit ?? 200);
+
+    if (listErr || !rows) return [];
+
+    const radius = opts.radius ?? 25;
+    const category = opts.category ? opts.category.toLowerCase() : null;
+
+    const filtered = (rows as any[]).map((b) => {
+      const d = haversineMiles(lat, lng, b.lat, b.lng);
+      return { ...b, distance_miles: d };
+    }).filter((b) => {
+      if (b.distance_miles > radius) return false;
+      if (!category) return true;
+      const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
+      return tags.includes(category);
+    }).sort((a, b) => a.distance_miles - b.distance_miles).slice(0, opts.limit ?? 40);
+
+    return filtered.map(b => mapBusiness(b, b.distance_miles));
   } catch { return []; }
 }
 
