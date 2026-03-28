@@ -166,7 +166,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
             <span className={`font-black tracking-tight group-hover:opacity-70 transition-opacity ${isDark ? 'text-white' : 'text-neutral-900'} text-xl md:text-2xl`} style={{ letterSpacing: '-0.03em' }}>
               Schedule<span className="text-accent">Me</span>
             </span>
-          </Link> : <a href="/business" onClick={()=>{setMenuOpen(false);}} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">For Businesses</a>}
+          </Link>
         </div>
 
         {/* Center nav */}
