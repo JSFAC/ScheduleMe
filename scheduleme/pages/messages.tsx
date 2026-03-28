@@ -160,7 +160,7 @@ const MessagesPage: NextPage = () => {
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
 
         {/* Blue header */}
-        <div className="border-b" style={{ background: '#3b82f6', borderColor: 'rgba(0,0,0,0.08)' }}>
+        <div className="border-b" style={{ background: 'linear-gradient(135deg, #007e6d 0%, #1e554c 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
           <div className="mx-auto max-w-5xl px-6 pt-7 pb-6">
             <div className="flex items-center justify-between">
               <div>
@@ -171,7 +171,7 @@ const MessagesPage: NextPage = () => {
               </div>
               <Link href="/bookings" scroll={false}
                 className="flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl"
-                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#007e6d' }}>
+                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#007e6d', border: '1px solid rgba(255,255,255,0.3)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                 Bookings
               </Link>
@@ -179,13 +179,25 @@ const MessagesPage: NextPage = () => {
           </div>
         </div>
 
-        <div className="mx-auto max-w-5xl px-6 py-6">
+        <div className="relative mx-auto max-w-5xl px-6 py-8">
+          {/* Soft ambient glow for a little warmth */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-8 left-1/2 h-48 w-[42rem] -translate-x-1/2 rounded-full blur-3xl"
+            style={{
+              opacity: dm ? 0.2 : 0.45,
+              background: dm
+                ? 'radial-gradient(closest-side, rgba(0,126,109,0.35), transparent 70%)'
+                : 'radial-gradient(closest-side, rgba(0,126,109,0.22), transparent 70%)',
+            }}
+          />
+          <div className="relative z-10">
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 5 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
             </div>
           ) : threads.length === 0 ? (
-            <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)' }}>
+            <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)', boxShadow: dm ? '0 12px 24px rgba(0,0,0,0.35)' : '0 18px 40px rgba(0, 73, 128, 0.08)' }}>
               <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                 <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
               </div>
@@ -197,14 +209,14 @@ const MessagesPage: NextPage = () => {
             <div className="flex gap-4" style={{ height: 'calc(100vh - 280px)', minHeight: 500 }}>
 
               {/* Thread list */}
-              <div className={`${activeThread ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-80 shrink-0 rounded-2xl border overflow-hidden`} style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)' }}>
+              <div className={`${activeThread ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-80 shrink-0 rounded-2xl border overflow-hidden`} style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>
                 <div className="px-4 py-3 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
                   <p className="text-xs font-black uppercase tracking-[0.1em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
                   {threads.map(t => (
                     <button key={t.id} onClick={() => openThread(t)}
-                      className="w-full text-left px-4 py-3.5 border-b transition-colors" style={{ borderColor: dm ? '#111111' : '#fafafa', background: activeThread?.id === t.id ? (dm ? '#111111' : '#eff6ff') : 'transparent' }}>
+                      className="w-full text-left px-4 py-3.5 border-b transition-colors" style={{ borderColor: dm ? '#111111' : '#f5f7fb', background: activeThread?.id === t.id ? (dm ? '#111111' : 'rgba(0,126,109,0.08)') : 'transparent' }}>
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`h-2 w-2 rounded-full shrink-0 ${STATUS_COLOR[t.status] || 'bg-neutral-300'}`} />
@@ -231,7 +243,7 @@ const MessagesPage: NextPage = () => {
 
               {/* Message thread */}
               {activeThread ? (
-                <div className="flex-1 flex flex-col rounded-2xl border overflow-hidden" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)' }}>
+                <div className="flex-1 flex flex-col rounded-2xl border overflow-hidden" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>
                   {/* Thread header — booking info */}
                   <div className="px-5 py-3.5 border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                     <div className="flex items-center gap-3">
@@ -250,7 +262,7 @@ const MessagesPage: NextPage = () => {
                       </div>
                       {activeThread.businesses?.phone && (
                         <a href={`tel:${activeThread.businesses.phone}`}
-                          className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-accent bg-blue-50 px-3 py-1.5 rounded-xl border border-accent/15 hover:bg-blue-100 transition-colors">
+                          className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-accent bg-emerald-50 px-3 py-1.5 rounded-xl border border-accent/15 hover:bg-emerald-100 transition-colors">
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
                           Call
                         </a>
@@ -259,9 +271,9 @@ const MessagesPage: NextPage = () => {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: dm ? '#0d0d0d' : '#f8fafc' }}>
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: dm ? 'linear-gradient(180deg, #0d0d0d 0%, #101112 100%)' : 'linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%)' }}>
                     {/* Booking context card */}
-                    <div className="rounded-xl border p-3.5 mb-4" style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5' }}>
+                    <div className="rounded-xl border p-3.5 mb-4" style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', boxShadow: dm ? '0 6px 14px rgba(0,0,0,0.3)' : '0 10px 24px rgba(0, 73, 128, 0.06)' }}>
                       <p className="text-[10px] font-black uppercase tracking-[0.1em] text-neutral-400 mb-2">Booking Details</p>
                       <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#262626' }}>{activeThread.service}</p>
                       <div className="flex items-center gap-2 mt-1.5">
@@ -325,7 +337,7 @@ const MessagesPage: NextPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className="hidden sm:flex flex-1 items-center justify-center rounded-2xl border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)' }}>
+                <div className="hidden sm:flex flex-1 items-center justify-center rounded-2xl border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>
                   <div className="text-center">
                     <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
                       <svg className="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
@@ -337,6 +349,7 @@ const MessagesPage: NextPage = () => {
               )}
             </div>
           )}
+          </div>
         </div>
       </div>
     </>

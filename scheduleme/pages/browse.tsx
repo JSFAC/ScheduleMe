@@ -456,7 +456,7 @@ const BrowsePage: NextPage = () => {
                   {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="rounded-3xl border px-6 py-20 text-center" style={{ background: dm ? '#121212' : '#FCFAF6', borderColor: dm ? '#262626' : 'white' }}>
+                <div className="rounded-3xl border px-6 py-20 text-center" style={{ background: dm ? '#121212' : 'white', borderColor: dm ? '#262626' : 'white' }}>
                   <div className="text-4xl mb-4">📍</div>
                   <p className="font-semibold text-lg" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
                     {searchQuery || activeCategory !== 'All' ? 'No results found' : 'No businesses found nearby'}
