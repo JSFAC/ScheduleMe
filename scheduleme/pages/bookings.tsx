@@ -616,19 +616,28 @@ const BookingsPage: NextPage = () => {
         const { data: profile } = await supabase
           .from('profiles').select('has_seen_welcome').eq('id', session.user.id).maybeSingle();
 
-        const isFirstVisit = profile !== null && profile.has_seen_welcome === false;
+        const seenCacheKey = `sm_seen_welcome_${session.user.id}`;
+        const emailCacheKey = `sm_welcome_email_sent_${session.user.id}`;
+        const cachedSeen = typeof window !== 'undefined' && localStorage.getItem(seenCacheKey) === 'true';
+        const cachedEmailSent = typeof window !== 'undefined' && localStorage.getItem(emailCacheKey) === 'true';
+
+        const isFirstVisit = !cachedSeen && profile !== null && profile.has_seen_welcome === false;
 
         if (isFirstVisit) {
-          await supabase.from('profiles').update({ has_seen_welcome: true }).eq('id', session.user.id);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(seenCacheKey, 'true');
+          }
           setUserName(firstName);
           setUserInitials(initials);
           setPhase('welcome');
-          if (session.user.email) {
-            maybeSendWelcomeEmail(session.user.email, fullName);
+          if (session.user.email && !cachedEmailSent) {
+            maybeSendWelcomeEmail(session.user.email, fullName, session.user.id);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(emailCacheKey, 'true');
+            }
           }
         } else {
           setPhase('done');
-
         }
 
         // Fetch real bookings for this user (requires auth header)
