@@ -69,8 +69,8 @@ function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean;
   return { open: true, label: 'Open' };
 }
 
-function MapPlaceholder({ businesses, selected, onSelect, dm }: {
-  businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean;
+function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
+  businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean; center?: [number, number] | null;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
@@ -81,7 +81,8 @@ function MapPlaceholder({ businesses, selected, onSelect, dm }: {
     import('leaflet').then(L => {
       if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; }
       const validBiz = businesses.find(b => b.lat && b.lng && b.lat !== 0);
-      const center: [number, number] = validBiz ? [validBiz.lat!, validBiz.lng!] : [37.7749, -122.4194];
+      const centerProp = center && Number.isFinite(center[0]) && Number.isFinite(center[1]) ? center : null;
+      const center: [number, number] = centerProp ?? (validBiz ? [validBiz.lat!, validBiz.lng!] : [37.7749, -122.4194]);
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
       leafletMapRef.current = map;
       L.tileLayer(dm
@@ -571,7 +572,7 @@ const BrowsePage: NextPage = () => {
           ) : (
             <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
               <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4" style={{ height: 300 }}>
-                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
+                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={userLat && userLng ? [userLat, userLng] : null} />
               </div>
               {selectedMapBizData && (
                 <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
@@ -627,7 +628,7 @@ const BrowsePage: NextPage = () => {
                 </div>
                 <div className="flex flex-col gap-3" style={{ flex: '1 1 0', minWidth: 0 }}>
                   <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}>
-                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} />
+                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={userLat && userLng ? [userLat, userLng] : null} />
                   </div>
                   {selectedMapBizData && (
                     <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
