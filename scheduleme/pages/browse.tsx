@@ -380,10 +380,18 @@ function writeCoords(lat: number, lng: number) {
     if (!userLat || !userLng) return;
     setBizLoading(true);
     fetchNearbyBusinesses(userLat, userLng, { limit: 40, radius })
-      .then(real => { setBizListSafe(real.length > 0 ? real : []); if (real.length > 0) setUsingRealData(true); })
-      .catch(() => setBizListSafe([]))
+      .then(real => {
+        if (real.length > 0) {
+          setBizListSafe(real);
+          setUsingRealData(true);
+        }
+        // if empty, keep existing list
+      })
+      .catch(() => {
+        // keep existing list on error
+      })
       .finally(() => setBizLoading(false));
-  }, [radius]);
+      }, [radius]);
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
 
   if (loading) return (

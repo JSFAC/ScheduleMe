@@ -560,7 +560,7 @@ function writeCoords(lat: number, lng: number) {
               const mod = await import('../lib/realBusinesses');
               const real = await mod.fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 20, radius: 25 });
               if (real.length > 0) { setNearbySafe(real); setUsingRealData(true); }
-              else if (!hasNearbyRef.current) { setNearbySafe([]); }
+              // if empty, keep existing list
             } catch (e) { /* geo loaded but fetch failed */ }
             setDataLoading(false);
           },
