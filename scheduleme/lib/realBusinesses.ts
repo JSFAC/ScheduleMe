@@ -101,36 +101,27 @@ export async function fetchNearbyBusinesses(
       for (const r of results) seen.add(r.id);
     }
 
-    // Client-side distance filter merge (ensures new rows show even if RPC omits them)
-    const { data: rows, error: listErr } = await supabase
-      .from('businesses')
-      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified')
-      .eq('is_onboarded', true)
-      .not('lat', 'is', null)
-      .not('lng', 'is', null)
-      .limit(opts.limit ?? 200);
-
-    if (!listErr && rows) {
-      const radius = opts.radius ?? 25;
-      const category = opts.category ? opts.category.toLowerCase() : null;
-
-      const filtered = (rows as any[]).map((b) => {
-        const d = haversineMiles(lat, lng, b.lat, b.lng);
-        return { ...b, distance_miles: d };
-      }).filter((b) => {
-        if (b.distance_miles > radius) return false;
-        if (!category) return true;
-        const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
-        return tags.includes(category);
-      }).sort((a, b) => a.distance_miles - b.distance_miles);
-
-      for (const b of filtered) {
-        if (!seen.has(b.id)) {
-          results.push(mapBusiness(b, b.distance_miles));
-          seen.add(b.id);
+    // Service-role merge via API (ensures new rows show even if RPC/RLS omit them)
+    try {
+      const params = new URLSearchParams({
+        lat: String(lat),
+        lng: String(lng),
+        radius: String(opts.radius ?? 25),
+        limit: String(opts.limit ?? 40),
+      });
+      if (opts.category) params.set('category', opts.category.toLowerCase());
+      const res = await fetch(`/api/nearby-businesses?${params.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        const rows = json?.businesses || [];
+        for (const b of rows) {
+          if (!seen.has(b.id)) {
+            results.push(mapBusiness(b, b.distance_miles));
+            seen.add(b.id);
+          }
         }
       }
-    }
+    } catch { /* non-fatal */ }
 
     return results;
   } catch { return []; }
