@@ -10,8 +10,7 @@ function getSupabase() {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  const limited = await rateLimit(req, res, { max: 60, windowMs: 60000 });
-  if (limited) return;
+  if (!rateLimit(req, res, { max: 60, windowMs: 60000 })) return;
 
   // GET — public, fetch services for a business
   if (req.method === 'GET') {

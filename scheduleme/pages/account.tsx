@@ -132,6 +132,7 @@ const Account: NextPage = () => {
   const [eduStep, setEduStep] = useState<'email'|'code'|'done'>('email');
   const [eduLoading, setEduLoading] = useState(false);
   const [eduError, setEduError] = useState('');
+  const [showEduModal, setShowEduModal] = useState(false);
   const [addressDraft, setAddressDraft] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState(false);
 
@@ -685,6 +686,10 @@ const Account: NextPage = () => {
                   <button type="submit" disabled={saving} className="btn-primary w-full py-2.5 text-sm">
                     {saved ? '✓ Saved!' : saving ? 'Saving…' : 'Save Changes'}
                   </button>
+                  <button type="button" onClick={() => setShowEduModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                    style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
+                    {eduVerified ? 'View EDU Verification' : 'Verify .edu Email'}
+                  </button>
                 </form>
               </div>
 
@@ -709,40 +714,6 @@ const Account: NextPage = () => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
-                  <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
-                  <span className="sm-eyebrow mb-2 block">Campus</span>
-                  <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: textPrimary }}>EDU Verification</h2>
-                  {eduVerified === true ? (
-                    <div className="flex items-center gap-3 mt-3 p-3 rounded-xl" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', border: dm ? '1px solid rgba(52,211,153,0.25)' : '1px solid #bbf7d0' }}>
-                      <span className="flex items-center justify-center h-6 w-6 rounded-full flex-shrink-0" style={{background:'#dcfce7'}}><svg className="h-3.5 w-3.5" style={{color:'#16a34a'}} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span>
-                      <div>
-                        <p className="text-sm font-bold" style={{ color: dm ? '#6ee7b7' : '#15803d' }}>EDU Verified</p>
-                        <p className="text-xs mt-0.5" style={{ color: textMuted }}>{eduEmail}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-3">
-                      <p className="text-xs" style={{ color: textMuted }}>Link your .edu email to unlock campus features on the home page.</p>
-                      {eduStep === 'email' && (
-                        <>
-                          <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@school.edu" className="form-input" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
-                          {eduError && <p className="text-xs text-red-500">{eduError}</p>}
-                          <button disabled={!eduEmail.endsWith('.edu') || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({school_email: eduEmail, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Failed'); } else { setEduStep('code'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduEmail.endsWith('.edu') ? '#007e6d' : (dm?'#2c2c2e':'#e5e7eb'), color: eduEmail.endsWith('.edu')?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading ? 'Sending…' : 'Send Verification Code'}</button>
-                        </>
-                      )}
-                      {eduStep === 'code' && (
-                        <>
-                          <p className="text-xs" style={{ color: textMuted }}>Enter the 6-digit code sent to {eduEmail}</p>
-                          <input type="text" value={eduCode} onChange={e => setEduCode(e.target.value)} placeholder="123456" maxLength={6} className="form-input text-center text-xl font-bold tracking-[0.2em]" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
-                          {eduError && <p className="text-xs text-red-500">{eduError}</p>}
-                          <button disabled={eduCode.length !== 6 || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({action:'verify', code: eduCode, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Wrong code'); } else { setEduVerified(true); setEduStep('done'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduCode.length===6?'#007e6d':(dm?'#2c2c2e':'#e5e7eb'), color: eduCode.length===6?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading?'Verifying…':'Verify Code'}</button>
-                          <button onClick={() => { setEduStep('email'); setEduCode(''); setEduError(''); }} className="w-full text-xs text-center" style={{ color: textMuted }}>← Use a different email</button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
                 <span className="sm-eyebrow mb-2 block">Account</span>
                   <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Manage</h2>
                   <div className="space-y-2">
@@ -784,6 +755,44 @@ const Account: NextPage = () => {
             </div>
           )}
 
+        {showEduModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+            <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+              <button onClick={() => setShowEduModal(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+              <span className="sm-eyebrow mb-2 block">Campus</span>
+              <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: textPrimary }}>EDU Verification</h2>
+              {eduVerified === true ? (
+                <div className="flex items-center gap-3 mt-3 p-3 rounded-xl" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', border: dm ? '1px solid rgba(52,211,153,0.25)' : '1px solid #bbf7d0' }}>
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full flex-shrink-0" style={{background:'#dcfce7'}}><svg className="h-3.5 w-3.5" style={{color:'#16a34a'}} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span>
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: dm ? '#6ee7b7' : '#15803d' }}>EDU Verified</p>
+                    <p className="text-xs mt-0.5" style={{ color: textMuted }}>{eduEmail}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs" style={{ color: textMuted }}>Link your .edu email to unlock campus features on the home page.</p>
+                  {eduStep === 'email' && (
+                    <>
+                      <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@school.edu" className="form-input" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
+                      {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                      <button disabled={!eduEmail.endsWith('.edu') || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({school_email: eduEmail, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Failed'); } else { setEduStep('code'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduEmail.endsWith('.edu') ? '#007e6d' : (dm?'#2c2c2e':'#e5e7eb'), color: eduEmail.endsWith('.edu')?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading ? 'Sending…' : 'Send Verification Code'}</button>
+                    </>
+                  )}
+                  {eduStep === 'code' && (
+                    <>
+                      <p className="text-xs" style={{ color: textMuted }}>Enter the 6-digit code sent to {eduEmail}</p>
+                      <input type="text" value={eduCode} onChange={e => setEduCode(e.target.value)} placeholder="123456" maxLength={6} className="form-input text-center text-xl font-bold tracking-[0.2em]" style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
+                      {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                      <button disabled={eduCode.length !== 6 || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({action:'verify', code: eduCode, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Wrong code'); } else { setEduVerified(true); setEduStep('done'); setShowEduModal(false); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduCode.length===6?'#007e6d':(dm?'#2c2c2e':'#e5e7eb'), color: eduCode.length===6?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading?'Verifying…':'Verify Code'}</button>
+                      <button onClick={() => { setEduStep('email'); setEduCode(''); setEduError(''); }} className="w-full text-xs text-center" style={{ color: textMuted }}>← Use a different email</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </>
