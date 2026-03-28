@@ -9,9 +9,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { limit, school_domain } = req.query;
+  const { limit, school_domain, campus_school_name } = req.query;
   const limitNum = Math.min(Number(limit ?? 40), 200);
   const schoolDomain = typeof school_domain === 'string' && school_domain.trim() ? school_domain.trim() : null;
+  const campusSchoolName = typeof campus_school_name === 'string' && campus_school_name.trim() ? campus_school_name.trim() : null;
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
@@ -26,7 +27,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('campus_provider', true)
     .order('rating', { ascending: false });
 
-  if (schoolDomain) query = query.eq('school_domain', schoolDomain);
+  if (campusSchoolName) {
+    const pattern = `%${campusSchoolName.replace('%','')}%`;
+    query = query.ilike('campus_school_name', pattern);
+  } else if (schoolDomain) {
+    query = query.eq('school_domain', schoolDomain);
+  }
 
   const { data: rows, error } = await query.limit(limitNum);
   if (error || !rows) return res.status(200).json({ businesses: [] });
