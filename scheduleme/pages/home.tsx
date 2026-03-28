@@ -22,6 +22,56 @@ function timeOfDay() {
   return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
+function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
+  if (!hours || hours.length === 0) return { open: true, label: 'Open' };
+  const now = new Date();
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const todayIdx = now.getDay();
+  const todayName = dayNames[todayIdx];
+  const tomorrowName = dayNames[(todayIdx + 1) % 7];
+  function parseTime(t: string): number | null {
+    const m = t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1]); const min = parseInt(m[2]); const ampm = m[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  }
+  function dayMatches(pattern: string, dayName: string): boolean {
+    if (pattern.includes('–') || pattern.includes('-')) {
+      const allDays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+      const abbrevMap: Record<string, string> = { Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday' };
+      const sep = pattern.includes('–') ? '–' : '-';
+      const parts = pattern.split(sep).map(p => p.trim());
+      const start = abbrevMap[parts[0]] || parts[0];
+      const end = abbrevMap[parts[1]] || parts[1];
+      const si = allDays.indexOf(start), ei = allDays.indexOf(end), di = allDays.indexOf(dayName);
+      if (si < 0 || ei < 0 || di < 0) return false;
+      return si <= ei ? (di >= si && di <= ei) : (di >= si || di <= ei);
+    }
+    return pattern.includes(dayName) || pattern.includes(dayName.slice(0, 3));
+  }
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  for (const h of hours) {
+    if (h.time.toLowerCase() === 'by appointment') { if (dayMatches(h.day, todayName)) return { open: true, label: 'By appt' }; continue; }
+    if (h.time.toLowerCase().includes('closed')) { if (dayMatches(h.day, todayName)) return { open: false, label: 'Closed today' }; continue; }
+    const rangeParts = h.time.split('–').map(p => p.trim());
+    if (rangeParts.length < 2) continue;
+    const openM = parseTime(rangeParts[0]); const closeM = parseTime(rangeParts[1]);
+    if (openM == null || closeM == null) continue;
+    if (dayMatches(h.day, todayName)) {
+      if (closeM < openM) {
+        if (nowMins >= openM || nowMins <= closeM) return { open: true, label: 'Open now' };
+      } else if (nowMins >= openM && nowMins <= closeM) return { open: true, label: 'Open now' };
+      return { open: false, label: `Opens ${rangeParts[0]}` };
+    }
+    if (dayMatches(h.day, tomorrowName)) {
+      return { open: false, label: `Opens ${rangeParts[0]} tomorrow` };
+    }
+  }
+  return { open: true, label: 'Open' };
+}
+
 // PILL_STYLE is now inline-dynamic in components that have dm
 
 const AI_SUGGESTIONS: { label: string; prompt: string }[] = [
@@ -203,51 +253,45 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
   );
 }
 
-// Card — horizontal scroll card, clean stacked layout
+// Card — matches Browse grid style
 function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
+  const status = getOpenStatus(biz.hours);
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
-      style={{ width: 'clamp(150px, 22vw, 200px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
-      {/* Square image */}
-      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+      style={{ width: 'clamp(180px, 22vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
+      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         <img src={biz.coverUrl} alt={biz.name}
           onLoad={() => setImgLoaded(true)}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-          style={{ objectPosition: '50% 20%', opacity: imgLoaded ? 1 : 0 }} />
-        <div className="absolute top-2 left-2">
-          {biz.available
-            ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(4px)' }}>
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-emerald-700">Open</span>
-              </div>
-            : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-                <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                <span className="text-[10px] font-bold text-white/70">Booked</span>
-              </div>
-          }
-        </div>
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
       </div>
-      {/* Body — one item per line */}
-      <div className="p-2 flex flex-col gap-0.5" style={{ background: cardBg }}>
-        <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full self-start" style={{ background: dm ? 'rgba(10,132,255,0.2)' : '#e8f0fe', color: '#007e6d' }}>{biz.category}</span>
-        <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
-        <div className="flex items-center gap-0.5">
-          {[1,2,3,4,5].map(i => (
-            <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(biz.rating) ? (dm ? 'text-emerald-400' : 'text-emerald-600') : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          ))}
-          <span className="text-[10px] font-semibold ml-1" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+      <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
+        <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
+          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
+          <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
+            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
+          </span>
         </div>
-        <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.reviews} review{biz.reviews !== 1 ? 's' : ''}</p>
+        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex items-center gap-0.5">
+            {[1,2,3,4,5].map(i => (
+              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            ))}
+          </div>
+          <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
+        </div>
       </div>
     </button>
   );
 }
-
 
 function ScrollSection({
   title,
