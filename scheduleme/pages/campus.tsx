@@ -203,14 +203,17 @@ const CampusPage: NextPage = () => {
     else setBusinesses([]);
   }, []);
 
-  const loadNearbyEdu = useCallback(async (lat: number, lng: number) => {
+  const loadNearbyEdu = useCallback(async (lat: number, lng: number, domain?: string | null) => {
     try {
       const params = new URLSearchParams({
         lat: String(lat),
         lng: String(lng),
         radius: '10',
         limit: '40',
+        edu_only: 'true',
+        campus_only: 'true',
       });
+      if (domain) params.set('school_domain', domain);
       const res = await fetch(`/api/nearby-businesses?${params.toString()}`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-store' },
@@ -218,10 +221,7 @@ const CampusPage: NextPage = () => {
       if (!res.ok) { setBusinesses([]); return; }
       const json = await res.json();
       const rows = json?.businesses || [];
-      const filtered = rows.filter((b: any) =>
-        b.edu_verified === true && (b.campus_provider === true || b.campus_provider == null)
-      );
-      setBusinesses(filtered.map((b: any) => mapCampusBusiness(b)));
+      setBusinesses(rows.map((b: any) => mapCampusBusiness(b)));
     } catch {
       setBusinesses([]);
     }
@@ -258,7 +258,7 @@ const CampusPage: NextPage = () => {
             } else {
               setGpsStatus('off-campus');
             }
-            loadNearbyEdu(latitude, longitude);
+            loadNearbyEdu(latitude, longitude, campus?.domain || null);
           },
           () => {
             setGpsStatus('denied');
