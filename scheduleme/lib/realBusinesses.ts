@@ -27,7 +27,7 @@ const CATEGORY_COVERS: Record<string, string> = {
   handyman: 'https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=900&q=80',
 };
 
-function getCover(service_tags: string[], cover_url?: string | null): string {f
+function getCover(service_tags: string[], cover_url?: string | null): string {
   if (cover_url) return cover_url;
   for (const tag of (service_tags || [])) {
     const key = tag.toLowerCase().replace(/_/g,' ');
@@ -38,7 +38,10 @@ function getCover(service_tags: string[], cover_url?: string | null): string {f
 }
 
 function mapBusiness(b: any, distanceMiles?: number): Business {
-  const tags = b.service_tags || [];
+  const rawTags = Array.isArray(b.service_tags)
+    ? b.service_tags
+    : (b.service_tags ? [String(b.service_tags)] : []);
+  const tags = rawTags.filter(Boolean).map((t: any) => String(t));
   const category = tags.length > 0
     ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g, ' ')
     : 'General';
