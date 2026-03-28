@@ -591,6 +591,22 @@ const BookingsPage: NextPage = () => {
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const [paymentToast, setPaymentToast] = useState<'cancelled' | null>(null);
 
+const COORDS_KEY = 'sm_last_coords';
+function readCoords(): { lat: number; lng: number } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(COORDS_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') return null;
+    return v;
+  } catch { return null; }
+}
+function writeCoords(lat: number, lng: number) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
+}
+
   // Show toast if redirected back after cancelled payment
   useEffect(() => {
     if (router.query.payment === 'cancelled') {
@@ -666,6 +682,13 @@ const BookingsPage: NextPage = () => {
           try {
             const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
 
+            const cached = readCoords();
+            if (cached?.lat && cached?.lng) {
+              fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 6, radius: 25 }).then((real) => {
+                if (real.length > 0) { setNearbySafe(real); }
+              });
+            }
+
             // IP geo fallback
             try {
               const _ipRes = await fetch('https://ipapi.co/json/');
@@ -714,6 +737,13 @@ const BookingsPage: NextPage = () => {
           // Also fetch nearby businesses for the "Available near you" section
           try {
             const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+
+            const cached = readCoords();
+            if (cached?.lat && cached?.lng) {
+              fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 6, radius: 25 }).then((real) => {
+                if (real.length > 0) { setNearbySafe(real); }
+              });
+            }
 
             // IP geo fallback
             try {
