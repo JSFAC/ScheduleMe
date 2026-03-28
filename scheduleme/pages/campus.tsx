@@ -145,14 +145,10 @@ const CampusPage: NextPage = () => {
       const { data: profile } = await supabase
         .from('profiles').select('edu_verified, school_name')
         .eq('id', session.user.id).maybeSingle();
-      if (profile?.edu_verified && profile?.school_name) {
-        setEduVerified(true);
-        setSchoolDomain(profile.school_name);
-        loadCampusBusinesses(deriveCampusTag(profile.school_name), profile.school_name);
-      } else {
-        setEduVerified(false);
-        setSchoolDomain(null);
-      }
+      const schoolName = profile?.school_name || null;
+      setEduVerified(Boolean(profile?.edu_verified));
+      setSchoolDomain(schoolName);
+      if (schoolName) loadCampusBusinesses(deriveCampusTag(schoolName), schoolName);
 
       setLoading(false);
     });
@@ -200,7 +196,7 @@ const CampusPage: NextPage = () => {
     activeCategory === 'All' || b.category === activeCategory
   );
 
-  const canView = eduVerified;
+  const canView = true;
   const campusName = (eduVerified && schoolDomain)
     ? schoolDomain.replace('.edu', '').toUpperCase()
     : 'Campus';
@@ -244,7 +240,7 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
               <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
-                {canView ? 'Showing edu-verified providers for your campus' : 'Verify your .edu email to see your campus feed'}
+                {eduVerified ? 'Showing campus providers for your school' : 'Browse campus providers — verify .edu to message or book'}
               </p>
             </div>
             {!eduVerified && (
@@ -256,31 +252,6 @@ const CampusPage: NextPage = () => {
             )}
           </div>
         </div>
-
-        {/* Not on campus + not verified */}
-        {!canView && (
-          <div className="max-w-md mx-auto px-6 py-16 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-5">
-              <svg className="h-8 w-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-black mb-2" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>
-              Access your campus feed
-            </h2>
-            <p className="text-sm mb-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-              Verify your .edu email to access your campus feed.
-            </p>
-            <p className="text-xs mb-8" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>
-              Once verified, you never have to do this again.
-            </p>
-            {!showVerify ? (
-              <button onClick={() => setShowVerify(true)} className="btn-primary px-8 py-3 text-sm">
-                Verify .edu Email →
-              </button>
-            ) : renderVerifyForm()}
-          </div>
-        )}
 
         {/* Campus feed */}
         {canView && (
@@ -330,7 +301,7 @@ const CampusPage: NextPage = () => {
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">🎓</p>
                 <p className="font-semibold mb-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
-                  No edu-verified providers yet
+                  No campus providers yet
                 </p>
                 <p className="text-sm mb-6" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                   Be the first verified campus service provider here.
