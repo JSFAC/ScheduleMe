@@ -662,7 +662,7 @@ const Account: NextPage = () => {
           )}
 
           {/* ── PROFILE SETTINGS ── */}
-          {tab === 'settings' && (
+          {tab === 'settings' && (<>
             <div className="tab-panel grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                 <span className="sm-eyebrow mb-2 block">Personal</span>
@@ -753,8 +753,8 @@ const Account: NextPage = () => {
                 </div>
               </div>
             </div>
+          </>
           )}
-
         {showEduModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
             <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
@@ -779,6 +779,7 @@ const Account: NextPage = () => {
                       <button disabled={!eduEmail.endsWith('.edu') || eduLoading} onClick={async () => { setEduLoading(true); setEduError(''); try { const sb = getSupabase(); const {data:{session}} = await sb.auth.getSession(); const res = await fetch('/api/verify-edu', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session?.access_token}, body: JSON.stringify({school_email: eduEmail, account_type:'consumer'}) }); const d = await res.json(); if (!res.ok) { setEduError(d.error||'Failed'); } else { setEduStep('code'); } } catch(e) { setEduError('Network error'); } finally { setEduLoading(false); } }} className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: eduEmail.endsWith('.edu') ? '#007e6d' : (dm?'#2c2c2e':'#e5e7eb'), color: eduEmail.endsWith('.edu')?'white':(dm?'#6b7280':'#9ca3af') }}>{eduLoading ? 'Sending…' : 'Send Verification Code'}</button>
                     </>
                   )}
+
                   {eduStep === 'code' && (
                     <>
                       <p className="text-xs" style={{ color: textMuted }}>Enter the 6-digit code sent to {eduEmail}</p>
