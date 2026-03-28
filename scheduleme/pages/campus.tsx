@@ -1,6 +1,6 @@
 // @ts-nocheck
-// pages/campus.tsx — GPS-first campus marketplace
-// View feed with GPS, verify .edu to message/book
+// pages/campus.tsx — Campus marketplace
+// View feed, verify .edu to message/book
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useEffect, useState, useCallback } from 'react';
@@ -88,77 +88,6 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
-// Known campus coordinates — expand as you grow
-const KNOWN_CAMPUSES = [
-  { name: 'Arizona State University', domain: 'asu.edu', lat: 33.4255, lng: -111.9400, radius: 3 },
-  { name: 'University of Arizona', domain: 'arizona.edu', lat: 32.2319, lng: -110.9501, radius: 3 },
-  { name: 'UCLA', domain: 'ucla.edu', lat: 34.0689, lng: -118.4452, radius: 3 },
-  { name: 'USC', domain: 'usc.edu', lat: 34.0224, lng: -118.2851, radius: 2 },
-  { name: 'UT Austin', domain: 'utexas.edu', lat: 30.2849, lng: -97.7341, radius: 3 },
-  { name: 'NYU', domain: 'nyu.edu', lat: 40.7295, lng: -73.9965, radius: 2 },
-  { name: 'Columbia', domain: 'columbia.edu', lat: 40.8075, lng: -73.9626, radius: 2 },
-  { name: 'Michigan', domain: 'umich.edu', lat: 42.2780, lng: -83.7382, radius: 3 },
-];
-
-function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 3958.8;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function mapCampusBusiness(b: any): Business {
-  const rawTags = Array.isArray(b.service_tags)
-    ? b.service_tags
-    : (b.service_tags ? [String(b.service_tags)] : []);
-  const tags = rawTags.filter(Boolean).map((t: any) => String(t));
-  const category = tags.length > 0
-    ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g, ' ')
-    : (b.category || 'General');
-  const dist = b.address || 'Campus';
-  return {
-    id: b.id,
-    realId: b.id,
-    name: b.name || 'Campus Provider',
-    slug: b.slug || b.id,
-    description: b.description || '',
-    tagline: b.description ? b.description.split('.')[0] : '',
-    address: b.address || '',
-    lat: b.lat,
-    lng: b.lng,
-    category,
-    independent: true,
-    available: true,
-    distance: dist,
-    rating: parseFloat(b.rating) || 4.5,
-    reviews: b.review_count ?? 0,
-    price_tier: b.price_tier ?? 2,
-    coverUrl: getCover(tags, b.cover_url, b.media_urls),
-    allImages: b.media_urls || [getCover(tags, b.cover_url, b.media_urls)],
-    phone: b.phone || '',
-    website: b.website || '',
-    calendly_url: b.calendly_url || '',
-    hours: [],
-    services: [],
-    about: b.description || '',
-    badges: [],
-  } as Business;
-}
-
-function detectNearestCampus(lat: number, lng: number) {
-  let nearest = null;
-  let minDist = Infinity;
-  for (const campus of KNOWN_CAMPUSES) {
-    const d = distanceMiles(lat, lng, campus.lat, campus.lng);
-    if (d < campus.radius && d < minDist) {
-      minDist = d;
-      nearest = campus;
-    }
-  }
-  return nearest;
-}
-
 function deriveCampusTag(domain?: string | null, campus?: { name: string } | null): string | null {
   if (campus?.name) return campus.name;
   if (!domain) return null;
@@ -173,15 +102,11 @@ const CampusPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
   const [loading, setLoading] = useState(true);
-  const [gpsStatus, setGpsStatus] = useState<'checking' | 'on-campus' | 'off-campus' | 'denied'>('checking');
-  const [detectedCampus, setDetectedCampus] = useState<typeof KNOWN_CAMPUSES[0] | null>(null);
   const [eduVerified, setEduVerified] = useState(false);
   const [schoolDomain, setSchoolDomain] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
-  const [userLat, setUserLat] = useState<number | null>(null);
-  const [userLng, setUserLng] = useState<number | null>(null);
 
   // EDU verification flow
   const [showVerify, setShowVerify] = useState(false);
@@ -220,39 +145,13 @@ const CampusPage: NextPage = () => {
       const { data: profile } = await supabase
         .from('profiles').select('edu_verified, school_name')
         .eq('id', session.user.id).maybeSingle();
-
       if (profile?.edu_verified && profile?.school_name) {
         setEduVerified(true);
         setSchoolDomain(profile.school_name);
+        loadCampusBusinesses(deriveCampusTag(profile.school_name), profile.school_name);
       } else {
         setEduVerified(false);
         setSchoolDomain(null);
-      }
-      // GPS detection
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const { latitude, longitude } = pos.coords;
-            setUserLat(latitude);
-            setUserLng(longitude);
-            const campus = detectNearestCampus(latitude, longitude);
-            if (campus) {
-              setDetectedCampus(campus);
-              setGpsStatus('on-campus');
-            } else {
-              setGpsStatus('off-campus');
-            }
-            const tag = deriveCampusTag(profile?.school_name || null, campus);
-            loadCampusBusinesses(tag, profile?.school_name || null);
-          },
-          () => {
-            setGpsStatus('denied');
-            if (profile?.edu_verified) loadCampusBusinesses(deriveCampusTag(profile.school_name, null), profile.school_name);
-          }
-        );
-      } else {
-        setGpsStatus('denied');
-        if (profile?.edu_verified) loadCampusBusinesses(deriveCampusTag(profile.school_name, null), profile.school_name);
       }
 
       setLoading(false);
@@ -291,7 +190,7 @@ const CampusPage: NextPage = () => {
       setEduVerified(true);
       setSchoolDomain(data.school_domain);
       setShowVerify(false);
-      const tag = deriveCampusTag(data.school_domain, detectedCampus);
+      const tag = deriveCampusTag(data.school_domain);
       loadCampusBusinesses(tag, data.school_domain);
     } catch { setVerifyError('Something went wrong.'); }
     finally { setVerifying(false); }
@@ -301,10 +200,10 @@ const CampusPage: NextPage = () => {
     activeCategory === 'All' || b.category === activeCategory
   );
 
-  const canView = gpsStatus !== 'denied' || eduVerified;
-  const campusName = detectedCampus?.name
-    || (eduVerified && schoolDomain ? schoolDomain.replace('.edu', '').toUpperCase() : null)
-    || (gpsStatus !== 'denied' ? 'Nearby' : 'Campus');
+  const canView = eduVerified;
+  const campusName = (eduVerified && schoolDomain)
+    ? schoolDomain.replace('.edu', '').toUpperCase()
+    : 'Campus';
 
   if (loading) return (
     <>
@@ -338,11 +237,6 @@ const CampusPage: NextPage = () => {
                 <span className="text-xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>
                   🎓 {campusName}
                 </span>
-                {gpsStatus === 'on-campus' && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
-                    📍 Detected
-                  </span>
-                )}
                 {eduVerified && (
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-accent text-white">
                     ✓ Verified
@@ -350,10 +244,10 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
               <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
-                {canView ? 'Showing edu-verified providers near you' : 'Verify your .edu email to see your campus feed'}
+                {canView ? 'Showing edu-verified providers for your campus' : 'Verify your .edu email to see your campus feed'}
               </p>
             </div>
-            {!eduVerified && canView && (
+            {!eduVerified && (
               <button onClick={() => setShowVerify(true)}
                 className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl border transition-all"
                 style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF' }}>
@@ -363,21 +257,8 @@ const CampusPage: NextPage = () => {
           </div>
         </div>
 
-        {/* GPS checking */}
-        {gpsStatus === 'checking' && (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="relative h-8 w-8 mx-auto mb-3">
-                <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
-                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
-              </div>
-              <p className="text-sm" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Detecting your location…</p>
-            </div>
-          </div>
-        )}
-
         {/* Not on campus + not verified */}
-        {gpsStatus !== 'checking' && !canView && (
+        {!canView && (
           <div className="max-w-md mx-auto px-6 py-16 text-center">
             <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-5">
               <svg className="h-8 w-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -388,9 +269,7 @@ const CampusPage: NextPage = () => {
               Access your campus feed
             </h2>
             <p className="text-sm mb-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-              {gpsStatus === 'denied'
-                ? "Enable location to auto-detect your campus, or verify with your .edu email."
-                : "You're not near a recognized campus. Verify your .edu email to access your campus feed."}
+              Verify your .edu email to access your campus feed.
             </p>
             <p className="text-xs mb-8" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>
               Once verified, you never have to do this again.
@@ -404,10 +283,10 @@ const CampusPage: NextPage = () => {
         )}
 
         {/* Campus feed */}
-        {gpsStatus !== 'checking' && canView && (
+        {canView && (
           <div className="max-w-5xl mx-auto px-6 py-8">
 
-            {/* .edu verify prompt if GPS only */}
+            {/* .edu verify prompt */}
             {!eduVerified && (
               <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl"
                 style={{ background: dm ? 'rgba(10,132,255,0.1)' : '#EBF4FF', border: '1px solid rgba(10,132,255,0.2)' }}>
@@ -451,7 +330,7 @@ const CampusPage: NextPage = () => {
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">🎓</p>
                 <p className="font-semibold mb-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
-                  No edu-verified providers yet{detectedCampus ? ` for ${detectedCampus.name}` : ''}
+                  No edu-verified providers yet
                 </p>
                 <p className="text-sm mb-6" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                   Be the first verified campus service provider here.
