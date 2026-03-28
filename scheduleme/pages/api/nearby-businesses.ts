@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { lat, lng, radius, limit, category } = req.query;
+  const { lat, lng, radius, limit, category, edu_only, campus_only, school_domain } = req.query;
   const latNum = Number(lat);
   const lngNum = Number(lng);
   const radiusNum = Number(radius ?? 25);
@@ -35,13 +35,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
 
-  const { data: rows, error } = await sb
+  let query = sb
     .from('businesses')
     .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified, campus_provider, school_domain')
     .eq('is_onboarded', true)
     .not('lat', 'is', null)
-    .not('lng', 'is', null)
-    .limit(limitNum);
+    .not('lng', 'is', null);
+
+  const eduOnly = String(edu_only ?? '').toLowerCase() === 'true';
+  const campusOnly = String(campus_only ?? '').toLowerCase() === 'true';
+  const schoolDomain = typeof school_domain === 'string' && school_domain.trim() ? school_domain.trim() : null;
+
+  if (eduOnly) query = query.eq('edu_verified', true);
+  if (campusOnly) {
+    // Keep legacy campus listings where campus_provider may be null
+    query = query.or('campus_provider.eq.true,campus_provider.is.null');
+  }
+  if (schoolDomain) query = query.eq('school_domain', schoolDomain);
+
+  const { data: rows, error } = await query.limit(limitNum);
 
   if (error || !rows) return res.status(200).json({ businesses: [] });
 
