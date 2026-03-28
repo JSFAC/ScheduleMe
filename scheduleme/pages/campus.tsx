@@ -185,22 +185,20 @@ const CampusPage: NextPage = () => {
   const [verifyError, setVerifyError] = useState('');
 
   const loadBusinesses = useCallback(async (domain: string | null) => {
-    const supabase = getSupabase();
-    let query = supabase
-      .from('businesses')
-      .select('*')
-      .eq('is_onboarded', true)
-      .eq('edu_verified', true)
-      .eq('campus_provider', true)
-      .order('rating', { ascending: false })
-      .limit(40);
-
-    if (domain) query = (query as any).eq('school_domain', domain);
-    else { setBusinesses([]); return; }
-
-    const { data } = await query;
-    if (data?.length) setBusinesses(data.map((b: any) => mapCampusBusiness(b)));
-    else setBusinesses([]);
+    if (!domain) { setBusinesses([]); return; }
+    try {
+      const params = new URLSearchParams({ limit: '40', school_domain: domain });
+      const res = await fetch(`/api/campus-businesses?${params.toString()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-store' },
+      });
+      if (!res.ok) { setBusinesses([]); return; }
+      const json = await res.json();
+      const rows = json?.businesses || [];
+      setBusinesses(rows.map((b: any) => mapCampusBusiness(b)));
+    } catch {
+      setBusinesses([]);
+    }
   }, []);
 
   const loadNearbyEdu = useCallback(async (lat: number, lng: number, domain?: string | null) => {
@@ -208,7 +206,7 @@ const CampusPage: NextPage = () => {
       const params = new URLSearchParams({
         lat: String(lat),
         lng: String(lng),
-        radius: '10',
+        radius: '25',
         limit: '40',
         edu_only: 'true',
         campus_only: 'true',
