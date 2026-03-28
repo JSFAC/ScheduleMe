@@ -435,7 +435,12 @@ const HomePage: NextPage = () => {
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
+  const hasNearbyRef = useRef(false);
   const [usingRealData, setUsingRealData] = useState(false);
+  function setNearbySafe(list: Business[]) {
+    hasNearbyRef.current = list.length > 0;
+    setRealBizList(list);
+  }
   const [dataLoading, setDataLoading] = useState(true); // true until real data or fallback loads
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
   const [showInstallBanner, setShowInstallBanner] = useState(false);
@@ -469,21 +474,32 @@ const HomePage: NextPage = () => {
         setShowInstallBanner(true);
       }
       // Geo-only business loading — never show out-of-area results
+      try {
+        const _ipRes = await fetch('https://ipapi.co/json/');
+        const _ipData = await _ipRes.json();
+        if (_ipData.latitude && _ipData.longitude) {
+          const mod = await import('../lib/realBusinesses');
+          const _ipBiz = await mod.fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 20, radius: 25 });
+          if (_ipBiz.length > 0) { setNearbySafe(_ipBiz); setUsingRealData(true); setDataLoading(false); }
+        }
+      } catch (_e) {}
+
       if (typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
             try {
               const mod = await import('../lib/realBusinesses');
               const real = await mod.fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 20, radius: 25 });
-              if (real.length > 0) { setRealBizList(real); setUsingRealData(true); }
+              if (real.length > 0) { setNearbySafe(real); setUsingRealData(true); }
+              else if (!hasNearbyRef.current) { setNearbySafe([]); }
             } catch (e) { /* geo loaded but fetch failed */ }
             setDataLoading(false);
           },
-          () => { setRealBizList([]); setDataLoading(false); },
+          () => { if (!hasNearbyRef.current) setNearbySafe([]); setDataLoading(false); },
           { timeout: 8000, maximumAge: 300000 }
         );
       } else {
-        setRealBizList([]);
+        if (!hasNearbyRef.current) setNearbySafe([]);
         setDataLoading(false);
       }
     });
