@@ -95,14 +95,19 @@ export async function fetchNearbyBusinesses(
         limit: String(opts.limit ?? 40),
       });
       if (opts.category) params.set('category', opts.category.toLowerCase());
-      const res = await fetch(`/api/nearby-businesses?${params.toString()}`);
+      const res = await fetch(`/api/nearby-businesses?${params.toString()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-store' },
+      });
       if (res.ok) {
+        if (res.status === 304) return [];
         const json = await res.json();
         const rows = json?.businesses || [];
         if (rows.length > 0) {
           return rows.map((b: any) => mapBusiness(b, b.distance_miles));
         }
       }
+
     } catch { /* non-fatal */ }
 
     // Fallback to RPC (if API unavailable)

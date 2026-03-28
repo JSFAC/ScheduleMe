@@ -17,6 +17,7 @@ function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number):
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const { lat, lng, radius, limit, category } = req.query;
