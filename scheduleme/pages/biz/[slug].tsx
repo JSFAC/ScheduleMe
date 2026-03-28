@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../../components/Nav';
+import { useDm } from '../../lib/DarkModeContext';
 
 function getSB() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -18,7 +19,7 @@ export default function BizPage() {
   const [loading, setLoading] = useState(true);
   const [showBooking, setShowBooking] = useState(false);
   const [selectedSvc, setSelectedSvc] = useState(null);
-  const [dm, setDm] = useState(false);
+  const { dm } = useDm();
   const [note, setNote] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -26,9 +27,6 @@ export default function BizPage() {
   const [done, setDone] = useState(false);
   const [err, setErr] = useState('');
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') setDm(localStorage.getItem('sm_dark_mode') === 'true');
-  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -57,6 +55,10 @@ export default function BizPage() {
   }
 
   const bg = dm ? '#0a0a0a' : '#f9fafb';
+  const accent = '#007e6d';
+  const accentDark = '#1e554c';
+  const accentWash = dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)';
+  const accentBorder = dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.25)';
   const card = dm ? '#1c1c1e' : '#ffffff';
   const bdr = dm ? '#2c2c2e' : '#f0f0f0';
   const tx = dm ? '#f2f2f7' : '#111';
@@ -85,21 +87,21 @@ export default function BizPage() {
           <div className="rounded-2xl p-5 shadow-lg -mt-6 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
             <div className="flex gap-2 flex-wrap mb-3">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:dm?'rgba(10,132,255,0.2)':'#e8f0fe',color:'#007e6d'}}>{cat}</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
               {biz.rating > 0 && <span className="text-xs font-semibold" style={{color:mu}}>{parseFloat(biz.rating).toFixed(1)} stars</span>}
             </div>
             {biz.description && <p className="text-sm leading-relaxed mb-4" style={{color:mu}}>{biz.description}</p>}
             <div className="flex gap-2 flex-wrap">
-              {biz.phone && <a href={'tel:'+biz.phone} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:dm?'#2c2c2e':'#f5f5f5',color:tx}}>Call</a>}
-              {biz.address && <a href={'https://maps.google.com/?q='+encodeURIComponent(biz.address)} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:dm?'#2c2c2e':'#f5f5f5',color:tx}}>Directions</a>}
-              {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:dm?'#2c2c2e':'#f5f5f5',color:tx}}>Website</a>}
+              {biz.phone && <a href={'tel:'+biz.phone} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Call</a>}
+              {biz.address && <a href={'https://maps.google.com/?q='+encodeURIComponent(biz.address)} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Directions</a>}
+              {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>}
             </div>
           </div>
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Services</h2>
           <div className="flex flex-col gap-3 mb-5">
             {services.length === 0 && <div className="rounded-2xl p-5 text-center" style={{background:card,border:'1px solid '+bdr}}><p className="text-sm" style={{color:mu}}>No services listed yet</p></div>}
             {services.map(s => (
-              <button key={s.id} onClick={()=>{setSelectedSvc(s);setShowBooking(true);}} className="w-full text-left rounded-2xl p-4" style={{background:selectedSvc?.id===s.id?(dm?'rgba(10,132,255,0.15)':'#eff6ff'):card,border:'1.5px solid '+(selectedSvc?.id===s.id?'#007e6d':bdr)}}>
+              <button key={s.id} onClick={()=>{setSelectedSvc(s);setShowBooking(true);}} className="w-full text-left rounded-2xl p-4" style={{background:selectedSvc?.id===s.id?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px solid '+(selectedSvc?.id===s.id?'#007e6d':bdr)}}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold" style={{color:tx}}>{s.name}</p>
@@ -107,8 +109,8 @@ export default function BizPage() {
                     <p className="text-xs mt-1" style={{color:mu}}>{s.duration_min} min</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-bold text-lg" style={{color:'#007e6d'}}>{'$'+(s.price_cents/100).toFixed(2)}</p>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:'#007e6d'}}>Book</span>
+                    <p className="font-bold text-lg" style={{color:accent}}>{'$'+(s.price_cents/100).toFixed(2)}</p>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:accent}}>Book</span>
                   </div>
                 </div>
               </button>
@@ -126,7 +128,7 @@ export default function BizPage() {
           </>}
         </div>
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={()=>setShowBooking(true)} className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg" style={{background:'linear-gradient(135deg,#007e6d 0%,#5B5CFF 100%)'}}>
+          <button onClick={()=>setShowBooking(true)} className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg" style={{background:`linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {selectedSvc ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book Appointment'}
           </button>
         </div>
@@ -142,16 +144,16 @@ export default function BizPage() {
                 <div className="text-5xl mb-3">✅</div>
                 <p className="font-semibold text-lg mb-1" style={{color:tx}}>Request Sent!</p>
                 <p className="text-sm mb-6" style={{color:mu}}>The business will confirm shortly. Check your bookings for updates.</p>
-                <button onClick={()=>router.push('/bookings')} className="w-full py-3.5 rounded-2xl font-bold text-white" style={{background:'#007e6d'}}>View My Bookings</button>
+                <button onClick={()=>router.push('/bookings')} className="w-full py-3.5 rounded-2xl font-bold text-white" style={{background:accent}}>View My Bookings</button>
               </div>
             ) : (
               <div className="px-5 pb-8 flex flex-col gap-4">
-                {selectedSvc && <div className="rounded-xl p-4" style={{background:dm?'#2c2c2e':'#f9fafb',border:'1px solid '+bdr}}><div className="flex justify-between"><div><p className="font-semibold" style={{color:tx}}>{selectedSvc.name}</p><p className="text-sm" style={{color:mu}}>{selectedSvc.duration_min} min</p></div><p className="font-bold text-lg" style={{color:'#007e6d'}}>{'$'+(selectedSvc.price_cents/100).toFixed(2)}</p></div></div>}
+                {selectedSvc && <div className="rounded-xl p-4" style={{background:dm?'#2c2c2e':'#f9fafb',border:'1px solid '+bdr}}><div className="flex justify-between"><div><p className="font-semibold" style={{color:tx}}>{selectedSvc.name}</p><p className="text-sm" style={{color:mu}}>{selectedSvc.duration_min} min</p></div><p className="font-bold text-lg" style={{color:accent}}>{'$'+(selectedSvc.price_cents/100).toFixed(2)}</p></div></div>}
                 <div><label className="text-sm font-semibold mb-1 block" style={{color:mu}}>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{background:dm?'#2c2c2e':'#f5f5f5',color:tx,border:'1.5px solid '+bdr}} /></div>
                 <div><label className="text-sm font-semibold mb-1 block" style={{color:mu}}>Time</label><input type="time" value={time} onChange={e=>setTime(e.target.value)} className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{background:dm?'#2c2c2e':'#f5f5f5',color:tx,border:'1.5px solid '+bdr}} /></div>
                 <div><label className="text-sm font-semibold mb-1 block" style={{color:mu}}>Note (optional)</label><textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="Describe what you need..." className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none" style={{background:dm?'#2c2c2e':'#f5f5f5',color:tx,border:'1.5px solid '+bdr}} /></div>
                 {err && <p className="text-red-500 text-sm">{err}</p>}
-                <button onClick={book} disabled={submitting} className="w-full py-4 rounded-2xl font-bold text-white text-lg" style={{background:submitting?'#9ca3af':'linear-gradient(135deg,#007e6d 0%,#5B5CFF 100%)'}}>{submitting?'Booking...':selectedSvc?'Request '+selectedSvc.name:'Request Appointment'}</button>
+                <button onClick={book} disabled={submitting} className="w-full py-4 rounded-2xl font-bold text-white text-lg" style={{background:submitting?'#9ca3af':`linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>{submitting?'Booking...':selectedSvc?'Request '+selectedSvc.name:'Request Appointment'}</button>
               </div>
             )}
           </div>
