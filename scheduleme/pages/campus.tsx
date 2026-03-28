@@ -186,9 +186,13 @@ const CampusPage: NextPage = () => {
       .select('*')
       .eq('is_onboarded', true)
       .eq('edu_verified', true)
+      .eq('campus_provider', true)
       .order('rating', { ascending: false })
       .limit(40);
+
     if (domain) query = (query as any).eq('school_domain', domain);
+    else { setBusinesses([]); return; }
+
     const { data } = await query;
     if (data?.length) setBusinesses(data.map((b: any) => mapCampusBusiness(b)));
     else setBusinesses([]);
@@ -204,11 +208,13 @@ const CampusPage: NextPage = () => {
         .from('profiles').select('edu_verified, school_name')
         .eq('id', session.user.id).maybeSingle();
 
-      if (profile?.edu_verified) {
+      if (profile?.edu_verified && profile?.school_name) {
         setEduVerified(true);
         setSchoolDomain(profile.school_name);
+      } else {
+        setEduVerified(false);
+        setSchoolDomain(null);
       }
-
       // GPS detection
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
