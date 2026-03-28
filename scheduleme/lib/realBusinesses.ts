@@ -101,67 +101,36 @@ export async function fetchNearbyBusinesses(
       for (const r of results) seen.add(r.id);
     }
 
-    // Fallback: client-side distance filter if RPC is unavailable or empty
-    if (results.length === 0) {
-      const { data: rows, error: listErr } = await supabase
-        .from('businesses')
-        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified')
-        .eq('is_onboarded', true)
-        .not('lat', 'is', null)
-        .not('lng', 'is', null)
-        .limit(opts.limit ?? 200);
+    // Client-side distance filter merge (ensures new rows show even if RPC omits them)
+    const { data: rows, error: listErr } = await supabase
+      .from('businesses')
+      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified')
+      .eq('is_onboarded', true)
+      .not('lat', 'is', null)
+      .not('lng', 'is', null)
+      .limit(opts.limit ?? 200);
 
-      if (!listErr && rows) {
-        const radius = opts.radius ?? 25;
-        const category = opts.category ? opts.category.toLowerCase() : null;
+    if (!listErr && rows) {
+      const radius = opts.radius ?? 25;
+      const category = opts.category ? opts.category.toLowerCase() : null;
 
-        const filtered = (rows as any[]).map((b) => {
-          const d = haversineMiles(lat, lng, b.lat, b.lng);
-          return { ...b, distance_miles: d };
-        }).filter((b) => {
-          if (b.distance_miles > radius) return false;
-          if (!category) return true;
-          const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
-          return tags.includes(category);
-        }).sort((a, b) => a.distance_miles - b.distance_miles).slice(0, opts.limit ?? 40);
+      const filtered = (rows as any[]).map((b) => {
+        const d = haversineMiles(lat, lng, b.lat, b.lng);
+        return { ...b, distance_miles: d };
+      }).filter((b) => {
+        if (b.distance_miles > radius) return false;
+        if (!category) return true;
+        const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
+        return tags.includes(category);
+      }).sort((a, b) => a.distance_miles - b.distance_miles);
 
-        results = filtered.map(b => mapBusiness(b, b.distance_miles));
-        for (const r of results) seen.add(r.id);
-      }
-    }
-
-    // Ensure edu-verified businesses are included (if within radius)
-    try {
-      const { data: eduRows, error: eduErr } = await supabase
-        .from('businesses')
-        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified')
-        .eq('is_onboarded', true)
-        .eq('edu_verified', true)
-        .not('lat', 'is', null)
-        .not('lng', 'is', null)
-        .limit(opts.limit ?? 200);
-
-      if (!eduErr && eduRows) {
-        const radius = opts.radius ?? 25;
-        const category = opts.category ? opts.category.toLowerCase() : null;
-        const filteredEdu = (eduRows as any[]).map((b) => {
-          const d = haversineMiles(lat, lng, b.lat, b.lng);
-          return { ...b, distance_miles: d };
-        }).filter((b) => {
-          if (b.distance_miles > radius) return false;
-          if (!category) return true;
-          const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
-          return tags.includes(category);
-        }).sort((a, b) => a.distance_miles - b.distance_miles);
-
-        for (const b of filteredEdu) {
-          if (!seen.has(b.id)) {
-            results.push(mapBusiness(b, b.distance_miles));
-            seen.add(b.id);
-          }
+      for (const b of filtered) {
+        if (!seen.has(b.id)) {
+          results.push(mapBusiness(b, b.distance_miles));
+          seen.add(b.id);
         }
       }
-    } catch {}
+    }
 
     return results;
   } catch { return []; }
