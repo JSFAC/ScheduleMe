@@ -4,7 +4,7 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Nav from '../components/Nav';
 import ReviewModal from '../components/ReviewModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
@@ -580,7 +580,12 @@ const BookingsPage: NextPage = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [nearbyBizList, setNearbyBizList] = useState<any[]>([]);
+  const hasNearbyRef = useRef(false);
   const [nearbyLoading, setNearbyLoading] = useState(true);
+  function setNearbySafe(list: any[]) {
+    hasNearbyRef.current = list.length > 0;
+    setNearbyBizList(list);
+  }
   const [reviewTarget, setReviewTarget] = useState<{ bookingId: string; businessId: string; businessName: string; serviceName: string } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
@@ -660,20 +665,35 @@ const BookingsPage: NextPage = () => {
           // Also fetch nearby businesses for the "Available near you" section
           try {
             const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+
+            // IP geo fallback
+            try {
+              const _ipRes = await fetch('https://ipapi.co/json/');
+              const _ipData = await _ipRes.json();
+              if (_ipData.latitude && _ipData.longitude) {
+                const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 6, radius: 25 });
+                if (_ipBiz.length > 0) {
+                  setNearbySafe(_ipBiz);
+                  setNearbyLoading(false);
+                }
+              }
+            } catch (_e) {}
+
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  setNearbyBizList(nearby);
+                  if (nearby.length > 0) setNearbySafe(nearby);
+                  else if (!hasNearbyRef.current) setNearbySafe([]);
                   setNearbyLoading(false);
                 },
-                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                () => { if (!hasNearbyRef.current) setNearbySafe([]); setNearbyLoading(false); },
                 { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
               );
               return; // setNearbyLoading handled in callbacks above
             }
-            setNearbyBizList([]);
-          } catch { setNearbyBizList([]); }
+            if (!hasNearbyRef.current) setNearbySafe([]);
+          } catch { if (!hasNearbyRef.current) setNearbySafe([]); }
           setNearbyLoading(false);
           // Check for unreviewed completed bookings — show review prompt
           const unreviewed = bookingsData.find(
@@ -694,20 +714,35 @@ const BookingsPage: NextPage = () => {
           // Also fetch nearby businesses for the "Available near you" section
           try {
             const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+
+            // IP geo fallback
+            try {
+              const _ipRes = await fetch('https://ipapi.co/json/');
+              const _ipData = await _ipRes.json();
+              if (_ipData.latitude && _ipData.longitude) {
+                const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 6, radius: 25 });
+                if (_ipBiz.length > 0) {
+                  setNearbySafe(_ipBiz);
+                  setNearbyLoading(false);
+                }
+              }
+            } catch (_e) {}
+
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  setNearbyBizList(nearby);
+                  if (nearby.length > 0) setNearbySafe(nearby);
+                  else if (!hasNearbyRef.current) setNearbySafe([]);
                   setNearbyLoading(false);
                 },
-                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                () => { if (!hasNearbyRef.current) setNearbySafe([]); setNearbyLoading(false); },
                 { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
               );
               return; // setNearbyLoading handled in callbacks above
             }
-            setNearbyBizList([]);
-          } catch { setNearbyBizList([]); }
+            if (!hasNearbyRef.current) setNearbySafe([]);
+          } catch { if (!hasNearbyRef.current) setNearbySafe([]); }
           setNearbyLoading(false);
       }
     });

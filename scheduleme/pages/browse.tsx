@@ -235,12 +235,17 @@ const BrowsePage: NextPage = () => {
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
   const [bizList, setBizList] = useState<Business[]>([]);
+  const hasBizRef = useRef(false);
   const [bizLoading, setBizLoading] = useState(true);
   const [radius, setRadius] = useState(25);
   const [userLat, setUserLat] = useState(null);
   const [userLng, setUserLng] = useState(null);
     const [usingRealData, setUsingRealData] = useState(false);
   const [geoError, setGeoError] = useState(false);
+  function setBizListSafe(list: Business[]) {
+    hasBizRef.current = list.length > 0;
+    setBizList(list);
+  }
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
 
@@ -264,9 +269,15 @@ const BrowsePage: NextPage = () => {
       try {
         const _ipRes = await fetch('https://ipapi.co/json/');
         const _ipData = await _ipRes.json();
-        if (_ipData.latitude && _ipData.longitude && !bizList.length) {
+        if (_ipData.latitude && _ipData.longitude) {
           const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 40, radius });
-          if (_ipBiz.length > 0) { setBizList(_ipBiz); setUsingRealData(true); setUserLat(_ipData.latitude); setUserLng(_ipData.longitude); setBizLoading(false); }
+          if (_ipBiz.length > 0) {
+            setBizListSafe(_ipBiz);
+            setUsingRealData(true);
+            setUserLat(_ipData.latitude);
+            setUserLng(_ipData.longitude);
+            setBizLoading(false);
+          }
         }
       } catch (_e) {}
       if (navigator.geolocation) {
@@ -275,16 +286,24 @@ const BrowsePage: NextPage = () => {
             setUserLat(pos.coords.latitude);
             setUserLng(pos.coords.longitude);
             const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
-            setBizList(real);
-            if (real.length > 0) setUsingRealData(true);
+            if (real.length > 0) {
+              setBizListSafe(real);
+              setUsingRealData(true);
+            } else if (!hasBizRef.current) {
+              setBizListSafe([]);
+            }
             setBizLoading(false);
           },
-          () => { setBizList([]); setBizLoading(false); setGeoError(true); },
+          () => {
+            if (!hasBizRef.current) setBizListSafe([]);
+            setBizLoading(false);
+            setGeoError(true);
+          },
           { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
         );
 
       } else {
-        setBizList([]);
+        if (!hasBizRef.current) setBizListSafe([]);
         setBizLoading(false);
       }
     });
@@ -325,8 +344,8 @@ const BrowsePage: NextPage = () => {
     if (!userLat || !userLng) return;
     setBizLoading(true);
     fetchNearbyBusinesses(userLat, userLng, { limit: 40, radius })
-      .then(real => { setBizList(real.length > 0 ? real : []); if (real.length > 0) setUsingRealData(true); })
-      .catch(() => setBizList([]))
+      .then(real => { setBizListSafe(real.length > 0 ? real : []); if (real.length > 0) setUsingRealData(true); })
+      .catch(() => setBizListSafe([]))
       .finally(() => setBizLoading(false));
   }, [radius]);
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
@@ -467,7 +486,7 @@ const BrowsePage: NextPage = () => {
                       : 'Enable location access and click the button below to see local pros near you'}
                   </p>
                   {geoError && (
-                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizList(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizList([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0 }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#007e6d' }}>📍 Use My Location</button>
+                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizListSafe(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizListSafe([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0 }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#007e6d' }}>📍 Use My Location</button>
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
