@@ -27,7 +27,7 @@ const CATEGORY_COVERS: Record<string, string> = {
   handyman: 'https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=900&q=80',
 };
 
-function getCover(service_tags: string[], cover_url?: string | null): string {
+function getCover(service_tags: string[], cover_url?: string | null): string {f
   if (cover_url) return cover_url;
   for (const tag of (service_tags || [])) {
     const key = tag.toLowerCase().replace(/_/g,' ');
@@ -85,23 +85,8 @@ export async function fetchNearbyBusinesses(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-    const { data, error } = await supabase.rpc('search_businesses_geo', {
-      p_lat: lat, p_lng: lng,
-      p_service: opts.category ? opts.category.toLowerCase() : null,
-      p_term: null, p_price_max: null,
-      p_radius: opts.radius ?? 25,
-      p_limit: opts.limit ?? 40,
-    });
 
-    let results: Business[] = [];
-    const seen = new Set<string>();
-
-    if (!error && data && (data as any[]).length > 0) {
-      results = (data as any[]).map(b => mapBusiness(b, b.distance_miles));
-      for (const r of results) seen.add(r.id);
-    }
-
-    // Service-role merge via API (ensures new rows show even if RPC/RLS omit them)
+    // Prefer service-role API (bypasses RLS/RPC omissions)
     try {
       const params = new URLSearchParams({
         lat: String(lat),
@@ -114,18 +99,29 @@ export async function fetchNearbyBusinesses(
       if (res.ok) {
         const json = await res.json();
         const rows = json?.businesses || [];
-        for (const b of rows) {
-          if (!seen.has(b.id)) {
-            results.push(mapBusiness(b, b.distance_miles));
-            seen.add(b.id);
-          }
+        if (rows.length > 0) {
+          return rows.map((b: any) => mapBusiness(b, b.distance_miles));
         }
       }
     } catch { /* non-fatal */ }
 
-    return results;
+    // Fallback to RPC (if API unavailable)
+    const { data, error } = await supabase.rpc('search_businesses_geo', {
+      p_lat: lat, p_lng: lng,
+      p_service: opts.category ? opts.category.toLowerCase() : null,
+      p_term: null, p_price_max: null,
+      p_radius: opts.radius ?? 25,
+      p_limit: opts.limit ?? 40,
+    });
+
+    if (!error && data && (data as any[]).length > 0) {
+      return (data as any[]).map(b => mapBusiness(b, b.distance_miles));
+    }
+
+    return [];
   } catch { return []; }
 }
+
 
 // GEO-GATED: Returns [] without coordinates — never shows out-of-area businesses
 export async function fetchAllBusinesses(
