@@ -143,9 +143,9 @@ const CampusPage: NextPage = () => {
 
       // Check existing EDU verification
       const { data: profile } = await supabase
-        .from('profiles').select('edu_verified, school_name')
+        .from('profiles').select('edu_verified, school_name, school_domain')
         .eq('id', session.user.id).maybeSingle();
-      const schoolName = profile?.school_name || null;
+      const schoolName = profile?.school_name || profile?.school_domain || null;
       setEduVerified(Boolean(profile?.edu_verified));
       setSchoolDomain(schoolName);
       if (schoolName) loadCampusBusinesses(deriveCampusTag(schoolName), schoolName);
@@ -197,6 +197,10 @@ const CampusPage: NextPage = () => {
   );
 
   const canView = true;
+  const campusCategories = businesses.length > 0
+    ? ['All', ...Array.from(new Set(businesses.map(b => b.category).filter(Boolean))).sort()]
+    : [];
+
   const campusName = (eduVerified && schoolDomain)
     ? schoolDomain.replace('.edu', '').toUpperCase()
     : 'Campus';
@@ -285,17 +289,19 @@ const CampusPage: NextPage = () => {
             )}
 
             {/* Category pills */}
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
-              {(businesses.length > 0 ? ['All', ...Array.from(new Set(businesses.map(b=>b.category).filter(Boolean)))] : CAMPUS_CATEGORIES_DEFAULT).map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)}
-                  className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border transition-all"
-                  style={activeCategory === cat
-                    ? { background: '#007e6d', borderColor: '#007e6d', color: 'white' }
-                    : { background: dm ? 'rgba(10,132,255,0.15)' : '#EDF5FF', borderColor: dm ? 'rgba(10,132,255,0.3)' : 'transparent', color: dm ? '#93c5fd' : '#007e6d' }}>
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {campusCategories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
+                {campusCategories.map(cat => (
+                  <button key={cat} onClick={() => setActiveCategory(cat)}
+                    className="shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold border transition-all"
+                    style={activeCategory === cat
+                      ? { background: '#007e6d', borderColor: '#007e6d', color: 'white' }
+                      : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)', color: dm ? '#6ee7b7' : '#007e6d' }}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {filtered.length === 0 ? (
               <div className="text-center py-20">

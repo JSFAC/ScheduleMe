@@ -479,6 +479,9 @@ const HomePage: NextPage = () => {
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
+  const dynamicCategories = realBizList.length > 0
+    ? ['All', ...Array.from(new Set(realBizList.map(b => b.category).filter(Boolean))).sort()]
+    : ['All'];
   const hasNearbyRef = useRef(false);
   const [usingRealData, setUsingRealData] = useState(false);
   function setNearbySafe(list: Business[]) {
@@ -653,17 +656,14 @@ function writeCoords(lat: number, lng: number) {
 
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
-          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
-            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS.filter(c => realBizList.length === 0 || realBizList.some(b => b.category === c.label))].map(cat => (
-              <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
-                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
-                style={activeCategory === cat.label
-                  ? { background: '#007e6d', borderColor: '#007e6d' }
-                  : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)' }}>
-                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)' : '#007e6d') }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
-                </svg>
-                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? 'rgb(213, 225, 222)' : '#007e6d') }}>{cat.label}</span>
+          <div className="flex justify-center gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
+            {dynamicCategories.map(cat => (
+              <button key={cat} onClick={() => setActiveCategory(cat)}
+                className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
+                style={activeCategory === cat
+                  ? { background: '#007e6d', color: 'white', borderColor: '#007e6d' }
+                  : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', color: dm ? '#6ee7b7' : '#007e6d', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)' }}>
+                {cat}
               </button>
             ))}
           </div>
