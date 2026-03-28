@@ -236,11 +236,6 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
   const subtle = dm ? '#2c2c2e' : '#f2f2f7';
   const muted = dm ? '#8e8e93' : '#8e8e93';
 
-  async function getAuthHeaders(): Promise<Record<string, string>> {
-    const { data: { session } } = await getSupabase().auth.getSession();
-    return session ? { Authorization: `Bearer ${session.access_token}` } : {};
-  }
-
   async function uploadFiles(files: File[]) {
     if (!business || files.length === 0) return;
     setUploading(true);

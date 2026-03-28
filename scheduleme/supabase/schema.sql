@@ -286,3 +286,27 @@ grant execute on function search_businesses_geo to anon, authenticated;
 -- Allow service_role to write users (for lead capture)
 create policy if not exists "users_service_insert"
   on users for insert using (auth.role() = 'service_role');
+
+
+-- ============================================================
+-- 5. SERVICES (Business service menu items)
+-- ============================================================
+create table if not exists services (
+  id           uuid primary key default gen_random_uuid(),
+  business_id  uuid references businesses(id) on delete cascade,
+  name         text not null,
+  description  text,
+  price_cents  integer not null check (price_cents >= 0),
+  duration_min integer default 60,
+  sort_order   integer default 0,
+  active       boolean default true,
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now()
+);
+
+create index if not exists services_business_idx on services (business_id);
+
+drop trigger if exists services_updated_at on services;
+create trigger services_updated_at
+  before update on services
+  for each row execute function set_updated_at();
