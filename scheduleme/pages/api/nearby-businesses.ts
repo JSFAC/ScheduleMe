@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: rows, error } = await sb
     .from('businesses')
-    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified')
+    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified, campus_provider, school_domain')
     .eq('is_onboarded', true)
     .not('lat', 'is', null)
     .not('lng', 'is', null)

@@ -109,7 +109,10 @@ function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): 
 }
 
 function mapCampusBusiness(b: any): Business {
-  const tags = b.service_tags || [];
+  const rawTags = Array.isArray(b.service_tags)
+    ? b.service_tags
+    : (b.service_tags ? [String(b.service_tags)] : []);
+  const tags = rawTags.filter(Boolean).map((t: any) => String(t));
   const category = tags.length > 0
     ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g, ' ')
     : (b.category || 'General');
@@ -169,6 +172,8 @@ const CampusPage: NextPage = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
 
   // EDU verification flow
   const [showVerify, setShowVerify] = useState(false);
@@ -198,6 +203,30 @@ const CampusPage: NextPage = () => {
     else setBusinesses([]);
   }, []);
 
+  const loadNearbyEdu = useCallback(async (lat: number, lng: number) => {
+    try {
+      const params = new URLSearchParams({
+        lat: String(lat),
+        lng: String(lng),
+        radius: '10',
+        limit: '40',
+      });
+      const res = await fetch(`/api/nearby-businesses?${params.toString()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-store' },
+      });
+      if (!res.ok) { setBusinesses([]); return; }
+      const json = await res.json();
+      const rows = json?.businesses || [];
+      const filtered = rows.filter((b: any) =>
+        b.edu_verified === true && (b.campus_provider === true || b.campus_provider == null)
+      );
+      setBusinesses(filtered.map((b: any) => mapCampusBusiness(b)));
+    } catch {
+      setBusinesses([]);
+    }
+  }, []);
+
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -219,15 +248,17 @@ const CampusPage: NextPage = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            const campus = detectNearestCampus(pos.coords.latitude, pos.coords.longitude);
+            const { latitude, longitude } = pos.coords;
+            setUserLat(latitude);
+            setUserLng(longitude);
+            const campus = detectNearestCampus(latitude, longitude);
             if (campus) {
               setDetectedCampus(campus);
               setGpsStatus('on-campus');
-              loadBusinesses(profile?.edu_verified ? profile.school_name : campus.domain);
             } else {
               setGpsStatus('off-campus');
-              if (profile?.edu_verified) loadBusinesses(profile.school_name);
             }
+            loadNearbyEdu(latitude, longitude);
           },
           () => {
             setGpsStatus('denied');
@@ -241,7 +272,7 @@ const CampusPage: NextPage = () => {
 
       setLoading(false);
     });
-  }, [router, loadBusinesses]);
+  }, [router, loadBusinesses, loadNearbyEdu]);
 
   async function sendCode() {
     setSending(true); setVerifyError('');
@@ -275,7 +306,11 @@ const CampusPage: NextPage = () => {
       setEduVerified(true);
       setSchoolDomain(data.school_domain);
       setShowVerify(false);
-      loadBusinesses(data.school_domain);
+      if (userLat != null && userLng != null) {
+        loadNearbyEdu(userLat, userLng);
+      } else {
+        loadBusinesses(data.school_domain);
+      }
     } catch { setVerifyError('Something went wrong.'); }
     finally { setVerifying(false); }
   }
@@ -284,8 +319,10 @@ const CampusPage: NextPage = () => {
     activeCategory === 'All' || b.category === activeCategory
   );
 
-  const canView = gpsStatus === 'on-campus' || eduVerified;
-  const campusName = detectedCampus?.name || (schoolDomain ? schoolDomain.replace('.edu', '').toUpperCase() : 'Campus');
+  const canView = gpsStatus !== 'denied' || eduVerified;
+  const campusName = detectedCampus?.name
+    || (eduVerified && schoolDomain ? schoolDomain.replace('.edu', '').toUpperCase() : null)
+    || (gpsStatus !== 'denied' ? 'Nearby' : 'Campus');
 
   if (loading) return (
     <>
@@ -331,7 +368,7 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
               <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
-                {canView ? 'Showing campus-verified service providers' : 'Verify your .edu email to see your campus feed'}
+                {canView ? 'Showing edu-verified providers near you' : 'Verify your .edu email to see your campus feed'}
               </p>
             </div>
             {!eduVerified && canView && (
@@ -432,7 +469,7 @@ const CampusPage: NextPage = () => {
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">🎓</p>
                 <p className="font-semibold mb-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
-                  No campus providers yet{detectedCampus ? ` for ${detectedCampus.name}` : ''}
+                  No edu-verified providers yet{detectedCampus ? ` for ${detectedCampus.name}` : ''}
                 </p>
                 <p className="text-sm mb-6" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                   Be the first verified campus service provider here.
