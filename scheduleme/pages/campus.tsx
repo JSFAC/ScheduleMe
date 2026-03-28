@@ -159,6 +159,14 @@ function detectNearestCampus(lat: number, lng: number) {
   return nearest;
 }
 
+function deriveCampusTag(domain?: string | null, campus?: { name: string } | null): string | null {
+  if (campus?.name) return campus.name;
+  if (!domain) return null;
+  const base = domain.split('.')[0]?.trim();
+  if (!base) return null;
+  return base.toUpperCase();
+}
+
 const CAMPUS_CATEGORIES_DEFAULT = ['All', 'Hair & Beauty', 'Photography', 'Tutoring', 'Arts & Crafts', 'Moving', 'Handyman', 'Other'];
 
 const CampusPage: NextPage = () => {
@@ -184,35 +192,13 @@ const CampusPage: NextPage = () => {
   const [sending, setSending] = useState(false);
   const [verifyError, setVerifyError] = useState('');
 
-  const loadBusinesses = useCallback(async (domain: string | null) => {
-    if (!domain) { setBusinesses([]); return; }
+  const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
+    if (!tag && !domain) { setBusinesses([]); return; }
     try {
-      const params = new URLSearchParams({ limit: '40', school_domain: domain });
-      const res = await fetch(`/api/campus-businesses?${params.toString()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-store' },
-      });
-      if (!res.ok) { setBusinesses([]); return; }
-      const json = await res.json();
-      const rows = json?.businesses || [];
-      setBusinesses(rows.map((b: any) => mapCampusBusiness(b)));
-    } catch {
-      setBusinesses([]);
-    }
-  }, []);
-
-  const loadNearbyEdu = useCallback(async (lat: number, lng: number, domain?: string | null) => {
-    try {
-      const params = new URLSearchParams({
-        lat: String(lat),
-        lng: String(lng),
-        radius: '25',
-        limit: '40',
-        edu_only: 'true',
-        campus_only: 'true',
-      });
+      const params = new URLSearchParams({ limit: '40' });
+      if (tag) params.set('campus_school_name', tag);
       if (domain) params.set('school_domain', domain);
-      const res = await fetch(`/api/nearby-businesses?${params.toString()}`, {
+      const res = await fetch(`/api/campus-businesses?${params.toString()}`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-store' },
       });
@@ -256,21 +242,22 @@ const CampusPage: NextPage = () => {
             } else {
               setGpsStatus('off-campus');
             }
-            loadNearbyEdu(latitude, longitude, campus?.domain || null);
+            const tag = deriveCampusTag(profile?.school_name || null, campus);
+            loadCampusBusinesses(tag, profile?.school_name || null);
           },
           () => {
             setGpsStatus('denied');
-            if (profile?.edu_verified) loadBusinesses(profile.school_name);
+            if (profile?.edu_verified) loadCampusBusinesses(deriveCampusTag(profile.school_name, null), profile.school_name);
           }
         );
       } else {
         setGpsStatus('denied');
-        if (profile?.edu_verified) loadBusinesses(profile.school_name);
+        if (profile?.edu_verified) loadCampusBusinesses(deriveCampusTag(profile.school_name, null), profile.school_name);
       }
 
       setLoading(false);
     });
-  }, [router, loadBusinesses, loadNearbyEdu]);
+  }, [router, loadCampusBusinesses]);
 
   async function sendCode() {
     setSending(true); setVerifyError('');
@@ -304,11 +291,8 @@ const CampusPage: NextPage = () => {
       setEduVerified(true);
       setSchoolDomain(data.school_domain);
       setShowVerify(false);
-      if (userLat != null && userLng != null) {
-        loadNearbyEdu(userLat, userLng);
-      } else {
-        loadBusinesses(data.school_domain);
-      }
+      const tag = deriveCampusTag(data.school_domain, detectedCampus);
+      loadCampusBusinesses(tag, data.school_domain);
     } catch { setVerifyError('Something went wrong.'); }
     finally { setVerifying(false); }
   }
