@@ -140,9 +140,19 @@ const CampusPage: NextPage = () => {
         .from('profiles').select('edu_verified, school_name, school_domain')
         .eq('id', session.user.id).maybeSingle();
 
+      // Fallback: some verified users only have edu_verified on their business record
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('edu_verified, school_domain')
+        .eq('owner_email', session.user.email)
+        .maybeSingle();
+
       if (cancelled) return;
 
-      if (profile?.edu_verified !== true) {
+      const profileVerified = profile?.edu_verified === true;
+      const bizVerified = biz?.edu_verified === true;
+
+      if (!profileVerified && !bizVerified) {
         setEduVerified(false);
         if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'false');
         router.replace('/home');
@@ -153,7 +163,7 @@ const CampusPage: NextPage = () => {
       if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'true');
 
       const emailDomain = session.user.email?.split('@')[1] || null;
-      const schoolName = profile?.school_name || profile?.school_domain || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
+      const schoolName = profile?.school_name || profile?.school_domain || biz?.school_domain || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
       setSchoolDomain(schoolName);
       if (schoolName) loadCampusBusinesses(deriveCampusTag(schoolName), schoolName);
 
