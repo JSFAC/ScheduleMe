@@ -135,24 +135,23 @@ const CampusPage: NextPage = () => {
 
       if (eduCache === 'true') setEduVerified(true);
 
-      // Check existing EDU verification
-      const { data: profile } = await supabase
-        .from('profiles').select('edu_verified, school_name, school_domain')
-        .eq('id', session.user.id).maybeSingle();
-
-      // Fallback: some verified users only have edu_verified on their business record
-      const { data: biz } = await supabase
-        .from('businesses')
-        .select('edu_verified, school_domain')
-        .eq('owner_email', session.user.email)
-        .maybeSingle();
+      // Check EDU verification via API (service role to avoid RLS)
+      let verified = false;
+      let schoolName: string | null = null;
+      try {
+        const res = await fetch('/api/edu-status', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          verified = json?.verified === true;
+          schoolName = json?.schoolDomain || null;
+        }
+      } catch {}
 
       if (cancelled) return;
 
-      const profileVerified = profile?.edu_verified === true;
-      const bizVerified = biz?.edu_verified === true;
-
-      if (!profileVerified && !bizVerified) {
+      if (!verified && eduCache !== 'true') {
         setEduVerified(false);
         if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'false');
         router.replace('/home');
@@ -163,9 +162,9 @@ const CampusPage: NextPage = () => {
       if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'true');
 
       const emailDomain = session.user.email?.split('@')[1] || null;
-      const schoolName = profile?.school_name || profile?.school_domain || biz?.school_domain || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
-      setSchoolDomain(schoolName);
-      if (schoolName) loadCampusBusinesses(deriveCampusTag(schoolName), schoolName);
+      const resolvedSchool = schoolName || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
+      setSchoolDomain(resolvedSchool);
+      if (resolvedSchool) loadCampusBusinesses(deriveCampusTag(resolvedSchool), resolvedSchool);
 
       setLoading(false);
     })();
