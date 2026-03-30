@@ -9,7 +9,6 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
-import BusinessProfile from '../components/BusinessProfile';
 import { SkeletonCard } from '../components/SkeletonCard';
 import type { Business } from '../lib/mockBusinesses';
 
@@ -161,8 +160,7 @@ const CampusPage: NextPage = () => {
   const [campusTag, setCampusTag] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [activeBiz, setActiveBiz] = useState<Business | null>(null);
-
+  
   const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
     if (!tag && !domain) { setBusinesses([]); return; }
     try {
@@ -332,15 +330,14 @@ const CampusPage: NextPage = () => {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                 {filtered.map((biz, i) => (
-                  <BizCard key={biz.id} biz={biz} onClick={() => setActiveBiz(biz)} dm={dm} index={i} />
+                  <BizCard key={biz.id} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} />
                 ))}
               </div>
             )}
           </div>
         )}
       </div>
-      {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
-    </>
+          </>
   );
 
   // BizCard — matches Browse grid style
