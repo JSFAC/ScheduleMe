@@ -579,6 +579,8 @@ const BookingsPage: NextPage = () => {
   const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [bookingError, setBookingError] = useState('');
+  const [bookingDebug, setBookingDebug] = useState<any>(null);
   const [nearbyBizList, setNearbyBizList] = useState<any[]>([]);
   const hasNearbyRef = useRef(false);
   const [nearbyLoading, setNearbyLoading] = useState(true);
@@ -664,18 +666,27 @@ function writeCoords(lat: number, lng: number) {
         // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
         try {
-          const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
+          if (!session.access_token) {
+            setBookingError('Missing session token. Please sign in again.');
+          }
+          const res = await fetch(`/api/bookings`, {
             headers: { 'Authorization': `Bearer ${session.access_token}` },
           });
+          const raw = await res.text();
+          let data: any = null;
+          try { data = JSON.parse(raw); } catch {}
           if (res.ok) {
-            const data = await res.json();
-            bookingsData = data.bookings || [];
+            bookingsData = data?.bookings || [];
             setBookings(bookingsData);
+            setBookingError('');
           } else {
             setBookings([]);
+            setBookingError(data?.error || `Failed to load bookings (${res.status}).`);
           }
+          setBookingDebug({ userId: session.user.id, email: session.user.email, hasToken: !!session.access_token });
         } catch {
           setBookings([]);
+          setBookingError('Failed to load bookings.');
         } finally {
           setLoadingBookings(false);
           // Also fetch nearby businesses for the "Available near you" section
@@ -868,6 +879,14 @@ function writeCoords(lat: number, lng: number) {
                   </div>
                   <p className="font-bold text-neutral-700 mb-1" style={{ letterSpacing: '-0.01em' }}>No bookings yet</p>
                   <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
+                  {bookingError && (
+                    <div className="text-xs text-red-500 mb-3">{bookingError}</div>
+                  )}
+                  {bookingDebug && (
+                    <div className="text-[10px] text-neutral-400 mb-4">
+                      Signed in as {bookingDebug.email} • {bookingDebug.userId} • token: {bookingDebug.hasToken ? 'yes' : 'no'}
+                    </div>
+                  )}
                   <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
                 </div>
 

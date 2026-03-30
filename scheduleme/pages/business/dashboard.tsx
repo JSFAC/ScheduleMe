@@ -542,6 +542,7 @@ const BusinessDashboard: NextPage = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeConnectError, setStripeConnectError] = useState('');
   const stripeSuccess = router.query.stripe === 'success';
   const [campusEduEmail, setCampusEduEmail] = useState('');
   const [campusCodeSent, setCampusCodeSent] = useState(false);
@@ -743,12 +744,23 @@ const BusinessDashboard: NextPage = () => {
   }
 
   async function handleStripeConnect() {
-    if (!business) return; setStripeLoading(true);
+    if (!business) return;
+    setStripeLoading(true);
+    setStripeConnectError('');
     try {
       const headers = await getAuthHeaders();
-    const res = await fetch('/api/stripe-connect', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: business.id }) });
-      const data = await res.json(); if (data.url) window.location.href = data.url;
-    } catch { alert('Failed to connect Stripe.'); } finally { setStripeLoading(false); }
+      const res = await fetch('/api/stripe-connect', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: business.id }) });
+      const data = await res.json();
+      if (!res.ok || !data?.url) {
+        setStripeConnectError(data?.error || 'Failed to start Stripe onboarding.');
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setStripeConnectError('Failed to connect Stripe.');
+    } finally {
+      setStripeLoading(false);
+    }
   }
 
   async function handleCampusSendCode() {
@@ -1016,6 +1028,9 @@ const BusinessDashboard: NextPage = () => {
                   {stripeLoading ? 'Loading…' : 'Connect bank & get paid →'}
                 </button>
               </div>
+              {stripeConnectError && (
+                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeConnectError}</p>
+              )}
             </div>
           )}
           {business && business.stripe_onboarded && stripeSuccess && (
