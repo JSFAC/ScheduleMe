@@ -42,7 +42,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .maybeSingle();
 
     const verified = profile?.edu_verified === true || biz?.edu_verified === true;
-    const schoolDomain = profile?.school_name || profile?.school_domain || biz?.school_domain || null;
+    const emailDomain = email.split('@')[1] || '';
+    const inferredDomain = emailDomain.endsWith('.edu') ? emailDomain : null;
+    const schoolDomain = profile?.school_name || profile?.school_domain || biz?.school_domain || inferredDomain || null;
 
     return res.status(200).json({ verified, schoolDomain });
   } catch (err) {

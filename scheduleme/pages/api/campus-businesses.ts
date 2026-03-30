@@ -26,7 +26,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('campus_provider', true)
     .order('rating', { ascending: false });
 
-  if (campusSchoolName) {
+  if (campusSchoolName && schoolDomain) {
+    const pattern = `%${campusSchoolName.replace('%','')}%`;
+    query = query.or(`campus_school_name.ilike.${pattern},school_domain.eq.${schoolDomain}`);
+  } else if (campusSchoolName) {
     const pattern = `%${campusSchoolName.replace('%','')}%`;
     query = query.ilike('campus_school_name', pattern);
   } else if (schoolDomain) {
