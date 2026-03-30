@@ -205,6 +205,17 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
 
           <div className="h-px bg-neutral-100 my-6" />
 
+          <div className="flex flex-wrap gap-2 mb-4">
+            <a href={`/messages?booking=${booking.id}`}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-accent px-3 py-1.5 rounded-lg hover:opacity-90 transition-colors">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 19.5A9.75 9.75 0 0112 2.25c5.385 0 9.75 4.365 9.75 9.75 0 5.386-4.365 9.75-9.75 9.75a9.753 9.753 0 01-4.49-1.086L3.75 21l.836-3.384A9.728 9.728 0 013.75 12z" />
+              </svg>
+              Message provider
+            </a>
+          </div>
+
           <div className="space-y-3.5">
             {booking.scheduled_at && (
               <div className="flex items-start gap-3">
