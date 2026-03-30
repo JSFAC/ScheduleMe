@@ -63,10 +63,31 @@ const MessagesPage: NextPage = () => {
 
   // Open thread from query param (e.g., from bookings page)
   useEffect(() => {
-    if (router.query.booking && threads.length > 0) {
-      const t = threads.find(t => t.id === router.query.booking);
-      if (t) openThread(t);
+    const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
+    if (!bookingId) return;
+    if (threads.length > 0) {
+      const t = threads.find(t => t.id === bookingId);
+      if (t) {
+        openThread(t);
+        return;
+      }
     }
+    // If thread not found yet, fetch booking thread directly
+    (async () => {
+      try {
+        const authH = await getAuthHeaders();
+        const res = await fetch(`/api/messages?booking_id=${bookingId}`, { headers: authH });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.thread) {
+          setThreads(ts => {
+            if (ts.find(t => t.id === data.thread.id)) return ts;
+            return [data.thread, ...ts];
+          });
+          openThread(data.thread);
+        }
+      } catch {}
+    })();
   }, [router.query.booking, threads]);
 
   async function loadThreads(uid: string) {
