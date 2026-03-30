@@ -206,17 +206,6 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
           <div className="h-px bg-neutral-100 my-6" />
 
           <div className="space-y-3.5">
-            <div className="flex items-start gap-3">
-              <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 0h10.5a2.25 2.25 0 012.25 2.25v6a2.25 2.25 0 01-2.25 2.25h-10.5A2.25 2.25 0 014.5 18.75v-6a2.25 2.25 0 012.25-2.25z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Booking ID</p>
-                <p className="text-sm text-neutral-700 mt-0.5">{booking.id}</p>
-              </div>
-            </div>
             {booking.scheduled_at && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
