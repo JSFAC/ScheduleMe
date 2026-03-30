@@ -34,6 +34,62 @@ function getCover(service_tags: string[], cover_url?: string | null, media_urls?
   return 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=900&q=80';
 }
 
+function normalizeHours(hours: any): { day: string; time: string }[] {
+  if (!hours) return [];
+  if (Array.isArray(hours)) return hours as any;
+  if (typeof hours === 'string') {
+    try {
+      const parsed = JSON.parse(hours);
+      return normalizeHours(parsed);
+    } catch {
+      return [];
+    }
+  }
+  if (typeof hours === 'object') {
+    return Object.entries(hours).map(([day, time]) => ({ day, time: String(time) }));
+  }
+  return [];
+}
+
+function mapCampusBusiness(b: any): Business {
+  const rawTags = Array.isArray(b.service_tags)
+    ? b.service_tags
+    : (b.service_tags ? [String(b.service_tags)] : []);
+  const tags = rawTags.filter(Boolean).map((t: any) => String(t));
+  const category = tags.length > 0
+    ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g, ' ')
+    : 'General';
+  const dist = b.address || 'Local';
+  const cover = getCover(tags, b.cover_url, b.media_urls);
+  return {
+    id: b.id,
+    realId: b.id,
+    name: b.name || 'Local Business',
+    slug: b.slug || b.id,
+    description: b.description || '',
+    tagline: b.description ? b.description.split('.')[0] : '',
+    address: b.address || '',
+    lat: b.lat,
+    lng: b.lng,
+    category,
+    independent: true,
+    available: true,
+    distance: dist,
+    rating: parseFloat(b.rating) || 4.5,
+    reviews: b.review_count ?? 0,
+    price_tier: b.price_tier ?? 2,
+    coverUrl: cover,
+    allImages: b.media_urls || [cover],
+    phone: b.phone || '',
+    website: b.website || '',
+    calendly_url: b.calendly_url || '',
+    hours: normalizeHours(b.hours),
+    services: [],
+    about: b.description || '',
+    badges: [],
+  } as Business;
+}
+
 function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
   if (!hours || hours.length === 0) return { open: true, label: 'Open' };
   const now = new Date();
@@ -102,6 +158,7 @@ const CampusPage: NextPage = () => {
   const [eduVerified, setEduVerified] = useState<boolean | null>(null);
   const eduCache = typeof window !== 'undefined' ? localStorage.getItem('sm_edu_verified') : null;
   const [schoolDomain, setSchoolDomain] = useState<string | null>(null);
+  const [campusTag, setCampusTag] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
@@ -163,8 +220,11 @@ const CampusPage: NextPage = () => {
 
       const emailDomain = session.user.email?.split('@')[1] || null;
       const resolvedSchool = schoolName || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
+      const resolvedTag = deriveCampusTag(resolvedSchool) || (schoolName ? schoolName.toUpperCase() : null);
       setSchoolDomain(resolvedSchool);
-      if (resolvedSchool) loadCampusBusinesses(deriveCampusTag(resolvedSchool), resolvedSchool);
+      setCampusTag(resolvedTag);
+      if (typeof window !== 'undefined' && resolvedTag) localStorage.setItem('sm_campus_tag', resolvedTag);
+      if (resolvedTag || resolvedSchool) loadCampusBusinesses(resolvedTag, resolvedSchool);
 
       setLoading(false);
     })();
@@ -182,8 +242,8 @@ const CampusPage: NextPage = () => {
     ? ['All', ...Array.from(new Set(businesses.map(b => b.category).filter(Boolean))).sort()]
     : [];
 
-  const campusName = (eduVerified && schoolDomain)
-    ? schoolDomain.replace('.edu', '').toUpperCase()
+  const campusName = (eduVerified && (schoolDomain || campusTag))
+    ? (schoolDomain ? schoolDomain.replace('.edu', '').toUpperCase() : campusTag!)
     : 'Campus';
 
   if (loading) return (
