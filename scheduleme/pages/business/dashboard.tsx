@@ -543,7 +543,9 @@ const BusinessDashboard: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeConnectError, setStripeConnectError] = useState('');
+  const [stripeStatusMsg, setStripeStatusMsg] = useState('');
   const stripeSuccess = router.query.stripe === 'success';
+  const stripeCta = business?.stripe_account_id ? 'Continue Stripe setup →' : 'Connect bank & get paid →';
   const [campusEduEmail, setCampusEduEmail] = useState('');
   const [campusCodeSent, setCampusCodeSent] = useState(false);
   const [campusBannerDismissed, setCampusBannerDismissed] = useState(false);
@@ -639,6 +641,13 @@ const BusinessDashboard: NextPage = () => {
   }, [tab, business]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
+
+  useEffect(() => {
+    if (!business) return;
+    if (!router.query.stripe) return;
+    if (!['success', 'refresh'].includes(String(router.query.stripe))) return;
+    refreshStripeStatus();
+  }, [business?.id, router.query?.stripe]);
 
   useEffect(() => {
     if (!business || business.stripe_onboarded) return;
@@ -762,6 +771,39 @@ const BusinessDashboard: NextPage = () => {
       setStripeLoading(false);
     }
   }
+
+  async function refreshStripeStatus() {
+    if (!business?.id) return;
+    setStripeLoading(true);
+    setStripeConnectError('');
+    setStripeStatusMsg('');
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/stripe-connect-status', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessId: business.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStripeConnectError(data?.error || 'Could not refresh Stripe status.');
+        return;
+      }
+      setBusiness(b => b ? { ...b, stripe_onboarded: !!data?.onboarded } : b);
+      if (!data?.onboarded) {
+        setStripeStatusMsg('Stripe setup isn’t finished yet. Click “Continue Stripe setup” to complete it.');
+      }
+      if (router.query?.stripe) {
+        const hash = typeof window !== 'undefined' ? window.location.hash : '';
+        router.replace(`/business/dashboard${hash || ''}`, undefined, { shallow: true });
+      }
+    } catch {
+      setStripeConnectError('Could not refresh Stripe status.');
+    } finally {
+      setStripeLoading(false);
+    }
+  }
+
 
   async function handleCampusSendCode() {
     setCampusSending(true); setCampusVerifyError('');
@@ -1025,11 +1067,14 @@ const BusinessDashboard: NextPage = () => {
                   <span className="text-amber-800 font-semibold">Step 1/2: Connect bank & get paid</span>
                 </div>
                 <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors">
-                  {stripeLoading ? 'Loading…' : 'Connect bank & get paid →'}
+                  {stripeLoading ? 'Loading…' : stripeCta}
                 </button>
               </div>
               {stripeConnectError && (
                 <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeConnectError}</p>
+              )}
+              {stripeStatusMsg && !stripeConnectError && (
+                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeStatusMsg}</p>
               )}
             </div>
           )}
@@ -1184,7 +1229,7 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                   {business?.stripe_onboarded
                     ? <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 shrink-0">Connected ✓</span>
-                    : <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : 'Connect bank & get paid →'}</button>}
+                    : <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>}
                 </div>
               </div>
             )}
@@ -1795,7 +1840,7 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     {business?.stripe_onboarded
                       ? <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Bank account connected</div>
-                      : <button onClick={handleStripeConnect} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5">{stripeLoading ? 'Loading…' : 'Connect bank & get paid →'}</button>
+                      : <button onClick={handleStripeConnect} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5">{stripeLoading ? 'Loading…' : stripeCta}</button>
                     }
                   </div>
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
