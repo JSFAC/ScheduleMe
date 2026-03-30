@@ -24,6 +24,13 @@ function parseSlotMinutes(slot: string): number {
   return h * 60 + mn;
 }
 
+function buildScheduledStart(date: Date, slot: string): string | null {
+  const mins = parseSlotMinutes(slot);
+  if (Number.isNaN(mins)) return null;
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), Math.floor(mins / 60), mins % 60, 0, 0);
+  return d.toISOString();
+}
+
 type HourEntry = { day: string; time: string };
 
 function getHoursForDate(hours: HourEntry[] | undefined, date: Date): { open: number; close: number } | null {
@@ -101,8 +108,9 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
           const isPast = date < today;
           const dateKey = date.toISOString().split('T')[0];
           const isFullyBooked = bookedDates?.has(dateKey);
+          const hasHours = hours && hours.length ? !!getHoursForDate(hours, date) : true;
           const isSelected = selected && date.toDateString() === selected.toDateString();
-          const disabled = isPast || isFullyBooked;
+          const disabled = isPast || isFullyBooked || !hasHours;
           return (
             <button key={i} type="button" onClick={() => !disabled && onSelect(date)}
               className="h-8 w-8 rounded-full text-[11px] font-semibold transition-colors"
@@ -118,6 +126,7 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
         })}
       </div>
       <div className="flex items-center gap-4 mt-3">
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-neutral-300"/><span className="text-[10px]" style={{color:dm?'#9ca3af':'#8e8e93'}}>Closed</span></div>
         <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400"/><span className="text-[10px]" style={{color:dm?'#9ca3af':'#8e8e93'}}>Fully booked</span></div>
         <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-neutral-300"/><span className="text-[10px]" style={{color:dm?'#9ca3af':'#8e8e93'}}>Past date</span></div>
       </div>
@@ -132,6 +141,7 @@ export default function BizPage() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSvc, setSelectedSvc] = useState(null);
+  const isCustom = selectedSvc?.id === '__custom__';
   const { dm } = useDm();
   const [note, setNote] = useState('');
   const [date, setDate] = useState<Date | null>(null);
@@ -194,10 +204,21 @@ export default function BizPage() {
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
     if (!date || !slot) { setErr('Pick a date and time'); return; }
     setSubmitting(true); setErr('');
-    const res = await fetch('/api/intake', {
+    const scheduled_start = buildScheduledStart(date, slot);
+    const res = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-      body: JSON.stringify({ business_id: biz.id, service_name: selectedSvc?.name || null, service_id: selectedSvc?.id || null, service_price_cents: selectedSvc?.price_cents || null, note, scheduled_date: date.toISOString().split('T')[0], scheduled_time: slot }),
+      body: JSON.stringify({
+        business_id: biz.id,
+        service: selectedSvc?.name || 'Custom Request',
+        note,
+        scheduled_start,
+        scheduled_slot: slot,
+        user_id: session.user.id,
+        user_email: session.user.email,
+        user_name: session.user.user_metadata?.full_name,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
     });
     const d = await res.json();
     if (!res.ok) { setErr(d.error || 'Booking failed'); setSubmitting(false); return; }
@@ -224,10 +245,14 @@ export default function BizPage() {
   const availableSlots = date ? (() => {
     const dk = date.toISOString().split('T')[0];
     const dh = getHoursForDate(biz.hours, date);
+    const now = new Date();
+    const isToday = now.toDateString() === date.toDateString();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
     return TIME_SLOTS.map(s => ({
       slot: s,
       booked: bookedSlots.has(dk + '|' + s),
       outside: dh ? (parseSlotMinutes(s) < dh.open || parseSlotMinutes(s) >= dh.close) : false,
+      past: isToday && parseSlotMinutes(s) <= nowMins,
     }));
   })() : [];
 
@@ -275,9 +300,9 @@ export default function BizPage() {
                 </div>
               </button>
             ))}
-            <button onClick={()=>{setSelectedSvc(null);}} className="w-full text-left rounded-2xl p-4" style={{background:card,border:'1.5px dashed '+bdr}}>
+            <button onClick={()=>{setSelectedSvc({ id: '__custom__', name: 'Custom Request' });}} className="w-full text-left rounded-2xl p-4" style={{background:isCustom?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px dashed '+(isCustom?'#007e6d':bdr)}}>
               <p className="font-semibold text-sm" style={{color:tx}}>Custom Request</p>
-              <p className="text-xs mt-0.5" style={{color:mu}}>Describe what you need — we will quote you</p>
+              <p className="text-xs mt-0.5" style={{color:mu}}>Describe what you need in the notes below</p>
             </button>
           </div>
           {biz.hours?.length > 0 && <>
@@ -310,8 +335,8 @@ export default function BizPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
-                    {availableSlots.map(({slot:s,booked,outside}) => {
-                      const unavail = booked||outside;
+                    {availableSlots.map(({slot:s,booked,outside,past}) => {
+                      const unavail = booked || outside || past;
                       return (
                         <button key={s} type="button" onClick={()=>!unavail&&setSlot(s)} disabled={unavail}
                           className={`py-2.5 rounded-xl text-xs font-semibold text-center border transition-colors relative ${slot===s?'bg-accent text-white border-accent':unavail?'cursor-not-allowed':''}`}
@@ -324,13 +349,13 @@ export default function BizPage() {
                   </div>
                 )}
                 <p className="text-[10px] mt-1.5" style={{color:dm?'rgba(255,255,255,0.25)':'#d1d5db'}}>
-                  <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block"/>Booked</span> · Greyed out = outside hours
+                  <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block"/>Booked</span> · Greyed out = outside hours or past time
                 </p>
               </div>
             )}
             <div>
               <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Note (optional)</label>
-              <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="Describe what you need..." className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
+              <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder={isCustom ? 'Describe your custom request...' : 'Describe what you need...'} className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
             </div>
             {err && <p className="text-red-500 text-sm">{err}</p>}
             {done && (
@@ -346,7 +371,7 @@ export default function BizPage() {
           <button onClick={book} disabled={!date || !slot || submitting}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background:(!date || !slot || submitting) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
-            {submitting ? 'Booking…' : (selectedSvc ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book Appointment')}
+            {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? 'Request Custom Service' : 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2)) : 'Book Appointment')}
           </button>
         </div>
 

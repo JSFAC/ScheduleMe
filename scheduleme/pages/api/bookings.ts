@@ -71,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     if (!rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
 
-    const { business_id, user_id, service, user_name, user_phone, user_email } = req.body;
+    const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note } = req.body;
 
     if (!business_id) return res.status(400).json({ error: 'business_id is required' });
     if (!isValidUuid(business_id)) return res.status(400).json({ error: 'Invalid business_id' });
@@ -86,6 +86,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const supabase = getSupabase();
 
+      let scheduledStart: string | null = null;
+      if (scheduled_start && typeof scheduled_start === 'string') {
+        const d = new Date(scheduled_start);
+        if (!Number.isNaN(d.getTime())) scheduledStart = d.toISOString();
+      }
+      let scheduledEnd: string | null = null;
+      if (scheduled_end && typeof scheduled_end === 'string') {
+        const d = new Date(scheduled_end);
+        if (!Number.isNaN(d.getTime())) scheduledEnd = d.toISOString();
+      }
+
       let resolvedUserId = user_id;
       if (!resolvedUserId && user_email) {
         const { data: userData } = await supabase
@@ -99,6 +110,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         business_id,
         user_id: resolvedUserId ?? null,
         service: service?.slice(0, 500) ?? 'General Service',
+        scheduled_start: scheduledStart ?? null,
+        scheduled_end: scheduledEnd ?? null,
+        timezone: typeof timezone === 'string' ? timezone : undefined,
         status: 'pending',
         requires_manual_action: true,
       }).select('id, status, created_at').single();
