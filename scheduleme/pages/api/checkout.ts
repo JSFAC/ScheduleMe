@@ -89,14 +89,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }],
     mode: 'payment',
     success_url: `${siteUrl}/bookings?payment=success&booking=${booking_id}`,
-    cancel_url: `${siteUrl}/bookings?payment=cancelled`,
+    cancel_url: `${siteUrl}/bookings?payment=cancelled&booking=${booking_id}`,
     metadata: { booking_id },
     payment_intent_data: {
+      capture_method: 'manual',
       application_fee_amount: platformFeeCents,
       transfer_data: { destination: biz.stripe_account_id },
+      metadata: { bookingId: booking_id, businessId: biz.id },
     },
     customer_email: (booking.profiles as any)?.email || user.email,
   });
+
+  // Persist payment intent id so we can capture/void later
+  if (session.payment_intent) {
+    await supabase.from('bookings').update({ stripe_payment_intent_id: session.payment_intent }).eq('id', booking_id);
+  }
 
   return res.status(200).json({ url: session.url });
 }

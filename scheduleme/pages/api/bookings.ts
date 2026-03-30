@@ -2,6 +2,7 @@
 // pages/api/bookings.ts — SECURED + notifications
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 
@@ -25,6 +26,21 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
     const user = (booking.profiles as any);
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
     const secret = process.env.NOTIFY_SECRET || '';
+
+    // Email consumer about booking request
+    if (user?.email) {
+      await fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        body: JSON.stringify({
+          type: 'booking_confirmation',
+          to: user.email,
+          name: user?.name || 'there',
+          service: booking.service,
+          location: biz?.name || '',
+        }),
+      }).catch(() => {});
+    }
 
     // Email business owner about new booking
     if (biz?.owner_email) {
@@ -185,13 +201,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, user_id, businesses(owner_email), profiles(name, email)')
+      .select('id, service, user_id, stripe_payment_intent_id, businesses(owner_email, name), profiles(name, email)')
       .eq('id', booking_id)
       .maybeSingle();
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    if ((booking.businesses as any)?.owner_email !== user.email)
+    const isBusinessOwner = (booking.businesses as any)?.owner_email === user.email;
+    let canCancelAsConsumer = false;
+    if (!isBusinessOwner && status === 'cancelled') {
+      let canCancel = booking.user_id === user.id;
+      if (!canCancel && user.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (profile?.id && booking.user_id === profile.id) canCancel = true;
+        if (!canCancel) {
+          try {
+            const { data: legacyUser } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (legacyUser?.id && booking.user_id === legacyUser.id) canCancel = true;
+          } catch {}
+        }
+      }
+      canCancelAsConsumer = canCancel;
+    }
+
+    if (!isBusinessOwner && !canCancelAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
+
+    // If we collected a payment authorization, capture or cancel based on decision
+    const paymentIntentId = (booking as any).stripe_payment_intent_id;
+    if (paymentIntentId) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+        if (status === 'confirmed' && pi.status === 'requires_capture') {
+          await stripe.paymentIntents.capture(paymentIntentId);
+        }
+        if (status === 'cancelled' && ['requires_capture','requires_payment_method','requires_confirmation','requires_action'].includes(pi.status)) {
+          await stripe.paymentIntents.cancel(paymentIntentId);
+        }
+      } catch (e) {
+        console.error('[booking] payment intent action failed', e);
+      }
+    }
 
     await supabase.from('bookings').update({ status }).eq('id', booking_id);
 
@@ -223,6 +280,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           name: consumer.name || 'there',
           service: booking.service,
           status,
+          businessName: (booking.businesses as any)?.name,
         }),
       }).catch(() => {});
 

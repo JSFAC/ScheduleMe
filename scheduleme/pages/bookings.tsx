@@ -205,17 +205,6 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
 
           <div className="h-px bg-neutral-100 my-6" />
 
-          <div className="flex flex-wrap gap-2 mb-4">
-            <a href={`/messages?booking=${booking.id}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-accent px-3 py-1.5 rounded-lg hover:opacity-90 transition-colors">
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 19.5A9.75 9.75 0 0112 2.25c5.385 0 9.75 4.365 9.75 9.75 0 5.386-4.365 9.75-9.75 9.75a9.753 9.753 0 01-4.49-1.086L3.75 21l.836-3.384A9.728 9.728 0 013.75 12z" />
-              </svg>
-              Message provider
-            </a>
-          </div>
-
           <div className="space-y-3.5">
             {booking.scheduled_at && (
               <div className="flex items-start gap-3">
@@ -257,14 +246,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                   <p className="text-sm font-semibold text-neutral-800 mt-0.5">{booking.business_name}</p>
                   {(booking.business_phone || booking.business_email) && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      <a href={`/messages?booking=${booking.id}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-accent px-3 py-1.5 rounded-lg hover:opacity-90 transition-colors">
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 19.5A9.75 9.75 0 0112 2.25c5.385 0 9.75 4.365 9.75 9.75 0 5.386-4.365 9.75-9.75 9.75a9.753 9.753 0 01-4.49-1.086L3.75 21l.836-3.384A9.728 9.728 0 013.75 12z" />
-                        </svg>
-                        Message
-                      </a>
+                      
                       {booking.business_phone && (
                         <a href={`tel:${booking.business_phone}`}
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-accent bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
@@ -311,38 +293,27 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Amount Paid</p>
+                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{booking.paid_at ? 'Amount Paid' : 'Amount Authorized'}</p>
                   <p className="text-sm font-bold text-neutral-900 mt-0.5">{'$'}{(booking.amount_cents / 100).toFixed(2)}</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Pay Now — shown when booking is confirmed and has amount set */}
-          {booking.status === 'confirmed' && booking.amount_cents && !booking.paid_at && (
+          {/* Message provider + payment authorized note */}
+          {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
-              <div className="rounded-2xl p-4 mb-4" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                <p className="text-sm font-bold text-green-800 mb-0.5">Ready to pay</p>
-                <p className="text-xs text-green-700">{booking.business_name} has confirmed your booking. Complete payment to secure your appointment.</p>
-              </div>
-              <button
-                onClick={async () => {
-                  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-                  const { data: { session } } = await supabase.auth.getSession();
-                  if (!session) return;
-                  const res = await fetch('/api/checkout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                    body: JSON.stringify({ booking_id: booking.id }),
-                  });
-                  const data = await res.json();
-                  if (data.url) window.location.href = data.url;
-                  else alert(data.error || 'Could not start checkout');
-                }}
-                className="w-full py-3.5 rounded-xl text-white font-bold text-sm"
+              {booking.amount_cents && !booking.paid_at && (
+                <div className="rounded-2xl p-4 mb-4" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <p className="text-sm font-bold text-green-800 mb-0.5">Payment authorized</p>
+                  <p className="text-xs text-green-700">We’ll capture payment after the business confirms. If they decline, your authorization is released automatically.</p>
+                </div>
+              )}
+              <a href={`/messages?booking=${booking.id}`}
+                className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm"
                 style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' }}>
-                Pay ${(booking.amount_cents / 100).toFixed(2)} Now →
-              </button>
+                Message provider
+              </a>
             </div>
           )}
 
@@ -630,11 +601,22 @@ function writeCoords(lat: number, lng: number) {
   useEffect(() => {
     if (router.query.payment === 'cancelled') {
       setPaymentToast('cancelled');
+      const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
+      if (bookingId) {
+        getSupabase().auth.getSession().then(async ({ data: { session } }) => {
+          if (!session) return;
+          await fetch('/api/bookings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ booking_id: bookingId, status: 'cancelled' }),
+          }).catch(() => {});
+        });
+      }
       const t = setTimeout(() => setPaymentToast(null), 5000);
       router.replace('/bookings', undefined, { shallow: true });
       return () => clearTimeout(t);
     }
-  }, [router.query.payment]);
+  }, [router.query.payment, router.query.booking]);
 
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());

@@ -48,6 +48,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     switch (event.type) {
 
+      // Payment authorized (manual capture) — mark booking as payment_pending
+      case 'payment_intent.amount_capturable_updated': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        const { bookingId, businessId } = pi.metadata;
+
+        if (bookingId) {
+          await supabase
+            .from('bookings')
+            .update({ status: 'payment_pending', stripe_payment_intent_id: pi.id })
+            .eq('id', bookingId);
+
+          console.log(`[webhook] Booking ${bookingId} payment authorized`);
+
+          await triggerN8n('payment_authorized', {
+            bookingId,
+            businessId,
+            amountCents: pi.amount,
+          });
+        }
+        break;
+      }
+
       // Payment succeeded — mark booking as paid
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent;
@@ -84,6 +106,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .eq('id', bookingId);
 
           console.log(`[webhook] Booking ${bookingId} payment failed`);
+        }
+        break;
+      }
+
+      // Payment canceled — mark booking as cancelled
+      case 'payment_intent.canceled': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        const { bookingId } = pi.metadata;
+        if (bookingId) {
+          await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+          console.log(`[webhook] Booking ${bookingId} payment canceled`);
         }
         break;
       }
