@@ -8,7 +8,6 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
-import BusinessProfile from '../components/BusinessProfile';
 import type { Business } from '../lib/mockBusinesses';
 import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import FeedbackModal from '../components/FeedbackModal';
@@ -476,8 +475,7 @@ const HomePage: NextPage = () => {
   const { dm } = useDm();
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeBiz, setActiveBiz] = useState<Business | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+    const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
   const dynamicCategories = realBizList.length > 0
     ? ['All', ...Array.from(new Set(realBizList.map(b => b.category).filter(Boolean))).sort()]
@@ -886,7 +884,6 @@ function writeCoords(lat: number, lng: number) {
     </div>
   </div>
 )}
-{activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
       {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
       {/* Floating feedback button */}
       <button onClick={() => setShowFeedback(true)}

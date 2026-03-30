@@ -118,7 +118,6 @@ pages/api/cleanup-auth-user.ts
 ### Components
 ```
 components/Nav.tsx             — consumer nav with dark mode toggle switch
-components/BusinessProfile.tsx — business detail modal + booking form (fully dark-mode aware)
 components/BusinessNav.tsx     — business dashboard nav
 ```
 

@@ -8,7 +8,6 @@ import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
-import BusinessProfile from '../components/BusinessProfile';
 import type { Business } from '../lib/mockBusinesses';
 import { SkeletonCard, SkeletonBrowseCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
@@ -236,8 +235,7 @@ const BrowsePage: NextPage = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMapBiz, setSelectedMapBiz] = useState<string | null>(null);
-  const [activeBiz, setActiveBiz] = useState<Business | null>(null);
-  const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -353,7 +351,7 @@ function writeCoords(lat: number, lng: number) {
   useEffect(() => {
     if (router.query.biz) {
       const biz = bizList.find(b => b.id === router.query.biz);
-      if (biz) setActiveBiz(biz);
+      if (biz) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id);
     }
   }, [router.query.biz]);
 
@@ -536,7 +534,7 @@ function writeCoords(lat: number, lng: number) {
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                   {paginated.map((biz, i) => (
-                    <BizCard key={biz.id} biz={biz} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }} dm={dm} index={i} />
+                    <BizCard key={biz.id} biz={biz} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} />
                   ))}
                 </div>
               ) : (
@@ -544,7 +542,7 @@ function writeCoords(lat: number, lng: number) {
                   {paginated.map(biz => {
                     const listStatus = getOpenStatus(biz.hours);
                     return (
-                    <button key={biz.id} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }}
+                    <button key={biz.id} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }}
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
                       style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
@@ -625,7 +623,7 @@ function writeCoords(lat: number, lng: number) {
                       <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                     </div>
-                    <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
+                    <button onClick={() => window.location.href='/biz/'+(selectedMapBizData.slug||selectedMapBizData.realId||selectedMapBizData.id)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
                     <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5', color: dm ? '#9ca3af' : '#6b7280' }}>
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -680,7 +678,7 @@ function writeCoords(lat: number, lng: number) {
                         <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                         <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                       </div>
-                      <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
+                      <button onClick={() => window.location.href='/biz/'+(selectedMapBizData.slug||selectedMapBizData.realId||selectedMapBizData.id)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
                       <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: dm ? '#9ca3af' : '#6b7280' }}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
@@ -692,8 +690,7 @@ function writeCoords(lat: number, lng: number) {
           )}
         </div>
       </div>
-      {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
-    </>
+          </>
   );
 };
 
