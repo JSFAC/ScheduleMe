@@ -1136,8 +1136,7 @@ const BusinessDashboard: NextPage = () => {
                               <StatusBadge status={b.status} />
                             </div>
                           </div>
-                        );
-                    })}
+                        ))}
                       </div>
                   }
                 </div>
