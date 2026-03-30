@@ -121,7 +121,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         requires_manual_action: true,
       }).select('id, status, created_at').single();
 
-      if (error) return res.status(500).json({ error: 'Failed to create booking' });
+      if (error) {
+        // Fallback: some deployments don't have optional columns yet
+        const { data: fallback, error: fbErr } = await supabase.from('bookings').insert({
+          business_id,
+          user_id: resolvedUserId ?? null,
+          service: service?.slice(0, 500) ?? 'General Service',
+          status: 'pending',
+          requires_manual_action: true,
+        }).select('id, status, created_at').single();
+        if (fbErr) return res.status(500).json({ error: 'Failed to create booking', details: error.message || error });
+        notifyNewBooking(fallback.id, supabase);
+        return res.status(200).json({ booking: fallback, warning: 'Booking created without schedule details. Please update database columns.' });
+      }
 
       // Fire-and-forget notifications
       notifyNewBooking(data.id, supabase);

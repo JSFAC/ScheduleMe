@@ -548,7 +548,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusSending, setCampusSending] = useState(false);
   const [campusVerifyError, setCampusVerifyError] = useState('');
   const [showCampusModal, setShowCampusModal] = useState(false);
-  const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('all');
+  const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -833,8 +833,19 @@ const BusinessDashboard: NextPage = () => {
   }
 
   async function handleUpdateBooking(id: string, status: string) {
-    await getSupabase().from('bookings').update({ status }).eq('id', id);
-    setBookings(b => b.map(bk => bk.id === id ? { ...bk, status } : bk));
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ booking_id: id, status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to update booking');
+      setBookings(b => b.map(bk => bk.id === id ? { ...bk, status } : bk));
+    } catch (e) {
+      alert('Failed to update booking. Please try again.');
+    }
   }
 
   async function handleSaveSettings(e: React.FormEvent) {
