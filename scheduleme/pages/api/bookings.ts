@@ -71,12 +71,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     if (!rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
 
-    const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note } = req.body;
+    const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
 
     if (!business_id) return res.status(400).json({ error: 'business_id is required' });
     if (!isValidUuid(business_id)) return res.status(400).json({ error: 'Invalid business_id' });
     if (user_id && !isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
     if (user_email && !isValidEmail(user_email)) return res.status(400).json({ error: 'Invalid email' });
+
+    if (service_price_cents && typeof service_price_cents !== 'number') return res.status(400).json({ error: 'Invalid service_price_cents' });
 
     if (service) {
       const svcCheck = validateAndFilter(service, { maxLength: 500, fieldName: 'Service description' });
@@ -110,6 +112,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         business_id,
         user_id: resolvedUserId ?? null,
         service: service?.slice(0, 500) ?? 'General Service',
+        amount_cents: typeof service_price_cents === 'number' ? service_price_cents : undefined,
+        note: typeof note === 'string' ? note.slice(0, 2000) : null,
         scheduled_start: scheduledStart ?? null,
         scheduled_end: scheduledEnd ?? null,
         timezone: typeof timezone === 'string' ? timezone : undefined,

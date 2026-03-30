@@ -151,6 +151,7 @@ export default function BizPage() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [err, setErr] = useState('');
 
 
@@ -211,6 +212,7 @@ export default function BizPage() {
       body: JSON.stringify({
         business_id: biz.id,
         service: selectedSvc?.name || 'Custom Request',
+        service_price_cents: selectedSvc?.price_cents || null,
         note,
         scheduled_start,
         scheduled_slot: slot,
@@ -222,7 +224,7 @@ export default function BizPage() {
     });
     const d = await res.json();
     if (!res.ok) { setErr(d.error || 'Booking failed'); setSubmitting(false); return; }
-    setDone(true); setSubmitting(false);
+    setDone(true); setShowConfirm(true); setSubmitting(false);
   }
 
   const bg = dm ? '#0a0a0a' : '#f9fafb';
@@ -358,37 +360,52 @@ export default function BizPage() {
               <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder={isCustom ? 'Describe your custom request...' : 'Describe what you need...'} className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
             </div>
             {err && <p className="text-red-500 text-sm">{err}</p>}
-            {done && (
-              <div className="rounded-2xl p-5" style={{background:dm?'rgba(16,185,129,0.12)':'#ecfdf5',border:'1px solid rgba(16,185,129,0.35)'}}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-9 w-9 rounded-full flex items-center justify-center" style={{background:dm?'rgba(16,185,129,0.2)':'#d1fae5'}}>
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{color:dm?'#a7f3d0':'#047857'}}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold" style={{color:dm?'#d1fae5':'#065f46'}}>Booking requested</p>
-                    <p className="text-xs" style={{color:dm?'#a7f3d0':'#047857'}}>Waiting for business acceptance</p>
-                  </div>
-                </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{background:dm?'rgba(255,255,255,0.08)':'#e5e7eb'}}>
-                  <div className="h-full" style={{width:'50%',background:dm?'#10b981':'#059669'}} />
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-[11px] font-semibold" style={{color:dm?'#a7f3d0':'#047857'}}>Request sent</span>
-                  <span className="text-[11px]" style={{color:dm?'#6ee7b7':'#10b981'}}>Awaiting acceptance</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
         </div>
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={book} disabled={!date || !slot || submitting}
+          <button onClick={book} disabled={!date || !slot || submitting || done}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background:(!date || !slot || submitting) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            style={{background:(!date || !slot || submitting || done) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? 'Request Custom Service' : 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2)) : 'Book Appointment')}
           </button>
         </div>
+        {showConfirm && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+            <div className="w-full max-w-xl mx-4 rounded-3xl p-6 relative" style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}>
+              <button onClick={() => setShowConfirm(false)} className="absolute top-4 right-4 h-9 w-9 rounded-full flex items-center justify-center" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }} aria-label="Close">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-11 w-11 rounded-full flex items-center justify-center" style={{ background: dm ? 'rgba(16,185,129,0.2)' : '#d1fae5' }}>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#a7f3d0' : '#047857' }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div>
+                  <p className="text-lg font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Booking requested</p>
+                  <p className="text-sm" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Waiting for business acceptance</p>
+                </div>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }}>
+                <div className="h-full" style={{ width: '50%', background: dm ? '#10b981' : '#059669' }} />
+              </div>
+              <div className="flex items-center justify-between text-xs mb-4" style={{ color: dm ? '#a7f3d0' : '#047857' }}>
+                <span className="font-semibold">Request sent</span>
+                <span>Awaiting acceptance</span>
+              </div>
+              <div className="rounded-2xl p-4" style={{ background: dm ? '#111827' : '#f9fafb', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}>
+                <p className="text-xs font-semibold mb-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Details</p>
+                <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#111' }}>{selectedSvc ? (isCustom ? 'Custom Request' : selectedSvc.name) : 'Service'}</p>
+                {date && slot && <p className="text-sm" style={{ color: dm ? '#d1d5db' : '#374151' }}>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {slot}</p>}
+                {note && <p className="text-xs mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Note: {note}</p>}
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button onClick={() => { setShowConfirm(false); router.push('/bookings'); }} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>View bookings</button>
+                <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </>

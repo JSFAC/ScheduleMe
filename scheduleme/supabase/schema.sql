@@ -102,6 +102,7 @@ create table if not exists bookings (
   user_id                  uuid references users(id) on delete set null,
   business_id              uuid references businesses(id) on delete set null,
   service                  text,
+  note                     text,
   scheduled_start          timestamptz,
   scheduled_end            timestamptz,
   timezone                 text default 'America/Chicago',
