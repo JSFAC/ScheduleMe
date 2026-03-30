@@ -374,7 +374,7 @@ export default function BizPage() {
         {showConfirm && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
             <div className="w-full max-w-xl mx-4 rounded-3xl p-6 relative" style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}>
-              <button onClick={() => setShowConfirm(false)} className="absolute top-4 right-4 h-9 w-9 rounded-full flex items-center justify-center" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }} aria-label="Close">
+              <button onClick={() => { setShowConfirm(false); router.push('/bookings'); }} className="absolute top-4 right-4 h-9 w-9 rounded-full flex items-center justify-center" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }} aria-label="Close">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
               <div className="flex items-center gap-3 mb-4">
@@ -401,7 +401,7 @@ export default function BizPage() {
               </div>
               <div className="mt-4 flex gap-2">
                 <button onClick={() => { setShowConfirm(false); router.push('/bookings'); }} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>View bookings</button>
-                <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Close</button>
+                <button onClick={() => { setShowConfirm(false); router.push('/bookings'); }} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Close</button>
               </div>
             </div>
           </div>
