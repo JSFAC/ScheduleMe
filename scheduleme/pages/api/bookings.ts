@@ -72,11 +72,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
 
     const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
+    let email = user_email;
+
+    let authUser: { id: string; email: string } | null = null;
+    if (req.headers.authorization) {
+      authUser = await requireAuth(req, res);
+      if (!authUser) return;
+      if (!email) email = authUser.email;
+    }
+
 
     if (!business_id) return res.status(400).json({ error: 'business_id is required' });
     if (!isValidUuid(business_id)) return res.status(400).json({ error: 'Invalid business_id' });
     if (user_id && !isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
-    if (user_email && !isValidEmail(user_email)) return res.status(400).json({ error: 'Invalid email' });
+    if (email && !isValidEmail(email)) return res.status(400).json({ error: 'Invalid email' });
 
     if (service_price_cents && typeof service_price_cents !== 'number') return res.status(400).json({ error: 'Invalid service_price_cents' });
 
@@ -99,11 +108,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!Number.isNaN(d.getTime())) scheduledEnd = d.toISOString();
       }
 
-      let resolvedUserId = user_id;
-      if (!resolvedUserId && user_email) {
+      let resolvedUserId = user_id || authUser?.id;
+      if (!email && authUser?.email) email = authUser.email;
+
+      if (!resolvedUserId && email) {
         const { data: userData } = await supabase
           .from('profiles')
-          .upsert({ email: user_email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) }, { onConflict: 'email' })
+          .upsert({ email: email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) }, { onConflict: 'email' })
           .select('id').single();
         resolvedUserId = userData?.id;
       }
@@ -234,14 +245,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       try {
         const supabase = getSupabase();
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email)')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
           .eq('user_id', user_id)
           .order('created_at', { ascending: false })
           .limit(100);
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+
+        if (!data || data.length === 0) {
+          if (user.email) {
+            const retry = await supabase
+              .from('bookings')
+              .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
+              .eq('profiles.email', user.email)
+              .order('created_at', { ascending: false })
+              .limit(100);
+            if (!retry.error) data = retry.data;
+          }
+        }
         const bookings = (data || []).map((b: any) => ({
           ...b,
           scheduled_at: b.scheduled_start ?? null,
