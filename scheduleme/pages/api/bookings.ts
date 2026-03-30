@@ -243,38 +243,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
       const user = await requireAuth(req, res);
       if (!user) return;
-      if (user.id !== user_id) return res.status(403).json({ error: 'Access denied' });
 
       try {
         const supabase = getSupabase();
-        let { data, error } = await supabase
+        const ids = new Set<string>();
+        ids.add(user.id);
+        if (user_id) ids.add(user_id);
+
+        if (user.email) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (profile?.id) ids.add(profile.id);
+        }
+
+        const idList = Array.from(ids).filter(Boolean);
+        let query = supabase
           .from('bookings')
           .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
-          .eq('user_id', user_id)
           .order('created_at', { ascending: false })
           .limit(100);
 
+        let data: any[] | null = null;
+        let error: any = null;
+        if (idList.length > 1) {
+          const resq = await query.in('user_id', idList);
+          data = resq.data; error = resq.error;
+        } else {
+          const resq = await query.eq('user_id', idList[0]);
+          data = resq.data; error = resq.error;
+        }
+
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
 
-        if (!data || data.length === 0) {
-          if (user.email) {
-            // Try resolving profile id by email (some rows use profile ids vs auth ids)
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('email', user.email)
-              .maybeSingle();
-            if (profile?.id) {
-              const retry = await supabase
-                .from('bookings')
-                .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
-                .eq('user_id', profile.id)
-                .order('created_at', { ascending: false })
-                .limit(100);
-              if (!retry.error) data = retry.data;
-            }
-          }
-        }
         const bookings = (data || []).map((b: any) => ({
           ...b,
           scheduled_at: b.scheduled_start ?? null,
