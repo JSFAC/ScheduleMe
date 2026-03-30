@@ -56,6 +56,10 @@ const NAV: { id: TabId; label: string; d: string }[] = [
 function fmt(cents: number) { return '$' + (cents / 100).toFixed(2); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function fmtTime(d: string) { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+function canMarkComplete(b: Booking) {
+  if (!b?.scheduled_start) return true;
+  return new Date(b.scheduled_start).getTime() <= Date.now();
+}
 
 function StatusBadge({ status }: { status: string }) {
   const c = STATUS_CFG[status] ?? STATUS_CFG.pending;
@@ -549,6 +553,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifyError, setCampusVerifyError] = useState('');
   const [showCampusModal, setShowCampusModal] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
+  const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -1194,6 +1199,7 @@ const BusinessDashboard: NextPage = () => {
                         const scheduledLabel = b.scheduled_start
                           ? new Date(b.scheduled_start).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
                           : null;
+                        const canComplete = canMarkComplete(b);
                         return (
                         <div key={b.id} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
                           <div className="flex items-start justify-between gap-4 mb-3">
@@ -1257,7 +1263,13 @@ const BusinessDashboard: NextPage = () => {
                                 </div>
                               )}
                               {b.status === 'confirmed' && (
-                                <button onClick={() => handleUpdateBooking(b.id, 'completed')} className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">Mark Complete</button>
+                                <button
+                                  onClick={() => setConfirmComplete(b)}
+                                  disabled={!canComplete}
+                                  title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
+                                  className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  Mark Complete
+                                </button>
                               )}
                               {b.paid_at && <span className="text-xs font-bold text-emerald-600 px-2">✓ Paid {fmt(b.amount_cents || 0)}</span>}
                               <button onClick={() => handleUpdateBooking(b.id, 'cancelled')} className="text-xs font-bold px-3.5 py-2 rounded-xl ml-auto" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
@@ -1563,6 +1575,7 @@ const BusinessDashboard: NextPage = () => {
                     <div className="divide-y divide-neutral-50 overflow-y-auto" style={{ maxHeight: 480 }}>
                       {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'paid').map(b => {
                         const bookingDay = new Date(b.created_at);
+                        const canComplete = canMarkComplete(b);
                         return (
                           <div key={b.id} className="px-5 py-4">
                             <div className="flex items-start justify-between gap-3 mb-2">
@@ -1583,8 +1596,11 @@ const BusinessDashboard: NextPage = () => {
                             </div>
                             {(b.status === 'pending' || b.status === 'confirmed') && (
                               <div className="flex gap-1.5 mt-2.5 pl-11">
-                                <button onClick={() => handleUpdateBooking(b.id, 'completed')}
-                                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                                <button
+                                  onClick={() => setConfirmComplete(b)}
+                                  disabled={!canComplete}
+                                  title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
+                                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                   Complete
                                 </button>
                                 {b.status === 'pending' && isCustom && (
@@ -1778,6 +1794,28 @@ const BusinessDashboard: NextPage = () => {
           </main>
         </div>
       </div>
+      {confirmComplete && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Mark booking complete?</p>
+                <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>This will notify the customer and move it to completed.</p>
+              </div>
+              <button onClick={() => setConfirmComplete(null)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+            </div>
+            {confirmComplete.scheduled_start && (
+              <div className="text-xs mb-4" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                Scheduled for {fmtTime(confirmComplete.scheduled_start)}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmComplete(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Cancel</button>
+              <button onClick={() => { handleUpdateBooking(confirmComplete.id, 'completed'); setConfirmComplete(null); }} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">Mark Complete</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showCampusModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
           <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
