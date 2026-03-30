@@ -31,14 +31,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Verify caller is party to this booking
       const { data: booking } = await supabase
         .from('bookings')
-        .select('user_id, business_id, businesses(owner_email)')
+        .select('id, service, status, created_at, user_id, business_id, businesses(id, name, phone, owner_email)')
         .eq('id', booking_id)
         .maybeSingle();
 
       if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-      const isUser = booking.user_id === user.id;
+      let isUser = booking.user_id === user.id;
       const isBiz = (booking.businesses as any)?.owner_email === user.email;
+      if (!isUser && user.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (profile?.id && booking.user_id === profile.id) isUser = true;
+        if (!isUser) {
+          try {
+            const { data: legacyUser } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (legacyUser?.id && booking.user_id === legacyUser.id) isUser = true;
+          } catch {}
+        }
+      }
       if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
       const { data, error } = await supabase
@@ -47,7 +65,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq('booking_id', booking_id)
         .order('created_at', { ascending: true });
       if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
-      return res.status(200).json({ messages: data });
+      const thread = booking ? {
+        id: booking.id,
+        service: booking.service,
+        status: booking.status,
+        created_at: booking.created_at,
+        businesses: (booking.businesses as any) ? { id: (booking.businesses as any).id, name: (booking.businesses as any).name, phone: (booking.businesses as any).phone } : null,
+        lastMessage: data?.[data.length - 1] ?? null,
+        unreadCount: 0,
+      } : null;
+      return res.status(200).json({ messages: data, thread });
     }
 
     if (user_id) {
@@ -55,11 +82,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Can only fetch your own threads
       if (user_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('id, service, status, created_at, businesses(id, name, phone)')
-        .eq('user_id', user_id)
-        .order('created_at', { ascending: false });
+      const ids = new Set([user.id]);
+      if (user.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (profile?.id) ids.add(profile.id);
+        try {
+          const { data: legacyUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (legacyUser?.id) ids.add(legacyUser.id);
+        } catch {}
+      }
+
+      const idList = Array.from(ids).filter(Boolean);
+      let bookings = [] as any[];
+      if (idList.length > 1) {
+        const resq = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, businesses(id, name, phone)')
+          .in('user_id', idList)
+          .order('created_at', { ascending: false });
+        bookings = resq.data || [];
+      } else {
+        const resq = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, businesses(id, name, phone)')
+          .eq('user_id', idList[0])
+          .order('created_at', { ascending: false });
+        bookings = resq.data || [];
+      }
 
       const threads = await Promise.all((bookings || []).map(async (b: any) => {
         const { data: msgs } = await supabase.from('messages')
