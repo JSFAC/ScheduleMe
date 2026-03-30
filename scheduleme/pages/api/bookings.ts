@@ -111,13 +111,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let resolvedUserId = user_id || authUser?.id;
       if (!email && authUser?.email) email = authUser.email;
 
-      if (!resolvedUserId && email) {
+      let profileId: string | null = null;
+      if (email) {
         const { data: userData } = await supabase
           .from('profiles')
           .upsert({ email: email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) }, { onConflict: 'email' })
           .select('id').single();
-        resolvedUserId = userData?.id;
+        profileId = userData?.id ?? null;
       }
+      if (profileId) resolvedUserId = profileId;
 
       const { data, error } = await supabase.from('bookings').insert({
         business_id,
@@ -256,13 +258,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (!data || data.length === 0) {
           if (user.email) {
-            const retry = await supabase
-              .from('bookings')
-              .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
-              .eq('profiles.email', user.email)
-              .order('created_at', { ascending: false })
-              .limit(100);
-            if (!retry.error) data = retry.data;
+            // Try resolving profile id by email (some rows use profile ids vs auth ids)
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (profile?.id) {
+              const retry = await supabase
+                .from('bookings')
+                .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
+                .eq('user_id', profile.id)
+                .order('created_at', { ascending: false })
+                .limit(100);
+              if (!retry.error) data = retry.data;
+            }
           }
         }
         const bookings = (data || []).map((b: any) => ({
