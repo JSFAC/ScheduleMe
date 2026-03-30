@@ -359,8 +359,23 @@ export default function BizPage() {
             </div>
             {err && <p className="text-red-500 text-sm">{err}</p>}
             {done && (
-              <div className="rounded-xl px-4 py-3 text-sm" style={{background:dm?'rgba(16,185,129,0.12)':'#ecfdf5',border:'1px solid rgba(16,185,129,0.35)',color:dm?'#a7f3d0':'#047857'}}>
-                Request sent! The business will confirm shortly.
+              <div className="rounded-2xl p-5" style={{background:dm?'rgba(16,185,129,0.12)':'#ecfdf5',border:'1px solid rgba(16,185,129,0.35)'}}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-full flex items-center justify-center" style={{background:dm?'rgba(16,185,129,0.2)':'#d1fae5'}}>
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{color:dm?'#a7f3d0':'#047857'}}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold" style={{color:dm?'#d1fae5':'#065f46'}}>Booking requested</p>
+                    <p className="text-xs" style={{color:dm?'#a7f3d0':'#047857'}}>Waiting for business acceptance</p>
+                  </div>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{background:dm?'rgba(255,255,255,0.08)':'#e5e7eb'}}>
+                  <div className="h-full" style={{width:'50%',background:dm?'#10b981':'#059669'}} />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[11px] font-semibold" style={{color:dm?'#a7f3d0':'#047857'}}>Request sent</span>
+                  <span className="text-[11px]" style={{color:dm?'#6ee7b7':'#10b981'}}>Awaiting acceptance</span>
+                </div>
               </div>
             )}
           </div>
