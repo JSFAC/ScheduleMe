@@ -251,68 +251,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { business_id, user_id } = req.query;
 
-    if (user_id) {
-      if (!isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
-      const user = await requireAuth(req, res);
-      if (!user) return;
-
-      try {
-        const supabase = getSupabase();
-        const ids = new Set<string>();
-        ids.add(user.id);
-        if (user_id) ids.add(user_id);
-
-        if (user.email) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (profile?.id) ids.add(profile.id);
-
-          try {
-            const { data: legacyUser } = await supabase
-              .from('users')
-              .select('id')
-              .eq('email', user.email)
-              .maybeSingle();
-            if (legacyUser?.id) ids.add(legacyUser.id);
-          } catch {}
-        }
-
-        const idList = Array.from(ids).filter(Boolean);
-        let query = supabase
-          .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        let data: any[] | null = null;
-        let error: any = null;
-        if (idList.length > 1) {
-          const resq = await query.in('user_id', idList);
-          data = resq.data; error = resq.error;
-        } else {
-          const resq = await query.eq('user_id', idList[0]);
-          data = resq.data; error = resq.error;
-        }
-
-        if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-
-        const bookings = (data || []).map((b: any) => ({
-          ...b,
-          scheduled_at: b.scheduled_start ?? null,
-          business_name: b.businesses?.name ?? null,
-          business_phone: b.businesses?.phone ?? null,
-          business_email: b.businesses?.email ?? null,
-          businesses: undefined,
-        }));
-        return res.status(200).json({ bookings });
-      } catch {
-        return res.status(500).json({ error: 'Internal server error' });
-      }
-    }
-
     if (business_id) {
       if (!isValidUuid(business_id)) return res.status(400).json({ error: 'Invalid business_id' });
       const user = await requireAuth(req, res);
@@ -339,7 +277,65 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    return res.status(400).json({ error: 'business_id or user_id required' });
+    // Consumer bookings (auth required)
+    const user = await requireAuth(req, res);
+    if (!user) return;
+    if (user_id && !isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
+
+    try {
+      const supabase = getSupabase();
+      const ids = new Set<string>();
+      ids.add(user.id);
+      if (user_id) ids.add(user_id as string);
+
+      if (user.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (profile?.id) ids.add(profile.id);
+
+        try {
+          const { data: legacyUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (legacyUser?.id) ids.add(legacyUser.id);
+        } catch {}
+      }
+
+      const idList = Array.from(ids).filter(Boolean);
+      let query = supabase
+        .from('bookings')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      let data: any[] | null = null;
+      let error: any = null;
+      if (idList.length > 1) {
+        const resq = await query.in('user_id', idList);
+        data = resq.data; error = resq.error;
+      } else {
+        const resq = await query.eq('user_id', idList[0]);
+        data = resq.data; error = resq.error;
+      }
+
+      if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+      const bookings = (data || []).map((b: any) => ({
+        ...b,
+        scheduled_at: b.scheduled_start ?? null,
+        business_name: b.businesses?.name ?? null,
+        business_phone: b.businesses?.phone ?? null,
+        business_email: b.businesses?.email ?? null,
+        businesses: undefined,
+      }));
+      return res.status(200).json({ bookings });
+    } catch {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
