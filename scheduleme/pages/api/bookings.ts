@@ -309,7 +309,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const idList = Array.from(ids).filter(Boolean);
       let query = supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, businesses(name, phone, email), profiles(email)')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, business_id, businesses(name, phone, email), profiles(email)')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -327,7 +327,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, business_id')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, business_id')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {
