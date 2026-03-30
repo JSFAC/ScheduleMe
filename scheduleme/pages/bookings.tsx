@@ -25,7 +25,7 @@ interface Booking {
   created_at: string;
   scheduled_at?: string;
   address?: string;
-  notes?: string;
+  note?: string; notes?: string;
   business_name?: string;
   business_phone?: string;
   business_email?: string;
@@ -206,6 +206,17 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
           <div className="h-px bg-neutral-100 my-6" />
 
           <div className="space-y-3.5">
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 0h10.5a2.25 2.25 0 012.25 2.25v6a2.25 2.25 0 01-2.25 2.25h-10.5A2.25 2.25 0 014.5 18.75v-6a2.25 2.25 0 012.25-2.25z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Booking ID</p>
+                <p className="text-sm text-neutral-700 mt-0.5">{booking.id}</p>
+              </div>
+            </div>
             {booking.scheduled_at && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -246,6 +257,14 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                   <p className="text-sm font-semibold text-neutral-800 mt-0.5">{booking.business_name}</p>
                   {(booking.business_phone || booking.business_email) && (
                     <div className="flex flex-wrap gap-2 mt-2">
+                      <a href={`/messages?booking=${booking.id}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-accent px-3 py-1.5 rounded-lg hover:opacity-90 transition-colors">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 19.5A9.75 9.75 0 0112 2.25c5.385 0 9.75 4.365 9.75 9.75 0 5.386-4.365 9.75-9.75 9.75a9.753 9.753 0 01-4.49-1.086L3.75 21l.836-3.384A9.728 9.728 0 013.75 12z" />
+                        </svg>
+                        Message
+                      </a>
                       {booking.business_phone && (
                         <a href={`tel:${booking.business_phone}`}
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-accent bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
@@ -270,7 +289,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
               </div>
             )}
 
-            {booking.notes && (
+            {(booking.note || booking.notes) && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
                   <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -279,7 +298,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Your Notes</p>
-                  <p className="text-sm text-neutral-600 mt-0.5 leading-relaxed">{booking.notes}</p>
+                  <p className="text-sm text-neutral-600 mt-0.5 leading-relaxed">{booking.note || booking.notes}</p>
                 </div>
               </div>
             )}
@@ -579,8 +598,6 @@ const BookingsPage: NextPage = () => {
   const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
-  const [bookingError, setBookingError] = useState('');
-  const [bookingDebug, setBookingDebug] = useState<any>(null);
   const [nearbyBizList, setNearbyBizList] = useState<any[]>([]);
   const hasNearbyRef = useRef(false);
   const [nearbyLoading, setNearbyLoading] = useState(true);
@@ -666,27 +683,18 @@ function writeCoords(lat: number, lng: number) {
         // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
         try {
-          if (!session.access_token) {
-            setBookingError('Missing session token. Please sign in again.');
-          }
           const res = await fetch(`/api/bookings`, {
             headers: { 'Authorization': `Bearer ${session.access_token}` },
           });
-          const raw = await res.text();
-          let data: any = null;
-          try { data = JSON.parse(raw); } catch {}
+          const data = await res.json();
           if (res.ok) {
             bookingsData = data?.bookings || [];
             setBookings(bookingsData);
-            setBookingError('');
           } else {
             setBookings([]);
-            setBookingError(data?.error || `Failed to load bookings (${res.status}).`);
           }
-          setBookingDebug({ userId: session.user.id, email: session.user.email, hasToken: !!session.access_token });
         } catch {
           setBookings([]);
-          setBookingError('Failed to load bookings.');
         } finally {
           setLoadingBookings(false);
           // Also fetch nearby businesses for the "Available near you" section
@@ -879,40 +887,30 @@ function writeCoords(lat: number, lng: number) {
                   </div>
                   <p className="font-bold text-neutral-700 mb-1" style={{ letterSpacing: '-0.01em' }}>No bookings yet</p>
                   <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
-                  {bookingError && (
-                    <div className="text-xs text-red-500 mb-3">{bookingError}</div>
-                  )}
-                  {bookingDebug && (
-                    <div className="text-[10px] text-neutral-400 mb-4">
-                      Signed in as {bookingDebug.email} • {bookingDebug.userId} • token: {bookingDebug.hasToken ? 'yes' : 'no'}
-                    </div>
-                  )}
                   <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
                 </div>
 
               ) : (
                 <>
                   {activeBookings.length > 0 && (
-                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#141414' : 'rgba(255,255,255,0.92)', border: dm ? '1px solid #262626' : '1px solid rgba(10,132,255,0.12)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>
+                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 16px 40px rgba(0,0,0,0.08)' }}>
                       <div className="flex items-center gap-3 mb-4">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#007e6d' }} />
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: '#007e6d' }}>Active</h2>
-                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(10,132,255,0.12)' }} />
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>Active</span>
+                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
                       </div>
                       <div className="space-y-4">
                         {activeBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left booking-card group overflow-hidden flex transition-all hover:-translate-y-0.5"
+                              className="w-full text-left booking-card group overflow-hidden transition-all hover:-translate-y-0.5"
                               style={{
-                                background: dm ? '#171717' : 'white',
-                                borderColor: dm ? '#262626' : undefined,
-                                boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.35)' : '0 10px 24px rgba(0, 73, 128, 0.08)',
+                                background: dm ? '#1c1c1e' : 'white',
+                                border: dm ? '1px solid #2c2c2e' : '1px solid #e5e7eb',
+                                borderRadius: 16,
+                                boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.35)' : '0 12px 28px rgba(0,0,0,0.08)',
                               }}>
-                              {/* Left accent bar — status color */}
-                              <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
-                              <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
+                              <div className="p-6 pt-5 pb-5">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
@@ -932,7 +930,7 @@ function writeCoords(lat: number, lng: number) {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <StatusBadge status={b.status} />
+                                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: cfg.badgeBg, color: cfg.badgeText }}>{cfg.label}</span>
                                     <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                     </svg>
@@ -948,23 +946,22 @@ function writeCoords(lat: number, lng: number) {
                   )}
 
                   {pastBookings.length > 0 && (
-                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#131313' : 'rgba(255,255,255,0.92)', border: dm ? '1px solid #262626' : '1px solid rgba(10,132,255,0.08)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.06)' }}>
+                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 16px 40px rgba(0,0,0,0.06)' }}>
                       <div className="flex items-center gap-3 mb-4">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.35)' : '#a3a3a3' }} />
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>Past</h2>
-                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(10,132,255,0.08)' }} />
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Past</span>
+                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
                       </div>
                       <div className="space-y-4">
                         {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
-                            className="w-full text-left booking-card group overflow-hidden flex opacity-70 hover:opacity-100 transition-all hover:-translate-y-0.5"
+                            className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
                             style={{
-                              background: dm ? '#171717' : 'white',
-                              borderColor: dm ? '#262626' : undefined,
-                              boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.3)' : '0 10px 24px rgba(0, 73, 128, 0.06)',
+                              background: dm ? '#1c1c1e' : 'white',
+                              border: dm ? '1px solid #2c2c2e' : '1px solid #e5e7eb',
+                              borderRadius: 16,
+                              boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.3)' : '0 12px 26px rgba(0,0,0,0.06)',
                             }}>
-                            <div className="w-[6px] shrink-0 bg-neutral-200" />
-                            <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
+                            <div className="p-6 pt-5 pb-5 flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
                                 {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
@@ -979,7 +976,7 @@ function writeCoords(lat: number, lng: number) {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <StatusBadge status={b.status} />
+                                <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>{b.status}</span>
                                 <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                 </svg>
