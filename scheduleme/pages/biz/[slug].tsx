@@ -203,6 +203,8 @@ export default function BizPage() {
   async function book() {
     const { data: { session } } = await getSB().auth.getSession();
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
+    if (!biz?.stripe_onboarded || !biz?.stripe_account_id) { setErr('This business is not accepting online payments yet.'); return; }
+    if (!selectedSvc || isCustom || !selectedSvc?.price_cents) { setErr('Please select a priced service to book.'); return; }
     if (!date || !slot) { setErr('Pick a date and time'); return; }
     setSubmitting(true); setErr('');
     const scheduled_start = buildScheduledStart(date, slot);
@@ -224,7 +226,19 @@ export default function BizPage() {
     });
     const d = await res.json();
     if (!res.ok) { setErr(d.error || 'Booking failed'); setSubmitting(false); return; }
-    setDone(true); setShowConfirm(true); setSubmitting(false);
+
+    const bookingId = d?.booking?.id;
+    if (!bookingId) { setErr('Booking created but payment could not start.'); setSubmitting(false); return; }
+
+    const checkoutRes = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify({ booking_id: bookingId }),
+    });
+    const checkoutData = await checkoutRes.json();
+    if (!checkoutRes.ok || !checkoutData?.url) { setErr(checkoutData?.error || 'Unable to start payment.'); setSubmitting(false); return; }
+
+    window.location.href = checkoutData.url;
   }
 
   const bg = dm ? '#0a0a0a' : '#f9fafb';

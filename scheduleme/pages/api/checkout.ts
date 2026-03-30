@@ -39,8 +39,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .maybeSingle();
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  if (booking.user_id !== user.id) return res.status(403).json({ error: 'Access denied' });
-  if (booking.status !== 'confirmed') return res.status(400).json({ error: 'Booking must be confirmed before payment' });
+    let canAccess = booking.user_id === user.id;
+  if (!canAccess && user.email) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', user.email)
+      .maybeSingle();
+    if (profile?.id && booking.user_id === profile.id) canAccess = true;
+    if (!canAccess) {
+      try {
+        const { data: legacyUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (legacyUser?.id && booking.user_id === legacyUser.id) canAccess = true;
+      } catch {}
+    }
+  }
+  if (!canAccess) return res.status(403).json({ error: 'Access denied' });
+  if (booking.status !== 'confirmed' && booking.status !== 'pending') return res.status(400).json({ error: 'Booking must be pending or confirmed before payment' });
   if (booking.paid_at) return res.status(400).json({ error: 'Booking already paid' });
 
   const biz = booking.businesses as any;

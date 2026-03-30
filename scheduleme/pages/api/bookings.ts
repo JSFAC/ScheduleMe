@@ -113,11 +113,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       let profileId: string | null = null;
       if (email) {
-        const { data: userData } = await supabase
+        // Prefer existing profile id for this email to avoid mismatches
+        const { data: existing } = await supabase
           .from('profiles')
-          .upsert({ email: email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) }, { onConflict: 'email' })
-          .select('id').single();
-        profileId = userData?.id ?? null;
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+        if (existing?.id) {
+          profileId = existing.id;
+        } else {
+          const payload: any = { email: email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) };
+          if (authUser?.id) payload.id = authUser.id;
+          const { data: userData } = await supabase
+            .from('profiles')
+            .upsert(payload, { onConflict: authUser?.id ? 'id' : 'email' })
+            .select('id').single();
+          profileId = userData?.id ?? null;
+        }
       }
       if (profileId) resolvedUserId = profileId;
 
@@ -257,6 +269,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .eq('email', user.email)
             .maybeSingle();
           if (profile?.id) ids.add(profile.id);
+
+          try {
+            const { data: legacyUser } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (legacyUser?.id) ids.add(legacyUser.id);
+          } catch {}
         }
 
         const idList = Array.from(ids).filter(Boolean);
