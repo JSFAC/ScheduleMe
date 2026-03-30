@@ -164,8 +164,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       notifyNewBooking(data.id, supabase);
 
       return res.status(200).json({ booking: data });
-    } catch {
-      return res.status(500).json({ error: 'Internal server error' });
+    } catch (err) {
+      return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
     }
   }
 
@@ -272,8 +272,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
         return res.status(200).json({ bookings: data });
-      } catch {
-        return res.status(500).json({ error: 'Internal server error' });
+      } catch (err) {
+        return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
       }
     }
 
@@ -323,7 +323,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data = resq.data; error = resq.error;
       }
 
-      if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+      if (error) {
+        // Retry without relational selects if FK isn't present in this environment
+        let plainQuery = supabase
+          .from('bookings')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, business_id')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (idList.length > 1) {
+          const retry = await plainQuery.in('user_id', idList);
+          data = retry.data; error = retry.error;
+        } else {
+          const retry = await plainQuery.eq('user_id', idList[0]);
+          data = retry.data; error = retry.error;
+        }
+      }
+
+      if (error) return res.status(500).json({ error: error.message || 'Failed to fetch bookings' });
       const bookings = (data || []).map((b: any) => ({
         ...b,
         scheduled_at: b.scheduled_start ?? null,
@@ -333,8 +349,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         businesses: undefined,
       }));
       return res.status(200).json({ bookings });
-    } catch {
-      return res.status(500).json({ error: 'Internal server error' });
+    } catch (err) {
+      return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
     }
   }
 

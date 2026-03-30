@@ -55,6 +55,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ url: accountLink.url });
   } catch (err) {
     console.error('[stripe-connect]', err);
-    return res.status(500).json({ error: 'Failed to create Stripe onboarding link' });
+    return res.status(500).json({ error: (err as any)?.raw?.message || (err as any)?.message || 'Failed to create Stripe onboarding link' });
   }
 }
