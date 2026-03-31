@@ -34,6 +34,8 @@ function renderCover(opts: {
   style?: any;
   fallbackClassName?: string;
   fallbackStyle?: any;
+  showLabel?: boolean;
+  label?: string;
 }) {
   if (isRealCover(opts.src)) {
     return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} />;

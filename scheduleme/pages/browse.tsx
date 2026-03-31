@@ -33,6 +33,8 @@ function renderCover(opts: {
   style?: any;
   fallbackClassName?: string;
   fallbackStyle?: any;
+  showLabel?: boolean;
+  label?: string;
 }) {
   if (isRealCover(opts.src)) {
     return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} />;
@@ -657,6 +659,7 @@ function writeCoords(lat: number, lng: number) {
                       className: 'h-14 w-14 rounded-xl object-cover flex-shrink-0',
                       fallbackClassName: 'h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0',
                       fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                      showLabel: false,
                     })}
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
@@ -731,6 +734,7 @@ function writeCoords(lat: number, lng: number) {
                         className: 'h-12 w-12 rounded-xl object-cover flex-shrink-0',
                         fallbackClassName: 'h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0',
                         fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                        showLabel: false,
                       })}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>

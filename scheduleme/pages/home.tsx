@@ -13,6 +13,8 @@ import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import FeedbackModal from '../components/FeedbackModal';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
 
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
@@ -271,8 +273,9 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
             <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+            <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos yet</span>
           </div>
         )}
       </div>
