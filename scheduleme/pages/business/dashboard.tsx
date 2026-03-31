@@ -1366,12 +1366,13 @@ const BusinessDashboard: NextPage = () => {
                       <button key={t.id} onClick={async () => {
                         setActiveMsgThread(t);
                         setThreadMessages([]);
-                        const res = await fetch('/api/messages?thread_customer_id=' + t.id + '&business_id=' + business?.id, { headers: await getAuthHeaders() });
+                        const authHeaders = await getAuthHeaders();
+                        const res = await fetch('/api/messages?thread_customer_id=' + t.id + '&business_id=' + business?.id, { headers: authHeaders });
                         if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t); }
                         if (t.unreadCount > 0) {
                           const ids = t.booking_ids || (t.booking_id ? [t.booking_id] : []);
                           await Promise.all(ids.map((bid: string) =>
-                            fetch('/api/messages', { method: 'PATCH', headers: await getAuthHeaders(), body: JSON.stringify({ booking_id: bid, reader_type: 'business' }) })
+                            fetch('/api/messages', { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ booking_id: bid, reader_type: 'business' }) })
                           ));
                           setMsgThreads((ts: any[]) => ts.map((x: any) => x.id === t.id ? { ...x, unreadCount: 0 } : x));
                         }
