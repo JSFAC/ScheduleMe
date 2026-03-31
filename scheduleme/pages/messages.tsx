@@ -47,10 +47,25 @@ const MessagesPage: NextPage = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [threadError, setThreadError] = useState('');
+  const [sendError, setSendError] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const supabaseRef = useRef(getSupabase());
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const cached = localStorage.getItem('sm_threads_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setThreads(parsed);
+        }
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -90,9 +105,31 @@ const MessagesPage: NextPage = () => {
     })();
   }, [router.query.booking, threads]);
 
+  useEffect(() => {
+    const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
+    if (!bookingId && threads.length > 0 && !activeThread) {
+      const lastId = typeof window !== 'undefined' ? localStorage.getItem('sm_last_thread') : null;
+      if (lastId) {
+        const t = threads.find(t => t.id === lastId);
+        if (t) openThread(t);
+      }
+    }
+  }, [threads, router.query.booking, activeThread]);
+
   async function loadThreads(uid: string) {
-    const res = await fetch(`/api/messages?user_id=${uid}`);
-    if (res.ok) { const data = await res.json(); setThreads(data.threads || []); }
+    const headers = await getAuthHeaders();
+    const res = await fetch(`/api/messages?user_id=${uid}`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      const list = data.threads || [];
+      setThreads(list);
+      if (typeof window !== 'undefined') {
+        try { localStorage.setItem('sm_threads_cache', JSON.stringify(list)); } catch {}
+      }
+      setThreadError('');
+    } else {
+      setThreadError('Unable to load messages. Please refresh.');
+    }
     setLoading(false);
   }
 
@@ -101,6 +138,9 @@ const MessagesPage: NextPage = () => {
 
   async function openThread(thread: Thread) {
     setActiveThread(thread);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sm_last_thread', thread.id);
+    }
     setMessages([]);
     const authH = await getAuthHeaders();
     const res = await fetch(`/api/messages?booking_id=${thread.id}`, { headers: authH });
@@ -135,7 +175,7 @@ const MessagesPage: NextPage = () => {
     // Always poll every 2s as fallback (realtime may not be enabled)
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      fetch('/api/messages?booking_id=' + bookingId)
+      getAuthHeaders().then(h => fetch('/api/messages?booking_id=' + bookingId, { headers: h }))
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (d?.messages) {
@@ -157,14 +197,21 @@ const MessagesPage: NextPage = () => {
     const content = input.trim();
     setInput('');
     const res = await fetch('/api/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: await getAuthHeaders(),
       body: JSON.stringify({ booking_id: activeThread.id, sender_type: 'user', sender_id: userId, content }),
     });
     if (res.ok) {
       const data = await res.json();
       setMessages(m => [...m, data.message]);
       setThreads(ts => ts.map(t => t.id === activeThread.id ? { ...t, lastMessage: data.message } : t));
+      if (typeof window !== 'undefined') {
+        try { localStorage.setItem('sm_threads_cache', JSON.stringify(threads)); } catch {}
+      }
+      setSendError('');
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    } else {
+      setSendError('Message failed to send. Please try again.');
+      setInput(content);
     }
     setSending(false);
     inputRef.current?.focus();
@@ -213,6 +260,9 @@ const MessagesPage: NextPage = () => {
             }}
           />
           <div className="relative z-10">
+          {threadError && (
+            <div className="mb-4 text-xs text-red-600 font-semibold">{threadError}</div>
+          )}
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 5 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
@@ -355,6 +405,7 @@ const MessagesPage: NextPage = () => {
                       </button>
                     </div>
                     <p className="text-[10px] text-neutral-400 mt-1.5 px-1">↵ to send · Shift+↵ for new line</p>
+                    {sendError && <p className="text-[11px] text-red-500 mt-1 px-1">{sendError}</p>}
                   </div>
                 </div>
               ) : (
