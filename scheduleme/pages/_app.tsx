@@ -52,6 +52,19 @@ export default function App({ Component, pageProps }: AppProps) {
     return () => {};
   }, []);
 
+
+  // Hard reset scroll lock on mount (fix Chrome no-scroll)
+  useEffect(() => {
+    document.documentElement.style.overflow = '';
+    document.body && (document.body.style.overflow = '');
+    const onFocus = () => {
+      document.documentElement.style.overflow = '';
+      document.body && (document.body.style.overflow = '');
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
   useEffect(() => {
     // Disable Next.js default scroll restoration so we control it
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';

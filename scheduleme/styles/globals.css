@@ -1,6 +1,7 @@
 html, body {
-  overscroll-behavior: none;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
+  overscroll-behavior: auto;
+  overflow-y: auto;
 }
 
 html, body {
