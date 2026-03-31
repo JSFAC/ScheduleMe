@@ -669,61 +669,33 @@ const BusinessDashboard: NextPage = () => {
     return () => clearInterval(interval);
   }, [tab, business]);
 
-  // Realtime + polling fallback for active thread messages
+  // Polling for active thread messages (merged by customer)
   useEffect(() => {
-    if (!activeMsgThread) return;
-    const supabase = supabaseRef.current;
-    const bookingId = activeMsgThread.id;
+    if (!activeMsgThread || !business) return;
+    const threadId = activeMsgThread.id;
+    const businessId = business.id;
 
-    // Initial load
-    getAuthHeaders().then(headers =>
-      fetch('/api/messages?booking_id=' + bookingId, { headers })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d) setThreadMessages(d.messages || []); })
-    );
+    const loadMessages = async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/messages?thread_customer_id=${threadId}&business_id=${businessId}`, { headers });
+      if (res.ok) {
+        const d = await res.json();
+        setThreadMessages(d.messages || []);
+        if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t);
+      }
+    };
 
-    // Realtime subscription
-    const channel = supabase
-      .channel('biz-msg-' + bookingId)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: 'booking_id=eq.' + bookingId,
-      }, (payload: any) => {
-        setThreadMessages(m => {
-          if (m.find((x: any) => x.id === payload.new.id)) return m;
-          return [...m, payload.new];
-        });
-        setMsgThreads((ts: any[]) => ts.map((t: any) =>
-          t.id === bookingId ? { ...t, lastMessage: payload.new } : t
-        ));
-        setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-      })
-      .subscribe();
+    loadMessages();
 
-    // Always poll every 2s as fallback (realtime may not be enabled)
     if (msgPollRef2.current) clearInterval(msgPollRef2.current);
     msgPollRef2.current = setInterval(() => {
-      getAuthHeaders().then(h => fetch('/api/messages?booking_id=' + bookingId, { headers: h }))
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          if (d?.messages) {
-            setThreadMessages(prev => {
-              // Only update if there are new messages
-              if (d.messages.length > prev.length) {
-                setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-                return d.messages;
-              }
-              return prev;
-            });
-          }
-        });
-    }, 2000);
+      loadMessages();
+    }, 3000);
 
     return () => {
-      supabase.removeChannel(channel);
       if (msgPollRef2.current) { clearInterval(msgPollRef2.current); msgPollRef2.current = null; }
     };
-  }, [activeMsgThread?.id]);
+  }, [activeMsgThread?.id, business?.id]);
 
   useEffect(() => {
     msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -736,8 +708,39 @@ const BusinessDashboard: NextPage = () => {
   }
 
   async function loadThreadMessages(bookingId: string) {
-    const res = await fetch('/api/messages?booking_id=' + bookingId, { headers: await getAuthHeaders() });
-    if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); }
+    const res = await fetch('/api/messages?thread_customer_id=' + bookingId + '&business_id=' + business?.id, { headers: await getAuthHeaders() });
+    if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t); }
+  }
+
+
+  async function sendBizMessage(raw: string) {
+    if (!activeMsgThread || !raw.trim() || msgSending) return;
+    const bookingId = activeMsgThread.booking_id || activeMsgThread.booking_ids?.[0];
+    if (!bookingId) return;
+    setMsgSending(true);
+    const content = raw.trim();
+    setMsgInput('');
+    const tempId = `temp-${Date.now()}`;
+    const tempMsg = { id: tempId, booking_id: bookingId, sender_type: 'business', content, created_at: new Date().toISOString() };
+    setThreadMessages((m: any[]) => [...m, tempMsg]);
+    setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: tempMsg } : t));
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST', headers: await getAuthHeaders(),
+        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, content }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setThreadMessages((m: any[]) => m.map((msg: any) => msg.id === tempId ? data.message : msg));
+        setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
+        setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      } else {
+        setThreadMessages((m: any[]) => m.filter((msg: any) => msg.id != tempId));
+      }
+    } finally {
+      setMsgSending(false);
+      msgInputRef.current?.focus();
+    }
   }
 
   async function sendBusinessMessage() {
@@ -1363,10 +1366,13 @@ const BusinessDashboard: NextPage = () => {
                       <button key={t.id} onClick={async () => {
                         setActiveMsgThread(t);
                         setThreadMessages([]);
-                        const res = await fetch('/api/messages?booking_id=' + t.id, { headers: await getAuthHeaders() });
-                        if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); }
+                        const res = await fetch('/api/messages?thread_customer_id=' + t.id + '&business_id=' + business?.id, { headers: await getAuthHeaders() });
+                        if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t); }
                         if (t.unreadCount > 0) {
-                          await fetch('/api/messages', { method: 'PATCH', headers: await getAuthHeaders(), body: JSON.stringify({ booking_id: t.id, reader_type: 'business' }) });
+                          const ids = t.booking_ids || (t.booking_id ? [t.booking_id] : []);
+                          await Promise.all(ids.map((bid: string) =>
+                            fetch('/api/messages', { method: 'PATCH', headers: await getAuthHeaders(), body: JSON.stringify({ booking_id: bid, reader_type: 'business' }) })
+                          ));
                           setMsgThreads((ts: any[]) => ts.map((x: any) => x.id === t.id ? { ...x, unreadCount: 0 } : x));
                         }
                         setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -1471,21 +1477,7 @@ const BusinessDashboard: NextPage = () => {
                           onKeyDown={async e => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
-                              if (!msgInput.trim() || msgSending) return;
-                              setMsgSending(true);
-                              const content = msgInput.trim(); setMsgInput('');
-                              const res = await fetch('/api/messages', {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ booking_id: activeMsgThread.id, sender_type: 'business', sender_id: business?.id, content }),
-                              });
-                              if (res.ok) {
-                                const data = await res.json();
-                                setThreadMessages((m: any[]) => [...m, data.message]);
-                                setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
-                                setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-                              }
-                              setMsgSending(false);
-                              msgInputRef.current?.focus();
+                              await sendBizMessage(msgInput);
                             }
                           }}
                           placeholder={`Reply to ${activeMsgThread.profiles?.name || 'customer'}…`}
@@ -1496,20 +1488,7 @@ const BusinessDashboard: NextPage = () => {
                         <button
                           disabled={!msgInput.trim() || msgSending}
                           onClick={async () => {
-                            if (!msgInput.trim() || msgSending) return;
-                            setMsgSending(true);
-                            const content = msgInput.trim(); setMsgInput('');
-                            const res = await fetch('/api/messages', {
-                              method: 'POST', headers: await getAuthHeaders(),
-                              body: JSON.stringify({ booking_id: activeMsgThread.id, sender_type: 'business', sender_id: business?.id, content }),
-                            });
-                            if (res.ok) {
-                              const data = await res.json();
-                              setThreadMessages((m: any[]) => [...m, data.message]);
-                              setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
-                              setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-                            }
-                            setMsgSending(false);
+                            await sendBizMessage(msgInput);
                           }}
                           className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
                           style={{ background: msgInput.trim() ? '#007e6d' : '#e5e7eb' }}>

@@ -226,13 +226,19 @@ const MessagesPage: NextPage = () => {
         }
       } catch {}
     }
+
+    const tempId = `temp-${Date.now()}`;
+    const tempMsg = { id: tempId, booking_id: bookingId, sender_type: 'user', content, created_at: new Date().toISOString() };
+    setMessages(m => [...m, tempMsg]);
+    setThreads(ts => ts.map(t => t.id === activeThread.id ? { ...t, lastMessage: tempMsg } : t));
+
     const res = await fetch('/api/messages', {
       method: 'POST', headers: await getAuthHeaders(),
       body: JSON.stringify({ booking_id: bookingId, sender_type: 'user', sender_id: userId, content }),
     });
     if (res.ok) {
       const data = await res.json();
-      setMessages(m => [...m, data.message]);
+      setMessages(m => m.map(msg => msg.id === tempId ? data.message : msg));
       setThreads(ts => ts.map(t => t.id === activeThread.id ? { ...t, lastMessage: data.message } : t));
       if (typeof window !== 'undefined') {
         try { localStorage.setItem('sm_threads_cache', JSON.stringify(threads)); } catch {}
@@ -241,6 +247,7 @@ const MessagesPage: NextPage = () => {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } else {
       setSendError('Message failed to send. Please try again.');
+      setMessages(m => m.filter(msg => msg.id !== tempId));
       setInput(content);
     }
     setSending(false);
