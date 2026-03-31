@@ -131,6 +131,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }),
     }).catch(() => {});
 
+    // Confirm receipt to the applicant
+    fetch(`${siteUrl}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+      body: JSON.stringify({
+        type: 'business_application_received',
+        to: email.toLowerCase().trim(),
+        name: cleanName,
+        ownerName: cleanOwner,
+        category: category,
+        city: cleanCity,
+      }),
+    }).catch(() => {});
+
     return res.status(200).json({ success: true, businessId: data.id });
   } catch {
     return res.status(500).json({ error: 'Internal server error' });

@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail,
   sendNewBookingBusinessEmail, sendReviewRequestEmail,
-  sendNewBusinessApplicationEmail,
+  sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail,
   sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
 } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
@@ -45,6 +45,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       case 'new_business_application':
         result = await sendNewBusinessApplicationEmail({ to, name: rest.name || 'Unknown', ownerName: rest.ownerName || '', email: rest.email || '', phone: rest.phone || '', category: rest.category || '', city: rest.city || '', campusProvider: rest.campusProvider === true, schoolName: rest.schoolName });
+        break;
+      case 'business_application_received':
+        result = await sendBusinessApplicationReceivedEmail({ to, ownerName: rest.ownerName || 'there', businessName: rest.name || 'your business', category: rest.category || 'Service', city: rest.city || '' });
         break;
       case 'review_request':
         result = await sendReviewRequestEmail({ to, name: name || 'there', service: rest.service || 'your service', bookingId: rest.bookingId || '' });

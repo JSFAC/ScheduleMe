@@ -370,6 +370,48 @@ export function newBusinessApplicationHtml(opts: {
   return layout(`New application: ${opts.name}`, body, `${opts.ownerName} just applied to join ScheduleMe`);
 }
 
+// ─── Template: business application received (applicant) ─────────────────────
+export function businessApplicationReceivedHtml(opts: {
+  businessName: string; ownerName: string; category: string; city: string;
+}) {
+  const body = `
+    <tr><td bgcolor="#0f172a" style="background:#0f172a;padding:32px 32px;text-align:center;">
+      <div style="width:56px;height:56px;background:rgba(255,255,255,0.12);border-radius:50%;margin:0 auto 14px;text-align:center;line-height:56px;">
+        <span style="font-size:26px;color:#ffffff;">&#10003;</span>
+      </div>
+      <p style="margin:0;font-size:12px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:0.18em;text-transform:uppercase;">Application Received</p>
+      <h1 style="margin:8px 0 0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Thanks for applying, ${opts.ownerName}</h1>
+      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.75);">We are reviewing your business and will get back to you within 24 hours.</p>
+    </td></tr>
+    <tr><td style="padding:28px 32px;">
+      <p style="margin:0 0 16px;font-size:14px;color:#64748b;">Here is what we have on file:</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:22px;overflow:hidden;">
+        ${[
+          ['Business', opts.businessName],
+          ['Category', opts.category],
+          ['City', opts.city],
+        ].map(([label, value], i, arr) => `
+        <tr><td style="padding:12px 20px;${i < arr.length - 1 ? 'border-bottom:1px solid #e2e8f0;' : ''}">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:3px;">${label}</span>
+          <span style="font-size:14px;font-weight:600;color:#0f172a;">${value}</span>
+        </td></tr>`).join('')}
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;">
+        <tr><td style="padding:18px 20px;">
+          <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">What happens next</p>
+          <ol style="margin:0;padding-left:18px;color:#0f172a;font-size:14px;line-height:1.7;">
+            <li>We verify your business details (up to 24 hours).</li>
+            <li>You receive an approval email with your dashboard login.</li>
+            <li>Connect Stripe to get paid once your profile is live.</li>
+          </ol>
+        </td></tr>
+      </table>
+      <p style="margin:18px 0 0;font-size:13px;color:#94a3b8;">Questions? Reply to this email and we will help right away.</p>
+    </td></tr>
+  `;
+  return layout(`We received your application`, body, `Thanks for applying to ScheduleMe, ${opts.ownerName}`);
+}
+
 // ─── Send helpers ─────────────────────────────────────────────────────────────
 const FROM = 'ScheduleMe <notifications@usescheduleme.com>';
 
@@ -448,6 +490,23 @@ export async function sendNewBusinessApplicationEmail(opts: {
 }) {
   const resend = getResend();
   return resend.emails.send({ from: FROM, to: opts.to, subject: `New business application: ${opts.name}`, html: newBusinessApplicationHtml(opts) });
+}
+
+export async function sendBusinessApplicationReceivedEmail(opts: {
+  to: string; ownerName: string; businessName: string; category: string; city: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `We received your application, ${opts.businessName}`,
+    html: businessApplicationReceivedHtml({
+      businessName: opts.businessName,
+      ownerName: opts.ownerName,
+      category: opts.category,
+      city: opts.city,
+    }),
+  });
 }
 
 export async function sendReviewRequestEmail(opts: { to: string; name: string; service: string; bookingId: string }) {
