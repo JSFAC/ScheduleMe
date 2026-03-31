@@ -16,7 +16,8 @@ function getSupabase() {
 
 interface Message { id: string; booking_id: string; sender_type: 'user' | 'business'; content: string; created_at: string; read: boolean; }
 interface Thread {
-  id: string; service: string; status: string; created_at: string;
+  id: string; business_id?: string | null; booking_id?: string | null; booking_ids?: string[];
+  service: string; status: string; created_at: string;
   businesses: { id: string; name: string; phone: string } | null;
   lastMessage: Message | null; unreadCount: number;
 }
@@ -143,11 +144,24 @@ const MessagesPage: NextPage = () => {
     }
     setMessages([]);
     const authH = await getAuthHeaders();
-    const res = await fetch(`/api/messages?booking_id=${thread.id}`, { headers: authH });
-    if (res.ok) { const data = await res.json(); setMessages(data.messages || []); }
+    const target = thread.business_id ? `/api/messages?thread_business_id=${thread.business_id}` : `/api/messages?booking_id=${thread.id}`;
+    const res = await fetch(target, { headers: authH });
+    let threadData = thread;
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(data.messages || []);
+      if (data?.thread) {
+        threadData = { ...thread, ...data.thread };
+        setActiveThread(threadData);
+      }
+    }
+    const bookingId = threadData.booking_id || threadData.id;
+    const bookingIds = threadData.booking_ids || [bookingId];
     // Mark read
     if (thread.unreadCount > 0) {
-      await fetch('/api/messages', { method: 'PATCH', headers: await getAuthHeaders(), body: JSON.stringify({ booking_id: thread.id, reader_type: 'user' }) });
+      await Promise.all(bookingIds.map(bid =>
+        fetch('/api/messages', { method: 'PATCH', headers: authH, body: JSON.stringify({ booking_id: bid, reader_type: 'user' }) })
+      ));
       setThreads(ts => ts.map(t => t.id === thread.id ? { ...t, unreadCount: 0 } : t));
     }
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -155,27 +169,29 @@ const MessagesPage: NextPage = () => {
     const supabase = supabaseRef.current;
     if (realtimeChannelRef.current) supabase.removeChannel(realtimeChannelRef.current);
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    const bookingId = thread.id;
 
-    realtimeChannelRef.current = supabase
-      .channel('consumer-msg-' + bookingId)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: 'booking_id=eq.' + bookingId,
-      }, (payload: any) => {
-        setMessages(m => {
-          if (m.find((x: any) => x.id === payload.new.id)) return m;
-          return [...m, payload.new];
-        });
-        setThreads(ts => ts.map(t => t.id === bookingId ? { ...t, lastMessage: payload.new } : t));
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-      })
-      .subscribe();
+    if (bookingIds.length === 1) {
+      realtimeChannelRef.current = supabase
+        .channel('consumer-msg-' + bookingId)
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'messages',
+          filter: 'booking_id=eq.' + bookingId,
+        }, (payload: any) => {
+          setMessages(m => {
+            if (m.find((x: any) => x.id === payload.new.id)) return m;
+            return [...m, payload.new];
+          });
+          setThreads(ts => ts.map(t => t.id === thread.id ? { ...t, lastMessage: payload.new } : t));
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+        })
+        .subscribe();
+    }
 
     // Always poll every 2s as fallback (realtime may not be enabled)
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      getAuthHeaders().then(h => fetch('/api/messages?booking_id=' + bookingId, { headers: h }))
+      const url = threadData.business_id ? '/api/messages?thread_business_id=' + threadData.business_id : '/api/messages?booking_id=' + bookingId;
+      getAuthHeaders().then(h => fetch(url, { headers: h }))
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (d?.messages) {
@@ -198,7 +214,7 @@ const MessagesPage: NextPage = () => {
     setInput('');
     const res = await fetch('/api/messages', {
       method: 'POST', headers: await getAuthHeaders(),
-      body: JSON.stringify({ booking_id: activeThread.id, sender_type: 'user', sender_id: userId, content }),
+      body: JSON.stringify({ booking_id: activeThread.booking_id || activeThread.id, sender_type: 'user', sender_id: userId, content }),
     });
     if (res.ok) {
       const data = await res.json();
