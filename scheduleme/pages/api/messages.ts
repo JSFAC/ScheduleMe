@@ -188,8 +188,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-    const isUser = booking.user_id === user.id && sender_type === 'user';
+    let isUser = booking.user_id === user.id && sender_type === 'user';
     const isBiz = (booking.businesses as any)?.owner_email === user.email && sender_type === 'business';
+    if (!isUser && sender_type === 'user' && user.email) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+      if (profile?.id && booking.user_id === profile.id) isUser = true;
+      if (!isUser) {
+        try {
+          const { data: legacyUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (legacyUser?.id && booking.user_id === legacyUser.id) isUser = true;
+        } catch {}
+      }
+    }
     if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
     // Filter profanity / threats
