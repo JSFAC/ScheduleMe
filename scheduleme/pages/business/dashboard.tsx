@@ -627,7 +627,7 @@ const BusinessDashboard: NextPage = () => {
     if (bkgRes.ok) { const bkgData = await bkgRes.json(); setBookings(bkgData.bookings || []); }
     // Pre-load message threads
     const msgsRes = await fetch('/api/messages?business_id=' + biz.id, { headers: await getAuthHeaders() });
-    if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); }
+    if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); setThreads(md.threads || []); }
     setLoading(false);
   }, [router]);
 
@@ -732,7 +732,7 @@ const BusinessDashboard: NextPage = () => {
   async function loadThreads() {
     if (!business) return;
     const res = await fetch('/api/messages?business_id=' + business.id, { headers: await getAuthHeaders() });
-    if (res.ok) { const d = await res.json(); setThreads(d.threads || []); }
+    if (res.ok) { const d = await res.json(); setThreads(d.threads || []); setMsgThreads(d.threads || []); }
   }
 
   async function loadThreadMessages(bookingId: string) {
