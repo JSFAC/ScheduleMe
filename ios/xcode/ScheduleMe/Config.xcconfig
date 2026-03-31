@@ -1,4 +1,0 @@
-PRODUCT_BUNDLE_IDENTIFIER = com.usescheduleme.app
-SUPABASE_URL = https://imfrlykibvjdbijegdky.supabase.co
-SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZnJseWtpYnZqZGJpamVnZGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MTgwNDAsImV4cCI6MjA4ODQ5NDA0MH0.WHaePnJaqzxRVdeXT-RWzO_Zp9jUs57lfGQlTbOa7P0
-API_BASE_URL = https://www.usescheduleme.com
