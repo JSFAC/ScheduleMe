@@ -590,26 +590,23 @@ const BusinessDashboard: NextPage = () => {
     const supabase = getSupabase();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.push('/business/auth/login'); return; }
-    // Check profile role first — fastest gate, no extra table query needed
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .maybeSingle();
-
-    if (profile?.role !== 'business') {
-      // Consumer account — sign out and redirect, do NOT delete their account
-      await supabase.auth.signOut();
-      router.replace('/business/auth/login?error=not_a_business');
-      return;
-    }
-
-    const { data: biz, error: bizErr } = await supabase.from('businesses').select('*').eq('owner_email', session.user.email).maybeSingle();
+    const email = session.user.email || '';
+    const { data: biz, error: bizErr } = await supabase.from('businesses').select('*').eq('owner_email', email).maybeSingle();
     if (bizErr || !biz) {
       await supabase.auth.signOut();
       router.replace('/business/auth/login?error=not_a_business');
       return;
     }
+
+    // Ensure profile is marked as business
+    try {
+      await supabase.from('profiles').upsert({
+        id: session.user.id,
+        email,
+        role: 'business',
+        has_seen_welcome: true,
+      }, { onConflict: 'id', ignoreDuplicates: false });
+    } catch {}
     // Approval gate — business must be approved (is_onboarded) to access dashboard
     if (!biz.is_onboarded) {
       router.replace('/business/pending');

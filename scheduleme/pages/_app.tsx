@@ -70,6 +70,8 @@ export default function App({ Component, pageProps }: AppProps) {
     };
 
     const onDone = () => {
+      document.documentElement.style.overflow = '';
+      document.body && (document.body.style.overflow = '');
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
       if (isTransitioning.current) {
         isTransitioning.current = false;
@@ -85,6 +87,8 @@ export default function App({ Component, pageProps }: AppProps) {
     };
 
     const onError = () => {
+      document.documentElement.style.overflow = '';
+      document.body && (document.body.style.overflow = '');
       setVisible(true);
       setShowOverlay(false);
     };
