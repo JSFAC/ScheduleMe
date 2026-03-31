@@ -680,7 +680,14 @@ const BusinessDashboard: NextPage = () => {
       const res = await fetch(`/api/messages?thread_customer_id=${threadId}&business_id=${businessId}`, { headers });
       if (res.ok) {
         const d = await res.json();
-        setThreadMessages(d.messages || []);
+        setThreadMessages((prev: any[]) => {
+          const incoming = d.messages || [];
+          const pending = prev.filter((m: any) => typeof m.id === 'string' && m.id.startsWith('temp-'));
+          if (!pending.length) return incoming;
+          const incomingIds = new Set(incoming.map((m: any) => m.id));
+          const merged = incoming.concat(pending.filter((m: any) => !incomingIds.has(m.id)));
+          return merged;
+        });
         if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t);
       }
     };
@@ -1487,7 +1494,7 @@ const BusinessDashboard: NextPage = () => {
                           style={{ maxHeight: 100, background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
                         />
                         <button
-                          disabled={!msgInput.trim() || msgSending}
+                          disabled={!msgInput.trim()}
                           onClick={async () => {
                             await sendBizMessage(msgInput);
                           }}
