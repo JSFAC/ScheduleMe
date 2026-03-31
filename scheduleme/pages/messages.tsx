@@ -212,9 +212,23 @@ const MessagesPage: NextPage = () => {
     setSending(true);
     const content = input.trim();
     setInput('');
+    let bookingId = activeThread.booking_id || (activeThread.booking_ids && activeThread.booking_ids[0]) || activeThread.id;
+    if (!activeThread.booking_id && activeThread.business_id) {
+      try {
+        const authH = await getAuthHeaders();
+        const resThread = await fetch(`/api/messages?thread_business_id=${activeThread.business_id}`, { headers: authH });
+        if (resThread.ok) {
+          const data = await resThread.json();
+          if (data?.thread?.booking_id) {
+            bookingId = data.thread.booking_id;
+            setActiveThread((t: any) => t ? { ...t, ...data.thread } : t);
+          }
+        }
+      } catch {}
+    }
     const res = await fetch('/api/messages', {
       method: 'POST', headers: await getAuthHeaders(),
-      body: JSON.stringify({ booking_id: activeThread.booking_id || activeThread.id, sender_type: 'user', sender_id: userId, content }),
+      body: JSON.stringify({ booking_id: bookingId, sender_type: 'user', sender_id: userId, content }),
     });
     if (res.ok) {
       const data = await res.json();

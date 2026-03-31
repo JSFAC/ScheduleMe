@@ -235,11 +235,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!biz) return res.status(404).json({ error: 'Business not found' });
       if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
 
-      const { data: bookings } = await supabase
+      let bookings: any[] = [];
+      const resq = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, profiles(id, name, email, phone)')
+        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone)')
         .eq('business_id', business_id)
         .order('created_at', { ascending: false });
+      if (resq.error) {
+        const fallback = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, user_id')
+          .eq('business_id', business_id)
+          .order('created_at', { ascending: false });
+        bookings = fallback.data || [];
+        // Best-effort attach profile data
+        for (const b of bookings) {
+          if (!b.user_id) continue;
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('id, name, email, phone')
+            .eq('id', b.user_id)
+            .maybeSingle();
+          if (prof) b.profiles = prof;
+        }
+      } else {
+        bookings = resq.data || [];
+      }
 
       const threads = await Promise.all((bookings || []).map(async (b: any) => {
         const { data: msgs } = await supabase.from('messages')
