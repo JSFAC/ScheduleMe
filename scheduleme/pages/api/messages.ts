@@ -25,6 +25,77 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { booking_id, user_id, business_id } = req.query;
     const supabase = getSupabase();
 
+    const { thread_business_id } = req.query;
+
+    if (thread_business_id) {
+      if (!isValidUuid(thread_business_id)) return res.status(400).json({ error: 'Invalid business_id' });
+
+      // Resolve all user ids (auth, profile, legacy)
+      const ids = new Set([user.id]);
+      if (user.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (profile?.id) ids.add(profile.id);
+        try {
+          const { data: legacyUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (legacyUser?.id) ids.add(legacyUser.id);
+        } catch {}
+      }
+      const idList = Array.from(ids).filter(Boolean);
+
+      // Fetch bookings for this user + business
+      let bookings = [] as any[];
+      if (idList.length > 1) {
+        const resq = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, businesses(id, name, phone)')
+          .eq('business_id', thread_business_id)
+          .in('user_id', idList)
+          .order('created_at', { ascending: false });
+        bookings = resq.data || [];
+      } else {
+        const resq = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, businesses(id, name, phone)')
+          .eq('business_id', thread_business_id)
+          .eq('user_id', idList[0])
+          .order('created_at', { ascending: false });
+        bookings = resq.data || [];
+      }
+
+      if (!bookings.length) return res.status(404).json({ error: 'No bookings found' });
+      const bookingIds = bookings.map(b => b.id);
+
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, booking_id, sender_type, content, read, created_at')
+        .in('booking_id', bookingIds)
+        .order('created_at', { ascending: true });
+      if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
+
+      const latest = bookings[0];
+      const thread = {
+        id: thread_business_id,
+        business_id: thread_business_id,
+        booking_id: latest.id,
+        service: latest.service,
+        status: latest.status,
+        created_at: latest.created_at,
+        businesses: latest.businesses || null,
+        lastMessage: data?.[data.length - 1] ?? null,
+        unreadCount: 0,
+        booking_ids: bookingIds,
+      };
+      return res.status(200).json({ messages: data || [], thread });
+    }
+
     if (booking_id) {
       if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
 
@@ -66,7 +137,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .order('created_at', { ascending: true });
       if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
       const thread = booking ? {
-        id: booking.id,
+        id: (booking.businesses as any)?.id || booking.id,
+        business_id: (booking.businesses as any)?.id || null,
+        booking_id: booking.id,
         service: booking.service,
         status: booking.status,
         created_at: booking.created_at,
@@ -118,14 +191,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         bookings = resq.data || [];
       }
 
-      const threads = await Promise.all((bookings || []).map(async (b: any) => {
+      // Group by business
+      const byBiz = new Map();
+      for (const b of bookings || []) {
+        const bizId = b.businesses?.id;
+        if (!bizId) continue;
+        if (!byBiz.has(bizId)) byBiz.set(bizId, []);
+        byBiz.get(bizId).push(b);
+      }
+
+      const threads = await Promise.all(Array.from(byBiz.entries()).map(async ([bizId, list]) => {
+        const sorted = list.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const latest = sorted[0];
+        const bookingIds = sorted.map((b: any) => b.id);
         const { data: msgs } = await supabase.from('messages')
           .select('id, sender_type, content, created_at')
-          .eq('booking_id', b.id).order('created_at', { ascending: false }).limit(1);
+          .in('booking_id', bookingIds).order('created_at', { ascending: false }).limit(1);
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
-          .eq('booking_id', b.id).eq('read', false).eq('sender_type', 'business');
-        return { ...b, lastMessage: msgs?.[0] ?? null, unreadCount: count ?? 0 };
+          .in('booking_id', bookingIds).eq('read', false).eq('sender_type', 'business');
+        return {
+          id: bizId,
+          business_id: bizId,
+          booking_id: latest.id,
+          service: latest.service,
+          status: latest.status,
+          created_at: latest.created_at,
+          businesses: latest.businesses || null,
+          lastMessage: msgs?.[0] ?? null,
+          unreadCount: count ?? 0,
+          booking_ids: bookingIds,
+        };
       }));
       return res.status(200).json({ threads });
     }
