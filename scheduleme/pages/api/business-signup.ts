@@ -119,7 +119,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
       body: JSON.stringify({
         type: 'new_business_application',
-        to: 'hello@usescheduleme.com',
+        to: 'usescheduleme@gmail.com',
         name: cleanName,
         ownerName: cleanOwner,
         email,
