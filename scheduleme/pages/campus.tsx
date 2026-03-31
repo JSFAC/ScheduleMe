@@ -12,25 +12,12 @@ import { useDm } from '../lib/DarkModeContext';
 import { SkeletonCard } from '../components/SkeletonCard';
 import type { Business } from '../lib/mockBusinesses';
 
-const CATEGORY_COVERS: Record<string, string> = {
-  plumbing: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=900&q=80',
-  electrical: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=900&q=80',
-  hvac: 'https://images.unsplash.com/photo-1631545806609-b67a6ca855e4?w=900&q=80',
-  cleaning: 'https://images.unsplash.com/photo-1581578731548-c64695cc695b?w=900&q=80',
-  landscaping: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=900&q=80',
-  painting: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=900&q=80',
-  handyman: 'https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=900&q=80',
-};
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
-function getCover(service_tags: string[], cover_url?: string | null, media_urls?: string[] | null): string {
+function getCover(cover_url?: string | null, media_urls?: string[] | null): string {
   if (cover_url) return cover_url;
   if (media_urls && media_urls.length > 0) return media_urls[0];
-  for (const tag of (service_tags || [])) {
-    const key = tag.toLowerCase().replace(/_/g,' ');
-    if (CATEGORY_COVERS[key]) return CATEGORY_COVERS[key];
-    if (CATEGORY_COVERS[tag.toLowerCase()]) return CATEGORY_COVERS[tag.toLowerCase()];
-  }
-  return 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=900&q=80';
+  return TRANSPARENT_PIXEL;
 }
 
 function normalizeHours(hours: any): { day: string; time: string }[] {
@@ -50,6 +37,10 @@ function normalizeHours(hours: any): { day: string; time: string }[] {
   return [];
 }
 
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
 function mapCampusBusiness(b: any): Business {
   const rawTags = Array.isArray(b.service_tags)
     ? b.service_tags
@@ -59,7 +50,7 @@ function mapCampusBusiness(b: any): Business {
     ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g, ' ')
     : 'General';
   const dist = b.address || 'Local';
-  const cover = getCover(tags, b.cover_url, b.media_urls);
+  const cover = getCover(b.cover_url, b.media_urls);
   return {
     id: b.id,
     realId: b.id,
@@ -78,7 +69,7 @@ function mapCampusBusiness(b: any): Business {
     reviews: b.review_count ?? 0,
     price_tier: b.price_tier ?? 2,
     coverUrl: cover,
-    allImages: b.media_urls || [cover],
+    allImages: b.media_urls || (cover ? [cover] : []),
     phone: b.phone || '',
     website: b.website || '',
     calendly_url: b.calendly_url || '',
@@ -349,9 +340,15 @@ const CampusPage: NextPage = () => {
       <button onClick={onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
         style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-          <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-            style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+          {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+            <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+              style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
+              <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+            </div>
+          )}
         </div>
         <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
           <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>

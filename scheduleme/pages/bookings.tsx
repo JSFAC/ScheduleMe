@@ -17,6 +17,34 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+
+function isRealCover(src?: string | null): boolean {
+  return !!src && src !== TRANSPARENT_PIXEL;
+}
+
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function renderCover(opts: {
+  src?: string | null;
+  name: string;
+  className: string;
+  style?: any;
+  fallbackClassName?: string;
+  fallbackStyle?: any;
+}) {
+  if (isRealCover(opts.src)) {
+    return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} />;
+  }
+  return (
+    <div className={opts.fallbackClassName || 'flex items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
+      <span className="text-xs font-bold" style={{ color: '#6b7280' }}>{initials(opts.name)}</span>
+    </div>
+  );
+}
+
 interface Booking {
   id: string;
   service: string;
@@ -994,7 +1022,13 @@ function writeCoords(lat: number, lng: number) {
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
                   style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(10,132,255,0.12)', background: dm ? '#171717' : 'white' }}>
                   <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
-                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+                    {renderCover({
+                      src: biz.coverUrl,
+                      name: biz.name,
+                      className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]',
+                      fallbackClassName: 'w-full h-full flex items-center justify-center',
+                      fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                    })}
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
                     {biz.available && (
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full px-2 py-0.5"

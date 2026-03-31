@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, isValidEmail, isValidPhone } from '../../lib/apiSecurity';
+import { sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail } from '../../lib/email';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,6 +25,8 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lng: nu
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
+
+const ADMIN_EMAIL = 'usescheduleme@gmail.com';
 
 const VALID_CATEGORIES = [
   'Plumbing', 'Electrical', 'HVAC', 'Cleaning', 'Handyman', 'Home Repair / Handyman',
@@ -112,14 +115,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to submit application' });
     }
 
-    // Notify you immediately when a business applies
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-    fetch(`${siteUrl}/api/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-      body: JSON.stringify({
-        type: 'new_business_application',
-        to: 'usescheduleme@gmail.com',
+    // Email admin and applicant (direct send to avoid notify issues)
+    try {
+      await sendNewBusinessApplicationEmail({
+        to: ADMIN_EMAIL,
         name: cleanName,
         ownerName: cleanOwner,
         email,
@@ -127,23 +126,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         category: category,
         city: cleanCity,
         campusProvider: campusProvider === true,
-        schoolName: campusProvider ? schoolName : null,
-      }),
-    }).catch(() => {});
+        schoolName: campusProvider ? schoolName : undefined,
+      });
+    } catch (err) {
+      console.error('[business-signup] admin email failed', err);
+    }
 
-    // Confirm receipt to the applicant
-    fetch(`${siteUrl}/api/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-      body: JSON.stringify({
-        type: 'business_application_received',
+    try {
+      await sendBusinessApplicationReceivedEmail({
         to: email.toLowerCase().trim(),
-        name: cleanName,
         ownerName: cleanOwner,
+        businessName: cleanName,
         category: category,
         city: cleanCity,
-      }),
-    }).catch(() => {});
+      });
+    } catch (err) {
+      console.error('[business-signup] applicant email failed', err);
+    }
 
     return res.status(200).json({ success: true, businessId: data.id });
   } catch {

@@ -6,6 +6,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Business } from './mockBusinesses';
 
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
   const R = 3958.8; // Earth radius in miles
@@ -17,24 +19,8 @@ function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number):
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-const CATEGORY_COVERS: Record<string, string> = {
-  plumbing: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=900&q=80',
-  electrical: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=900&q=80',
-  hvac: 'https://images.unsplash.com/photo-1631545806609-b67a6ca855e4?w=900&q=80',
-  cleaning: 'https://images.unsplash.com/photo-1581578731548-c64695cc695b?w=900&q=80',
-  landscaping: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=900&q=80',
-  painting: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=900&q=80',
-  handyman: 'https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=900&q=80',
-};
-
-function getCover(service_tags: string[], cover_url?: string | null): string {
-  if (cover_url) return cover_url;
-  for (const tag of (service_tags || [])) {
-    const key = tag.toLowerCase().replace(/_/g,' ');
-    if (CATEGORY_COVERS[key]) return CATEGORY_COVERS[key];
-    if (CATEGORY_COVERS[tag.toLowerCase()]) return CATEGORY_COVERS[tag.toLowerCase()];
-  }
-  return 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=900&q=80';
+function getCover(cover_url?: string | null): string {
+  return cover_url || TRANSPARENT_PIXEL;
 }
 
 function mapBusiness(b: any, distanceMiles?: number): Business {
@@ -65,8 +51,8 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     rating: parseFloat(b.rating) || 4.5,
     reviews: b.review_count ?? 0,
     price_tier: b.price_tier ?? 2,
-    coverUrl: getCover(tags, b.cover_url),
-    allImages: b.media_urls || [getCover(tags, b.cover_url)],
+    coverUrl: getCover(b.cover_url),
+    allImages: b.media_urls || [getCover(b.cover_url)],
     phone: b.phone || '',
     website: b.website || '',
     calendly_url: b.calendly_url || '',

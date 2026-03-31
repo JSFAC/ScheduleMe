@@ -71,6 +71,10 @@ function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean;
   return { open: true, label: 'Open' };
 }
 
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
 // PILL_STYLE is now inline-dynamic in components that have dm
 
 const AI_SUGGESTIONS: { label: string; prompt: string }[] = [
@@ -261,10 +265,16 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(180px, 22vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-        <img src={biz.coverUrl} alt={biz.name}
-          onLoad={() => setImgLoaded(true)}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+        {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+          <img src={biz.coverUrl} alt={biz.name}
+            onLoad={() => setImgLoaded(true)}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
+            <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+          </div>
+        )}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
         <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>

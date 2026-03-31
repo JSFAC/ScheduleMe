@@ -16,6 +16,34 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+
+function isRealCover(src?: string | null): boolean {
+  return !!src && src !== TRANSPARENT_PIXEL;
+}
+
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function renderCover(opts: {
+  src?: string | null;
+  name: string;
+  className: string;
+  style?: any;
+  fallbackClassName?: string;
+  fallbackStyle?: any;
+}) {
+  if (isRealCover(opts.src)) {
+    return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} />;
+  }
+  return (
+    <div className={opts.fallbackClassName || 'flex items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
+      <span className="text-xs font-bold" style={{ color: '#6b7280' }}>{initials(opts.name)}</span>
+    </div>
+  );
+}
+
 // CATEGORIES is now dynamic — built from loaded businesses below
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
@@ -151,9 +179,14 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
     <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-        <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+        {renderCover({
+          src: biz.coverUrl,
+          name: biz.name,
+          className: 'absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]',
+          style: { objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 },
+          fallbackClassName: 'absolute inset-0 flex items-center justify-center',
+          fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+        })}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
         <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
@@ -618,7 +651,13 @@ function writeCoords(lat: number, lng: number) {
               {selectedMapBizData && (
                 <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
                   <div className="flex items-center gap-3 p-3">
-                    <img src={selectedMapBizData.coverUrl} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
+                    {renderCover({
+                      src: selectedMapBizData.coverUrl,
+                      name: selectedMapBizData.name || 'Business',
+                      className: 'h-14 w-14 rounded-xl object-cover flex-shrink-0',
+                      fallbackClassName: 'h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0',
+                      fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                    })}
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
@@ -637,7 +676,14 @@ function writeCoords(lat: number, lng: number) {
                     className={`flex-shrink-0 md:w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''}`}
                     style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.3 : 1, transition: 'opacity 0.25s ease' }}>
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
-                      <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" style={{ objectPosition: 'center 25%' }} />
+                      {renderCover({
+                        src: biz.coverUrl,
+                        name: biz.name,
+                        className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]',
+                        style: { objectPosition: 'center 25%' },
+                        fallbackClassName: 'w-full h-full flex items-center justify-center',
+                        fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                      })}
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' }} />
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
                         <p className="text-white text-[11px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.name}</p>
@@ -657,7 +703,13 @@ function writeCoords(lat: number, lng: number) {
                       className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
                       style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#007e6d' : (dm ? '#262626' : 'rgba(0,126,109,0.12)'), background: dm ? '#171717' : 'white' }}>
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
-                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
+                        {renderCover({
+                          src: biz.coverUrl,
+                          name: biz.name,
+                          className: 'w-full h-full object-cover',
+                          fallbackClassName: 'w-full h-full flex items-center justify-center',
+                          fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                        })}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
@@ -673,7 +725,13 @@ function writeCoords(lat: number, lng: number) {
                   </div>
                   {selectedMapBizData && (
                     <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
-                      <img src={selectedMapBizData.coverUrl} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
+                      {renderCover({
+                        src: selectedMapBizData.coverUrl,
+                        name: selectedMapBizData.name || 'Business',
+                        className: 'h-12 w-12 rounded-xl object-cover flex-shrink-0',
+                        fallbackClassName: 'h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0',
+                        fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                      })}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                         <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
