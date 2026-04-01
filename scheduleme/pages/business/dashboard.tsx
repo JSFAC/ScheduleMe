@@ -837,7 +837,7 @@ const BusinessDashboard: NextPage = () => {
       const res = await fetch('/api/verify-edu', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ school_email: campusEduEmail, account_type: 'business' }),
+        body: JSON.stringify({ school_email: campusEduEmail, account_type: 'business', business_id: business?.id || null }),
       });
       const data = await res.json();
       if (!res.ok) { setCampusVerifyError(data.error || 'Failed to send code'); return; }
@@ -854,7 +854,7 @@ const BusinessDashboard: NextPage = () => {
       const res = await fetch('/api/verify-edu', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ action: 'verify', code: campusCode, account_type: 'business' }),
+        body: JSON.stringify({ action: 'verify', code: campusCode, account_type: 'business', business_id: business?.id || null }),
       });
       const data = await res.json();
       if (!res.ok) { setCampusVerifyError(data.error); return; }
@@ -1961,4 +1961,3 @@ export async function getServerSideProps() {
 }
 
 export default BusinessDashboard;
-
