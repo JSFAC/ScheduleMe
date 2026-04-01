@@ -112,6 +112,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       const supabase = getSupabase();
+      // Block paid bookings if business hasn't connected Stripe
+      if (typeof service_price_cents === 'number') {
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('stripe_onboarded, stripe_account_id')
+          .eq('id', business_id)
+          .maybeSingle();
+        if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
+          return res.status(400).json({ error: 'Business has not connected their bank account yet' });
+        }
+      }
 
       let scheduledStart: string | null = null;
       if (scheduled_start && typeof scheduled_start === 'string') {
@@ -152,7 +163,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { data, error } = await supabase.from('bookings').insert({
         business_id,
         user_id: resolvedUserId ?? null,
-        service: service?.slice(0, 500) ?? 'General Service',
+        service: (service?.slice(0, 500) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
         amount_cents: typeof service_price_cents === 'number' ? service_price_cents : undefined,
         note: typeof note === 'string' ? note.slice(0, 2000) : null,
         scheduled_start: scheduledStart ?? null,
@@ -167,7 +178,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { data: fallback, error: fbErr } = await supabase.from('bookings').insert({
           business_id,
           user_id: resolvedUserId ?? null,
-          service: service?.slice(0, 500) ?? 'General Service',
+          service: (service?.slice(0, 500) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
           status: 'pending',
           requires_manual_action: true,
         }).select('id, status, created_at').single();
@@ -329,6 +340,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .from('bookings')
           .select('*, profiles(name, phone, email)')
           .eq('business_id', business_id)
+          .or('amount_cents.is.null,paid_at.not.is.null,service.ilike.%custom%')
           .order('created_at', { ascending: false })
           .limit(200);
 

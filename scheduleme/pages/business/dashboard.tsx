@@ -910,13 +910,15 @@ const BusinessDashboard: NextPage = () => {
         body: JSON.stringify({ booking_id: bookingId, amount_cents: amountCents, notify_customer: true }),
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Failed to set price'); return; }
+      if (!res.ok) { alert(data.error || 'Failed to set price'); return false; }
       setBookings(bs => bs.map(b => b.id === bookingId
         ? { ...b, amount_cents: amountCents, status: data.status || b.status }
         : b
       ));
+      return true;
     } catch {
       alert('Failed to set price. Please try again.');
+      return false;
     }
   }
 
@@ -1272,8 +1274,8 @@ const BusinessDashboard: NextPage = () => {
                         {bookings.slice(0, 5).map(b => (
                           <div key={b.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || 'Unknown'}</p>
-                              <p className="text-xs text-neutral-400 mt-0.5 truncate">{b.service} · {fmtDate(b.created_at)}</p>
+                              <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
+                              <p className="text-xs text-neutral-400 mt-0.5 truncate">{b.service || 'Custom Request'} · {fmtDate(b.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                               {b.amount_cents ? <span className="text-sm font-bold text-neutral-700">{fmt(b.amount_cents)}</span> : null}
@@ -1336,8 +1338,8 @@ const BusinessDashboard: NextPage = () => {
                                 <span className="text-accent text-sm font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || 'Unknown'}</p>
-                                <p className="text-[12px] mt-0.5 line-clamp-1" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{b.service}</p>
+                                <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
+                                <p className="text-[12px] mt-0.5 line-clamp-1" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{b.service || 'Custom Request'}</p>
                               </div>
                             </div>
                             <StatusBadge status={b.status} />
@@ -1367,10 +1369,12 @@ const BusinessDashboard: NextPage = () => {
                                       />
                                     </div>
                                     <button
-                                      onClick={() => {
+                                      onClick={async () => {
                                         const dollars = parseFloat(bookingPrices[b.id] || '0');
-                                        if (dollars > 0) handleSetPrice(b.id, Math.round(dollars * 100));
-                                        handleUpdateBooking(b.id, 'confirmed');
+                                        if (dollars > 0) {
+                                          const ok = await handleSetPrice(b.id, Math.round(dollars * 100));
+                                          if (ok) await handleUpdateBooking(b.id, 'confirmed');
+                                        }
                                       }}
                                       disabled={!bookingPrices[b.id] && !b.amount_cents}
                                       className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white disabled:opacity-40">
@@ -1643,7 +1647,7 @@ const BusinessDashboard: NextPage = () => {
                       const count = bookingDates.get(day) || 0;
                       const dayBookings = bookings.filter(b => b.status !== 'cancelled' && new Date(b.created_at).getDate() === day);
                       return (
-                        <div key={day} title={count > 0 ? dayBookings.map(b => b.profiles?.name || 'Unknown').join(', ') : ''}
+                        <div key={day} title={count > 0 ? dayBookings.map(b => b.profiles?.name || b.profiles?.email || 'Customer').join(', ') : ''}
                           className={`aspect-square flex flex-col items-center justify-center rounded-lg text-[11px] relative cursor-default transition-colors ${
                             isToday ? 'bg-accent text-white font-black shadow-sm' :
                             count > 0 ? 'bg-blue-50 text-blue-700 font-bold hover:bg-blue-100' :
@@ -1689,8 +1693,8 @@ const BusinessDashboard: NextPage = () => {
                                   <span className="text-accent text-xs font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || 'Unknown'}</p>
-                                  <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{b.service}</p>
+                                  <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
+                                  <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{b.service || 'Custom Request'}</p>
                                 </div>
                               </div>
                               <StatusBadge status={b.status} />

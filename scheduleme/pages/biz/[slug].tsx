@@ -223,6 +223,7 @@ export default function BizPage() {
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
     if (!selectedSvc) { setErr('Select a service to continue.'); return; }
     if (!date || !slot) { setErr('Pick a date and time'); return; }
+    if (isCustom && !note.trim()) { setErr('Please describe your custom request.'); return; }
 
     const isPaidService = !isCustom;
     if (isPaidService) {
@@ -490,7 +491,7 @@ export default function BizPage() {
               </div>
             )}
             <div>
-              <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Note (optional)</label>
+              <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Note (required for custom)</label>
               <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder={isCustom ? 'Describe your custom request...' : 'Describe what you need...'} className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
             </div>
             {err && <p className="text-red-500 text-sm">{err}</p>}
@@ -499,7 +500,7 @@ export default function BizPage() {
 
         </div>
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={book} disabled={!date || !slot || submitting || done}
+          <button onClick={book} disabled={!date || !slot || submitting || done || (isCustom && !note.trim())}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background:(!date || !slot || submitting || done) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? 'Request Custom Service' : 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2)) : 'Book Appointment')}

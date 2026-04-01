@@ -75,6 +75,8 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
 
 const STEPS = ['pending', 'confirmed', 'paid', 'completed'];
 const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Done'];
+const STEPS_NO_PAID = ['pending', 'confirmed', 'completed'];
+const STEP_LABELS_NO_PAID = ['Submitted', 'Confirmed', 'Done'];
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -102,14 +104,15 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ProgressBar({ status }: { status: string }) {
-  const idx = STEPS.indexOf(status);
+function ProgressBar({ status, steps, labels }: { status: string; steps: string[]; labels: string[] }) {
+  const effective = steps.includes(status) ? status : (status === 'paid' ? 'confirmed' : status === 'payment_pending' ? 'pending' : status);
+  const idx = Math.max(0, steps.indexOf(effective));
   return (
     <div className="mt-5">
       <div className="flex items-center">
         {STEPS.map((s, i) => {
           const done = i <= idx;
-          const isLast = i === STEPS.length - 1;
+          const isLast = i === steps.length - 1;
           return (
             <div key={s} className={`flex items-center ${isLast ? '' : 'flex-1'}`}>
               <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 transition-colors ${done ? 'bg-accent' : 'bg-neutral-200'}`} />
@@ -119,7 +122,7 @@ function ProgressBar({ status }: { status: string }) {
         })}
       </div>
       <div className="flex justify-between mt-1.5">
-        {STEP_LABELS.map((l, i) => (
+        {labels.map((l, i) => (
           <span key={l} className={`text-[10px] font-medium ${i <= idx ? 'text-accent' : 'text-neutral-400'}`}>{l}</span>
         ))}
       </div>
@@ -225,13 +228,16 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
         </button>
 
         <div className="px-6 pb-8 pt-6 max-w-xl mx-auto">
-          <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service}</h2>
+          <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service || 'Custom Request'}</h2>
           <p className="text-xs text-neutral-400 mt-1 mb-5">Submitted {formatDate(booking.created_at)}</p>
 
           <StatusBadge status={booking.status} />
-          {!['cancelled', 'payment_failed'].includes(booking.status) && (
-            <ProgressBar status={booking.status} />
-          )}
+          {!['cancelled', 'payment_failed'].includes(booking.status) && (() => {
+            const isCustom = !booking.service || String(booking.service).toLowerCase().includes('custom');
+            const steps = isCustom ? STEPS : STEPS_NO_PAID;
+            const labels = isCustom ? STEP_LABELS : STEP_LABELS_NO_PAID;
+            return <ProgressBar status={booking.status} steps={steps} labels={labels} />;
+          })()}
 
           <div className="h-px bg-neutral-100 my-6" />
 
@@ -323,7 +329,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{booking.paid_at ? 'Amount Paid' : 'Amount Authorized'}</p>
+                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{booking.paid_at ? 'Amount Paid' : 'Amount Due'}</p>
                   <p className="text-sm font-bold text-neutral-900 mt-0.5">{'$'}{(booking.amount_cents / 100).toFixed(2)}</p>
                 </div>
               </div>
@@ -334,9 +340,28 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               {booking.amount_cents && !booking.paid_at && (
-                <div className="rounded-2xl p-4 mb-4" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                  <p className="text-sm font-bold text-green-800 mb-0.5">Payment authorized</p>
-                  <p className="text-xs text-green-700">We’ll capture payment after the business confirms. If they decline, your authorization is released automatically.</p>
+                <div className="rounded-2xl p-4 mb-4" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
+                  <p className="text-sm font-bold text-amber-800 mb-0.5">Payment required</p>
+                  <p className="text-xs text-amber-700">Your provider set a price. Pay to confirm your booking.</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { data: { session } } = await getSupabase().auth.getSession();
+                        if (!session) { window.location.href = '/signin?next=/bookings'; return; }
+                        const res = await fetch('/api/checkout', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+                          body: JSON.stringify({ booking_id: booking.id }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data?.url) { window.location.href = data.url; }
+                      } catch {}
+                    }}
+                    className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
+                    style={{ background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 100%)' }}
+                  >
+                    Pay now
+                  </button>
                 </div>
               )}
               <a href={`/messages?booking=${booking.id}`}
@@ -925,7 +950,7 @@ function writeCoords(lat: number, lng: number) {
                               <div className="p-6 pt-5 pb-5">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
+                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service || 'Custom Request'}</h3>
                                     {b.business_name
                                       ? <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>
                                       : <p className="text-xs mt-0.5 italic" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>Matching you with a pro…</p>}
@@ -948,7 +973,7 @@ function writeCoords(lat: number, lng: number) {
                                     </svg>
                                   </div>
                                 </div>
-                                <ProgressBar status={b.status} />
+                                <ProgressBar status={b.status} steps={(String(b.service||'').toLowerCase().includes('custom') ? STEPS : STEPS_NO_PAID)} labels={(String(b.service||'').toLowerCase().includes('custom') ? STEP_LABELS : STEP_LABELS_NO_PAID)} />
                               </div>
                             </button>
                           );
@@ -975,7 +1000,7 @@ function writeCoords(lat: number, lng: number) {
                             }}>
                             <div className="p-6 pt-5 pb-5 flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
+                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service || 'Custom Request'}</h3>
                                 {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
