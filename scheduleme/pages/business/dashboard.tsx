@@ -1043,6 +1043,111 @@ const BusinessDashboard: NextPage = () => {
                 <p className="text-[10px] text-neutral-400 truncate">{business?.owner_email}</p>
               </div>
             </div>
+            {business?.edu_verified && (
+              <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg"
+                style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)' }}>
+                <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                <p className="text-[11px] font-semibold text-violet-700 truncate">Campus verified · {business.school_domain}</p>
+              </div>
+            )}
+          </div>
+          <nav className="flex-1 px-3 py-4 space-y-0.5">
+            {NAV.map(item => (
+              <button key={item.id} onClick={() => { setTab(item.id); history.replaceState(null, '', '#' + item.id); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left ${tab === item.id ? 'bg-accent text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={tab === item.id ? 2.5 : 1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={item.d} />
+                </svg>
+                {item.label}
+                {item.id === 'bookings' && pendingCount > 0 && (
+                  <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700'}`}>{pendingCount}</span>
+                )}
+                {item.id === 'messages' && totalUnreadMsgs > 0 && (
+                  <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-accent/10 text-accent'}`}>{totalUnreadMsgs}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+          <div className="px-3 py-4 border-t border-neutral-100 space-y-1">
+            {/* Dark mode toggle */}
+            <button onClick={toggleDark} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <div className="flex items-center gap-3">
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  {darkMode
+                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                    : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                  }
+                </svg>
+                {darkMode ? 'Light Mode' : 'Dark Mode'}
+              </div>
+              <div className="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors"
+                style={{ background: darkMode ? '#007e6d' : '#d1d5db' }}>
+                <span className="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
+                  style={{ transform: darkMode ? 'translateX(16px)' : 'translateX(0)' }} />
+              </div>
+            </button>
+            <Link href="/home" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+              Consumer site
+            </Link>
+            <Link href="/business" scroll={false} target="_blank" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"><svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>Business landing page</Link>
+            <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+              Sign out
+            </button>
+          </div>
+        </aside>
+
+        <div className="flex-1 lg:ml-60 flex flex-col min-h-screen pb-20 lg:pb-0">
+          {/* Mobile topbar — just the business name */}
+          <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20"
+            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+            <span className="text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
+          </header>
+
+          {/* Mobile bottom tab bar */}
+          {/* Mobile FAB — floating draggable nav button */}
+          <MobileFAB
+            tab={tab}
+            setTab={(t) => { setTab(t); history.replaceState(null, '', '#' + t); }}
+            pendingCount={pendingCount}
+            totalUnreadMsgs={totalUnreadMsgs}
+            dm={dm}
+          />
+
+                    {/* Stripe banner */}
+          {business && !business.stripe_onboarded && (
+            <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
+                <div className="flex items-center gap-2.5 text-sm">
+                  <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <span className="text-amber-800 font-semibold">Step 1/2: Connect bank & get paid</span>
+                </div>
+                <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+                  {stripeLoading ? 'Loading…' : stripeCta}
+                </button>
+              </div>
+              {stripeConnectError && (
+                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeConnectError}</p>
+              )}
+              {stripeStatusMsg && !stripeConnectError && (
+                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeStatusMsg}</p>
+              )}
+            </div>
+          )}
+          {business && business.stripe_onboarded && stripeSuccess && (
+            <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
+                <div className="flex items-center gap-2.5 text-sm">
+                  <svg className="h-4 w-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span className="text-emerald-800 font-semibold">Step 2/2: Your profile is live.</span>
+                </div>
+                <button onClick={() => setTab('bookings')} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                  See leads →
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Campus verification banner */}
           {business?.school_domain && !business?.edu_verified && !campusBannerDismissed && (
@@ -1092,12 +1197,6 @@ const BusinessDashboard: NextPage = () => {
             </div>
           )}
 
-          {business?.edu_verified && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg self-start" style={{ background: dm ? 'rgba(139,92,246,0.12)' : '#f5f3ff', border: `1px solid ${dm ? 'rgba(139,92,246,0.2)' : '#ddd6fe'}` }}>
-              <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-              <p className="text-xs font-semibold" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>Campus verified · {business.school_domain}</p>
-            </div>
-          )}
 
           <main className="flex-1 px-6 py-7 max-w-5xl mx-auto w-full">
             {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (

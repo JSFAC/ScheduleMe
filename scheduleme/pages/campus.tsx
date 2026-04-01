@@ -225,13 +225,13 @@ const CampusPage: NextPage = () => {
 
 
   const search = searchTerm.trim().toLowerCase();
-  const sorted = businesses.filter(b => {
+  const filtered = businesses.filter(b => {
     if (activeCategory !== 'All' && b.category !== activeCategory) return false;
     if (!search) return true;
     const hay = [b.name, b.description, b.category, b.distance, ...(b.services || [])].filter(Boolean).join(' ').toLowerCase();
     return hay.includes(search);
   });
-  const sorted = [...sorted].sort((a, b) => {
+  const sorted = [...filtered].sort((a, b) => {
     if (sortMode === 'rating') return (b.rating || 0) - (a.rating || 0);
     if (sortMode === 'reviews') return (b.reviews || 0) - (a.reviews || 0);
     if (sortMode === 'az') return (a.name || '').localeCompare(b.name || '');
