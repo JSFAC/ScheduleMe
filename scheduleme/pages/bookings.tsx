@@ -5,6 +5,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import Nav from '../components/Nav';
 import ReviewModal from '../components/ReviewModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
