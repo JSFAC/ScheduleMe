@@ -549,6 +549,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusEduEmail, setCampusEduEmail] = useState('');
   const [campusCodeSent, setCampusCodeSent] = useState(false);
   const [campusBannerDismissed, setCampusBannerDismissed] = useState(false);
+  const [campusAffilDismissed, setCampusAffilDismissed] = useState(false);
   const [bookingPrices, setBookingPrices] = useState<Record<string, string>>({});
   const [campusCode, setCampusCode] = useState('');
   const [campusVerifying, setCampusVerifying] = useState(false);
@@ -1169,6 +1170,19 @@ const BusinessDashboard: NextPage = () => {
                 <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                 <p className="text-xs font-semibold" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>Campus verification pending — tap to complete</p>
               </button>
+            )}
+
+            {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (
+              <div className="rounded-2xl border px-5 py-4 flex items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Want to be affiliated with your campus?</p>
+                  <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
+                  <button onClick={() => setCampusAffilDismissed(true)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+                </div>
+              </div>
             )}
 
             {/* OVERVIEW */}
@@ -1792,11 +1806,6 @@ const BusinessDashboard: NextPage = () => {
                         ))}
                       </div>
                     </div>
-
-                    <button type="button" onClick={() => setShowCampusModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                        style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
-                        {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
-                      </button>
                       <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
                       {settingsSaved ? '✓ Saved!' : settingsSaving ? 'Saving…' : 'Save Changes'}
                     </button>
@@ -1818,6 +1827,10 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                       ))}
                     </div>
+                    <button type="button" onClick={() => setShowCampusModal(true)} className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold border"
+                      style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
+                      {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
+                    </button>
                   </div>
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
