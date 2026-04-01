@@ -575,6 +575,7 @@ const BusinessDashboard: NextPage = () => {
   const [showCampusModal, setShowCampusModal] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel'; priceCents?: number } | null>(null);
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -1369,12 +1370,11 @@ const BusinessDashboard: NextPage = () => {
                                       />
                                     </div>
                                     <button
-                                      onClick={async () => {
+                                      onClick={() => {
                                         const dollars = parseFloat(bookingPrices[b.id] || '0');
-                                        if (dollars > 0) {
-                                          const ok = await handleSetPrice(b.id, Math.round(dollars * 100));
-                                          if (ok) await handleUpdateBooking(b.id, 'confirmed');
-                                        }
+                                        if (!(dollars > 0) && !b.amount_cents) return;
+                                        const cents = dollars > 0 ? Math.round(dollars * 100) : (b.amount_cents || 0);
+                                        setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
                                       }}
                                       disabled={!bookingPrices[b.id] && !b.amount_cents}
                                       className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white disabled:opacity-40">
@@ -1387,7 +1387,7 @@ const BusinessDashboard: NextPage = () => {
                               {b.status === 'pending' && !isCustom && (
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => handleUpdateBooking(b.id, 'confirmed')}
+                                    onClick={() => setConfirmAction({ booking: b, action: 'confirm' })}
                                     className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white">
                                     Confirm booking
                                   </button>
@@ -1404,7 +1404,7 @@ const BusinessDashboard: NextPage = () => {
                                 </button>
                               )}
                               {b.paid_at && <span className="text-xs font-bold text-emerald-600 px-2">✓ Paid {fmt(b.amount_cents || 0)}</span>}
-                              <button onClick={() => handleUpdateBooking(b.id, 'cancelled')} className="text-xs font-bold px-3.5 py-2 rounded-xl ml-auto" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
+                              <button onClick={() => setConfirmAction({ booking: b, action: 'cancel' })} className="text-xs font-bold px-3.5 py-2 rounded-xl ml-auto" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
                             </div>
                           )}
                         </div>
@@ -1930,6 +1930,62 @@ const BusinessDashboard: NextPage = () => {
           </main>
         </div>
       </div>
+      {confirmAction && (() => {
+        const b = confirmAction.booking;
+        const isCustom = String(b.service || '').toLowerCase().includes('custom');
+        const priceCents = confirmAction.priceCents ?? b.amount_cents ?? 0;
+        const needsPrice = isCustom && !(priceCents > 0);
+        return (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+            <div className="w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>
+                    {confirmAction.action === 'confirm' ? 'Confirm booking?' : 'Cancel booking?'}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                    {confirmAction.action === 'confirm'
+                      ? 'This will move the request into confirmed.'
+                      : 'This will notify the customer and mark it cancelled.'}
+                  </p>
+                </div>
+                <button onClick={() => setConfirmAction(null)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+              </div>
+              <div className="text-xs mb-4" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                {b.service || 'Custom Request'}{b.scheduled_start ? ` • ${fmtTime(b.scheduled_start)}` : ''}
+              </div>
+              {confirmAction.action === 'confirm' && isCustom && (
+                <div className="text-xs mb-4" style={{ color: needsPrice ? '#ef4444' : (dm ? '#9ca3af' : '#6b7280') }}>
+                  {needsPrice ? 'Set a price before confirming.' : `Price: ${fmt(priceCents)}`}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmAction(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Back</button>
+                <button
+                  disabled={needsPrice}
+                  onClick={async () => {
+                    const action = confirmAction.action;
+                    const booking = confirmAction.booking;
+                    if (action === 'confirm') {
+                      if (isCustom) {
+                        const ok = await handleSetPrice(booking.id, priceCents);
+                        if (!ok) return;
+                      }
+                      await handleUpdateBooking(booking.id, 'confirmed');
+                    } else {
+                      await handleUpdateBooking(booking.id, 'cancelled');
+                    }
+                    setConfirmAction(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-40"
+                  style={{ background: confirmAction.action === 'confirm' ? '#10b981' : '#ef4444' }}>
+                  {confirmAction.action === 'confirm' ? 'Confirm' : 'Cancel Booking'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {confirmComplete && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
           <div className="w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>

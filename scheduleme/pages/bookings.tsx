@@ -110,7 +110,7 @@ function ProgressBar({ status, steps, labels }: { status: string; steps: string[
   return (
     <div className="mt-5">
       <div className="flex items-center">
-        {STEPS.map((s, i) => {
+        {steps.map((s, i) => {
           const done = i <= idx;
           const isLast = i === steps.length - 1;
           return (
