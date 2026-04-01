@@ -22,6 +22,52 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
+  try {
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id, service, status, created_at, businesses(name, owner_email, phone), profiles(name, email, phone)')
+      .eq('id', bookingId)
+      .single();
+    if (!booking) return;
+
+    const biz = (booking.businesses as any);
+    const user = (booking.profiles as any);
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+    const secret = process.env.NOTIFY_SECRET || '';
+
+    if (user?.email) {
+      await fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        body: JSON.stringify({
+          type: 'booking_confirmation',
+          to: user.email,
+          name: user?.name || 'there',
+          service: booking.service,
+          location: biz?.name || '',
+        }),
+      }).catch(() => {});
+    }
+
+    if (biz?.owner_email) {
+      await fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        body: JSON.stringify({
+          type: 'new_booking_business',
+          to: biz.owner_email,
+          name: biz.name,
+          service: booking.service,
+          customerName: user?.name || 'A customer',
+          customerPhone: user?.phone || '',
+          bookingId,
+        }),
+      }).catch(() => {});
+    }
+  } catch {}
+}
+
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -82,6 +128,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .eq('id', bookingId);
 
           console.log(`[webhook] Booking ${bookingId} marked as paid`);
+
+          await notifyNewBooking(bookingId, supabase);
 
           // Notify n8n to trigger post-payment automation
           await triggerN8n('payment_succeeded', {

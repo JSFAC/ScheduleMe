@@ -221,9 +221,15 @@ export default function BizPage() {
   async function book() {
     const { data: { session } } = await getSB().auth.getSession();
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
-    if (!biz?.stripe_onboarded || !biz?.stripe_account_id) { setErr('This business is not accepting online payments yet.'); return; }
-    if (!selectedSvc || isCustom || !selectedSvc?.price_cents) { setErr('Please select a priced service to book.'); return; }
+    if (!selectedSvc) { setErr('Select a service to continue.'); return; }
     if (!date || !slot) { setErr('Pick a date and time'); return; }
+
+    const isPaidService = !isCustom;
+    if (isPaidService) {
+      if (!biz?.stripe_onboarded || !biz?.stripe_account_id) { setErr('This business is not accepting online payments yet.'); return; }
+      if (!selectedSvc?.price_cents) { setErr('Please select a priced service to book.'); return; }
+    }
+
     setSubmitting(true); setErr('');
     const scheduled_start = buildScheduledStart(date, slot);
     const res = await fetch('/api/bookings', {
@@ -232,7 +238,7 @@ export default function BizPage() {
       body: JSON.stringify({
         business_id: biz.id,
         service: selectedSvc?.name || 'Custom Request',
-        service_price_cents: selectedSvc?.price_cents || null,
+        service_price_cents: isPaidService ? selectedSvc?.price_cents : null,
         note,
         scheduled_start,
         scheduled_slot: slot,
@@ -247,6 +253,13 @@ export default function BizPage() {
 
     const bookingId = d?.booking?.id;
     if (!bookingId) { setErr('Booking created but payment could not start.'); setSubmitting(false); return; }
+
+    if (!isPaidService) {
+      setSubmitting(false);
+      setDone(true);
+      setShowConfirm(true);
+      return;
+    }
 
     const checkoutRes = await fetch('/api/checkout', {
       method: 'POST',

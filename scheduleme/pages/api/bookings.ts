@@ -172,12 +172,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           requires_manual_action: true,
         }).select('id, status, created_at').single();
         if (fbErr) return res.status(500).json({ error: 'Failed to create booking', details: error.message || error });
-        notifyNewBooking(fallback.id, supabase);
+        if (!service_price_cents || typeof service_price_cents !== 'number') {
+          notifyNewBooking(fallback.id, supabase);
+        }
         return res.status(200).json({ booking: fallback, warning: 'Booking created without schedule details. Please update database columns.' });
       }
 
-      // Fire-and-forget notifications
-      notifyNewBooking(data.id, supabase);
+      // Fire-and-forget notifications (only for non-paid/custom requests)
+      if (!service_price_cents || typeof service_price_cents !== 'number') {
+        notifyNewBooking(data.id, supabase);
+      }
 
       return res.status(200).json({ booking: data });
     } catch (err) {
