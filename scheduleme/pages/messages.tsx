@@ -106,6 +106,32 @@ const MessagesPage: NextPage = () => {
     })();
   }, [router.query.booking, threads]);
 
+  // Open thread from business query (find latest booking with that business)
+  useEffect(() => {
+    const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
+    if (bookingId) return;
+    const businessId = typeof router.query.business === 'string' ? router.query.business : null;
+    if (!businessId) return;
+    (async () => {
+      try {
+        const authH = await getAuthHeaders();
+        const res = await fetch(`/api/messages?thread_business_id=${businessId}`, { headers: authH });
+        if (!res.ok) {
+          setThreadError('No bookings found with this business yet.');
+          return;
+        }
+        const data = await res.json();
+        if (data?.thread) {
+          setThreads(ts => {
+            if (ts.find(t => t.id === data.thread.id)) return ts;
+            return [data.thread, ...ts];
+          });
+          openThread(data.thread);
+        }
+      } catch {}
+    })();
+  }, [router.query.business, router.query.booking]);
+
   useEffect(() => {
     const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
     if (!bookingId && threads.length > 0 && !activeThread) {

@@ -272,6 +272,23 @@ export default function BizPage() {
     }));
   })() : [];
 
+  async function shareBusiness() {
+    if (typeof window === 'undefined') return;
+    const url = window.location.href;
+    const title = biz?.name || 'ScheduleMe business';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: `${biz?.name || 'ScheduleMe business'} on ScheduleMe`, url });
+        return;
+      }
+    } catch {}
+    try {
+      if (navigator.clipboard && url) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch {}
+  }
+
   return (
     <>
       <Head><title>{biz.name} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
@@ -299,8 +316,8 @@ export default function BizPage() {
             </div>
             {biz.description && <p className="text-sm leading-relaxed mb-4" style={{color:mu}}>{biz.description}</p>}
             <div className="flex gap-2 flex-wrap">
-              {biz.phone && <a href={'tel:'+biz.phone} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Call</a>}
-              {biz.address && <a href={'https://maps.google.com/?q='+encodeURIComponent(biz.address)} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Directions</a>}
+              <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
+              <button onClick={shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Share</button>
               {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>}
             </div>
           </div>

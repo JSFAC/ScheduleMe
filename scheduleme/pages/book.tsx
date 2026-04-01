@@ -229,9 +229,7 @@ const BookPage: NextPage = () => {
                 >
                   {loading ? 'Booking…' : provider.calendly_url ? 'Continue to Schedule →' : 'Request Booking →'}
                 </button>
-                <a href={`tel:${provider.phone}`} className="w-full py-3 text-center block rounded-xl font-semibold text-sm border" style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : 'rgba(0,126,109,0.08)' }}>
-                  Or call directly
-                </a>
+
               </div>
             </div>
           )}
@@ -265,7 +263,11 @@ const BookPage: NextPage = () => {
               )}
               {bookingId && <p className="text-xs mb-6" style={{ color: textMuted }}>Booking ID: {bookingId}</p>}
               <div className="flex flex-col gap-3">
-                <a href={`tel:${provider.phone}`} className="btn-primary">Call {provider.name}</a>
+                {bookingId ? (
+                  <a href={`/messages?booking=${bookingId}`} className="btn-primary">Message {provider.name}</a>
+                ) : (
+                  <button disabled className="btn-primary opacity-60 cursor-not-allowed">Message in app</button>
+                )}
                 <a href="/bookings" className="w-full text-center block rounded-xl font-semibold text-sm border py-3" style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : 'rgba(0,126,109,0.08)' }}>Find another pro</a>
               </div>
             </div>
