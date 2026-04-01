@@ -269,22 +269,9 @@ export default function BizPage() {
       return;
     }
 
-    let checkoutData: any = null;
-    try {
-      const checkoutRes = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-        body: JSON.stringify({ booking_id: bookingId }),
-      });
-      checkoutData = await checkoutRes.json().catch(() => ({}));
-      if (!checkoutRes.ok || !checkoutData?.url) { setErr(checkoutData?.error || 'Unable to start card setup.'); setSubmitting(false); return; }
-    } catch (e) {
-      setErr('Unable to start card setup. Please try again.');
-      setSubmitting(false);
-      return;
-    }
-
-    window.location.href = checkoutData.url;
+    setSubmitting(false);
+    router.push(`/bookings?setup=required&booking=${bookingId}`);
+    return;
   }
 
   const bg = dm ? '#0a0a0a' : '#f9fafb';

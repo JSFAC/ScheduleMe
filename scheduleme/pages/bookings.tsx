@@ -69,7 +69,7 @@ interface Booking {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
-  pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-100',  text: 'text-emerald-200',  dot: 'bg-amber-400', barColor: '#f59e0b' },
+  pending:         { label: 'Pending Review',   bg: 'bg-emerald-50  border-emerald-100',  text: 'text-emerald-700',  dot: 'bg-emerald-500', barColor: '#10b981' },
   confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6' },
   payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6' },
   paid:            { label: 'Paid',              bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e' },
@@ -138,7 +138,7 @@ function ProgressBar({ status, steps, labels }: { status: string; steps: string[
 }
 
 
-function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved: (pmId: string | null) => void; onError: (msg: string) => void }) {
+function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onSaved: (pmId: string | null) => void; onError: (msg: string) => void; dm: boolean }) {
   const stripe = useStripe();
   const elements = useElements();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -193,14 +193,14 @@ function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved
 
   return (
     <form onSubmit={handleSubmit} className="mt-3 space-y-3">
-      <div className="rounded-xl border px-3 py-3" style={{ borderColor: '#1e554c', background: '#0f1f1c' }}>
+      <div className="rounded-xl border px-3 py-3" style={{ borderColor: dm ? '#1e554c' : '#c7f0e3', background: dm ? '#0f1f1c' : '#ffffff' }}>
         <CardElement options={{ hidePostalCode: false, style: { base: { fontSize: '14px' } } }} />
       </div>
       <button
         type="submit"
         disabled={!stripe || !elements || !clientSecret || loading}
         className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
-        style={{ background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 100%)', opacity: (!stripe || !elements || !clientSecret || loading) ? 0.6 : 1 }}
+        style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)', opacity: (!stripe || !elements || !clientSecret || loading) ? 0.6 : 1 }}
       >
         {loading ? 'Saving…' : 'Save card'}
       </button>
@@ -208,11 +208,12 @@ function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string) => void;
+  dm: boolean;
   paymentMethods: any[];
   paymentDefaultId: string | null;
   paymentLoading: boolean;
@@ -278,6 +279,16 @@ function DetailSheet({ booking, originRect, onClose, onCancel, paymentMethods, p
   const modalCY = vpH / 2;
   const tx = ready ? 0 : cardCX - modalCX;
   const ty = ready ? 0 : cardCY - modalCY;
+
+  const accent = '#007e6d';
+  const accentDark = '#1e554c';
+  const panelBg = dm ? '#0f1f1c' : '#ecfdf3';
+  const panelBorder = dm ? '#1e554c' : '#a7f3d0';
+  const panelTitle = dm ? '#a7f3d0' : '#065f46';
+  const panelText = dm ? '#8dd9c9' : '#0f766e';
+  const inputBg = dm ? '#0b1513' : '#ffffff';
+  const inputBorder = dm ? '#1e554c' : '#c7f0e3';
+  const inputText = dm ? '#e5f9f4' : '#0f3d35';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -427,20 +438,20 @@ function DetailSheet({ booking, originRect, onClose, onCancel, paymentMethods, p
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               {booking.amount_cents && !booking.paid_at && (
-                <div className="rounded-2xl p-4 mb-4" style={{ background: '#0f1f1c', border: '1px solid #1e554c' }}>
-                  <p className="text-sm font-bold text-emerald-300 mb-0.5">Payment method required</p>
-                  <p className="text-xs text-emerald-200">Save a card to confirm your booking. You will only be charged after the service is completed.</p>
+                <div className="rounded-2xl p-4 mb-4" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}>
+                  <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Payment method required</p>
+                  <p className="text-xs" style={{ color: panelText }}>Save a card to confirm your booking. You will only be charged after the service is completed.</p>
                   {paymentLoading ? (
-                    <div className="mt-3 text-xs text-neutral-500">Loading payment methods…</div>
+                    <div className="mt-3 text-xs" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Loading payment methods…</div>
                   ) : paymentMethods.length > 0 && !showAddCard ? (
                     <div className="mt-3 space-y-2">
-                      <p className="text-xs text-emerald-700 font-semibold">Saved payment method</p>
+                      <p className="text-xs font-semibold" style={{ color: panelTitle }}>Saved payment method</p>
                       <div className="flex items-center gap-2">
                         <select
                           value={paymentDefaultId || paymentMethods[0]?.id}
                           onChange={(e) => setDefaultPaymentMethod(e.target.value)}
                           className="flex-1 rounded-lg border px-3 py-2 text-xs bg-transparent"
-                          style={{ borderColor: '#1e554c', color: '#0b3b34' }}
+                          style={{ borderColor: inputBorder, color: inputText, background: inputBg }}
                         >
                           {paymentMethods.map((m) => (
                             <option key={m.id} value={m.id}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}</option>
@@ -449,7 +460,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, paymentMethods, p
                         <button
                           onClick={() => setShowAddCard(true)}
                           className="px-3 py-2 rounded-lg text-xs font-semibold"
-                          style={{ background: '#0b3b34', color: 'white' }}
+                          style={{ background: accentDark, color: 'white' }}
                         >
                           Add new
                         </button>
@@ -458,9 +469,10 @@ function DetailSheet({ booking, originRect, onClose, onCancel, paymentMethods, p
                   ) : (
                     <div className="mt-3">
                       {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
-                        <Elements stripe={stripePromise} options={{ appearance: { theme: 'night', variables: { colorPrimary: '#0b3b34', colorText: '#0b3b34' } } }}>
+                        <Elements stripe={stripePromise} options={{ appearance: { theme: dm ? 'night' : 'stripe', variables: { colorPrimary: accent, colorText: dm ? '#e5f9f4' : '#0f3d35', colorBackground: dm ? '#0b1513' : '#ffffff', colorTextSecondary: dm ? '#8dd9c9' : '#0f766e' } } }}>
                           <SaveCardForm
                             booking={booking}
+                            dm={dm}
                             onSaved={(pmId) => {
                               setShowAddCard(false);
                               fetchPaymentMethods();
@@ -474,9 +486,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, paymentMethods, p
                           />
                         </Elements>
                       ) : (
-                        <div className="text-xs text-emerald-200">Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
+                        <div className="text-xs" style={{ color: panelText }}>Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
                       )}
-                      {err && <div className="mt-2 text-xs text-red-300">{err}</div>}
+                      {err && <div className="mt-2 text-xs" style={{ color: dm ? '#fca5a5' : '#b91c1c' }}>{err}</div>}
                     </div>
                   )}
                 </div>
@@ -1289,6 +1301,7 @@ function writeCoords(lat: number, lng: number) {
           originRect={originRect}
           onClose={() => setSelectedBooking(null)}
           onCancel={cancelBooking}
+          dm={dm}
           paymentMethods={paymentMethods}
           paymentDefaultId={paymentDefaultId}
           paymentLoading={paymentLoading}
