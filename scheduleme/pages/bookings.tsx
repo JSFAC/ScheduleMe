@@ -81,6 +81,8 @@ const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Done'];
 const STEPS_NO_PAID = ['pending', 'confirmed', 'completed'];
 const STEP_LABELS_NO_PAID = ['Submitted', 'Confirmed', 'Done'];
 
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   const now = new Date();
@@ -133,6 +135,76 @@ function ProgressBar({ status, steps, labels }: { status: string; steps: string[
   );
 }
 
+
+function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved: () => void; onError: (msg: string) => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      if (!booking?.id) return;
+      try {
+        const { data: { session } } = await getSupabase().auth.getSession();
+        if (!session) return;
+        const res = await fetch('/api/create-setup-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+          body: JSON.stringify({ booking_id: booking.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Unable to start card setup');
+        if (mounted) setClientSecret(data.client_secret || null);
+      } catch (e: any) {
+        onError(e?.message || 'Unable to start card setup');
+      }
+    }
+    if (!booking.stripe_payment_method_id) load();
+    return () => { mounted = false; };
+  }, [booking?.id]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements || !clientSecret) return;
+    setLoading(true);
+    const result = await stripe.confirmSetup({
+      elements,
+      clientSecret,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    });
+    if (result.error) {
+      onError(result.error.message || 'Card setup failed');
+      setLoading(false);
+      return;
+    }
+    onSaved();
+    setLoading(false);
+  }
+
+  if (booking.stripe_payment_method_id) {
+    return <div className="mt-3 text-xs font-semibold text-emerald-700">Card saved. You will be charged after completion.</div>;
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+      <div className="rounded-xl border px-3 py-3" style={{ borderColor: '#fed7aa', background: '#fff7ed' }}>
+        <CardElement options={{ hidePostalCode: false, style: { base: { fontSize: '14px' } } }} />
+      </div>
+      <button
+        type="submit"
+        disabled={!stripe || !elements || !clientSecret || loading}
+        className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
+        style={{ background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 100%)', opacity: (!stripe || !elements || !clientSecret || loading) ? 0.6 : 1 }}
+      >
+        {loading ? 'Saving…' : 'Save card'}
+      </button>
+    </form>
+  );
+}
+
 function DetailSheet({ booking, originRect, onClose, onCancel }: {
   booking: Booking;
   originRect: DOMRect | null;
@@ -141,6 +213,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
 }) {
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
   const [mounted, setMounted] = useState(false);
+  const [err, setErr] = useState<string>('');
   const [closing, setClosing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -346,28 +419,22 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                 <div className="rounded-2xl p-4 mb-4" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
                   <p className="text-sm font-bold text-amber-800 mb-0.5">Payment method required</p>
                   <p className="text-xs text-amber-700">Save a card to confirm your booking. You will only be charged after the service is completed.</p>
-                  {booking.stripe_payment_method_id ? (
-                    <div className="mt-3 text-xs font-semibold text-emerald-700">Card saved. You will be charged after completion.</div>
+                  {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+                    <Elements stripe={stripePromise} options={{ appearance: { theme: 'stripe' } }}>
+                      <SaveCardForm
+                        booking={booking}
+                        onSaved={() => {
+                          setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, stripe_payment_method_id: 'saved' } : b));
+                          setPaymentToast('setup_success');
+                        }}
+                        onError={(msg) => {
+                          setPaymentToast('setup_cancelled');
+                          setErr(msg);
+                        }}
+                      />
+                    </Elements>
                   ) : (
-                    <button
-                      onClick={async () => {
-                        try {
-                          const { data: { session } } = await getSupabase().auth.getSession();
-                          if (!session) { window.location.href = '/signin?next=/bookings'; return; }
-                          const res = await fetch('/api/checkout', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-                            body: JSON.stringify({ booking_id: booking.id }),
-                          });
-                          const data = await res.json();
-                          if (res.ok && data?.url) { window.location.href = data.url; }
-                        } catch {}
-                      }}
-                      className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
-                      style={{ background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 100%)' }}
-                    >
-                      Save card
-                    </button>
+                    <div className="mt-3 text-xs text-amber-700">Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
                   )}
                 </div>
               )}
@@ -704,6 +771,15 @@ function writeCoords(lat: number, lng: number) {
       return () => clearTimeout(t);
     }
   }, [router.query.payment, router.query.booking, router.query.setup]);
+
+  useEffect(() => {
+    if (router.query.setup === 'required' && typeof router.query.booking === 'string' && bookings.length > 0) {
+      const b = bookings.find(b => b.id === router.query.booking);
+      if (b) {
+        setSelectedBooking(b);
+      }
+    }
+  }, [router.query.setup, router.query.booking, bookings]);
 
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());

@@ -118,6 +118,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       }
 
+      // Setup intent succeeded — save payment method for booking
+      case 'setup_intent.succeeded': {
+        const si = event.data.object as Stripe.SetupIntent;
+        const bookingId = (si.metadata as any)?.bookingId || (si.metadata as any)?.booking_id;
+        if (bookingId) {
+          const paymentMethodId = typeof si.payment_method === 'string' ? si.payment_method : (si.payment_method as any)?.id;
+          await supabase
+            .from('bookings')
+            .update({
+              stripe_setup_intent_id: si.id,
+              stripe_payment_method_id: paymentMethodId || null,
+              stripe_customer_id: si.customer as string | null,
+            })
+            .eq('id', bookingId);
+        }
+        break;
+      }
+
       // Payment authorized (manual capture) — mark booking as payment_pending
       case 'payment_intent.amount_capturable_updated': {
         const pi = event.data.object as Stripe.PaymentIntent;

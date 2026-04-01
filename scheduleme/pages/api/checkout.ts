@@ -76,6 +76,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PERCENT / 100);
 
+  // DEPRECATED: Checkout is no longer used for card setup; use /api/create-setup-intent with Stripe Elements.
+  // Keeping this endpoint for backward compatibility.
+
   // Create Stripe Checkout Session to collect & save a card (no charge yet)
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],

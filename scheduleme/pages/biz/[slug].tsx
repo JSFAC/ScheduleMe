@@ -277,9 +277,9 @@ export default function BizPage() {
         body: JSON.stringify({ booking_id: bookingId }),
       });
       checkoutData = await checkoutRes.json().catch(() => ({}));
-      if (!checkoutRes.ok || !checkoutData?.url) { setErr(checkoutData?.error || 'Unable to start payment.'); setSubmitting(false); return; }
+      if (!checkoutRes.ok || !checkoutData?.url) { setErr(checkoutData?.error || 'Unable to start card setup.'); setSubmitting(false); return; }
     } catch (e) {
-      setErr('Unable to start payment. Please try again.');
+      setErr('Unable to start card setup. Please try again.');
       setSubmitting(false);
       return;
     }

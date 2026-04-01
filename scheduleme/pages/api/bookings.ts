@@ -382,6 +382,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .from('bookings')
           .select('*, profiles(name, phone, email)')
           .eq('business_id', business_id)
+          .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null')
           .order('created_at', { ascending: false })
           .limit(200);
 
