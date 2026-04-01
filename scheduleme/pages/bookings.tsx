@@ -208,11 +208,19 @@ function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string) => void;
+  paymentMethods: any[];
+  paymentDefaultId: string | null;
+  paymentLoading: boolean;
+  showAddCard: boolean;
+  setShowAddCard: (value: boolean) => void;
+  fetchPaymentMethods: () => void;
+  setDefaultPaymentMethod: (id: string) => void;
+  setPaymentToast: (value: 'cancelled' | 'setup_success' | 'setup_cancelled' | null) => void;
 }) {
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
   const [mounted, setMounted] = useState(false);
@@ -468,6 +476,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
                       ) : (
                         <div className="text-xs text-emerald-200">Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
                       )}
+                      {err && <div className="mt-2 text-xs text-red-300">{err}</div>}
                     </div>
                   )}
                 </div>
@@ -1275,7 +1284,20 @@ function writeCoords(lat: number, lng: number) {
 
       {/* Detail sheet */}
       {selectedBooking && (
-        <DetailSheet booking={selectedBooking} originRect={originRect} onClose={() => setSelectedBooking(null)} onCancel={cancelBooking} />
+        <DetailSheet
+          booking={selectedBooking}
+          originRect={originRect}
+          onClose={() => setSelectedBooking(null)}
+          onCancel={cancelBooking}
+          paymentMethods={paymentMethods}
+          paymentDefaultId={paymentDefaultId}
+          paymentLoading={paymentLoading}
+          showAddCard={showAddCard}
+          setShowAddCard={setShowAddCard}
+          fetchPaymentMethods={fetchPaymentMethods}
+          setDefaultPaymentMethod={setDefaultPaymentMethod}
+          setPaymentToast={setPaymentToast}
+        />
       )}
 
       {/* Payment/capture toasts */}
