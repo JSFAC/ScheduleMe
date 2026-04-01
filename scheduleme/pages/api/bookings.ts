@@ -249,12 +249,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!isBusinessOwner && !canCancelAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
 
-    // If we collected a payment authorization, capture or cancel based on decision
+    // If we collected a payment authorization, capture on completion or cancel on cancellation
     const paymentIntentId = (booking as any).stripe_payment_intent_id;
     if (paymentIntentId) {
       try {
         const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-        if (status === 'confirmed' && pi.status === 'requires_capture') {
+        if (status === 'completed' && pi.status === 'requires_capture') {
           await stripe.paymentIntents.capture(paymentIntentId);
         }
         if (status === 'cancelled' && ['requires_capture','requires_payment_method','requires_confirmation','requires_action'].includes(pi.status)) {
@@ -262,6 +262,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       } catch (e) {
         console.error('[booking] payment intent action failed', e);
+        if (status === 'completed') return res.status(500).json({ error: 'Payment capture failed' });
       }
     }
 
