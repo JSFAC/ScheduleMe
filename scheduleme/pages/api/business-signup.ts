@@ -14,7 +14,9 @@ function getSupabase() {
 
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+    const isZip = /^[0-9]{5}$/.test(location.trim());
+    const query = isZip ? `${location.trim()}, USA` : location;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us`;
     const res = await fetch(url, { headers: { 'User-Agent': 'ScheduleMe/1.0' } });
     const data = await res.json();
     if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
