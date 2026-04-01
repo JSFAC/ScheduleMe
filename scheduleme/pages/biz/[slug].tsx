@@ -153,6 +153,11 @@ export default function BizPage() {
   const [done, setDone] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [err, setErr] = useState('');
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+  const [isFavorited, setIsFavorited] = useState(false);
 
 
   useEffect(() => {
@@ -161,6 +166,10 @@ export default function BizPage() {
       .then(({ data }) => {
         if (!data) { router.replace('/browse'); return; }
         setBiz(data);
+        try {
+          const favs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('sm_favorites') || '[]') : [];
+          if (Array.isArray(favs)) setIsFavorited(favs.includes(data.id));
+        } catch {}
         fetch('/api/services?business_id=' + data.id).then(r => r.json()).then(d => setServices(d.services || [])).catch(() => {});
         setLoading(false);
       });
@@ -275,6 +284,8 @@ export default function BizPage() {
   async function shareBusiness() {
     if (typeof window === 'undefined') return;
     const url = window.location.href;
+    setShareUrl(url);
+    setShareCopied(false);
     const title = biz?.name || 'ScheduleMe business';
     try {
       if (navigator.share) {
@@ -282,11 +293,38 @@ export default function BizPage() {
         return;
       }
     } catch {}
+    setShareOpen(true);
+  }
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 1800);
+  }
+
+  function getFavorites(): string[] {
+    if (typeof window === 'undefined') return [];
     try {
-      if (navigator.clipboard && url) {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {}
+      const raw = localStorage.getItem('sm_favorites');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function setFavorites(list: string[]) {
+    if (typeof window === 'undefined') return;
+    try { localStorage.setItem('sm_favorites', JSON.stringify(list)); } catch {}
+  }
+
+  function toggleFavorite() {
+    if (!biz?.id) return;
+    const list = getFavorites();
+    const exists = list.includes(biz.id);
+    const next = exists ? list.filter(id => id !== biz.id) : [...list, biz.id];
+    setFavorites(next);
+    setIsFavorited(!exists);
+    showToast(exists ? 'Removed from saved' : 'Saved for later');
   }
 
   return (
@@ -294,6 +332,41 @@ export default function BizPage() {
       <Head><title>{biz.name} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
       <div style={{background:bg,minHeight:'100vh',paddingBottom:100}}>
         <Nav />
+        {shareOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={() => setShareOpen(false)}>
+            <div className="w-full max-w-md rounded-2xl p-5" style={{ background: card, border: '1px solid '+bdr }} onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: tx }}>Share this business</p>
+                  <p className="text-xs" style={{ color: mu }}>Copy the link below.</p>
+                </div>
+                <button onClick={() => setShareOpen(false)} className="text-xs font-semibold" style={{ color: mu }}>Close</button>
+              </div>
+              <div className="flex items-center gap-2">
+                <input readOnly value={shareUrl} className="flex-1 text-xs px-3 py-2 rounded-xl" style={{ background: dm ? '#0d0d0d' : '#f9fafb', border: '1px solid '+bdr, color: tx }} />
+                <button
+                  onClick={async () => {
+                    try {
+                      if (navigator.clipboard && shareUrl) {
+                        await navigator.clipboard.writeText(shareUrl);
+                        setShareCopied(true);
+                        showToast('Link copied');
+                      }
+                    } catch {}
+                  }}
+                  className="text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: accentWash, border: '1px solid '+accentBorder, color: accent }}
+                >
+                  {shareCopied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {toast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2 rounded-full text-xs font-semibold" style={{ background: dm ? '#0f172a' : '#111827', color: 'white', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            {toast}
+          </div>
+        )}
         <div className="relative overflow-hidden" style={{height:280,background:dm?'#1c1c1e':'#e5e7eb'}}>
           {imgs[0] && <img src={imgs[0]} alt={biz.name} className="absolute inset-0 w-full h-full object-cover" style={{objectPosition:'center 30%'}} />}
           <div className="absolute inset-0" style={{background:'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55))'}} />
@@ -318,6 +391,7 @@ export default function BizPage() {
             <div className="flex gap-2 flex-wrap">
               <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
               <button onClick={shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Share</button>
+              <button onClick={toggleFavorite} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background: isFavorited ? (dm ? 'rgba(251,191,36,0.18)' : '#fef3c7') : accentWash, border:'1px solid '+accentBorder, color: isFavorited ? (dm ? '#f59e0b' : '#92400e') : accent}}>{isFavorited ? 'Saved' : 'Save'}</button>
               {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>}
             </div>
           </div>
