@@ -370,6 +370,77 @@ export function newBusinessApplicationHtml(opts: {
   return layout(`New application: ${opts.name}`, body, `${opts.ownerName} just applied to join ScheduleMe`);
 }
 
+// ─── Template: business change request (admin) ─────────────────────────
+export function changeRequestAdminHtml(opts: {
+  businessName: string; ownerName: string; ownerEmail: string; changes: Record<string, any>;
+  flagged?: boolean; flagReasons?: string[];
+}) {
+  const adminUrl = `${SITE_URL}/admin`;
+  const changesRows = Object.entries(opts.changes || {}).map(([k, v]) => (
+    `<tr><td style="padding:10px 20px;border-bottom:1px solid #e2e8f0;">
+      <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:3px;">${k.replace(/_/g,' ')}</span>
+      <span style="font-size:14px;font-weight:600;color:#0f172a;">${String(v).slice(0, 200)}</span>
+    </td></tr>`
+  )).join('');
+
+  const body = `
+    <tr><td bgcolor="#0f172a" style="background:#0f172a;padding:28px 32px;">
+      <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase;">Change Request</p>
+      <h1 style="margin:6px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">${opts.businessName}</h1>
+    </td></tr>
+    <tr><td style="padding:28px 32px;">
+      <p style="margin:0 0 12px;font-size:14px;color:#64748b;">Requested by ${opts.ownerName} (${opts.ownerEmail})</p>
+      ${opts.flagged ? `<p style="margin:0 0 12px;font-size:12px;color:#b91c1c;font-weight:700;">Flagged for review: ${(opts.flagReasons || []).join(', ')}</p>` : ''}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:20px;overflow:hidden;">
+        ${changesRows || '<tr><td style="padding:14px 20px;">No changes listed</td></tr>'}
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td align="center">
+          <a href="${adminUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:8px;">
+            Review in Admin Panel →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>`;
+  return layout(`Change request: ${opts.businessName}`, body, `${opts.ownerName} requested profile changes`);
+}
+
+// ─── Template: change request received (business) ───────────────────────────
+export function changeRequestReceiptHtml(opts: {
+  businessName: string; ownerName: string; changes: Record<string, any>;
+}) {
+  const changesList = Object.keys(opts.changes || {}).map(k => `• ${k.replace(/_/g,' ')}`).join('<br/>');
+  const body = `
+    <tr><td bgcolor="#0f172a" style="background:#0f172a;padding:28px 32px;text-align:center;">
+      <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase;">Request Received</p>
+      <h1 style="margin:6px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Thanks, ${opts.ownerName}</h1>
+      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.75);">We received your update request for ${opts.businessName}.</p>
+    </td></tr>
+    <tr><td style="padding:28px 32px;">
+      <p style="margin:0 0 12px;font-size:14px;color:#64748b;">We’re reviewing the following changes:</p>
+      <div style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;padding:14px 18px;font-size:13px;color:#0f172a;line-height:1.6;">
+        ${changesList || 'Your update request'}
+      </div>
+      <p style="margin:14px 0 0;font-size:13px;color:#94a3b8;">Most reviews are completed within 24 hours.</p>
+    </td></tr>`;
+  return layout(`We received your update request`, body, `We received your update request for ${opts.businessName}`);
+}
+
+// ─── Template: change request decision (business) ────────────────────────────
+export function changeRequestDecisionHtml(opts: {
+  businessName: string; ownerName: string; approved: boolean; notes?: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:36px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">
+        ${opts.approved ? 'Update approved' : 'Update needs changes'}
+      </h1>
+      <p style="margin:0 0 16px;font-size:15px;color:#64748b;">Hi ${opts.ownerName}, your update request for <strong>${opts.businessName}</strong> was ${opts.approved ? 'approved' : 'rejected'}.</p>
+      ${opts.notes ? `<p style="margin:0;font-size:13px;color:#475569;">Notes: ${opts.notes}</p>` : ''}
+    </td></tr>`;
+  return layout(`Update ${opts.approved ? 'approved' : 'rejected'}`, body, `Your update request was ${opts.approved ? 'approved' : 'rejected'}`);
+}
+
 // ─── Template: business application received (applicant) ─────────────────────
 export function businessApplicationReceivedHtml(opts: {
   businessName: string; ownerName: string; category: string; city: string;
@@ -490,6 +561,43 @@ export async function sendNewBusinessApplicationEmail(opts: {
 }) {
   const resend = getResend();
   return resend.emails.send({ from: FROM, to: opts.to, subject: `New business application: ${opts.name}`, html: newBusinessApplicationHtml(opts) });
+}
+
+export async function sendChangeRequestAdminEmail(opts: {
+  to: string; businessName: string; ownerName: string; ownerEmail: string; changes: Record<string, any>;
+  flagged?: boolean; flagReasons?: string[];
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Change request: ${opts.businessName}`,
+    html: changeRequestAdminHtml(opts),
+  });
+}
+
+export async function sendChangeRequestReceiptEmail(opts: {
+  to: string; businessName: string; ownerName: string; changes: Record<string, any>;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `We received your update request`,
+    html: changeRequestReceiptHtml(opts),
+  });
+}
+
+export async function sendChangeRequestDecisionEmail(opts: {
+  to: string; businessName: string; ownerName: string; approved: boolean; notes?: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Your update was ${opts.approved ? 'approved' : 'rejected'}`,
+    html: changeRequestDecisionHtml(opts),
+  });
 }
 
 export async function sendBusinessApplicationReceivedEmail(opts: {

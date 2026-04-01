@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!rateLimit(req, res, { max: 20, windowMs: 60 * 60_000, keyPrefix: 'upload-media' })) return;
 
-  const { business_id, media_type, file_data, file_type, file_name } = req.body;
+  const { business_id, media_type, file_data, file_type, file_name, approve_immediately } = req.body;
 
   if (!business_id || !isValidUuid(business_id))
     return res.status(400).json({ error: 'Valid business_id required' });
@@ -78,13 +78,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: { publicUrl } } = supabase.storage.from('business-media').getPublicUrl(fileName);
 
-  // Update cover_url (and video_url if those columns exist)
-  if (isVideo) {
-    await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id).then(() => {});
-  } else {
-    // Always update cover_url with first image
-    await supabase.from('businesses').update({ cover_url: publicUrl }).eq('id', business_id);
+  // Only apply immediately if explicitly requested (default: require admin approval)
+  if (approve_immediately === true) {
+    if (isVideo) {
+      await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id).then(() => {});
+    } else {
+      await supabase.from('businesses').update({ cover_url: publicUrl }).eq('id', business_id);
+    }
   }
 
-  return res.status(200).json({ url: publicUrl });
+  return res.status(200).json({ url: publicUrl, pending: approve_immediately !== true });
 }

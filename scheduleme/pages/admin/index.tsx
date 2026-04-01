@@ -2,6 +2,7 @@
 // pages/admin/index.tsx — ScheduleMe admin panel
 import type { NextPage } from 'next';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useState, useCallback } from 'react';
 
 interface Business {
@@ -121,6 +122,7 @@ const AdminPage: NextPage = () => {
                 {pendingCount} pending
               </span>
             )}
+            <Link href="/admin/requests" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Edit requests</Link>
             <button onClick={() => loadBusinesses(secret)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
             <button onClick={() => setAuthed(false)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
           </div>

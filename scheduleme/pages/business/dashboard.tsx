@@ -240,6 +240,19 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
   const subtle = dm ? '#2c2c2e' : '#f2f2f7';
   const muted = dm ? '#8e8e93' : '#8e8e93';
 
+  async function submitChangeRequest(changes: Record<string, any>, requestType?: string) {
+    if (!business) return;
+    const h = await getAuthHeaders();
+    const res = await fetch('/api/business-change-requests', {
+      method: 'POST',
+      headers: h,
+      body: JSON.stringify({ business_id: business.id, changes, request_type: requestType || 'profile' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to submit change request');
+    return data;
+  }
+
   async function uploadFiles(files: File[]) {
     if (!business || files.length === 0) return;
     setUploading(true);
@@ -254,13 +267,15 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             const h = await getAuthHeaders();
             const res = await fetch('/api/upload-media', { method: 'POST', headers: { 'Content-Type': 'application/json', ...h }, body: JSON.stringify({ business_id: business.id, media_type: isVideo ? 'video' : 'image', file_data: base64, file_type: file.type, file_name: file.name }) });
             const data = await res.json();
-            if (data.url) { if (isVideo) setMediaVideo(data.url); else results.push(data.url); }
+            if (data.url) { if (isVideo) { setMediaVideo(data.url); try { await submitChangeRequest({ video_url: data.url }, 'media'); } catch {} } else results.push(data.url); }
           } finally { resolve(); }
         };
         reader.readAsDataURL(file);
       });
     }
-    if (results.length > 0) { const next = [...imgs, ...results]; setImgs(next); setMediaImages(next); }
+    if (results.length > 0) { const next = [...imgs, ...results]; setImgs(next); setMediaImages(next);
+      try { await submitChangeRequest({ media_urls: next, cover_url: next[0] || null }, 'media'); } catch {}
+    }
     setUploading(false);
   }
 
@@ -271,9 +286,9 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
     const next = [...imgs]; const [m] = next.splice(dragIdx, 1); next.splice(i, 0, m);
     setImgs(next); setDragIdx(i);
   }
-  async function onDragEnd() { setDragIdx(null); setMediaImages(imgs); if (business) await getSupabase().from('businesses').update({ media_urls: imgs, cover_url: imgs[0] || null }).eq('id', business.id); }
-  async function removeImg(i: number) { const next = imgs.filter((_,j) => j !== i); setImgs(next); setMediaImages(next); if (business) await getSupabase().from('businesses').update({ media_urls: next, cover_url: next[0] || null }).eq('id', business.id); }
-  async function saveDesc() { if (!business) return; await getSupabase().from('businesses').update({ description: editDesc }).eq('id', business.id); setBusiness((b: any) => b ? { ...b, description: editDesc } : b); }
+  async function onDragEnd() { setDragIdx(null); setMediaImages(imgs); if (business) { try { await submitChangeRequest({ media_urls: imgs, cover_url: imgs[0] || null }, 'media'); } catch {} } }
+  async function removeImg(i: number) { const next = imgs.filter((_,j) => j !== i); setImgs(next); setMediaImages(next); if (business) { try { await submitChangeRequest({ media_urls: next, cover_url: next[0] || null }, 'media'); } catch {} } }
+  async function saveDesc() { if (!business) return; try { await submitChangeRequest({ description: editDesc }, 'profile'); } catch {} }
 
   function switchTab(next: 'card' | 'modal') {
     const editing = tab === 'card' ? editingCard : editingModal;
@@ -586,6 +601,7 @@ const BusinessDashboard: NextPage = () => {
   const [mediaVideo, setMediaVideo] = useState<string | null>(null);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [settingsError, setSettingsError] = useState('');
+  const [settingsNotice, setSettingsNotice] = useState('');
 
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
@@ -917,12 +933,36 @@ const BusinessDashboard: NextPage = () => {
 
   async function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault(); if (!business) return;
-    setSettingsSaving(true); setSettingsError('');
+    setSettingsSaving(true); setSettingsError(''); setSettingsNotice('');
     const tags = editServices.split(',').map(s => s.trim().toLowerCase().replace(/\s+/g, '_')).filter(Boolean);
-    const { error } = await getSupabase().from('businesses').update({ name: editName, phone: editPhone, address: editAddress, description: editDesc, website: editWebsite, service_tags: tags }).eq('id', business.id);
+
+    // Auto-approve low-risk fields
+    const { error } = await getSupabase().from('businesses').update({ phone: editPhone, website: editWebsite, service_tags: tags }).eq('id', business.id);
+    if (error) { setSettingsSaving(false); setSettingsError(error.message); return; }
+
+    // Queue high-risk fields for approval
+    const changes: Record<string, any> = {};
+    if ((editAddress || '') !== (business.address || '')) changes.address = editAddress;
+    if ((editDesc || '') !== (business.description || '')) changes.description = editDesc;
+
+    if (Object.keys(changes).length > 0) {
+      try {
+        const h = await getAuthHeaders();
+        const res = await fetch('/api/business-change-requests', {
+          method: 'POST',
+          headers: h,
+          body: JSON.stringify({ business_id: business.id, changes, request_type: 'profile' }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to submit change request');
+        setSettingsNotice('Changes submitted for approval. We will review within 24 hours.');
+      } catch (err) {
+        setSettingsError(err instanceof Error ? err.message : 'Failed to submit change request');
+      }
+    }
+
     setSettingsSaving(false);
-    if (error) { setSettingsError(error.message); return; }
-    setBusiness(b => b ? { ...b, name: editName, phone: editPhone, address: editAddress, description: editDesc, website: editWebsite, service_tags: tags, hours: editHours } : b);
+    setBusiness(b => b ? { ...b, phone: editPhone, website: editWebsite, service_tags: tags, hours: editHours } : b);
     setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
   }
 
@@ -1156,6 +1196,19 @@ const BusinessDashboard: NextPage = () => {
           )}
 
           <main className="flex-1 px-6 py-7 max-w-5xl mx-auto w-full">
+            {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (
+              <div className="rounded-2xl border px-5 py-4 flex items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Want to be affiliated with your campus?</p>
+                  <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
+                  <button onClick={() => setCampusAffilDismissed(true)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+                </div>
+              </div>
+            )}
+
             <div className="mb-7">
               <h1 className="text-[1.5rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f2f2f7' : '#1c1c1e' }}>{NAV.find(n => n.id === tab)?.label}</h1>
               {tab === 'overview' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Welcome back, {business?.owner_name?.split(' ')[0] || 'there'}</p>}
@@ -1170,19 +1223,6 @@ const BusinessDashboard: NextPage = () => {
                 <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                 <p className="text-xs font-semibold" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>Campus verification pending — tap to complete</p>
               </button>
-            )}
-
-            {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (
-              <div className="rounded-2xl border px-5 py-4 flex items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Want to be affiliated with your campus?</p>
-                  <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
-                  <button onClick={() => setCampusAffilDismissed(true)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
-                </div>
-              </div>
             )}
 
             {/* OVERVIEW */}
@@ -1749,6 +1789,7 @@ const BusinessDashboard: NextPage = () => {
                   <h2 className="text-sm font-bold text-neutral-900 mb-5">Edit Business Profile</h2>
                   <form onSubmit={handleSaveSettings} className="space-y-4">
                     {settingsError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{settingsError}</div>}
+                    {settingsNotice && <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700">{settingsNotice}</div>}
                     {([
                       { label: 'Business Name', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true, requestChange: true },
                       { label: 'Phone', v: editPhone, s: setEditPhone, ph: '(415) 555-0192', t: 'tel' },
@@ -1760,10 +1801,10 @@ const BusinessDashboard: NextPage = () => {
                         <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">{f.label}</label>
                         <input type={f.t} className="form-input" value={f.v} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: dm ? '#1a1a1a' : '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
                       {(f as any).requestChange && (
-                        <button type="button" onClick={() => {
+                        <button type="button" onClick={async () => {
                           const newName = prompt('Enter requested new business name:');
                           if (newName?.trim()) {
-                            fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-notify-secret': '' }, body: JSON.stringify({ type: 'new_business_application', to: 'hello@usescheduleme.com', name: `NAME CHANGE REQUEST: ${business?.name} → ${newName}`, ownerName: business?.owner_name || '', email: business?.owner_email || '', phone: '', category: '', city: '', campusProvider: false }) }).catch(() => {});
+                            fetch('/api/business-change-requests', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify({ business_id: business?.id, changes: { name: newName }, request_type: 'profile' }) }).catch(() => {});
                             alert('Request sent! We\'ll update your name within 24 hours.');
                           }
                         }} className="mt-1.5 text-xs font-semibold text-accent hover:underline">
@@ -1827,6 +1868,7 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                       ))}
                     </div>
+                    <p className="text-xs font-semibold text-neutral-500 mt-4">Want to affiliate with your campus?</p>
                     <button type="button" onClick={() => setShowCampusModal(true)} className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold border"
                       style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
                       {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}

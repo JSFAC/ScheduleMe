@@ -33,6 +33,31 @@ create table if not exists businesses (
   updated_at                timestamptz default now()
 );
 
+-- ============================================================
+-- 2b. BUSINESS CHANGE REQUESTS (ADMIN REVIEW)
+-- ============================================================
+create table if not exists business_change_requests (
+  id            uuid primary key default gen_random_uuid(),
+  business_id   uuid references businesses(id) on delete cascade,
+  requested_by  text,
+  request_type  text, -- e.g., profile, media
+  status        text default 'pending', -- pending, approved, rejected, auto_applied
+  changes       jsonb not null,
+  before        jsonb,
+  flagged       boolean default false,
+  flag_reasons  text[] default '{}',
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now(),
+  reviewed_at   timestamptz,
+  reviewed_by   text,
+  review_notes  text
+);
+
+create index if not exists business_change_requests_business_idx on business_change_requests (business_id);
+create index if not exists business_change_requests_status_idx on business_change_requests (status);
+create index if not exists business_change_requests_created_idx on business_change_requests (created_at desc);
+
+
 -- GIST index for fast geo queries
 create index if not exists businesses_geog_idx
   on businesses using gist (geog);
@@ -215,6 +240,11 @@ create policy "businesses_public_read"
   on businesses for select using (true);
 create policy "businesses_service_write"
   on businesses for all using (auth.role() = 'service_role');
+
+-- Business change requests: service_role only
+alter table business_change_requests enable row level security;
+create policy "change_requests_service_all"
+  on business_change_requests for all using (auth.role() = 'service_role');
 
 -- Users: users can only read/update their own row
 alter table users enable row level security;
