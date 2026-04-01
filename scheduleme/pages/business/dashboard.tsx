@@ -570,6 +570,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifying, setCampusVerifying] = useState(false);
   const [campusSending, setCampusSending] = useState(false);
   const [campusVerifyError, setCampusVerifyError] = useState('');
+  const [campusVerifySuccess, setCampusVerifySuccess] = useState('');
   const [showCampusModal, setShowCampusModal] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
@@ -830,7 +831,7 @@ const BusinessDashboard: NextPage = () => {
 
 
   async function handleCampusSendCode() {
-    setCampusSending(true); setCampusVerifyError('');
+    setCampusSending(true); setCampusVerifyError(''); setCampusVerifySuccess('');
     try {
       const headers = await getAuthHeaders();
       const res = await fetch('/api/verify-edu', {
@@ -839,8 +840,9 @@ const BusinessDashboard: NextPage = () => {
         body: JSON.stringify({ school_email: campusEduEmail, account_type: 'business' }),
       });
       const data = await res.json();
-      if (!res.ok) { setCampusVerifyError(data.error); return; }
+      if (!res.ok) { setCampusVerifyError(data.error || 'Failed to send code'); return; }
       setCampusCodeSent(true);
+      setCampusVerifySuccess(data.message || `Code sent to ${campusEduEmail}`);
     } catch { setCampusVerifyError('Something went wrong.'); }
     finally { setCampusSending(false); }
   }

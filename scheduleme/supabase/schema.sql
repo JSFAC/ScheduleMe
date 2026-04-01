@@ -107,6 +107,16 @@ create trigger businesses_updated_at
   for each row execute function set_updated_at();
 
 
+-- Add EDU verification columns (if not exists)
+alter table businesses add column if not exists school_domain text;
+alter table businesses add column if not exists school_email text;
+alter table businesses add column if not exists edu_verified boolean default false;
+alter table businesses add column if not exists edu_code text;
+alter table businesses add column if not exists edu_code_expires_at timestamptz;
+alter table businesses add column if not exists campus_provider boolean default false;
+alter table businesses add column if not exists campus_school_name text;
+
+
 -- ============================================================
 -- 2. USERS
 -- ============================================================

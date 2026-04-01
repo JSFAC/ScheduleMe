@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_BASE_URL</key>
+	<string>https://www.usescheduleme.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string></string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>Okay</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>scheduleme</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>scheduleme</string>
+			</array>
+		</dict>
+		<dict/>
+	</array>
+	<key>GOOGLE_IOS_CLIENT_ID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZnJseWtpYnZqZGJpamVnZGt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MTgwNDAsImV4cCI6MjA4ODQ5NDA0MH0.WHaePnJaqzxRVdeXT-RWzO_Zp9jUs57lfGQlTbOa7P0</string>
+	<key>SUPABASE_REDIRECT_URL</key>
+	<string>$(SUPABASE_REDIRECT_URL)</string>
+	<key>SUPABASE_URL</key>
+	<string>https://imfrlykibvjdbijegdky.supabase.co</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Resources/Fonts/PlusJakartaSans-VariableFont_wght.ttf</string>
+		<string>Resources/Fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf</string>
+	</array>
+</dict>
+</plist>

@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (account_type === 'business') {
       const { data: biz } = await supabase
         .from('businesses')
-        .select('id, school_domain, edu_code, edu_code_expires_at')
+        .select('id, school_domain, edu_code, edu_code_expires_at, school_email')
         .eq('owner_email', user.email)
         .maybeSingle();
       if (!biz?.edu_code) return res.status(400).json({ error: 'No pending verification. Request a new code.' });
@@ -66,11 +66,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (account_type === 'business') {
     const { data: biz } = await supabase.from('businesses').select('id, school_domain').eq('owner_email', user.email).maybeSingle();
     if (!biz) return res.status(404).json({ error: 'Business account not found' });
-    if (!biz.school_domain) return res.status(400).json({ error: 'Your business was not approved for campus listing. Contact support.' });
-    if (submittedDomain !== biz.school_domain) return res.status(400).json({ error: `This email doesn't match your approved school (${biz.school_domain}). Use your ${biz.school_domain} email address.` });
+    if (biz.school_domain && submittedDomain !== biz.school_domain) {
+      return res.status(400).json({ error: `This email doesn't match your approved school (${biz.school_domain}). Use your ${biz.school_domain} email address.` });
+    }
     const verifyCode = generate6DigitCode();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    await supabase.from('businesses').update({ edu_code: verifyCode, edu_code_expires_at: expiresAt }).eq('id', biz.id);
+    await supabase.from('businesses').update({
+      edu_code: verifyCode,
+      edu_code_expires_at: expiresAt,
+      school_domain: biz.school_domain || submittedDomain,
+      school_email: school_email.toLowerCase(),
+      campus_provider: true,
+    }).eq('id', biz.id);
     await sendVerificationEmail(school_email, verifyCode, getResend());
     return res.status(200).json({ success: true, message: `Code sent to ${school_email}` });
   } else {
