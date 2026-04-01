@@ -3,6 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders } from '../../lib/apiSecurity';
+import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
@@ -37,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let query = sb
     .from('businesses')
-    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, is_onboarded, edu_verified, campus_provider, school_domain')
+    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, is_onboarded, edu_verified, campus_provider, school_domain')
     .eq('is_onboarded', true)
     .not('lat', 'is', null)
     .not('lng', 'is', null);
@@ -59,9 +60,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const cat = typeof category === 'string' && category.trim() ? category.toLowerCase() : null;
 
+  const businessIds = (rows as any[]).map((b) => b.id).filter(Boolean);
+  const serviceMap: Record<string, number[]> = {};
+  if (businessIds.length > 0) {
+    const { data: svcRows } = await sb
+      .from('services')
+      .select('business_id, price_cents')
+      .in('business_id', businessIds)
+      .eq('active', true);
+    (svcRows || []).forEach((s: any) => {
+      if (!serviceMap[s.business_id]) serviceMap[s.business_id] = [];
+      serviceMap[s.business_id].push(Number(s.price_cents));
+    });
+  }
+
   const filtered = (rows as any[]).map((b) => {
     const d = haversineMiles(latNum, lngNum, b.lat, b.lng);
-    return { ...b, distance_miles: d };
+    const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
+    const primaryTag = tags[0] || null;
+    const avgCents = averagePriceCents(serviceMap[b.id] || []);
+    const priceTier = computePriceTier(avgCents, primaryTag);
+    const reviewCount = b.review_count ?? 0;
+    const rating = reviewCount > 0 ? b.rating : null;
+    return { ...b, distance_miles: d, price_tier: priceTier, rating };
   }).filter((b) => {
     if (b.distance_miles > radiusNum) return false;
     if (!cat) return true;

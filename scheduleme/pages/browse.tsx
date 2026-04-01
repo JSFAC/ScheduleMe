@@ -51,7 +51,11 @@ type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
 const PILL_STYLE = { background: 'rgba(0,126,109,0.12)', color: '#007e6d' };
 
-function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
+function getOpenStatus(hours: { day: string; time: string }[], availability?: string | null): { open: boolean; label: string } {
+  if (availability === 'break') return { open: false, label: 'On break' };
+  if (availability === 'closed') return { open: false, label: 'Closed' };
+  if (availability === 'busy') return { open: true, label: 'Busy' };
+
   if (!hours || hours.length === 0) return { open: true, label: 'Open' };
   const now = new Date();
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -176,7 +180,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
 function BizCard({ biz, onClick, dm, index = 0, href }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
-  const status = getOpenStatus(biz.hours);
+  const status = getOpenStatus(biz.hours, (biz as any).availability_status);
   return (
     <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
@@ -200,17 +204,19 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           </span>
         </div>
         <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <div className="flex items-center gap-0.5">
-            {[1,2,3,4,5].map(i => (
-              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            ))}
-          </div>
-          <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
-          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
-        </div>
+          {(biz.reviews ?? 0) > 0 && biz.rating != null && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex items-center gap-0.5">
+                {[1,2,3,4,5].map(i => (
+                  <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+              <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
+            </div>
+          )}
       </div>
     </button>
   );
@@ -575,7 +581,7 @@ function writeCoords(lat: number, lng: number) {
               ) : (
                 <div className="space-y-2.5 animate-fade-up" style={{ animationDuration: '0.3s' }}>
                   {paginated.map(biz => {
-                    const listStatus = getOpenStatus(biz.hours);
+                    const listStatus = getOpenStatus(biz.hours, (biz as any).availability_status);
                     return (
                     <button key={biz.id} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }}
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
@@ -595,6 +601,8 @@ function writeCoords(lat: number, lng: number) {
                           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" data-pill style={PILL_STYLE}>{biz.category}</span>
                         </div>
                         <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
+                        {(biz.reviews ?? 0) > 0 && biz.rating != null && (
+
                         <div className="flex items-center gap-1.5">
                           <div className="flex items-center gap-0.5">
                             {[1,2,3,4,5].map(i => (
@@ -606,6 +614,8 @@ function writeCoords(lat: number, lng: number) {
                           <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
                           <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews} reviews)</span>
                         </div>
+
+                        )}
                         {biz.tagline && (
                           <p className="text-[11px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>{biz.tagline}</p>
                         )}
@@ -694,7 +704,11 @@ function writeCoords(lat: number, lng: number) {
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
                       <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
-                      <span className="text-[10px] text-neutral-400 font-medium">{biz.reviews} reviews</span>
+                      {(biz.reviews ?? 0) > 0 && biz.rating != null ? (
+                        <span className="text-[10px] text-neutral-400 font-medium">{biz.reviews} reviews</span>
+                      ) : (
+                        <span className="text-[10px] text-neutral-400 font-medium">No reviews yet</span>
+                      )}
                     </div>
                   </button>
                 ))}

@@ -7,7 +7,7 @@ import { sendChangeRequestAdminEmail, sendChangeRequestReceiptEmail } from '../.
 
 const ADMIN_EMAIL = 'usescheduleme@gmail.com';
 const APPROVAL_FIELDS = new Set(['name', 'category', 'address', 'description', 'cover_url', 'media_urls', 'video_url']);
-const AUTO_FIELDS = new Set(['phone', 'website', 'service_tags', 'hours', 'calendly_url']);
+const AUTO_FIELDS = new Set(['phone', 'website', 'service_tags', 'hours', 'calendly_url', 'availability_status']);
 
 function getSupabase() {
   return createClient(

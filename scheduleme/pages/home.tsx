@@ -23,7 +23,11 @@ function timeOfDay() {
   return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
-function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
+function getOpenStatus(hours: { day: string; time: string }[], availability?: string | null): { open: boolean; label: string } {
+  if (availability === 'break') return { open: false, label: 'On break' };
+  if (availability === 'closed') return { open: false, label: 'Closed' };
+  if (availability === 'busy') return { open: true, label: 'Busy' };
+
   if (!hours || hours.length === 0) return { open: true, label: 'Open' };
   const now = new Date();
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -262,7 +266,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
-  const status = getOpenStatus(biz.hours);
+  const status = getOpenStatus(biz.hours, (biz as any).availability_status);
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(180px, 22vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
@@ -289,17 +293,19 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
           </span>
         </div>
         <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <div className="flex items-center gap-0.5">
-            {[1,2,3,4,5].map(i => (
-              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            ))}
-          </div>
-          <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
-          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
-        </div>
+          {(biz.reviews ?? 0) > 0 && biz.rating != null && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex items-center gap-0.5">
+                {[1,2,3,4,5].map(i => (
+                  <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+              <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
+            </div>
+          )}
       </div>
     </button>
   );
@@ -823,7 +829,10 @@ function writeCoords(lat: number, lng: number) {
               ? realBizList
               : [];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
-            const t1 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
+            const rated = filtered.filter(b => (b.reviews ?? 0) > 0 && b.rating != null);
+            const t1 = activeCategory === 'All'
+              ? (rated.length > 0 ? rated.slice(0, 8) : pool.slice(0, 8))
+              : (rated.length > 0 ? rated.slice(0, 8) : filtered.slice(0, 8));
             const t2 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
             const t3 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
             return (

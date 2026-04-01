@@ -6,10 +6,12 @@ export interface Business {
   id: string;
   name: string;
   category: string;
-  rating: number;
+  rating: number | null;
   reviews: number;
   distance: string;
-  price_tier: number;
+  price_tier: number | null;
+  availability_status?: string | null;
+  break_until?: string | null;
   available: boolean;
   badge?: string | null;
   tagline: string;
