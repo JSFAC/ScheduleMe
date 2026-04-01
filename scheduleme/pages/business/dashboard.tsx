@@ -28,7 +28,7 @@ interface Business {
   phone?: string; description?: string;
   stripe_account_id: string | null; stripe_onboarded: boolean;
   service_tags: string[]; address: string; rating: number | null;
-  availability_status?: string | null;
+  availability_status?: string | null; break_until?: string | null;
   is_onboarded: boolean; website?: string; instagram?: string;
   school_domain?: string | null; edu_verified?: boolean;
 }
@@ -598,6 +598,7 @@ const BusinessDashboard: NextPage = () => {
   const [editWebsite, setEditWebsite] = useState('');
   const [editServices, setEditServices] = useState('');
   const [editAvailability, setEditAvailability] = useState('open');
+  const [editBreakUntil, setEditBreakUntil] = useState('');
   const [editHours, setEditHours] = useState<Record<string, string>>({});
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [mediaImages, setMediaImages] = useState<string[]>([]);
@@ -941,7 +942,8 @@ const BusinessDashboard: NextPage = () => {
     const tags = editServices.split(',').map(s => s.trim().toLowerCase().replace(/\s+/g, '_')).filter(Boolean);
 
     // Auto-approve low-risk fields
-    const { error } = await getSupabase().from('businesses').update({ phone: editPhone, website: editWebsite, service_tags: tags, hours: editHours, availability_status: editAvailability }).eq('id', business.id);
+    const breakUntilIso = editBreakUntil ? new Date(editBreakUntil + 'T23:59:59').toISOString() : null;
+    const { error } = await getSupabase().from('businesses').update({ phone: editPhone, website: editWebsite, service_tags: tags, hours: editHours, availability_status: editAvailability, break_until: breakUntilIso }).eq('id', business.id);
     if (error) { setSettingsSaving(false); setSettingsError(error.message); return; }
 
     // Queue high-risk fields for approval
@@ -966,7 +968,7 @@ const BusinessDashboard: NextPage = () => {
     }
 
     setSettingsSaving(false);
-    setBusiness(b => b ? { ...b, phone: editPhone, website: editWebsite, service_tags: tags, hours: editHours, availability_status: editAvailability } : b);
+    setBusiness(b => b ? { ...b, phone: editPhone, website: editWebsite, service_tags: tags, hours: editHours, availability_status: editAvailability, break_until: breakUntilIso } : b);
     setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
   }
 
@@ -1833,6 +1835,17 @@ const BusinessDashboard: NextPage = () => {
                         <option value="busy">Busy (Limited availability)</option>
                         <option value="closed">Closed / On break</option>
                       </select>
+                      {editAvailability !== 'open' && (
+                        <div className="mt-2">
+                          <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">On break until (optional)</label>
+                          <input
+                            type="date"
+                            className="form-input"
+                            value={editBreakUntil}
+                            onChange={e => setEditBreakUntil(e.target.value)}
+                          />
+                        </div>
+                      )}
                       <p className="text-[11px] mt-1" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>
                         Use this when you are away for the semester or not taking new bookings.
                       </p>

@@ -51,8 +51,21 @@ type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
 const PILL_STYLE = { background: 'rgba(0,126,109,0.12)', color: '#007e6d' };
 
-function getOpenStatus(hours: { day: string; time: string }[], availability?: string | null): { open: boolean; label: string } {
-  if (availability === 'break') return { open: false, label: 'On break' };
+function getOpenStatus(hours: { day: string; time: string }[], availability?: string | null, breakUntil?: string | null): { open: boolean; label: string } {
+  if (availability === 'break') {
+    if (breakUntil) {
+      const dt = new Date(breakUntil);
+      if (!Number.isNaN(dt.getTime())) {
+        if (dt.getTime() > Date.now()) {
+          const start = new Date();
+          const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const endLabel = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          return { open: false, label: `On break ${startLabel}–${endLabel}` };
+        }
+      }
+    }
+    return { open: false, label: 'On break' };
+  }
   if (availability === 'closed') return { open: false, label: 'Closed' };
   if (availability === 'busy') return { open: true, label: 'Busy' };
 
@@ -180,7 +193,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
 function BizCard({ biz, onClick, dm, index = 0, href }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
-  const status = getOpenStatus(biz.hours, (biz as any).availability_status);
+  const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
   return (
     <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
@@ -199,6 +212,9 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
           {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
+          {(biz.reviews ?? 0) === 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
+          )}
           <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
           </span>
@@ -581,7 +597,7 @@ function writeCoords(lat: number, lng: number) {
               ) : (
                 <div className="space-y-2.5 animate-fade-up" style={{ animationDuration: '0.3s' }}>
                   {paginated.map(biz => {
-                    const listStatus = getOpenStatus(biz.hours, (biz as any).availability_status);
+                    const listStatus = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
                     return (
                     <button key={biz.id} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }}
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
@@ -599,6 +615,9 @@ function writeCoords(lat: number, lng: number) {
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
                           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" data-pill style={PILL_STYLE}>{biz.category}</span>
+                          {(biz.reviews ?? 0) === 0 && (
+                            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
+                          )}
                         </div>
                         <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
                         {(biz.reviews ?? 0) > 0 && biz.rating != null && (

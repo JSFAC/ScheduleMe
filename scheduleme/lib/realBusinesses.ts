@@ -34,6 +34,10 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
   const dist = distanceMiles != null
     ? (distanceMiles < 0.1 ? 'Nearby' : distanceMiles.toFixed(1) + ' mi away')
     : b.address || 'Local';
+  const availability = b.availability_status ?? 'open';
+  const breakUntil = b.break_until ? new Date(b.break_until) : null;
+  const breakActive = availability === 'break' && breakUntil && !Number.isNaN(breakUntil.getTime()) && breakUntil.getTime() > Date.now();
+  const effectiveAvailability = breakActive ? 'break' : (availability === 'break' ? 'open' : availability);
   return {
     id: b.id,
     realId: b.id,
@@ -46,12 +50,13 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     lng: b.lng,
     category,
     independent: true,
-    available: (b.availability_status ?? 'open') !== 'closed' && (b.availability_status ?? 'open') !== 'break',
+    available: effectiveAvailability !== 'closed' && effectiveAvailability !== 'break',
     distance: dist,
     reviews: b.review_count ?? 0,
     rating: (b.review_count ?? 0) > 0 ? (typeof b.rating === 'number' ? b.rating : parseFloat(b.rating)) : null,
     price_tier: b.price_tier ?? null,
-    availability_status: b.availability_status ?? 'open',
+    availability_status: effectiveAvailability,
+    break_until: breakUntil ? breakUntil.toISOString() : null,
     coverUrl: getCover(b.cover_url),
     allImages: b.media_urls || [getCover(b.cover_url)],
     phone: b.phone || '',
