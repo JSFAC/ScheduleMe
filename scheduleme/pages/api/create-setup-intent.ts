@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, status, user_id, amount_cents, stripe_customer_id, stripe_payment_method_id, businesses(id, stripe_account_id, stripe_onboarded, name)')
+    .select('id, status, user_id, amount_cents, businesses(id, stripe_account_id, stripe_onboarded, name)')
     .eq('id', booking_id)
     .maybeSingle();
 
@@ -47,7 +47,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!canAccess) return res.status(403).json({ error: 'Access denied' });
 
-  if (booking.stripe_payment_method_id) return res.status(200).json({ already_saved: true });
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id, stripe_payment_method_id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profile?.stripe_payment_method_id) return res.status(200).json({ already_saved: true });
 
   const biz = booking.businesses as any;
   if (!biz?.stripe_onboarded || !biz?.stripe_account_id)
@@ -58,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Payment amount not set for this booking.' });
 
   // Ensure customer exists
-  let customerId = booking.stripe_customer_id as string | null;
+  let customerId = profile?.stripe_customer_id as string | null;
   if (!customerId) {
     const email = user.email || undefined;
     const customer = await stripe.customers.create({
@@ -66,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metadata: { bookingId: booking_id, businessId: biz.id, userId: user.id },
     });
     customerId = customer.id;
-    await supabase.from('bookings').update({ stripe_customer_id: customerId }).eq('id', booking_id);
+    await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
   }
 
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PERCENT / 100);
@@ -74,10 +80,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const setupIntent = await stripe.setupIntents.create({
     customer: customerId,
     usage: 'off_session',
-    metadata: { bookingId: booking_id, businessId: biz.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents) },
+    metadata: { bookingId: booking_id, businessId: biz.id, userId: user.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents) },
   });
 
-  await supabase.from('bookings').update({ stripe_setup_intent_id: setupIntent.id }).eq('id', booking_id);
+  await supabase.from('profiles').update({ stripe_setup_intent_id: setupIntent.id }).eq('id', user.id);
 
   return res.status(200).json({ client_secret: setupIntent.client_secret });
 }

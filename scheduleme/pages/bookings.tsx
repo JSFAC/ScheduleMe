@@ -69,7 +69,7 @@ interface Booking {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
-  pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-400', barColor: '#f59e0b' },
+  pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-100',  text: 'text-emerald-200',  dot: 'bg-amber-400', barColor: '#f59e0b' },
   confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6' },
   payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6' },
   paid:            { label: 'Paid',              bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e' },
@@ -138,7 +138,7 @@ function ProgressBar({ status, steps, labels }: { status: string; steps: string[
 }
 
 
-function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved: () => void; onError: (msg: string) => void }) {
+function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved: (pmId: string | null) => void; onError: (msg: string) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -163,7 +163,7 @@ function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved
         onError(e?.message || 'Unable to start card setup');
       }
     }
-    if (!booking.stripe_payment_method_id) load();
+    load();
     return () => { mounted = false; };
   }, [booking?.id]);
 
@@ -182,7 +182,8 @@ function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved
       setLoading(false);
       return;
     }
-    onSaved();
+    const paymentMethodId = (result as any)?.setupIntent?.payment_method || null;
+    onSaved(paymentMethodId || null);
     setLoading(false);
   }
 
@@ -192,7 +193,7 @@ function SaveCardForm({ booking, onSaved, onError }: { booking: Booking; onSaved
 
   return (
     <form onSubmit={handleSubmit} className="mt-3 space-y-3">
-      <div className="rounded-xl border px-3 py-3" style={{ borderColor: '#fed7aa', background: '#fff7ed' }}>
+      <div className="rounded-xl border px-3 py-3" style={{ borderColor: '#1e554c', background: '#0f1f1c' }}>
         <CardElement options={{ hidePostalCode: false, style: { base: { fontSize: '14px' } } }} />
       </div>
       <button
@@ -418,25 +419,56 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               {booking.amount_cents && !booking.paid_at && (
-                <div className="rounded-2xl p-4 mb-4" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
-                  <p className="text-sm font-bold text-amber-800 mb-0.5">Payment method required</p>
-                  <p className="text-xs text-amber-700">Save a card to confirm your booking. You will only be charged after the service is completed.</p>
-                  {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
-                    <Elements stripe={stripePromise} options={{ appearance: { theme: 'stripe' } }}>
-                      <SaveCardForm
-                        booking={booking}
-                        onSaved={() => {
-                          setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, stripe_payment_method_id: 'saved' } : b));
-                          setPaymentToast('setup_success');
-                        }}
-                        onError={(msg) => {
-                          setPaymentToast('setup_cancelled');
-                          setErr(msg);
-                        }}
-                      />
-                    </Elements>
+                <div className="rounded-2xl p-4 mb-4" style={{ background: '#0f1f1c', border: '1px solid #1e554c' }}>
+                  <p className="text-sm font-bold text-emerald-300 mb-0.5">Payment method required</p>
+                  <p className="text-xs text-emerald-200">Save a card to confirm your booking. You will only be charged after the service is completed.</p>
+                  {paymentLoading ? (
+                    <div className="mt-3 text-xs text-neutral-500">Loading payment methods…</div>
+                  ) : paymentMethods.length > 0 && !showAddCard ? (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-emerald-700 font-semibold">Saved payment method</p>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={paymentDefaultId || paymentMethods[0]?.id}
+                          onChange={(e) => setDefaultPaymentMethod(e.target.value)}
+                          className="flex-1 rounded-lg border px-3 py-2 text-xs bg-transparent"
+                          style={{ borderColor: '#1e554c', color: '#0b3b34' }}
+                        >
+                          {paymentMethods.map((m) => (
+                            <option key={m.id} value={m.id}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => setShowAddCard(true)}
+                          className="px-3 py-2 rounded-lg text-xs font-semibold"
+                          style={{ background: '#0b3b34', color: 'white' }}
+                        >
+                          Add new
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <div className="mt-3 text-xs text-amber-700">Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
+                    <div className="mt-3">
+                      {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+                        <Elements stripe={stripePromise} options={{ appearance: { theme: 'night', variables: { colorPrimary: '#0b3b34', colorText: '#0b3b34' } } }}>
+                          <SaveCardForm
+                            booking={booking}
+                            onSaved={(pmId) => {
+                              setShowAddCard(false);
+                              fetchPaymentMethods();
+                              if (pmId) setDefaultPaymentMethod(pmId);
+                              setPaymentToast('setup_success');
+                            }}
+                            onError={(msg) => {
+                              setPaymentToast('setup_cancelled');
+                              setErr(msg);
+                            }}
+                          />
+                        </Elements>
+                      ) : (
+                        <div className="text-xs text-emerald-200">Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -711,6 +743,10 @@ const BookingsPage: NextPage = () => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const [paymentToast, setPaymentToast] = useState<'cancelled' | 'setup_success' | 'setup_cancelled' | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [paymentDefaultId, setPaymentDefaultId] = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showAddCard, setShowAddCard] = useState(false);
 
 const COORDS_KEY = 'sm_last_coords';
 function readCoords(): { lat: number; lng: number } | null {
@@ -783,9 +819,42 @@ function writeCoords(lat: number, lng: number) {
     }
   }, [router.query.setup, router.query.booking, bookings]);
 
+  async function fetchPaymentMethods() {
+    setPaymentLoading(true);
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) { setPaymentMethods([]); setPaymentDefaultId(null); return; }
+      const res = await fetch('/api/payment-methods', { headers: { Authorization: 'Bearer ' + session.access_token } });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setPaymentMethods(data.methods || []);
+        setPaymentDefaultId(data.defaultId || null);
+      }
+    } catch {
+      setPaymentMethods([]);
+      setPaymentDefaultId(null);
+    } finally {
+      setPaymentLoading(false);
+    }
+  }
+
+  async function setDefaultPaymentMethod(id: string) {
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/set-default-payment-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ payment_method_id: id }),
+      });
+      if (res.ok) setPaymentDefaultId(id);
+    } catch {}
+  }
+
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());
     setSelectedBooking(b);
+    fetchPaymentMethods();
   }
 
   function cancelBooking(id: string) {

@@ -162,6 +162,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (profileId) resolvedUserId = profileId;
 
+      let profileStripeCustomerId = null;
+      let profileStripePaymentMethodId = null;
+      if (profileId) {
+        const { data: pStripe } = await supabase
+          .from('profiles')
+          .select('stripe_customer_id, stripe_payment_method_id')
+          .eq('id', profileId)
+          .maybeSingle();
+        if (pStripe) {
+          profileStripeCustomerId = pStripe.stripe_customer_id || null;
+          profileStripePaymentMethodId = pStripe.stripe_payment_method_id || null;
+        }
+      }
+
       const { data, error } = await supabase.from('bookings').insert({
         business_id,
         user_id: resolvedUserId ?? null,
@@ -173,6 +187,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         timezone: typeof timezone === 'string' ? timezone : undefined,
         status: 'pending',
         requires_manual_action: true,
+        stripe_customer_id: profileStripeCustomerId || undefined,
+        stripe_payment_method_id: profileStripePaymentMethodId || undefined,
       }).select('id, status, created_at').single();
 
       if (error) {
@@ -183,6 +199,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           service: (service?.slice(0, 500) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
           status: 'pending',
           requires_manual_action: true,
+        stripe_customer_id: profileStripeCustomerId || undefined,
+        stripe_payment_method_id: profileStripePaymentMethodId || undefined,
         }).select('id, status, created_at').single();
         if (fbErr) return res.status(500).json({ error: 'Failed to create booking', details: error.message || error });
         if (!service_price_cents || typeof service_price_cents !== 'number') {
@@ -260,7 +278,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
         return res.status(400).json({ error: 'Business has not connected their bank account yet' });
       }
-      if (!booking.stripe_customer_id || !booking.stripe_payment_method_id) {
+      const customerId = booking.stripe_customer_id || profileStripeCustomerId;
+      const paymentMethodId = booking.stripe_payment_method_id || profileStripePaymentMethodId;
+      if (!customerId || !paymentMethodId) {
         return res.status(400).json({ error: 'Customer has not saved a card yet' });
       }
       try {
@@ -268,8 +288,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const pi = await stripe.paymentIntents.create({
           amount: booking.amount_cents,
           currency: 'usd',
-          customer: booking.stripe_customer_id,
-          payment_method: booking.stripe_payment_method_id,
+          customer: customerId,
+          payment_method: paymentMethodId,
           confirm: true,
           off_session: true,
           application_fee_amount: platformFeeCents,
@@ -283,6 +303,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         updatePayload.paid_at = new Date().toISOString();
         updatePayload.stripe_payment_intent_id = pi.id;
+        updatePayload.stripe_customer_id = customerId;
+        updatePayload.stripe_payment_method_id = paymentMethodId;
       } catch (e: any) {
         console.error('[booking] payment intent create failed', e);
         return res.status(500).json({ error: e?.message || 'Payment failed' });
