@@ -6,6 +6,8 @@ import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 
+const PLATFORM_FEE_PERCENT = 12;
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -216,7 +218,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, user_id, stripe_payment_intent_id, businesses(owner_email, name), profiles(name, email)')
+      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded), profiles(name, email)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -249,24 +251,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!isBusinessOwner && !canCancelAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
 
-    // If we collected a payment authorization, capture on completion or cancel on cancellation
-    const paymentIntentId = (booking as any).stripe_payment_intent_id;
-    if (paymentIntentId) {
+    const updatePayload: any = { status };
+
+    // Charge on completion using saved card (SetupIntent flow)
+    if (status === 'completed' && booking.amount_cents && booking.amount_cents > 0) {
+      const biz = booking.businesses as any;
+      if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
+        return res.status(400).json({ error: 'Business has not connected their bank account yet' });
+      }
+      if (!booking.stripe_customer_id || !booking.stripe_payment_method_id) {
+        return res.status(400).json({ error: 'Customer has not saved a card yet' });
+      }
       try {
-        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-        if (status === 'completed' && pi.status === 'requires_capture') {
-          await stripe.paymentIntents.capture(paymentIntentId);
+        const platformFeeCents = Math.round(booking.amount_cents * PLATFORM_FEE_PERCENT / 100);
+        const pi = await stripe.paymentIntents.create({
+          amount: booking.amount_cents,
+          currency: 'usd',
+          customer: booking.stripe_customer_id,
+          payment_method: booking.stripe_payment_method_id,
+          confirm: true,
+          off_session: true,
+          application_fee_amount: platformFeeCents,
+          transfer_data: { destination: biz.stripe_account_id },
+          metadata: { bookingId: booking_id, businessId: biz.id },
+        });
+
+        if (pi.status !== 'succeeded') {
+          return res.status(500).json({ error: 'Payment could not be completed. Please try again.' });
         }
-        if (status === 'cancelled' && ['requires_capture','requires_payment_method','requires_confirmation','requires_action'].includes(pi.status)) {
-          await stripe.paymentIntents.cancel(paymentIntentId);
-        }
-      } catch (e) {
-        console.error('[booking] payment intent action failed', e);
-        if (status === 'completed') return res.status(500).json({ error: 'Payment capture failed' });
+
+        updatePayload.paid_at = new Date().toISOString();
+        updatePayload.stripe_payment_intent_id = pi.id;
+      } catch (e: any) {
+        console.error('[booking] payment intent create failed', e);
+        return res.status(500).json({ error: e?.message || 'Payment failed' });
       }
     }
 
-    await supabase.from('bookings').update({ status }).eq('id', booking_id);
+    await supabase.from('bookings').update(updatePayload).eq('id', booking_id);
 
     // Notify consumer of status change
     const consumer = booking.profiles as any;
@@ -341,7 +363,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .from('bookings')
           .select('*, profiles(name, phone, email)')
           .eq('business_id', business_id)
-          .or('amount_cents.is.null,paid_at.not.is.null,service.ilike.%custom%')
           .order('created_at', { ascending: false })
           .limit(200);
 

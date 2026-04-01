@@ -94,6 +94,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     switch (event.type) {
 
+      // Checkout setup completed — save customer + payment method
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === 'setup') {
+          const bookingId = session.metadata?.booking_id || session.client_reference_id;
+          const setupIntentId = session.setup_intent as string | null;
+          if (bookingId && setupIntentId) {
+            const si = await stripe.setupIntents.retrieve(setupIntentId);
+            const paymentMethodId = typeof si.payment_method === 'string' ? si.payment_method : (si.payment_method as any)?.id;
+            await supabase
+              .from('bookings')
+              .update({
+                stripe_setup_intent_id: setupIntentId,
+                stripe_payment_method_id: paymentMethodId || null,
+                stripe_customer_id: session.customer as string | null,
+              })
+              .eq('id', bookingId);
+          }
+        }
+        break;
+      }
+
       // Payment authorized (manual capture) — mark booking as payment_pending
       case 'payment_intent.amount_capturable_updated': {
         const pi = event.data.object as Stripe.PaymentIntent;
@@ -116,15 +138,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       }
 
-      // Payment succeeded — mark booking as paid
+      // Payment succeeded — mark booking as paid (or keep completed)
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent;
         const { bookingId, businessId } = pi.metadata;
 
         if (bookingId) {
+          const { data: existing } = await supabase
+            .from('bookings')
+            .select('status')
+            .eq('id', bookingId)
+            .maybeSingle();
+
+          const nextStatus = existing?.status === 'completed' ? 'completed' : 'paid';
           await supabase
             .from('bookings')
-            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .update({ status: nextStatus, paid_at: new Date().toISOString() })
             .eq('id', bookingId);
 
           console.log(`[webhook] Booking ${bookingId} marked as paid`);

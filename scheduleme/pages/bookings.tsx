@@ -61,6 +61,9 @@ interface Booking {
   business_email?: string;
   amount_cents?: number;
   paid_at?: string;
+  stripe_payment_method_id?: string;
+  stripe_customer_id?: string;
+  stripe_setup_intent_id?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
@@ -341,27 +344,31 @@ function DetailSheet({ booking, originRect, onClose, onCancel }: {
             <div className="mt-6 pt-5 border-t border-neutral-100">
               {booking.amount_cents && !booking.paid_at && (
                 <div className="rounded-2xl p-4 mb-4" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
-                  <p className="text-sm font-bold text-amber-800 mb-0.5">Payment required</p>
-                  <p className="text-xs text-amber-700">Your provider set a price. Pay to confirm your booking.</p>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const { data: { session } } = await getSupabase().auth.getSession();
-                        if (!session) { window.location.href = '/signin?next=/bookings'; return; }
-                        const res = await fetch('/api/checkout', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-                          body: JSON.stringify({ booking_id: booking.id }),
-                        });
-                        const data = await res.json();
-                        if (res.ok && data?.url) { window.location.href = data.url; }
-                      } catch {}
-                    }}
-                    className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
-                    style={{ background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 100%)' }}
-                  >
-                    Pay now
-                  </button>
+                  <p className="text-sm font-bold text-amber-800 mb-0.5">Payment method required</p>
+                  <p className="text-xs text-amber-700">Save a card to confirm your booking. You will only be charged after the service is completed.</p>
+                  {booking.stripe_payment_method_id ? (
+                    <div className="mt-3 text-xs font-semibold text-emerald-700">Card saved. You will be charged after completion.</div>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const { data: { session } } = await getSupabase().auth.getSession();
+                          if (!session) { window.location.href = '/signin?next=/bookings'; return; }
+                          const res = await fetch('/api/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+                            body: JSON.stringify({ booking_id: booking.id }),
+                          });
+                          const data = await res.json();
+                          if (res.ok && data?.url) { window.location.href = data.url; }
+                        } catch {}
+                      }}
+                      className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
+                      style={{ background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 100%)' }}
+                    >
+                      Save card
+                    </button>
+                  )}
                 </div>
               )}
               <a href={`/messages?booking=${booking.id}`}
@@ -634,7 +641,7 @@ const BookingsPage: NextPage = () => {
   const [reviewTarget, setReviewTarget] = useState<{ bookingId: string; businessId: string; businessName: string; serviceName: string } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
-  const [paymentToast, setPaymentToast] = useState<'cancelled' | null>(null);
+  const [paymentToast, setPaymentToast] = useState<'cancelled' | 'setup_success' | 'setup_cancelled' | null>(null);
 
 const COORDS_KEY = 'sm_last_coords';
 function readCoords(): { lat: number; lng: number } | null {
@@ -652,7 +659,7 @@ function writeCoords(lat: number, lng: number) {
   localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
 }
 
-  // Show toast if redirected back after cancelled payment
+  // Show toast if redirected back after cancelled payment / card setup
   useEffect(() => {
     if (router.query.payment === 'cancelled') {
       setPaymentToast('cancelled');
@@ -671,7 +678,32 @@ function writeCoords(lat: number, lng: number) {
       router.replace('/bookings', undefined, { shallow: true });
       return () => clearTimeout(t);
     }
-  }, [router.query.payment, router.query.booking]);
+
+    if (router.query.setup === 'success') {
+      setPaymentToast('setup_success');
+      const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
+      if (bookingId) {
+        getSupabase().auth.getSession().then(async ({ data: { session } }) => {
+          if (!session) return;
+          try {
+            const res = await fetch(`/api/bookings`, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+            const data = await res.json();
+            if (res.ok) setBookings(data?.bookings || []);
+          } catch {}
+        });
+      }
+      const t = setTimeout(() => setPaymentToast(null), 5000);
+      router.replace('/bookings', undefined, { shallow: true });
+      return () => clearTimeout(t);
+    }
+
+    if (router.query.setup === 'cancelled') {
+      setPaymentToast('setup_cancelled');
+      const t = setTimeout(() => setPaymentToast(null), 5000);
+      router.replace('/bookings', undefined, { shallow: true });
+      return () => clearTimeout(t);
+    }
+  }, [router.query.payment, router.query.booking, router.query.setup]);
 
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());
@@ -1099,15 +1131,23 @@ function writeCoords(lat: number, lng: number) {
         <DetailSheet booking={selectedBooking} originRect={originRect} onClose={() => setSelectedBooking(null)} onCancel={cancelBooking} />
       )}
 
-      {/* Payment cancelled toast */}
-      {paymentToast === 'cancelled' && (
+      {/* Payment/capture toasts */}
+      {paymentToast && (
         <div
           className="fixed bottom-24 md:bottom-6 left-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl"
           style={{ transform: 'translateX(-50%)', background: '#1a1d27', border: '1px solid #2a2d3a', animation: 'fade-up 0.3s ease both' }}>
-          <svg className="h-4 w-4 shrink-0" style={{ color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
-          <p className="text-sm font-semibold text-white">Payment cancelled — no charge was made.</p>
+          {paymentToast === 'setup_success' ? (
+            <svg className="h-4 w-4 shrink-0" style={{ color: '#10b981' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          ) : (
+            <svg className="h-4 w-4 shrink-0" style={{ color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          )}
+          <p className="text-sm font-semibold text-white">
+            {paymentToast === 'cancelled' && 'Payment cancelled — no charge was made.'}
+            {paymentToast === 'setup_cancelled' && 'Card setup cancelled — no charge was made.'}
+            {paymentToast === 'setup_success' && 'Card saved. You will be charged after completion.'}
+          </p>
           <button onClick={() => setPaymentToast(null)} className="ml-1 text-neutral-400 hover:text-white transition-colors">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>

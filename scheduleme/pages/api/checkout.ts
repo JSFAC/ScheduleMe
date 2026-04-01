@@ -71,39 +71,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!amountCents || amountCents < 100)
     return res.status(400).json({ error: 'Payment amount not set for this booking. Contact the business.' });
 
+  if (booking.stripe_payment_method_id)
+    return res.status(400).json({ error: 'Card already saved for this booking.' });
+
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PERCENT / 100);
 
-  // Create Stripe Checkout Session with Connect destination charge
+  // Create Stripe Checkout Session to collect & save a card (no charge yet)
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
-    line_items: [{
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: booking.service || 'Service Booking',
-          description: `Booked with ${biz.name}`,
-        },
-        unit_amount: amountCents,
-      },
-      quantity: 1,
-    }],
-    mode: 'payment',
-    success_url: `${siteUrl}/bookings?payment=success&booking=${booking_id}`,
-    cancel_url: `${siteUrl}/bookings?payment=cancelled&booking=${booking_id}`,
-    metadata: { booking_id },
-    payment_intent_data: {
-      capture_method: 'manual',
-      application_fee_amount: platformFeeCents,
-      transfer_data: { destination: biz.stripe_account_id },
+    mode: 'setup',
+    customer_creation: 'always',
+    success_url: `${siteUrl}/bookings?setup=success&booking=${booking_id}`,
+    cancel_url: `${siteUrl}/bookings?setup=cancelled&booking=${booking_id}`,
+    client_reference_id: booking_id,
+    metadata: { booking_id, business_id: biz.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents) },
+    setup_intent_data: {
       metadata: { bookingId: booking_id, businessId: biz.id },
+      usage: 'off_session',
     },
     customer_email: (booking.profiles as any)?.email || user.email,
   });
-
-  // Persist payment intent id so we can capture/void later
-  if (session.payment_intent) {
-    await supabase.from('bookings').update({ stripe_payment_intent_id: session.payment_intent }).eq('id', booking_id);
-  }
 
   return res.status(200).json({ url: session.url });
 }
