@@ -233,24 +233,31 @@ export default function BizPage() {
 
     setSubmitting(true); setErr('');
     const scheduled_start = buildScheduledStart(date, slot);
-    const res = await fetch('/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-      body: JSON.stringify({
-        business_id: biz.id,
-        service: selectedSvc?.name || 'Custom Request',
-        service_price_cents: isPaidService ? selectedSvc?.price_cents : null,
-        note,
-        scheduled_start,
-        scheduled_slot: slot,
-        user_id: session.user.id,
-        user_email: session.user.email,
-        user_name: session.user.user_metadata?.full_name,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }),
-    });
-    const d = await res.json();
-    if (!res.ok) { setErr(d.error || 'Booking failed'); setSubmitting(false); return; }
+    let d: any = null;
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({
+          business_id: biz.id,
+          service: selectedSvc?.name || 'Custom Request',
+          service_price_cents: isPaidService ? selectedSvc?.price_cents : null,
+          note,
+          scheduled_start,
+          scheduled_slot: slot,
+          user_id: session.user.id,
+          user_email: session.user.email,
+          user_name: session.user.user_metadata?.full_name,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+      });
+      d = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(d.error || 'Booking failed'); setSubmitting(false); return; }
+    } catch (e) {
+      setErr('Booking failed. Please try again.');
+      setSubmitting(false);
+      return;
+    }
 
     const bookingId = d?.booking?.id;
     if (!bookingId) { setErr('Booking created but payment could not start.'); setSubmitting(false); return; }
@@ -262,13 +269,20 @@ export default function BizPage() {
       return;
     }
 
-    const checkoutRes = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-      body: JSON.stringify({ booking_id: bookingId }),
-    });
-    const checkoutData = await checkoutRes.json();
-    if (!checkoutRes.ok || !checkoutData?.url) { setErr(checkoutData?.error || 'Unable to start payment.'); setSubmitting(false); return; }
+    let checkoutData: any = null;
+    try {
+      const checkoutRes = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      checkoutData = await checkoutRes.json().catch(() => ({}));
+      if (!checkoutRes.ok || !checkoutData?.url) { setErr(checkoutData?.error || 'Unable to start payment.'); setSubmitting(false); return; }
+    } catch (e) {
+      setErr('Unable to start payment. Please try again.');
+      setSubmitting(false);
+      return;
+    }
 
     window.location.href = checkoutData.url;
   }

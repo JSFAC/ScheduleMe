@@ -216,12 +216,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
 
     // Verify caller owns the business for this booking
-    const { data: booking } = await supabase
+    const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded), profiles(name, email)')
+      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded)')
       .eq('id', booking_id)
       .maybeSingle();
 
+    if (bookingErr) return res.status(500).json({ error: bookingErr.message || 'Failed to load booking' });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const isBusinessOwner = (booking.businesses as any)?.owner_email === user.email;
     let canCancelAsConsumer = false;
@@ -291,7 +292,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await supabase.from('bookings').update(updatePayload).eq('id', booking_id);
 
     // Notify consumer of status change
-    const consumer = booking.profiles as any;
+    let consumer: any = null;
+    if (booking.user_id) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', booking.user_id)
+        .maybeSingle();
+      consumer = prof || null;
+      if (!consumer) {
+        try {
+          const { data: legacy } = await supabase
+            .from('users')
+            .select('name, email')
+            .eq('id', booking.user_id)
+            .maybeSingle();
+          consumer = legacy || null;
+        } catch {}
+      }
+    }
     if (consumer?.email) {
       // Send review request email when booking is completed
       if (status === 'completed') {
