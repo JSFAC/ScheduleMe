@@ -576,6 +576,12 @@ const BusinessDashboard: NextPage = () => {
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel'; priceCents?: number } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+
+  function showToast(msg: string, ok: boolean) {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 4000);
+  }
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -935,7 +941,7 @@ const BusinessDashboard: NextPage = () => {
       if (!res.ok) throw new Error(data.error || 'Failed to update booking');
       setBookings(b => b.map(bk => bk.id === id ? { ...bk, status } : bk));
     } catch (e) {
-      alert('Failed to update booking. Please try again.');
+      showToast(e instanceof Error ? e.message : 'Failed to update booking. Please try again.', false);
     }
   }
 
@@ -1930,6 +1936,11 @@ const BusinessDashboard: NextPage = () => {
           </main>
         </div>
       </div>
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[600] px-5 py-3 rounded-xl text-sm font-semibold shadow-xl ${toast.ok ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+          {toast.msg}
+        </div>
+      )}
       {confirmAction && (() => {
         const b = confirmAction.booking;
         const isCustom = String(b.service || '').toLowerCase().includes('custom');
