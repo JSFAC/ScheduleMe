@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import Nav from '../components/Nav';
 import FeedbackModal from '../components/FeedbackModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
@@ -18,7 +20,9 @@ function getSupabase() {
   );
 }
 
-type Tab = 'addresses' | 'notifications' | 'security' | 'settings';
+type Tab = 'addresses' | 'notifications' | 'security' | 'settings' | 'payments';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 interface Booking {
   id: string; service: string; status: string; created_at: string; business_name?: string;
@@ -64,8 +68,80 @@ function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
   );
 }
 
+function AccountSaveCardForm({ onSaved, onError, dm }: { onSaved: () => void; onError: (msg: string) => void; dm: boolean }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const { data: { session } } = await getSupabase().auth.getSession();
+        if (!session) return;
+        const res = await fetch('/api/create-setup-intent-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Unable to start card setup');
+        if (mounted) setClientSecret(data.client_secret || null);
+      } catch (e: any) {
+        onError(e?.message || 'Unable to start card setup');
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements || !clientSecret) return;
+    setLoading(true);
+    try {
+      const card = elements.getElement(CardElement);
+      if (!card) {
+        onError('Card input is not ready. Please try again.');
+        return;
+      }
+      const result = await stripe.confirmCardSetup(clientSecret, { payment_method: { card } });
+      if (result.error) {
+        onError(result.error.message || 'Card setup failed');
+        return;
+      }
+      if (!(result as any)?.setupIntent) {
+        onError('Card setup did not complete. Please try again.');
+        return;
+      }
+      onSaved();
+    } catch (e: any) {
+      onError(e?.message || 'Card setup failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="rounded-xl border px-3 py-3" style={{ borderColor: dm ? '#1e554c' : '#c7f0e3', background: dm ? '#0f1f1c' : '#ffffff' }}>
+        <CardElement options={{ hidePostalCode: false, style: { base: { fontSize: '14px' } } }} />
+      </div>
+      <button
+        type="submit"
+        disabled={!stripe || !elements || !clientSecret || loading}
+        className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
+        style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)', opacity: (!stripe || !elements || !clientSecret || loading) ? 0.6 : 1 }}
+      >
+        {loading ? 'Saving…' : 'Save card'}
+      </button>
+    </form>
+  );
+}
+
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'settings', label: 'Profile', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg> },
+  { key: 'payments', label: 'Payments', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M21 10.5H3m18 0a1.5 1.5 0 011.5 1.5v6A1.5 1.5 0 0121 19.5H3A1.5 1.5 0 011.5 18v-6A1.5 1.5 0 013 10.5m18 0V8.25A2.25 2.25 0 0018.75 6H5.25A2.25 2.25 0 003 8.25V10.5" /></svg> },
   { key: 'addresses', label: 'Addresses', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg> },
   { key: 'notifications', label: 'Notifications', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg> },
   { key: 'security', label: 'Security', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg> },
@@ -121,6 +197,11 @@ const Account: NextPage = () => {
   const [notifSaved, setNotifSaved] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [paymentDefaultId, setPaymentDefaultId] = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [showAddCard, setShowAddCard] = useState(false);
 
   const DRAFT_PROFILE = 'sm_draft_profile';
   const DRAFT_ADDRESS = 'sm_draft_address';
@@ -135,6 +216,62 @@ const Account: NextPage = () => {
   const [showEduModal, setShowEduModal] = useState(false);
   const [addressDraft, setAddressDraft] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState(false);
+
+  async function fetchPaymentMethods() {
+    setPaymentLoading(true);
+    setPaymentError('');
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) { setPaymentMethods([]); setPaymentDefaultId(null); return; }
+      const res = await fetch('/api/payment-methods', { headers: { Authorization: 'Bearer ' + session.access_token } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to load payment methods');
+      setPaymentMethods(data.methods || []);
+      setPaymentDefaultId(data.defaultId || null);
+    } catch (e: any) {
+      setPaymentError(e?.message || 'Failed to load payment methods');
+    } finally {
+      setPaymentLoading(false);
+    }
+  }
+
+  async function setDefaultPaymentMethod(id: string) {
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/set-default-payment-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ payment_method_id: id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to set default card');
+      setPaymentDefaultId(id);
+    } catch (e: any) {
+      setPaymentError(e?.message || 'Failed to set default card');
+    }
+  }
+
+  async function removePaymentMethod(id: string) {
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/detach-payment-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ payment_method_id: id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to remove card');
+      await fetchPaymentMethods();
+    } catch (e: any) {
+      setPaymentError(e?.message || 'Failed to remove card');
+    }
+  }
+
+  useEffect(() => {
+    if (tab === 'payments') fetchPaymentMethods();
+  }, [tab]);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -572,6 +709,95 @@ const Account: NextPage = () => {
                 <div className="mt-5 pt-4 border-t" style={{ borderColor: cardBorder }}>
                   <p className="text-xs" style={{ color: textMuted }}>Email and SMS delivery is coming soon. Your preferences are saved and will activate automatically.</p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── PAYMENTS ── */}
+          {tab === 'payments' && (
+            <div className="tab-panel grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                <span className="sm-eyebrow mb-2 block">Billing</span>
+                <h2 className="font-bold mb-2" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Payment Methods</h2>
+                <p className="text-sm mb-4" style={{ color: textMuted }}>Manage the cards you use to pay for bookings.</p>
+
+                {paymentError && (
+                  <div className="rounded-xl border px-4 py-3 text-sm mb-4" style={{ background: dm ? '#2a1212' : '#fef2f2', borderColor: dm ? '#7f1d1d' : '#fecaca', color: dm ? '#fecaca' : '#b91c1c' }}>
+                    {paymentError}
+                  </div>
+                )}
+
+                {paymentLoading ? (
+                  <div className="text-sm" style={{ color: textMuted }}>Loading payment methods…</div>
+                ) : paymentMethods.length === 0 ? (
+                  <div className="rounded-xl border p-4 text-sm" style={{ borderColor: cardBorder, color: textMuted }}>
+                    No saved cards yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {paymentMethods.map((m) => {
+                      const isDefault = (paymentDefaultId || paymentMethods[0]?.id) === m.id;
+                      return (
+                        <div key={m.id} className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: cardBorder }}>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="radio"
+                              checked={isDefault}
+                              onChange={() => setDefaultPaymentMethod(m.id)}
+                            />
+                            <div>
+                              <p className="text-sm font-semibold" style={{ color: textPrimary }}>
+                                {`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4}`}
+                              </p>
+                              <p className="text-xs" style={{ color: textMuted }}>{`Exp ${m.exp_month}/${String(m.exp_year).slice(-2)}`}</p>
+                            </div>
+                          </div>
+                          <button onClick={() => removePaymentMethod(m.id)} className="text-xs font-semibold" style={{ color: dm ? '#fca5a5' : '#b91c1c' }}>
+                            Remove
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="mt-5">
+                  {showAddCard ? (
+                    <div className="rounded-xl border p-4" style={{ borderColor: cardBorder, background: dm ? '#0f1f1c' : '#ecfdf3' }}>
+                      {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+                        <Elements stripe={stripePromise} options={{ appearance: { theme: dm ? 'night' : 'stripe', variables: { colorPrimary: '#007e6d', colorText: dm ? '#e5f9f4' : '#0f3d35', colorBackground: dm ? '#0b1513' : '#ffffff', colorTextSecondary: dm ? '#8dd9c9' : '#0f766e' } } }}>
+                          <AccountSaveCardForm
+                            dm={dm}
+                            onSaved={() => {
+                              setShowAddCard(false);
+                              fetchPaymentMethods();
+                            }}
+                            onError={(msg) => setPaymentError(msg)}
+                          />
+                        </Elements>
+                      ) : (
+                        <div className="text-xs" style={{ color: textMuted }}>Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
+                      )}
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowAddCard(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#007e6d' }}>
+                      Add new card
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                <span className="sm-eyebrow mb-2 block">How it works</span>
+                <h2 className="font-bold mb-2" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Safe & secure</h2>
+                <p className="text-sm mb-4" style={{ color: textMuted }}>
+                  Your card is saved with Stripe. You are only charged after a business confirms your booking and the service is completed.
+                </p>
+                <ul className="space-y-2 text-sm" style={{ color: textMuted }}>
+                  <li>• Cards are stored securely by Stripe.</li>
+                  <li>• You can remove or change your default card anytime.</li>
+                  <li>• We never see your full card number.</li>
+                </ul>
               </div>
             </div>
           )}

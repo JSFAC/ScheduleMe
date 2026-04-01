@@ -172,11 +172,13 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
     if (!stripe || !elements || !clientSecret) return;
     setLoading(true);
     try {
-      const result = await stripe.confirmSetup({
-        elements,
-        clientSecret,
-        confirmParams: { return_url: window.location.href },
-        redirect: 'if_required',
+      const card = elements.getElement(CardElement);
+      if (!card) {
+        onError('Card input is not ready. Please try again.');
+        return;
+      }
+      const result = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: { card },
       });
       if (result.error) {
         onError(result.error.message || 'Card setup failed');
