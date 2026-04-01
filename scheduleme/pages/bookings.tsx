@@ -171,20 +171,29 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
     e.preventDefault();
     if (!stripe || !elements || !clientSecret) return;
     setLoading(true);
-    const result = await stripe.confirmSetup({
-      elements,
-      clientSecret,
-      confirmParams: { return_url: window.location.href },
-      redirect: 'if_required',
-    });
-    if (result.error) {
-      onError(result.error.message || 'Card setup failed');
+    try {
+      const result = await stripe.confirmSetup({
+        elements,
+        clientSecret,
+        confirmParams: { return_url: window.location.href },
+        redirect: 'if_required',
+      });
+      if (result.error) {
+        onError(result.error.message || 'Card setup failed');
+        return;
+      }
+      const setupIntent = (result as any)?.setupIntent;
+      if (!setupIntent) {
+        onError('Card setup did not complete. Please try again.');
+        return;
+      }
+      const paymentMethodId = setupIntent?.payment_method || null;
+      onSaved(paymentMethodId || null);
+    } catch (e: any) {
+      onError(e?.message || 'Card setup failed');
+    } finally {
       setLoading(false);
-      return;
     }
-    const paymentMethodId = (result as any)?.setupIntent?.payment_method || null;
-    onSaved(paymentMethodId || null);
-    setLoading(false);
   }
 
   if (booking.stripe_payment_method_id) {
