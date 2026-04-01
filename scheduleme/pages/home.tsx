@@ -276,7 +276,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 }
 
 // Card — matches Browse grid style
-function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
+function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Business; onClick: () => void; dm?: boolean; index?: number; pinned?: boolean; onTogglePin?: (id: string) => void }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
@@ -304,6 +304,11 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
           {(biz.reviews ?? 0) === 0 && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
           )}
+          <button onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }} className="h-6 w-6 rounded-full flex items-center justify-center" style={{ background: pinned ? (dm ? 'rgba(251,191,36,0.18)' : '#fef3c7') : (dm ? 'rgba(255,255,255,0.06)' : '#f3f4f6'), border: '1px solid '+(pinned ? (dm ? 'rgba(251,191,36,0.35)' : '#fde68a') : (dm ? 'rgba(255,255,255,0.12)' : '#e5e7eb')) }} aria-label={pinned ? 'Unpin' : 'Pin'}>
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: pinned ? (dm ? '#f59e0b' : '#92400e') : (dm ? '#9ca3af' : '#6b7280') }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6l1 6-4 4v6l-2-2-2 2v-6l-4-4 1-6z" />
+            </svg>
+          </button>
           <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
           </span>
@@ -336,10 +341,14 @@ function ScrollSection({
   dm,
   isLoading,
   bg,
+  pinnedIds,
+  onTogglePin,
 }: {
   title: string; subtitle: string; href: string;
   businesses: Business[]; onBizClick: (b: Business) => void; dm?: boolean; isLoading?: boolean;
   bg: string;
+  pinnedIds: Set<string>;
+  onTogglePin: (id: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 });
@@ -433,7 +442,7 @@ function ScrollSection({
           {isLoading
             ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
             : businesses.map((biz, i) => (
-                <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} index={i} />
+                <BizCard key={biz.id} biz={biz} onClick={() => onBizClick(biz)} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={onTogglePin} />
               ))
           }
           <Link href={href} scroll={false}
@@ -513,8 +522,8 @@ const HomePage: NextPage = () => {
     const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
   const dynamicCategories = realBizList.length > 0
-    ? ['All', ...Array.from(new Set(realBizList.map(b => b.category).filter(Boolean))).sort()]
-    : ['All'];
+    ? ['All', 'Pinned', ...Array.from(new Set(realBizList.map(b => b.category).filter(Boolean))).sort()]
+    : ['All', 'Pinned'];
   const hasNearbyRef = useRef(false);
   const [usingRealData, setUsingRealData] = useState(false);
   function setNearbySafe(list: Business[]) {
@@ -526,6 +535,7 @@ const HomePage: NextPage = () => {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showReferModal, setShowReferModal] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
@@ -547,6 +557,39 @@ function writeCoords(lat: number, lng: number) {
   localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
 }
 
+async function loadPinned(userId: string) {
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from('favorites')
+      .select('business_id')
+      .eq('user_id', userId);
+    const ids = new Set((data || []).map((r: any) => r.business_id));
+    setPinnedIds(ids);
+  } catch {}
+}
+
+async function togglePinned(bizId: string) {
+  try {
+    const supabase = getSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { router.replace('/signin'); return; }
+    const { data: existing } = await supabase
+      .from('favorites')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('business_id', bizId)
+      .maybeSingle();
+    if (existing?.id) {
+      await supabase.from('favorites').delete().eq('id', existing.id);
+      setPinnedIds(prev => { const next = new Set(prev); next.delete(bizId); return next; });
+    } else {
+      await supabase.from('favorites').insert({ user_id: session.user.id, business_id: bizId });
+      setPinnedIds(prev => new Set(prev).add(bizId));
+    }
+  } catch {}
+}
+
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -554,6 +597,7 @@ function writeCoords(lat: number, lng: number) {
       const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
       setUserName(name.split(' ')[0]);
       setLoading(false);
+      await loadPinned(session.user.id);
       // Check edu verification status
       const supabaseInst = getSupabase();
       const { data: profile } = await supabaseInst
@@ -844,7 +888,8 @@ function writeCoords(lat: number, lng: number) {
             const pool = realBizList.length > 0
               ? realBizList
               : [];
-            const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
+            const pinned = pool.filter(b => pinnedIds.has(b.id));
+            const filtered = activeCategory === 'All' ? pool : activeCategory === 'Pinned' ? pinned : pool.filter(b => b.category === activeCategory);
             const rated = filtered.filter(b => (b.reviews ?? 0) > 0 && b.rating != null);
             const t1 = activeCategory === 'All'
               ? (rated.length > 0 ? rated.slice(0, 8) : pool.slice(0, 8))
@@ -863,6 +908,8 @@ function writeCoords(lat: number, lng: number) {
                   dm={dm}
                   isLoading={dataLoading}
                   bg={sectionBg}
+                  pinnedIds={pinnedIds}
+                  onTogglePin={togglePinned}
                 />
                 <ScrollSection
                   key={`indie-${activeCategory}`}
@@ -874,6 +921,8 @@ function writeCoords(lat: number, lng: number) {
                   dm={dm}
                   isLoading={dataLoading}
                   bg={sectionBg}
+                  pinnedIds={pinnedIds}
+                  onTogglePin={togglePinned}
                 />
                 <ScrollSection
                   key={`quick-${activeCategory}`}
@@ -885,6 +934,8 @@ function writeCoords(lat: number, lng: number) {
                   dm={dm}
                   isLoading={dataLoading}
                   bg={sectionBg}
+                  pinnedIds={pinnedIds}
+                  onTogglePin={togglePinned}
                 />
               </>
             );

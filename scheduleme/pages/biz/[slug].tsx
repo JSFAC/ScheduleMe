@@ -166,10 +166,19 @@ export default function BizPage() {
       .then(({ data }) => {
         if (!data) { router.replace('/browse'); return; }
         setBiz(data);
-        try {
-          const favs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('sm_favorites') || '[]') : [];
-          if (Array.isArray(favs)) setIsFavorited(favs.includes(data.id));
-        } catch {}
+        (async () => {
+          try {
+            const { data: { session } } = await getSB().auth.getSession();
+            if (!session) return;
+            const { data: fav } = await getSB()
+              .from('favorites')
+              .select('id')
+              .eq('user_id', session.user.id)
+              .eq('business_id', data.id)
+              .maybeSingle();
+            setIsFavorited(!!fav);
+          } catch {}
+        })();
         fetch('/api/services?business_id=' + data.id).then(r => r.json()).then(d => setServices(d.services || [])).catch(() => {});
         setLoading(false);
       });
@@ -301,30 +310,31 @@ export default function BizPage() {
     setTimeout(() => setToast(null), 1800);
   }
 
-  function getFavorites(): string[] {
-    if (typeof window === 'undefined') return [];
-    try {
-      const raw = localStorage.getItem('sm_favorites');
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function setFavorites(list: string[]) {
-    if (typeof window === 'undefined') return;
-    try { localStorage.setItem('sm_favorites', JSON.stringify(list)); } catch {}
-  }
-
-  function toggleFavorite() {
+  async function toggleFavorite() {
     if (!biz?.id) return;
-    const list = getFavorites();
-    const exists = list.includes(biz.id);
-    const next = exists ? list.filter(id => id !== biz.id) : [...list, biz.id];
-    setFavorites(next);
-    setIsFavorited(!exists);
-    showToast(exists ? 'Removed from saved' : 'Saved for later');
+    const { data: { session } } = await getSB().auth.getSession();
+    if (!session) {
+      router.push('/signin?next=/biz/' + slug);
+      return;
+    }
+    try {
+      const supabase = getSB();
+      const { data: existing } = await supabase
+        .from('favorites')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('business_id', biz.id)
+        .maybeSingle();
+      if (existing?.id) {
+        await supabase.from('favorites').delete().eq('id', existing.id);
+        setIsFavorited(false);
+        showToast('Removed from pinned');
+      } else {
+        await supabase.from('favorites').insert({ user_id: session.user.id, business_id: biz.id });
+        setIsFavorited(true);
+        showToast('Pinned for later');
+      }
+    } catch {}
   }
 
   return (
@@ -391,7 +401,7 @@ export default function BizPage() {
             <div className="flex gap-2 flex-wrap">
               <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
               <button onClick={shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Share</button>
-              <button onClick={toggleFavorite} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background: isFavorited ? (dm ? 'rgba(251,191,36,0.18)' : '#fef3c7') : accentWash, border:'1px solid '+accentBorder, color: isFavorited ? (dm ? '#f59e0b' : '#92400e') : accent}}>{isFavorited ? 'Saved' : 'Save'}</button>
+              <button onClick={toggleFavorite} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background: isFavorited ? (dm ? 'rgba(251,191,36,0.18)' : '#fef3c7') : accentWash, border:'1px solid '+accentBorder, color: isFavorited ? (dm ? '#f59e0b' : '#92400e') : accent}}>{isFavorited ? 'Pinned' : 'Pin'}</button>
               {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>}
             </div>
           </div>

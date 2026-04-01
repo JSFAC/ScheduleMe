@@ -174,6 +174,7 @@ const CampusPage: NextPage = () => {
   const [campusTag, setCampusTag] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('recommended');
   
@@ -196,6 +197,40 @@ const CampusPage: NextPage = () => {
     }
   }, []);
 
+  async function loadPinned(userId: string) {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('favorites')
+        .select('business_id')
+        .eq('user_id', userId);
+      const ids = new Set((data || []).map((r: any) => r.business_id));
+      setPinnedIds(ids);
+    } catch {}
+  }
+
+  async function togglePinned(bizId: string) {
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.replace('/signin'); return; }
+      await loadPinned(session.user.id);
+      const { data: existing } = await supabase
+        .from('favorites')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('business_id', bizId)
+        .maybeSingle();
+      if (existing?.id) {
+        await supabase.from('favorites').delete().eq('id', existing.id);
+        setPinnedIds(prev => { const next = new Set(prev); next.delete(bizId); return next; });
+      } else {
+        await supabase.from('favorites').insert({ user_id: session.user.id, business_id: bizId });
+        setPinnedIds(prev => new Set(prev).add(bizId));
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     const supabase = getSupabase();
     let cancelled = false;
@@ -203,6 +238,7 @@ const CampusPage: NextPage = () => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/signin'); return; }
+      await loadPinned(session.user.id);
 
       if (eduCache === 'true') setEduVerified(true);
 
@@ -249,6 +285,7 @@ const CampusPage: NextPage = () => {
 
   const search = searchTerm.trim().toLowerCase();
   const filtered = businesses.filter(b => {
+    if (activeCategory === 'Pinned') return pinnedIds.has(b.id);
     if (activeCategory !== 'All' && b.category !== activeCategory) return false;
     if (!search) return true;
     const hay = [b.name, b.description, b.category, b.distance, ...(b.services || [])].filter(Boolean).join(' ').toLowerCase();
@@ -387,7 +424,7 @@ const CampusPage: NextPage = () => {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                 {sorted.map((biz, i) => (
-                  <BizCard key={biz.id} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} />
+                  <BizCard key={biz.id} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
                 ))}
               </div>
             )}
@@ -398,7 +435,7 @@ const CampusPage: NextPage = () => {
   );
 
   // BizCard — matches Browse grid style
-  function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
+  function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Business; onClick: () => void; dm?: boolean; index?: number; pinned?: boolean; onTogglePin?: (id: string) => void }) {
     const [imgLoaded, setImgLoaded] = useState(false);
     const cardBg = dm ? '#1c1c1e' : 'white';
     const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
@@ -425,6 +462,11 @@ const CampusPage: NextPage = () => {
             {(biz.reviews ?? 0) === 0 && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
             )}
+            <button onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }} className="h-6 w-6 rounded-full flex items-center justify-center" style={{ background: pinned ? (dm ? 'rgba(251,191,36,0.18)' : '#fef3c7') : (dm ? 'rgba(255,255,255,0.06)' : '#f3f4f6'), border: '1px solid '+(pinned ? (dm ? 'rgba(251,191,36,0.35)' : '#fde68a') : (dm ? 'rgba(255,255,255,0.12)' : '#e5e7eb')) }} aria-label={pinned ? 'Unpin' : 'Pin'}>
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: pinned ? (dm ? '#f59e0b' : '#92400e') : (dm ? '#9ca3af' : '#6b7280') }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6l1 6-4 4v6l-2-2-2 2v-6l-4-4 1-6z" />
+              </svg>
+            </button>
             <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
               <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
             </span>
