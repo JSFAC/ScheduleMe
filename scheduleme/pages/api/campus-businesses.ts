@@ -2,13 +2,14 @@
 // Service-role campus business lookup (bypasses RLS)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'campus' })) return;
 
   const { limit, school_domain, campus_school_name } = req.query;
   const limitNum = Math.min(Number(limit ?? 40), 200);

@@ -8,6 +8,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  const secret = req.headers['x-notify-secret'];
+  if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
+    return res.status(401).json({ error: 'Unauthorized' });
+
   // Rate limit tightly — this touches auth.users
   if (!rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'cleanup' })) return;
 

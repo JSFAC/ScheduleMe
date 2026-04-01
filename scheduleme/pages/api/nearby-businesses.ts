@@ -2,7 +2,7 @@
 // Service-role nearby business lookup (bypasses RLS)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -20,6 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'nearby' })) return;
 
   const { lat, lng, radius, limit, category, edu_only, campus_only, school_domain } = req.query;
   const latNum = Number(lat);

@@ -4,7 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { sendWelcomeEmail } from '../../lib/email';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, isValidEmail, requireAuth } from '../../lib/apiSecurity';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
@@ -13,8 +13,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Rate limit tightly — 3 per IP per hour (one per signup)
   if (!rateLimit(req, res, { max: 3, windowMs: 60 * 60_000, keyPrefix: 'send-welcome' })) return;
 
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
   const { email, name, userId } = req.body;
   if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'Valid email required' });
+  if (userId && user.id !== userId) return res.status(403).json({ error: 'Access denied' });
+  if (user.email && user.email.toLowerCase() !== String(email).toLowerCase()) return res.status(403).json({ error: 'Access denied' });
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });

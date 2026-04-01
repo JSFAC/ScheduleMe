@@ -1,27 +1,44 @@
 // @ts-nocheck
 // pages/api/set-booking-amount.ts
 import { createClient } from '@supabase/supabase-js';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
 
 export default async function handler(req, res) {
+  setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'set-booking-amount' })) return;
+  const user = await requireAuth(req, res);
+  if (!user) return;
 
   const { booking_id, amount_cents } = req.body;
-  if (!booking_id || !amount_cents) return res.status(400).json({ error: 'Missing fields' });
+  if (!booking_id || !isValidUuid(booking_id)) return res.status(400).json({ error: 'Valid booking_id required' });
+  const cents = Number(amount_cents);
+  if (!Number.isFinite(cents) || cents < 100 || cents > 500000) return res.status(400).json({ error: 'Invalid amount' });
+
+  const sb = getSupabase();
 
   // Get booking (two-step to avoid FK join issues)
   const { data: booking, error: bErr } = await sb
     .from('bookings')
-    .select('id, status, user_id, business_id')
+    .select('id, status, user_id, business_id, businesses(owner_email, stripe_onboarded, stripe_account_id, name)')
     .eq('id', booking_id)
     .in('status', ['pending', 'confirmed', 'payment_pending'])
     .maybeSingle();
 
   if (bErr || !booking) return res.status(404).json({ error: 'Booking not found' });
 
+  const biz = booking.businesses;
+  if (!biz || biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+
   // Ensure business has Stripe connected
-  const { data: biz } = await sb.from('businesses').select('stripe_onboarded, stripe_account_id, name').eq('id', booking.business_id).maybeSingle();
   if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
     return res.status(400).json({ error: 'Business has not connected their bank account yet' });
   }
@@ -29,7 +46,7 @@ export default async function handler(req, res) {
   // Update the amount
   const { error: uErr } = await sb
     .from('bookings')
-    .update({ amount_cents })
+    .update({ amount_cents: cents })
     .eq('id', booking_id);
 
   if (uErr) return res.status(500).json({ error: uErr.message });
@@ -49,7 +66,7 @@ export default async function handler(req, res) {
           name: profile.name || 'there',
           service: 'Custom Request',
           businessName: biz?.name || 'Your provider',
-          amountDollars: (amount_cents / 100).toFixed(2),
+          amountDollars: (cents / 100).toFixed(2),
           bookingId: booking.id,
         }),
       });

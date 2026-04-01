@@ -1,7 +1,7 @@
 // pages/api/upload-media.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, isValidUuid } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, isValidUuid, requireAuth } from '../../lib/apiSecurity';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
@@ -12,6 +12,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!rateLimit(req, res, { max: 20, windowMs: 60 * 60_000, keyPrefix: 'upload-media' })) return;
+  const user = await requireAuth(req, res);
+  if (!user) return;
 
   const { business_id, media_type, file_data, file_type, file_name, approve_immediately } = req.body;
 
@@ -58,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Now fetch the specific business
   const { data: biz, error: bizError } = await supabase
     .from('businesses')
-    .select('id, cover_url')
+    .select('id, cover_url, owner_email')
     .eq('id', business_id)
     .maybeSingle();
 
@@ -66,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!biz) return res.status(404).json({ 
     error: `Business ${business_id} not found in DB. Key works (found ${testData?.length ?? 0} businesses total)`
   });
+  if (biz.owner_email && biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;

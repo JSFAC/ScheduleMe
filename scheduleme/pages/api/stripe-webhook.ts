@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import stripe from '../../lib/stripe';
+import { setSecurityHeaders } from '../../lib/apiSecurity';
 import { createClient } from '@supabase/supabase-js';
 
 // Must disable body parsing for Stripe webhooks
@@ -71,6 +72,7 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const sig = req.headers['stripe-signature'];
