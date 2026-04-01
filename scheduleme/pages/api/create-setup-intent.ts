@@ -35,6 +35,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
+  if (booking.status !== 'pending' && booking.status !== 'confirmed')
+    return res.status(400).json({ error: 'Booking must be pending or confirmed before saving a card' });
+
   // Ensure caller is the booking owner (by auth id or email)
   let canAccess = booking.user_id === user.id;
   if (!canAccess && user.email) {
@@ -45,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .maybeSingle();
     if (profile?.id && booking.user_id === profile.id) canAccess = true;
   }
-  if (!canAccess) return res.status(403).json({ error: 'Access denied' });
+  if (!canAccess) return res.status(403).json({ error: 'Access denied (not booking owner)' });
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -77,7 +80,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PERCENT / 100);
 
-  const setupIntent = await stripe.setupIntents.create({
+  try {
+    const setupIntent = await stripe.setupIntents.create({
     customer: customerId,
     usage: 'off_session',
     metadata: { bookingId: booking_id, businessId: biz.id, userId: user.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents) },
@@ -85,5 +89,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   await supabase.from('profiles').update({ stripe_setup_intent_id: setupIntent.id }).eq('id', user.id);
 
-  return res.status(200).json({ client_secret: setupIntent.client_secret });
+    return res.status(200).json({ client_secret: setupIntent.client_secret });
+  } catch (e: any) {
+    console.error('[create-setup-intent] stripe error', e);
+    return res.status(500).json({ error: e?.message || 'Stripe setup failed' });
+  }
 }
