@@ -151,6 +151,8 @@ const CampusPage: NextPage = () => {
   const [campusTag, setCampusTag] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState('recommended');
   
   const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
     if (!tag && !domain) { setBusinesses([]); return; }
@@ -222,9 +224,19 @@ const CampusPage: NextPage = () => {
   }, [router, loadCampusBusinesses, eduCache]);
 
 
-  const filtered = businesses.filter(b =>
-    activeCategory === 'All' || b.category === activeCategory
-  );
+  const search = searchTerm.trim().toLowerCase();
+  const sorted = businesses.filter(b => {
+    if (activeCategory !== 'All' && b.category !== activeCategory) return false;
+    if (!search) return true;
+    const hay = [b.name, b.description, b.category, b.distance, ...(b.services || [])].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(search);
+  });
+  const sorted = [...sorted].sort((a, b) => {
+    if (sortMode === 'rating') return (b.rating || 0) - (a.rating || 0);
+    if (sortMode === 'reviews') return (b.reviews || 0) - (a.reviews || 0);
+    if (sortMode === 'az') return (a.name || '').localeCompare(b.name || '');
+    return 0;
+  });
 
   const canView = eduVerified === true;
   const campusCategories = businesses.length > 0
@@ -290,6 +302,37 @@ const CampusPage: NextPage = () => {
 
             {/* Inline verify form */}
 
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ background: dm ? '#121212' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Search by name, service, or category"
+                    className="flex-1 bg-transparent text-sm outline-none"
+                    style={{ color: dm ? '#f3f4f6' : '#111827' }}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Sort</label>
+                <select
+                  value={sortMode}
+                  onChange={e => setSortMode(e.target.value)}
+                  className="text-xs font-semibold px-3 py-2 rounded-xl border"
+                  style={{ background: dm ? '#121212' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#f3f4f6' : '#111827' }}
+                >
+                  <option value="recommended">Recommended</option>
+                  <option value="rating">Highest rated</option>
+                  <option value="reviews">Most reviewed</option>
+                  <option value="az">A to Z</option>
+                </select>
+              </div>
+            </div>
+
             {/* Category pills */}
             {campusCategories.length > 0 && (
               <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
@@ -305,7 +348,7 @@ const CampusPage: NextPage = () => {
               </div>
             )}
 
-            {filtered.length === 0 ? (
+            {sorted.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">🎓</p>
                 <p className="font-semibold mb-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
@@ -320,7 +363,7 @@ const CampusPage: NextPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
-                {filtered.map((biz, i) => (
+                {sorted.map((biz, i) => (
                   <BizCard key={biz.id} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} />
                 ))}
               </div>
