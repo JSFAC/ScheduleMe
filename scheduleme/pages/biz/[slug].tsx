@@ -11,7 +11,7 @@ function getSB() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
-const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+const DEFAULT_TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
 function parseSlotMinutes(slot: string): number {
   const m = slot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
@@ -24,6 +24,15 @@ function parseSlotMinutes(slot: string): number {
   return h * 60 + mn;
 }
 
+function formatSlotMinutes(mins: number): string {
+  let h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const ap = h >= 12 ? 'PM' : 'AM';
+  if (h === 0) h = 12;
+  if (h > 12) h -= 12;
+  return `${h}:${m.toString().padStart(2, '0')} ${ap}`;
+}
+
 function buildScheduledStart(date: Date, slot: string): string | null {
   const mins = parseSlotMinutes(slot);
   if (Number.isNaN(mins)) return null;
@@ -33,8 +42,19 @@ function buildScheduledStart(date: Date, slot: string): string | null {
 
 type HourEntry = { day: string; time: string };
 
-function getHoursForDate(hours: HourEntry[] | undefined, date: Date): { open: number; close: number } | null {
-  if (!hours || !hours.length) return null;
+function normalizeHours(hours: HourEntry[] | Record<string, string> | undefined): HourEntry[] {
+  if (!hours) return [];
+  if (Array.isArray(hours)) return hours;
+  const out: HourEntry[] = [];
+  for (const [day, time] of Object.entries(hours)) {
+    if (typeof time === 'string' && time.trim()) out.push({ day, time });
+  }
+  return out;
+}
+
+function getHoursForDate(hoursInput: HourEntry[] | Record<string, string> | undefined, date: Date): { open: number; close: number } | null {
+  const hours = normalizeHours(hoursInput);
+  if (!hours.length) return null;
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const dayName = dayNames[date.getDay()];
   const abbrev: Record<string, string> = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
@@ -64,8 +84,11 @@ function getHoursForDate(hours: HourEntry[] | undefined, date: Date): { open: nu
   }
   for (const h of hours) {
     if (dayMatches(h.day)) {
-      if (h.time.toLowerCase() === 'by appointment') return { open: 8 * 60, close: 20 * 60 };
-      const parts = h.time.split('–').map(p => p.trim());
+      const lower = h.time.toLowerCase();
+      if (lower === 'by appointment') return { open: 8 * 60, close: 20 * 60 };
+      if (lower === '24 hours') return { open: 0, close: 24 * 60 };
+      const sep = h.time.includes('–') ? '–' : '-';
+      const parts = h.time.split(sep).map(p => p.trim());
       if (parts.length < 2) continue;
       const open = parseT(parts[0]);
       const close = parseT(parts[1]);
@@ -75,7 +98,18 @@ function getHoursForDate(hours: HourEntry[] | undefined, date: Date): { open: nu
   return null;
 }
 
-function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected: Date | null; onSelect: (d: Date) => void; bookedDates?: Set<string>; hours?: {day:string;time:string}[]; dm: boolean; }) {
+function getSlotsForDate(hoursInput: HourEntry[] | Record<string, string> | undefined, date: Date): string[] {
+  const dh = getHoursForDate(hoursInput, date);
+  if (!dh) return DEFAULT_TIME_SLOTS;
+  const slots: string[] = [];
+  const interval = 60;
+  for (let m = dh.open; m < dh.close; m += interval) {
+    slots.push(formatSlotMinutes(m));
+  }
+  return slots.length ? slots : DEFAULT_TIME_SLOTS;
+}
+
+function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected: Date | null; onSelect: (d: Date) => void; bookedDates?: Set<string>; hours?: HourEntry[] | Record<string, string>; dm: boolean; }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [vm, setVm] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const y = vm.getFullYear(), m = vm.getMonth();
@@ -108,7 +142,8 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
           const isPast = date < today;
           const dateKey = date.toISOString().split('T')[0];
           const isFullyBooked = bookedDates?.has(dateKey);
-          const hasHours = hours && hours.length ? !!getHoursForDate(hours, date) : true;
+          const norm = normalizeHours(hours);
+          const hasHours = norm.length ? !!getHoursForDate(norm, date) : true;
           const isSelected = selected && date.toDateString() === selected.toDateString();
           const disabled = isPast || isFullyBooked || !hasHours;
           return (
@@ -202,17 +237,16 @@ export default function BizPage() {
         const d = new Date(row.scheduled_start);
         const dk = d.toISOString().split('T')[0];
         const mins = d.getHours() * 60 + d.getMinutes();
-        const matched = TIME_SLOTS.find(s => Math.abs(parseSlotMinutes(s) - mins) < 30);
+        const slotsForDate = getSlotsForDate(biz.hours, d);
+        const matched = slotsForDate.find(s => Math.abs(parseSlotMinutes(s) - mins) < 30);
         if (matched) slots.add(dk + '|' + matched);
         dateCounts[dk] = (dateCounts[dk] || 0) + 1;
       }
       setBookedSlots(slots);
       const full = new Set<string>();
       for (const [dk, cnt] of Object.entries(dateCounts)) {
-        const dh = getHoursForDate(biz.hours, new Date(dk));
-        if (!dh) continue;
-        const avail = TIME_SLOTS.filter(s => { const m = parseSlotMinutes(s); return m >= dh.open && m < dh.close; });
-        if (cnt >= avail.length && avail.length > 0) full.add(dk);
+        const slotsForDate = getSlotsForDate(biz.hours, new Date(dk));
+        if (cnt >= slotsForDate.length && slotsForDate.length > 0) full.add(dk);
       }
       setBookedDates(full);
     }).catch(() => {}).finally(() => setLoadingSlots(false));
@@ -297,7 +331,8 @@ export default function BizPage() {
     const now = new Date();
     const isToday = now.toDateString() === date.toDateString();
     const nowMins = now.getHours() * 60 + now.getMinutes();
-    return TIME_SLOTS.map(s => ({
+    const slotsForDate = getSlotsForDate(biz.hours, date);
+    return slotsForDate.map(s => ({
       slot: s,
       booked: bookedSlots.has(dk + '|' + s),
       outside: dh ? (parseSlotMinutes(s) < dh.open || parseSlotMinutes(s) >= dh.close) : false,
@@ -443,10 +478,10 @@ export default function BizPage() {
               <p className="text-xs mt-0.5" style={{color:mu}}>Describe what you need in the notes below</p>
             </button>
           </div>
-          {biz.hours?.length > 0 && <>
+          {normalizeHours(biz.hours).length > 0 && <>
             <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Hours</h2>
             <div className="rounded-2xl overflow-hidden mb-5" style={{background:card,border:'1px solid '+bdr}}>
-              {biz.hours.map((h,i) => <div key={i} className="flex justify-between px-4 py-3" style={{borderBottom:i<biz.hours.length-1?'1px solid '+bdr:'none'}}><span className="text-sm font-medium" style={{color:tx}}>{h.day}</span><span className="text-sm" style={{color:mu}}>{h.time}</span></div>)}
+              {normalizeHours(biz.hours).map((h,i,arr) => <div key={i} className="flex justify-between px-4 py-3" style={{borderBottom:i<arr.length-1?'1px solid '+bdr:'none'}}><span className="text-sm font-medium" style={{color:tx}}>{h.day}</span><span className="text-sm" style={{color:mu}}>{h.time}</span></div>)}
             </div>
           </>}
         <div className="rounded-2xl p-5 mb-8" style={{background:card,border:'1px solid '+bdr}}>

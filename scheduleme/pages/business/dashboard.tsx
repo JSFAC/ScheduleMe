@@ -624,6 +624,24 @@ const BusinessDashboard: NextPage = () => {
   const [settingsError, setSettingsError] = useState('');
   const [settingsNotice, setSettingsNotice] = useState('');
 
+  const HOURS_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  function hoursToMap(hours: any): Record<string, string> {
+    if (!hours) return {};
+    if (Array.isArray(hours)) {
+      const map: Record<string, string> = {};
+      for (const h of hours) {
+        if (h?.day && typeof h?.time === 'string') map[h.day] = h.time;
+      }
+      return map;
+    }
+    return hours || {};
+  }
+  function mapToHoursArray(map: Record<string, string>): { day: string; time: string }[] {
+    return HOURS_DAYS
+      .map(day => (map[day] ? { day, time: map[day] } : null))
+      .filter(Boolean) as { day: string; time: string }[];
+  }
+
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
     const { data: { session } } = await supabase.auth.getSession();
@@ -654,7 +672,7 @@ const BusinessDashboard: NextPage = () => {
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
     setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
     setEditServices((biz.service_tags || []).join(', '));
-    setEditHours(biz.hours || {});
+    setEditHours(hoursToMap(biz.hours));
     setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
     setMediaVideo(biz.video_url || null);
     // Use API to fetch bookings (bypasses RLS issues with anon key)
@@ -965,7 +983,7 @@ const BusinessDashboard: NextPage = () => {
 
     // Auto-approve low-risk fields
     const breakUntilIso = editBreakUntil ? new Date(editBreakUntil + 'T23:59:59').toISOString() : null;
-    const { error } = await getSupabase().from('businesses').update({ phone: editPhone, website: editWebsite, service_tags: tags, hours: editHours, availability_status: editAvailability, break_until: breakUntilIso }).eq('id', business.id);
+    const { error } = await getSupabase().from('businesses').update({ phone: editPhone, website: editWebsite, service_tags: tags, hours: mapToHoursArray(editHours), availability_status: editAvailability, break_until: breakUntilIso }).eq('id', business.id);
     if (error) { setSettingsSaving(false); setSettingsError(error.message); return; }
 
     // Queue high-risk fields for approval
@@ -990,7 +1008,7 @@ const BusinessDashboard: NextPage = () => {
     }
 
     setSettingsSaving(false);
-    setBusiness(b => b ? { ...b, phone: editPhone, website: editWebsite, service_tags: tags, hours: editHours, availability_status: editAvailability, break_until: breakUntilIso } : b);
+    setBusiness(b => b ? { ...b, phone: editPhone, website: editWebsite, service_tags: tags, hours: mapToHoursArray(editHours), availability_status: editAvailability, break_until: breakUntilIso } : b);
     setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
   }
 
@@ -1704,6 +1722,7 @@ const BusinessDashboard: NextPage = () => {
                       {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'paid').map(b => {
                         const bookingDay = new Date(b.created_at);
                         const canComplete = canMarkComplete(b);
+                        const isCustomBooking = !b.amount_cents;
                         return (
                           <div key={b.id} className="px-5 py-4">
                             <div className="flex items-start justify-between gap-3 mb-2">
@@ -1731,7 +1750,7 @@ const BusinessDashboard: NextPage = () => {
                                   className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                   Complete
                                 </button>
-                                {b.status === 'pending' && isCustom && (
+                                {b.status === 'pending' && isCustomBooking && (
                                   <button onClick={() => handleUpdateBooking(b.id, 'confirmed')}
                                     className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
                                     Confirm
@@ -1889,32 +1908,37 @@ const BusinessDashboard: NextPage = () => {
                     {/* Business hours */}
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Business Hours <span className="normal-case font-normal">(optional — leave blank if you come to the client)</span></label>
+                      <datalist id="hours-options">
+                        <option value="By appointment" />
+                        <option value="7:00 AM – 3:00 PM" />
+                        <option value="8:00 AM – 4:00 PM" />
+                        <option value="8:00 AM – 5:00 PM" />
+                        <option value="9:00 AM – 5:00 PM" />
+                        <option value="9:00 AM – 6:00 PM" />
+                        <option value="10:00 AM – 6:00 PM" />
+                        <option value="10:00 AM – 8:00 PM" />
+                        <option value="11:00 AM – 7:00 PM" />
+                        <option value="12:00 PM – 8:00 PM" />
+                        <option value="24 Hours" />
+                      </datalist>
                       <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f9fafb' }}>
-                        {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(day => (
+                        {HOURS_DAYS.map(day => (
                           <div key={day} className="flex items-center gap-3">
                             <span className="text-xs font-medium w-20 shrink-0" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{day.slice(0,3)}</span>
-                            <select
+                            <input
+                              list="hours-options"
+                              placeholder="Closed (optional)"
                               className="flex-1 text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent"
                               style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
                               value={editHours[day] || ''}
                               onChange={e => setEditHours(h => ({ ...h, [day]: e.target.value }))}
-                            >
-                              <option value="">Closed (optional)</option>
-                              <option value="By appointment">By appointment</option>
-                              <option value="7:00 AM – 3:00 PM">7:00 AM – 3:00 PM</option>
-                              <option value="8:00 AM – 4:00 PM">8:00 AM – 4:00 PM</option>
-                              <option value="8:00 AM – 5:00 PM">8:00 AM – 5:00 PM</option>
-                              <option value="9:00 AM – 5:00 PM">9:00 AM – 5:00 PM</option>
-                              <option value="9:00 AM – 6:00 PM">9:00 AM – 6:00 PM</option>
-                              <option value="10:00 AM – 6:00 PM">10:00 AM – 6:00 PM</option>
-                              <option value="10:00 AM – 8:00 PM">10:00 AM – 8:00 PM</option>
-                              <option value="11:00 AM – 7:00 PM">11:00 AM – 7:00 PM</option>
-                              <option value="12:00 PM – 8:00 PM">12:00 PM – 8:00 PM</option>
-                              <option value="24 Hours">24 Hours</option>
-                            </select>
+                            />
                           </div>
                         ))}
                       </div>
+                      <p className="text-[11px] mt-2" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>
+                        Use formats like “8:30 AM – 6:45 PM”, “By appointment”, or leave blank for closed.
+                      </p>
                     </div>
                       <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
                       {settingsSaved ? '✓ Saved!' : settingsSaving ? 'Saving…' : 'Save Changes'}

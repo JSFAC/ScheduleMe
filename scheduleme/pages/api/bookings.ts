@@ -235,7 +235,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { booking_id, status } = req.body;
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
-    const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled'];
+    const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid'];
     if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
     const supabase = getSupabase();
@@ -243,13 +243,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded)')
+      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded)')
       .eq('id', booking_id)
       .maybeSingle();
 
     if (bookingErr) return res.status(500).json({ error: bookingErr.message || 'Failed to load booking' });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    const isBusinessOwner = (booking.businesses as any)?.owner_email === user.email;
+    let biz = booking.businesses as any;
+    if (!biz && booking.business_id) {
+      const { data: fallbackBiz } = await supabase
+        .from('businesses')
+        .select('id, owner_email, name, stripe_account_id, stripe_onboarded')
+        .eq('id', booking.business_id)
+        .maybeSingle();
+      biz = fallbackBiz || null;
+    }
+    const isBusinessOwner = biz?.owner_email === user.email;
     let canCancelAsConsumer = false;
     if (!isBusinessOwner && status === 'cancelled') {
       let canCancel = booking.user_id === user.id;
@@ -281,7 +290,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Charge on completion using saved card (SetupIntent flow)
     if (status === 'completed' && booking.amount_cents && booking.amount_cents > 0) {
-      const biz = booking.businesses as any;
       if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
         return res.status(400).json({ error: 'Business has not connected their bank account yet' });
       }
