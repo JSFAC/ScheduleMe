@@ -54,6 +54,9 @@ const MessagesPage: NextPage = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadDrag, setUploadDrag] = useState(false);
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -243,7 +246,24 @@ const MessagesPage: NextPage = () => {
     }, 2000);
   }
 
+  function attachImage(file: File) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPendingImage(file);
+    setPendingImagePreview(url);
+  }
+
+  function clearPendingImage() {
+    if (pendingImagePreview) URL.revokeObjectURL(pendingImagePreview);
+    setPendingImage(null);
+    setPendingImagePreview(null);
+  }
+
   async function sendMessage() {
+    if (pendingImage) {
+      await sendImage(pendingImage);
+      return;
+    }
     if (!input.trim() || !activeThread || !userId || sending) return;
     setSending(true);
     const content = input.trim();
@@ -311,6 +331,12 @@ const MessagesPage: NextPage = () => {
     }
 
     try {
+      const content = input.trim();
+      const tempId = `temp-${Date.now()}`;
+      const tempMsg = { id: tempId, booking_id: bookingId, sender_type: 'user', content, image_url: pendingImagePreview || undefined, created_at: new Date().toISOString() };
+      setMessages(m => [...m, tempMsg]);
+      setThreads(ts => ts.map(t => t.id === activeThread.id ? { ...t, lastMessage: tempMsg } : t));
+
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -329,12 +355,13 @@ const MessagesPage: NextPage = () => {
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { ...authH, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_id: bookingId, sender_type: 'user', content: input.trim(), image_url: upData.url }),
+        body: JSON.stringify({ booking_id: bookingId, sender_type: 'user', content, image_url: upData.url }),
       });
       const data = await res.json();
-      if (!res.ok) { setSendError(data.error || 'Message failed'); return; }
+      if (!res.ok) { setSendError(data.error || 'Message failed'); setMessages(m => m.filter(msg => msg.id !== tempId)); return; }
       setInput('');
-      setMessages(m => [...m, data.message]);
+      clearPendingImage();
+      setMessages(m => m.map(msg => msg.id === tempId ? data.message : msg));
       setThreads(ts => ts.map(t => t.id === activeThread.id ? { ...t, lastMessage: data.message } : t));
     } finally {
       setUploadingImage(false);
@@ -489,23 +516,39 @@ const MessagesPage: NextPage = () => {
 
                     {messages.map((msg, i) => {
                       const isUser = msg.sender_type === 'user';
+                      const hasImage = Boolean(msg.image_url);
+                      const hasText = Boolean(msg.content);
                       const showTime = i === 0 || new Date(msg.created_at).getTime() - new Date(messages[i-1].created_at).getTime() > 300000;
                       return (
                         <div key={msg.id}>
                           {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{fmtTime(msg.created_at)}</p>}
                           <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                              isUser
-                                ? 'bg-accent text-white rounded-br-md'
-                                : dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'
-                            }`}>
-                              {msg.image_url && (
-                                <div className="mb-2">
-                                  <img src={msg.image_url} alt="Attachment" className="rounded-xl max-h-56 object-cover border" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb' }} />
-                                </div>
-                              )}
-                              {msg.content}
-                            </div>
+                            {hasImage && !hasText ? (
+                              <button
+                                onClick={() => setLightboxUrl(msg.image_url as string)}
+                                className="max-w-[75%] rounded-2xl overflow-hidden focus:outline-none"
+                                title="View image"
+                              >
+                                <img src={msg.image_url as string} alt="Attachment" className="rounded-2xl max-h-64 object-cover" />
+                              </button>
+                            ) : (
+                              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                                isUser
+                                  ? 'bg-accent text-white rounded-br-md'
+                                  : dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'
+                              }`}>
+                                {hasImage && (
+                                  <button
+                                    onClick={() => setLightboxUrl(msg.image_url as string)}
+                                    className="mb-2 block rounded-xl overflow-hidden"
+                                    title="View image"
+                                  >
+                                    <img src={msg.image_url as string} alt="Attachment" className="rounded-xl max-h-56 object-cover" />
+                                  </button>
+                                )}
+                                {msg.content}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -515,6 +558,24 @@ const MessagesPage: NextPage = () => {
 
                   {/* Input */}
                   <div className="px-4 py-3 border-t" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
+                    {pendingImagePreview && (
+                      <div className="mb-3 rounded-xl border p-2 flex items-center gap-3"
+                        style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f8fafc' }}>
+                        <img src={pendingImagePreview} alt="Attachment preview" className="h-14 w-14 rounded-lg object-cover" />
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold" style={{ color: dm ? '#e5e7eb' : '#111' }}>Image ready to send</p>
+                          <p className="text-[11px]" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Send now or remove.</p>
+                        </div>
+                        <button
+                          onClick={clearPendingImage}
+                          className="h-8 w-8 rounded-full flex items-center justify-center"
+                          style={{ background: dm ? '#1f2937' : '#eef2f7', color: dm ? '#d1d5db' : '#64748b' }}
+                          title="Remove image"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
                     <div className="flex items-end gap-2">
                       <button
                         type="button"
@@ -534,12 +595,16 @@ const MessagesPage: NextPage = () => {
                         className="flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
                         style={{ maxHeight: 120, background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
                       />
-                      <button onClick={sendMessage} disabled={!input.trim() || sending}
+                      <button onClick={sendMessage} disabled={(!input.trim() && !pendingImagePreview) || sending || uploadingImage}
                         className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
-                        style={{ background: input.trim() ? '#007e6d' : '#e5e7eb' }}>
-                        <svg className={`h-4 w-4 ${input.trim() ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                        </svg>
+                        style={{ background: (input.trim() || pendingImagePreview) ? '#007e6d' : '#e5e7eb' }}>
+                        {uploadingImage ? (
+                          <div className="h-4 w-4 rounded-full border-2 border-white/70 border-t-transparent animate-spin" />
+                        ) : (
+                          <svg className={`h-4 w-4 ${input.trim() || pendingImagePreview ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                     <p className="text-[10px] text-neutral-400 mt-1.5 px-1">↵ to send · Shift+↵ for new line</p>
@@ -560,7 +625,7 @@ const MessagesPage: NextPage = () => {
                           e.preventDefault();
                           setUploadDrag(false);
                           const f = e.dataTransfer.files?.[0];
-                          if (f) sendImage(f);
+                          if (f) attachImage(f);
                           setUploadOpen(false);
                         }}
                       >
@@ -592,12 +657,22 @@ const MessagesPage: NextPage = () => {
                           className="hidden"
                           onChange={(e) => {
                             const f = e.target.files?.[0];
-                            if (f) sendImage(f);
+                            if (f) attachImage(f);
                             setUploadOpen(false);
                             if (e.target) e.target.value = '';
                           }}
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {lightboxUrl && (
+                    <div
+                      className="fixed inset-0 z-[1300] flex items-center justify-center px-4"
+                      style={{ background: 'rgba(0,0,0,0.8)' }}
+                      onClick={() => setLightboxUrl(null)}
+                    >
+                      <img src={lightboxUrl} alt="Full size" className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl" />
                     </div>
                   )}
                 </div>

@@ -742,6 +742,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
                     setDisputeOpen(false);
                     setDisputePrice('');
                     setDisputeNote('');
+                    setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'price_disputed' } : b));
                   }
                 } finally {
                   setDisputeSending(false);

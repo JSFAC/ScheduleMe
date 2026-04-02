@@ -699,6 +699,7 @@ const BusinessDashboard: NextPage = () => {
   const [calendarDay, setCalendarDay] = useState<number | null>(null);
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel'; priceCents?: number } | null>(null);
+  const [confirmSubmitting, setConfirmSubmitting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const didAutoTabRef = useRef(false);
 
@@ -730,6 +731,9 @@ const BusinessDashboard: NextPage = () => {
   const [msgInput, setMsgInput] = useState('');
   const [msgSending, setMsgSending] = useState(false);
   const [uploadingMsgImage, setUploadingMsgImage] = useState(false);
+  const [pendingMsgImage, setPendingMsgImage] = useState<File | null>(null);
+  const [pendingMsgPreview, setPendingMsgPreview] = useState<string | null>(null);
+  const [msgLightboxUrl, setMsgLightboxUrl] = useState<string | null>(null);
   const [blockedCustomers, setBlockedCustomers] = useState<Record<string, boolean>>({});
   const [blockConfirm, setBlockConfirm] = useState<{ userId: string; name: string; bookingIds: string[] } | null>(null);
   const msgBottomRef = useRef<HTMLDivElement>(null);
@@ -933,7 +937,24 @@ const BusinessDashboard: NextPage = () => {
   }
 
 
+  function attachBizImage(file: File) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPendingMsgImage(file);
+    setPendingMsgPreview(url);
+  }
+
+  function clearPendingBizImage() {
+    if (pendingMsgPreview) URL.revokeObjectURL(pendingMsgPreview);
+    setPendingMsgImage(null);
+    setPendingMsgPreview(null);
+  }
+
   async function sendBizMessage(raw: string) {
+    if (pendingMsgImage) {
+      await sendBizImage(pendingMsgImage);
+      return;
+    }
     if (!activeMsgThread || !raw.trim() || msgSending) return;
     const bookingId = activeMsgThread.booking_id || activeMsgThread.booking_ids?.[0];
     if (!bookingId) return;
@@ -982,6 +1003,12 @@ const BusinessDashboard: NextPage = () => {
     }
     setUploadingMsgImage(true);
     try {
+      const content = msgInput.trim();
+      const tempId = `temp-${Date.now()}`;
+      const tempMsg = { id: tempId, booking_id: bookingId, sender_type: 'business', content, image_url: pendingMsgPreview || undefined, message_type: 'image', created_at: new Date().toISOString() };
+      setThreadMessages((m: any[]) => [...m, tempMsg]);
+      setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: tempMsg } : t));
+
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
@@ -1001,20 +1028,19 @@ const BusinessDashboard: NextPage = () => {
       const uploadData = await uploadRes.json();
       if (!uploadRes.ok) {
         showToast(uploadData?.error || 'Image upload failed', false);
+        setThreadMessages((m: any[]) => m.filter((msg: any) => msg.id !== tempId));
         return;
       }
       const imageUrl = uploadData.url;
-      const tempId = `temp-${Date.now()}`;
-      const tempMsg = { id: tempId, booking_id: bookingId, sender_type: 'business', content: '', image_url: imageUrl, message_type: 'image', created_at: new Date().toISOString() };
-      setThreadMessages((m: any[]) => [...m, tempMsg]);
-      setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: tempMsg } : t));
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, image_url: imageUrl }),
+        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, content, image_url: imageUrl }),
       });
       if (res.ok) {
         const data = await res.json();
+        setMsgInput('');
+        clearPendingBizImage();
         setThreadMessages((m: any[]) => m.map((msg: any) => msg.id === tempId ? data.message : msg));
         setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
       } else {
@@ -1999,30 +2025,75 @@ const BusinessDashboard: NextPage = () => {
                       )}
                       {threadMessages.map((msg: any, i: number) => {
                         const isBiz = msg.sender_type === 'business';
+                        const hasImage = Boolean(msg.image_url);
+                        const hasText = Boolean(msg.content);
                         const showTime = i === 0 || new Date(msg.created_at).getTime() - new Date(threadMessages[i-1].created_at).getTime() > 300000;
                         return (
                           <div key={msg.id}>
                             {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
                             <div className={`flex ${isBiz ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isBiz ? 'bg-accent text-white rounded-br-md' : (dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md')}`}>
-                                {msg.image_url && (
-                                  <img
-                                    src={msg.image_url}
-                                    alt="Message attachment"
-                                    className="mb-2 rounded-lg border border-white/10 max-w-full"
-                                  />
-                                )}
-                                {msg.content}
-                              </div>
+                              {hasImage && !hasText ? (
+                                <button
+                                  onClick={() => setMsgLightboxUrl(msg.image_url as string)}
+                                  className="max-w-[75%] rounded-2xl overflow-hidden focus:outline-none"
+                                  title="View image"
+                                >
+                                  <img src={msg.image_url as string} alt="Message attachment" className="rounded-2xl max-h-64 object-cover" />
+                                </button>
+                              ) : (
+                                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isBiz ? 'bg-accent text-white rounded-br-md' : (dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md')}`}>
+                                  {hasImage && (
+                                    <button
+                                      onClick={() => setMsgLightboxUrl(msg.image_url as string)}
+                                      className="mb-2 block rounded-lg overflow-hidden"
+                                      title="View image"
+                                    >
+                                      <img
+                                        src={msg.image_url as string}
+                                        alt="Message attachment"
+                                        className="rounded-lg max-h-64 object-cover"
+                                      />
+                                    </button>
+                                  )}
+                                  {msg.content}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
                       })}
                       <div ref={msgBottomRef} />
                     </div>
+                    {msgLightboxUrl && (
+                      <div
+                        className="fixed inset-0 z-[1200] flex items-center justify-center px-4"
+                        style={{ background: 'rgba(0,0,0,0.8)' }}
+                        onClick={() => setMsgLightboxUrl(null)}
+                      >
+                        <img src={msgLightboxUrl} alt="Full size" className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl" />
+                      </div>
+                    )}
 
                     {/* Input */}
                     <div className="px-4 py-3 border-t" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
+                      {pendingMsgPreview && (
+                        <div className="mb-3 rounded-xl border p-2 flex items-center gap-3"
+                          style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f8fafc' }}>
+                          <img src={pendingMsgPreview} alt="Attachment preview" className="h-14 w-14 rounded-lg object-cover" />
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold" style={{ color: dm ? '#e5e7eb' : '#111' }}>Image ready to send</p>
+                            <p className="text-[11px]" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Send now or remove.</p>
+                          </div>
+                          <button
+                            onClick={clearPendingBizImage}
+                            className="h-8 w-8 rounded-full flex items-center justify-center"
+                            style={{ background: dm ? '#1f2937' : '#eef2f7', color: dm ? '#d1d5db' : '#64748b' }}
+                            title="Remove image"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
                       <div className="flex items-end gap-2">
                         <input
                           ref={msgFileInputRef}
@@ -2031,7 +2102,7 @@ const BusinessDashboard: NextPage = () => {
                           className="hidden"
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
-                            if (file) await sendBizImage(file);
+                            if (file) attachBizImage(file);
                           }}
                         />
                         <button
@@ -2059,15 +2130,19 @@ const BusinessDashboard: NextPage = () => {
                           style={{ maxHeight: 100, background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
                         />
                         <button
-                          disabled={isCustomerBlocked || !msgInput.trim()}
+                          disabled={isCustomerBlocked || (!msgInput.trim() && !pendingMsgPreview) || uploadingMsgImage || msgSending}
                           onClick={async () => {
                             await sendBizMessage(msgInput);
                           }}
                           className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
-                          style={{ background: msgInput.trim() ? '#007e6d' : '#e5e7eb' }}>
-                          <svg className={`h-4 w-4 ${msgInput.trim() ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                          </svg>
+                          style={{ background: (msgInput.trim() || pendingMsgPreview) ? '#007e6d' : '#e5e7eb' }}>
+                          {uploadingMsgImage ? (
+                            <div className="h-4 w-4 rounded-full border-2 border-white/70 border-t-transparent animate-spin" />
+                          ) : (
+                            <svg className={`h-4 w-4 ${msgInput.trim() || pendingMsgPreview ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                            </svg>
+                          )}
                         </button>
                       </div>
                       <p className="text-[10px] text-neutral-400 mt-1.5 px-1">↵ to send · Shift+↵ for new line</p>
@@ -2615,24 +2690,27 @@ const BusinessDashboard: NextPage = () => {
               <div className="flex gap-2">
                 <button onClick={() => setConfirmAction(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Back</button>
                 <button
-                  disabled={needsPrice}
+                  disabled={needsPrice || confirmSubmitting}
                   onClick={async () => {
+                    if (confirmSubmitting) return;
+                    setConfirmSubmitting(true);
                     const action = confirmAction.action;
                     const booking = confirmAction.booking;
                     if (action === 'confirm') {
                       if (isCustom) {
                         const ok = await handleSetPrice(booking.id, priceCents);
-                        if (!ok) return;
+                        if (!ok) { setConfirmSubmitting(false); return; }
                       }
                       await handleUpdateBooking(booking.id, 'confirmed');
                     } else {
                       await handleUpdateBooking(booking.id, 'cancelled');
                     }
                     setConfirmAction(null);
+                    setConfirmSubmitting(false);
                   }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-40"
                   style={{ background: confirmAction.action === 'confirm' ? '#10b981' : '#ef4444' }}>
-                  {confirmAction.action === 'confirm' ? 'Confirm' : 'Cancel Booking'}
+                  {confirmSubmitting ? 'Working…' : (confirmAction.action === 'confirm' ? 'Confirm' : 'Cancel Booking')}
                 </button>
               </div>
             </div>
