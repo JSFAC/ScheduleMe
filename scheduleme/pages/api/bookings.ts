@@ -288,6 +288,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const updatePayload: any = { status };
 
+    // If cancelling a paid booking, issue a full refund and reverse transfer + app fee
+    if (status === 'cancelled' && booking.stripe_payment_intent_id && booking.paid_at) {
+      try {
+        await stripe.refunds.create({
+          payment_intent: booking.stripe_payment_intent_id,
+          reverse_transfer: true,
+          refund_application_fee: true,
+        });
+      } catch (e: any) {
+        console.error('[booking] refund failed', e);
+        return res.status(500).json({ error: e?.message || 'Refund failed' });
+      }
+    }
+
     // Charge on completion using saved card (SetupIntent flow)
     if (status === 'completed' && booking.amount_cents && booking.amount_cents > 0) {
       if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
@@ -320,6 +334,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         updatePayload.stripe_payment_intent_id = pi.id;
         updatePayload.stripe_customer_id = customerId;
         updatePayload.stripe_payment_method_id = paymentMethodId;
+
+        // Best-effort instant payout to connected account (if enabled)
+        const transferAmount = Math.max(0, booking.amount_cents - platformFeeCents);
+        if (transferAmount > 0) {
+          try {
+            await stripe.payouts.create(
+              { amount: transferAmount, currency: 'usd', method: 'instant' },
+              { stripeAccount: biz.stripe_account_id }
+            );
+          } catch (e: any) {
+            console.warn('[booking] instant payout failed, falling back to standard schedule', e?.message || e);
+          }
+        }
       } catch (e: any) {
         console.error('[booking] payment intent create failed', e);
         return res.status(500).json({ error: e?.message || 'Payment failed' });
