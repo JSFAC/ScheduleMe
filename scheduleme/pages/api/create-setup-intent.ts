@@ -56,7 +56,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('id', user.id)
     .maybeSingle();
 
-  if (profile?.stripe_payment_method_id) return res.status(200).json({ already_saved: true });
+  if (profile?.stripe_payment_method_id) {
+    await supabase
+      .from('bookings')
+      .update({
+        stripe_payment_method_id: profile.stripe_payment_method_id,
+        stripe_customer_id: profile.stripe_customer_id || null,
+      })
+      .eq('id', booking_id);
+    return res.status(200).json({ already_saved: true });
+  }
 
   const biz = booking.businesses as any;
   if (!biz?.stripe_onboarded || !biz?.stripe_account_id)

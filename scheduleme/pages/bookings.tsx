@@ -449,60 +449,70 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               {booking.amount_cents && !booking.paid_at && (
-                <div className="rounded-2xl p-4 mb-4" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}>
-                  <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Payment method required</p>
-                  <p className="text-xs" style={{ color: panelText }}>Save a card to confirm your booking. You will only be charged after the service is completed.</p>
-                  {paymentLoading ? (
-                    <div className="mt-3 text-xs" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Loading payment methods…</div>
-                  ) : paymentMethods.length > 0 && !showAddCard ? (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-xs font-semibold" style={{ color: panelTitle }}>Saved payment method</p>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={paymentDefaultId || paymentMethods[0]?.id}
-                          onChange={(e) => setDefaultPaymentMethod(e.target.value)}
-                          className="flex-1 rounded-lg border px-3 py-2 text-xs bg-transparent"
-                          style={{ borderColor: inputBorder, color: inputText, background: inputBg }}
-                        >
-                          {paymentMethods.map((m) => (
-                            <option key={m.id} value={m.id}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => setShowAddCard(true)}
-                          className="px-3 py-2 rounded-lg text-xs font-semibold"
-                          style={{ background: accentDark, color: 'white' }}
-                        >
-                          Add new
-                        </button>
+                booking.stripe_payment_method_id ? (
+                  <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#0f1f1c' : '#ecfdf3', border: `1px solid ${panelBorder}` }}>
+                    <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Payment received</p>
+                    <p className="text-xs" style={{ color: panelText }}>Your payment method is saved. You will be charged after the service is completed.</p>
+                    <a href={`/pay/${booking.id}`} className="mt-3 inline-flex items-center text-xs font-semibold" style={{ color: accent }}>
+                      Change payment method →
+                    </a>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-4 mb-4" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}>
+                    <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Payment method required</p>
+                    <p className="text-xs" style={{ color: panelText }}>Save a card to confirm your booking. You will only be charged after the service is completed.</p>
+                    {paymentLoading ? (
+                      <div className="mt-3 text-xs" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Loading payment methods…</div>
+                    ) : paymentMethods.length > 0 && !showAddCard ? (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-semibold" style={{ color: panelTitle }}>Saved payment method</p>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={paymentDefaultId || paymentMethods[0]?.id}
+                            onChange={(e) => setDefaultPaymentMethod(e.target.value)}
+                            className="flex-1 rounded-lg border px-3 py-2 text-xs bg-transparent"
+                            style={{ borderColor: inputBorder, color: inputText, background: inputBg }}
+                          >
+                            {paymentMethods.map((m) => (
+                              <option key={m.id} value={m.id}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => setShowAddCard(true)}
+                            className="px-3 py-2 rounded-lg text-xs font-semibold"
+                            style={{ background: accentDark, color: 'white' }}
+                          >
+                            Add new
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3">
-                      {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
-                        <Elements stripe={stripePromise} options={{ appearance: { theme: dm ? 'night' : 'stripe', variables: { colorPrimary: accent, colorText: dm ? '#e5f9f4' : '#0f3d35', colorBackground: dm ? '#0b1513' : '#ffffff', colorTextSecondary: dm ? '#8dd9c9' : '#0f766e' } } }}>
-                          <SaveCardForm
-                            booking={booking}
-                            dm={dm}
-                            onSaved={(pmId) => {
-                              setShowAddCard(false);
-                              fetchPaymentMethods();
-                              if (pmId) setDefaultPaymentMethod(pmId);
-                              setPaymentToast('setup_success');
-                            }}
-                            onError={(msg) => {
-                              setPaymentToast('setup_cancelled');
-                              setErr(msg);
-                            }}
-                          />
-                        </Elements>
-                      ) : (
-                        <div className="text-xs" style={{ color: panelText }}>Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
-                      )}
-                      {err && <div className="mt-2 text-xs" style={{ color: dm ? '#fca5a5' : '#b91c1c' }}>{err}</div>}
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className="mt-3">
+                        {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+                          <Elements stripe={stripePromise} options={{ appearance: { theme: dm ? 'night' : 'stripe', variables: { colorPrimary: accent, colorText: dm ? '#e5f9f4' : '#0f3d35', colorBackground: dm ? '#0b1513' : '#ffffff', colorTextSecondary: dm ? '#8dd9c9' : '#0f766e' } } }}>
+                            <SaveCardForm
+                              booking={booking}
+                              dm={dm}
+                              onSaved={(pmId) => {
+                                setShowAddCard(false);
+                                fetchPaymentMethods();
+                                if (pmId) setDefaultPaymentMethod(pmId);
+                                setPaymentToast('setup_success');
+                              }}
+                              onError={(msg) => {
+                                setPaymentToast('setup_cancelled');
+                                setErr(msg);
+                              }}
+                            />
+                          </Elements>
+                        ) : (
+                          <div className="text-xs" style={{ color: panelText }}>Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
+                        )}
+                        {err && <div className="mt-2 text-xs" style={{ color: dm ? '#fca5a5' : '#b91c1c' }}>{err}</div>}
+                      </div>
+                    )}
+                  </div>
+                )
               )}
               <a href={`/messages?booking=${booking.id}`}
                 className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm"

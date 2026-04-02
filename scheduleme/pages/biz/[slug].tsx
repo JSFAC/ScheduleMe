@@ -270,7 +270,7 @@ export default function BizPage() {
     }
 
     setSubmitting(false);
-    router.push(`/bookings?setup=required&booking=${bookingId}`);
+    router.push(`/pay/${bookingId}`);
     return;
   }
 

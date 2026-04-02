@@ -940,6 +940,9 @@ const BusinessDashboard: NextPage = () => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to update booking');
       setBookings(b => b.map(bk => bk.id === id ? { ...bk, status } : bk));
+      showToast(status === 'cancelled' ? 'Booking cancelled' : 'Booking updated', true);
+      // Refresh from server to ensure filters + counts update
+      try { await loadData(); } catch {}
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to update booking. Please try again.', false);
     }
