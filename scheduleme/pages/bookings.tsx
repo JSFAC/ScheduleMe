@@ -239,6 +239,11 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
   const [err, setErr] = useState<string>('');
   const [closing, setClosing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputePrice, setDisputePrice] = useState('');
+  const [disputeNote, setDisputeNote] = useState('');
+  const [disputeSending, setDisputeSending] = useState(false);
+  const [disputeSent, setDisputeSent] = useState(false);
 
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
@@ -300,6 +305,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
   const inputBg = dm ? '#0b1513' : '#ffffff';
   const inputBorder = dm ? '#1e554c' : '#c7f0e3';
   const inputText = dm ? '#e5f9f4' : '#0f3d35';
+  const isCustom = String(booking.service || '').toLowerCase().includes('custom');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -515,11 +521,24 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
                 )
               )}
               <Link href={`/messages?booking=${booking.id}`} scroll={false}
-                onClick={() => setSelectedBooking(null)}
+                onClick={() => close()}
                 className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm"
                 style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' }}>
                 Message provider
               </Link>
+            </div>
+          )}
+
+          {isCustom && booking.amount_cents && !booking.paid_at && (
+            <div className="mt-6 pt-5 border-t border-neutral-100">
+              <button
+                onClick={() => setDisputeOpen(true)}
+                className="w-full py-3 rounded-xl border-2 border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-50 hover:border-amber-300 transition-colors">
+                Dispute price / propose a new amount
+              </button>
+              {disputeSent && (
+                <p className="text-[11px] text-emerald-600 mt-2">Proposal sent to the business. They can adjust the price or reply.</p>
+              )}
             </div>
           )}
 
@@ -554,6 +573,66 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
           )}
         </div>
       </div>
+
+      {disputeOpen && (
+        <div className="fixed inset-0 z-[2100] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+          <div className="w-full max-w-md mx-4 rounded-2xl p-5" style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Propose a new price</p>
+              <button onClick={() => setDisputeOpen(false)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#1f2937' : '#f3f4f6' }}>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">Your proposed price</label>
+            <input
+              value={disputePrice}
+              onChange={(e) => setDisputePrice(e.target.value)}
+              placeholder="e.g. 25"
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
+            />
+            <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mt-3 mb-1">Notes (optional)</label>
+            <textarea
+              value={disputeNote}
+              onChange={(e) => setDisputeNote(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
+            />
+            <button
+              onClick={async () => {
+                const amt = parseFloat(disputePrice || '0');
+                if (!(amt > 0)) { setErr('Enter a valid price'); return; }
+                setDisputeSending(true);
+                try {
+                  const headers = await getAuthHeaders();
+                  const content = `Price dispute: customer proposes $${amt.toFixed(2)}${disputeNote ? `\nNotes: ${disputeNote}` : ''}`;
+                  const res = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ booking_id: booking.id, sender_type: 'user', content }),
+                  });
+                  if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    setErr(d.error || 'Failed to send proposal');
+                  } else {
+                    setDisputeSent(true);
+                    setDisputeOpen(false);
+                    setDisputePrice('');
+                    setDisputeNote('');
+                  }
+                } finally {
+                  setDisputeSending(false);
+                }
+              }}
+              disabled={disputeSending}
+              className="w-full mt-4 py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 disabled:opacity-60">
+              {disputeSending ? 'Sending…' : 'Send proposal'}
+            </button>
+            {err && <p className="text-[11px] text-red-500 mt-2">{err}</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
