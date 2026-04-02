@@ -28,6 +28,8 @@ const AdminPage: NextPage = () => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
   const [stripeHealth, setStripeHealth] = useState<any>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [refundBookingId, setRefundBookingId] = useState('');
+  const [refunding, setRefunding] = useState(false);
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
@@ -79,6 +81,26 @@ const AdminPage: NextPage = () => {
       showToast(err instanceof Error ? err.message : 'Failed to approve', false);
     } finally {
       setApprovingId(null);
+    }
+  }
+
+  async function refundBooking() {
+    if (!refundBookingId.trim()) return;
+    setRefunding(true);
+    try {
+      const res = await fetch('/api/admin-refund-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        body: JSON.stringify({ bookingId: refundBookingId.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Refund failed');
+      showToast(data.message || 'Refund issued', true);
+      setRefundBookingId('');
+    } catch (err: any) {
+      showToast(err?.message || 'Refund failed', false);
+    } finally {
+      setRefunding(false);
     }
   }
 
@@ -193,6 +215,29 @@ const AdminPage: NextPage = () => {
             ) : (
               <div className="text-xs text-neutral-500">Stripe status not loaded yet.</div>
             )}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-bold text-white">Refund Booking</p>
+                <p className="text-xs text-neutral-500 mt-1">Issue a full refund (reverses transfer + fee)</p>
+              </div>
+            </div>
+            <div className="flex gap-3 flex-col sm:flex-row">
+              <input
+                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-neutral-600"
+                placeholder="Booking ID"
+                value={refundBookingId}
+                onChange={e => setRefundBookingId(e.target.value)}
+              />
+              <button
+                onClick={refundBooking}
+                disabled={refunding}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                {refunding ? 'Refunding…' : 'Issue refund'}
+              </button>
+            </div>
+            <p className="text-[11px] text-neutral-500 mt-2">Only works for paid bookings with a Stripe payment intent.</p>
           </div>
           <div className="flex gap-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1 mb-6 w-fit">
             {(['pending', 'approved', 'all'] as const).map(f => (

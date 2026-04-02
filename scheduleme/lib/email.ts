@@ -622,6 +622,19 @@ export async function sendReviewRequestEmail(opts: { to: string; name: string; s
   return resend.emails.send({ from: FROM, to: opts.to, subject: `How was your ${opts.service}? Leave a review`, html: reviewRequestHtml(opts) });
 }
 
+export async function sendStripeAlertEmail(opts: { to: string; subject: string; body: string }) {
+  const resend = getResend();
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:#0f172a;color:white;border-radius:16px;">
+      <h1 style="margin:0 0 12px;font-size:20px;font-weight:700;">Stripe Alert</h1>
+      <p style="margin:0 0 12px;font-size:14px;color:#cbd5f5;">${opts.subject}</p>
+      <pre style="background:#111827;color:#e2e8f0;padding:14px;border-radius:12px;white-space:pre-wrap;font-size:12px;line-height:1.5;">${opts.body}</pre>
+      <p style="margin:12px 0 0;font-size:12px;color:#94a3b8;">Sent by ScheduleMe automated monitoring.</p>
+    </div>
+  `;
+  return resend.emails.send({ from: FROM, to: opts.to, subject: opts.subject, html });
+}
+
 export async function sendNewBookingBusinessEmail(opts: {
   to: string; businessName: string; customerName: string; customerPhone: string; service: string; bookingId: string;
 }) {

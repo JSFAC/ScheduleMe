@@ -16,6 +16,20 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+async function alertAdmin(subject: string, body: string) {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+    const secret = process.env.NOTIFY_SECRET || '';
+    if (!secret) return;
+    const admin = process.env.ADMIN_ALERT_EMAIL || 'usescheduleme@gmail.com';
+    await fetch(`${siteUrl}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+      body: JSON.stringify({ type: 'stripe_alert', to: admin, subject, body }),
+    });
+  } catch {}
+}
+
 async function getRawBody(req: NextApiRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -214,6 +228,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .eq('id', bookingId);
 
           console.log(`[webhook] Booking ${bookingId} payment failed`);
+          await alertAdmin('Stripe payment failed', `bookingId: ${bookingId}\npi: ${pi.id}\nreason: ${pi.last_payment_error?.message || 'unknown'}`);
         }
         break;
       }
@@ -225,7 +240,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (bookingId) {
           await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
           console.log(`[webhook] Booking ${bookingId} payment canceled`);
+          await alertAdmin('Stripe payment canceled', `bookingId: ${bookingId}\npi: ${pi.id}`);
         }
+        break;
+      }
+
+      case 'payout.failed': {
+        const payout = event.data.object as Stripe.Payout;
+        await alertAdmin('Stripe payout failed', `payoutId: ${payout.id}\namount: ${payout.amount}\nstatus: ${payout.status}\nreason: ${payout.failure_message || 'unknown'}`);
+        break;
+      }
+
+      case 'transfer.failed': {
+        const transfer = event.data.object as Stripe.Transfer;
+        await alertAdmin('Stripe transfer failed', `transferId: ${transfer.id}\namount: ${transfer.amount}\nstatus: ${transfer.status}`);
         break;
       }
 
@@ -256,6 +284,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ received: true });
   } catch (err) {
     console.error('[webhook] Handler error:', err);
+    await alertAdmin('Stripe webhook handler error', String((err as any)?.message || err));
     return res.status(500).json({ error: 'Webhook handler failed' });
   }
 }

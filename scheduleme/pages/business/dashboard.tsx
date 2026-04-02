@@ -1373,6 +1373,11 @@ const BusinessDashboard: NextPage = () => {
                           <span>Pending: {fmt(payoutBalance.pending)}</span>
                         </div>
                       )}
+                      {business?.stripe_onboarded && payoutBalance && payoutBalance.pending > 0 && (
+                        <p className="text-[11px] mt-1" style={{ color: dm ? '#fbbf24' : '#b45309' }}>
+                          Funds are pending with Stripe and will be available before payout. Instant payouts only work after funds are available.
+                        </p>
+                      )}
                     </div>
                   </div>
                   {business?.stripe_onboarded ? (

@@ -6,6 +6,7 @@ import {
   sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail,
   sendNewBookingBusinessEmail, sendReviewRequestEmail,
   sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail,
+  sendStripeAlertEmail,
   sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
 } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
@@ -49,9 +50,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case 'business_application_received':
         result = await sendBusinessApplicationReceivedEmail({ to, ownerName: rest.ownerName || 'there', businessName: rest.name || 'your business', category: rest.category || 'Service', city: rest.city || '' });
         break;
-      case 'review_request':
-        result = await sendReviewRequestEmail({ to, name: name || 'there', service: rest.service || 'your service', bookingId: rest.bookingId || '' });
-        break;
+    case 'review_request':
+      result = await sendReviewRequestEmail({ to, name: name || 'there', service: rest.service || 'your service', bookingId: rest.bookingId || '' });
+      break;
+    case 'stripe_alert':
+      result = await sendStripeAlertEmail({ to, subject: rest.subject || 'Stripe alert', body: rest.body || '' });
+      break;
       case 'payment_receipt_customer':
         result = await sendPaymentReceiptCustomer({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', scheduledAt: rest.scheduledAt, bookingId: rest.bookingId || '' });
         break;
