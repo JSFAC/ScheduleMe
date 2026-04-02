@@ -514,11 +514,12 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
                   </div>
                 )
               )}
-              <a href={`/messages?booking=${booking.id}`}
+              <Link href={`/messages?booking=${booking.id}`} scroll={false}
+                onClick={() => setSelectedBooking(null)}
                 className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm"
                 style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' }}>
                 Message provider
-              </a>
+              </Link>
             </div>
           )}
 

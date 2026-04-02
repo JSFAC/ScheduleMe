@@ -45,6 +45,7 @@ const MessagesPage: NextPage = () => {
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [threadLoading, setThreadLoading] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -168,7 +169,8 @@ const MessagesPage: NextPage = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('sm_last_thread', thread.id);
     }
-    setMessages([]);
+    if (activeThread?.id !== thread.id) setMessages([]);
+    setThreadLoading(true);
     const authH = await getAuthHeaders();
     const target = thread.business_id ? `/api/messages?thread_business_id=${thread.business_id}` : `/api/messages?booking_id=${thread.id}`;
     const res = await fetch(target, { headers: authH });
@@ -181,6 +183,7 @@ const MessagesPage: NextPage = () => {
         setActiveThread(threadData);
       }
     }
+    setThreadLoading(false);
     const bookingId = threadData.booking_id || threadData.id;
     const bookingIds = threadData.booking_ids || [bookingId];
     // Mark read
@@ -418,7 +421,13 @@ const MessagesPage: NextPage = () => {
                       </div>
                     </div>
 
-                    {messages.length === 0 && (
+                    {threadLoading && (
+                      <div className="text-center py-6">
+                        <p className="text-sm text-neutral-400">Loading conversation…</p>
+                      </div>
+                    )}
+
+                    {!threadLoading && messages.length === 0 && (
                       <div className="text-center py-6">
                         <p className="text-sm text-neutral-400">No messages yet.</p>
                         <p className="text-xs text-neutral-300 mt-1">Send a message to get in touch with {activeThread.businesses?.name || 'the business'}.</p>

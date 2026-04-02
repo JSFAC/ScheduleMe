@@ -1537,7 +1537,7 @@ const BusinessDashboard: NextPage = () => {
                             <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
                               <span className="text-accent text-[10px] font-black">{(t.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
                             </div>
-                            <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{t.profiles?.name || 'Unknown customer'}</p>
+                            <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{t.profiles?.name || t.profiles?.email || 'Customer'}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {t.unreadCount > 0 && <span className="h-4 w-4 rounded-full bg-accent flex items-center justify-center text-[9px] font-black text-white">{t.unreadCount}</span>}
@@ -1570,7 +1570,7 @@ const BusinessDashboard: NextPage = () => {
                             <span className="text-accent font-black text-sm">{(activeMsgThread.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{activeMsgThread.profiles?.name || 'Unknown'}</p>
+                            <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{activeMsgThread.profiles?.name || activeMsgThread.profiles?.email || 'Customer'}</p>
                             <p className="text-[11px] text-neutral-400 truncate">{activeMsgThread.profiles?.email}</p>
                           </div>
                         </div>
