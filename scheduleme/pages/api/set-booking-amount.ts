@@ -55,7 +55,18 @@ export default async function handler(req, res) {
     })
     .eq('id', booking_id);
 
-  if (uErr) return res.status(500).json({ error: uErr.message });
+  if (uErr) {
+    const msg = uErr.message || '';
+    if (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at')) {
+      const { error: fbErr } = await sb
+        .from('bookings')
+        .update({ amount_cents: cents, status: 'payment_pending' })
+        .eq('id', booking_id);
+      if (fbErr) return res.status(500).json({ error: fbErr.message || 'Failed to update booking' });
+    } else {
+      return res.status(500).json({ error: msg });
+    }
+  }
 
   // Try to send notification email (optional — don't fail if it errors)
   try {

@@ -401,7 +401,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    await supabase.from('bookings').update(updatePayload).eq('id', booking_id);
+    const { error: updErr } = await supabase.from('bookings').update(updatePayload).eq('id', booking_id);
+    if (updErr) {
+      const msg = updErr.message || '';
+      const isDisputeFieldMissing = status === 'price_disputed' && (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at'));
+      if (isDisputeFieldMissing) {
+        const { error: fallbackErr } = await supabase.from('bookings').update({ status }).eq('id', booking_id);
+        if (fallbackErr) return res.status(500).json({ error: fallbackErr.message || 'Failed to update booking' });
+      } else {
+        return res.status(500).json({ error: msg || 'Failed to update booking' });
+      }
+    }
 
     // Notify business of dispute so they can respond immediately
     if (status === 'price_disputed' && biz?.owner_email) {

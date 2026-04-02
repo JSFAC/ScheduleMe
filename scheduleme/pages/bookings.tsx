@@ -360,7 +360,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
           ? 'background 0.22s ease, backdrop-filter 0.22s ease'
           : 'background 0.35s ease, backdrop-filter 0.35s ease',
       }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+      onMouseDown={(e) => { if (disputeOpen) return; if (e.target === e.currentTarget) close(); }}>
 
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-y-auto"
         style={{
@@ -653,7 +653,6 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
                     businessName: booking.business_name || 'Provider',
                     serviceName: booking.service || 'Booking',
                   });
-                  setTimeout(() => setSelectedBooking(null), 0);
                 }}
                 className="w-full py-3 rounded-xl text-sm font-bold text-white"
                 style={{ background: '#007e6d' }}

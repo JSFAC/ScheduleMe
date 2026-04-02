@@ -1,6 +1,6 @@
 // @ts-nocheck
 // pages/biz/[slug].tsx — DoorDash-style business profile
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { createClient } from '@supabase/supabase-js';
@@ -195,6 +195,20 @@ export default function BizPage() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editDesc, setEditDesc] = useState('');
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [editVideo, setEditVideo] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editNotice, setEditNotice] = useState<string | null>(null);
+  const [mediaUploading, setMediaUploading] = useState(false);
+  const [mediaErr, setMediaErr] = useState('');
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [svcDrafts, setSvcDrafts] = useState<Record<string, any>>({});
+  const [newSvc, setNewSvc] = useState({ name: '', price: '', duration: '60', description: '' });
+  const imgInputRef = useRef<HTMLInputElement | null>(null);
+  const vidInputRef = useRef<HTMLInputElement | null>(null);
 
 
   useEffect(() => {
@@ -203,6 +217,9 @@ export default function BizPage() {
       .then(({ data }) => {
         if (!data) { router.replace('/browse'); return; }
         setBiz(data);
+        setEditDesc(data.description || '');
+        setEditImages([data.cover_url, ...(data.media_urls || [])].filter(Boolean));
+        setEditVideo(data.video_url || null);
         (async () => {
           try {
             const { data: { session } } = await getSB().auth.getSession();
@@ -214,6 +231,10 @@ export default function BizPage() {
               .eq('business_id', data.id)
               .maybeSingle();
             setIsFavorited(!!fav);
+            if (session.user?.email && data.owner_email && session.user.email === data.owner_email) {
+              setCanEdit(true);
+              if (router.query?.edit === '1') setEditMode(true);
+            }
           } catch {}
         })();
         fetch('/api/services?business_id=' + data.id).then(r => r.json()).then(d => setServices(d.services || [])).catch(() => {});
@@ -264,7 +285,202 @@ export default function BizPage() {
     }).catch(() => {}).finally(() => setLoadingSlots(false));
   }, [biz?.id]);
 
+  async function getAuthHeaders() {
+    const { data: { session } } = await getSB().auth.getSession();
+    if (!session) return null;
+    return { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
+  }
+
+  async function submitChangeRequest(changes: Record<string, any>, requestType?: string) {
+    if (!biz) return;
+    const headers = await getAuthHeaders();
+    if (!headers) throw new Error('Sign in required');
+    const res = await fetch('/api/business-change-requests', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ business_id: biz.id, changes, request_type: requestType || 'profile' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to submit changes');
+    return data;
+  }
+
+  async function uploadMedia(file: File, type: 'image' | 'video') {
+    if (!biz) return;
+    setMediaErr('');
+    setMediaUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const headers = await getAuthHeaders();
+      if (!headers) { setMediaErr('Sign in required'); return; }
+      const res = await fetch('/api/upload-media', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          business_id: biz.id,
+          media_type: type,
+          file_data: base64,
+          file_type: file.type,
+          file_name: file.name || (type === 'video' ? 'video.mp4' : 'photo.jpg'),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setMediaErr(data.error || 'Upload failed'); return; }
+      if (type === 'video') {
+        setEditVideo(data.url);
+        await submitChangeRequest({ video_url: data.url }, 'media');
+        setEditNotice('Video submitted for review.');
+      } else if (data.url) {
+        const next = [...editImages, data.url];
+        setEditImages(next);
+        await submitChangeRequest({ media_urls: next, cover_url: next[0] || null }, 'media');
+        setEditNotice('Photos submitted for review.');
+      }
+    } catch (e: any) {
+      setMediaErr(e?.message || 'Upload failed');
+    } finally {
+      setMediaUploading(false);
+    }
+  }
+
+  async function persistImages(next: string[]) {
+    if (!biz) return;
+    setEditImages(next);
+    try {
+      await submitChangeRequest({ media_urls: next, cover_url: next[0] || null }, 'media');
+      setEditNotice('Photos submitted for review.');
+    } catch (e: any) {
+      setMediaErr(e?.message || 'Failed to update photos');
+    }
+  }
+
+  function onDragStart(i: number) { setDragIdx(i); }
+  function onDragOver(e: React.DragEvent, i: number) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === i) return;
+    const next = [...editImages];
+    const [m] = next.splice(dragIdx, 1);
+    next.splice(i, 0, m);
+    setEditImages(next);
+    setDragIdx(i);
+  }
+  async function onDragEnd() { setDragIdx(null); await persistImages(editImages); }
+
+  async function removeImage(i: number) {
+    const next = editImages.filter((_, idx) => idx !== i);
+    await persistImages(next);
+  }
+
+  async function removeVideo() {
+    if (!biz) return;
+    setEditVideo(null);
+    try {
+      await submitChangeRequest({ video_url: null }, 'media');
+      setEditNotice('Video removal submitted for review.');
+    } catch (e: any) {
+      setMediaErr(e?.message || 'Failed to update video');
+    }
+  }
+
+  async function saveDescription() {
+    if (!biz) return;
+    setEditSaving(true);
+    try {
+      await submitChangeRequest({ description: editDesc }, 'profile');
+      setEditNotice('Description submitted for review.');
+    } catch (e: any) {
+      setEditNotice(e?.message || 'Failed to submit description');
+    } finally {
+      setEditSaving(false);
+      setTimeout(() => setEditNotice(null), 2500);
+    }
+  }
+
+  function startEditService(s: any) {
+    setSvcDrafts((prev) => ({
+      ...prev,
+      [s.id]: {
+        id: s.id,
+        name: s.name || '',
+        description: s.description || '',
+        price: s.price_cents ? (s.price_cents / 100).toFixed(2) : '',
+        duration: s.duration_min ? String(s.duration_min) : '60',
+      },
+    }));
+  }
+
+  function updateSvcDraft(id: string, field: string, value: string) {
+    setSvcDrafts((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  }
+
+  async function saveService(id: string) {
+    const d = svcDrafts[id];
+    if (!biz || !d) return;
+    const headers = await getAuthHeaders();
+    if (!headers) return;
+    const price = Math.round(parseFloat(d.price || '0') * 100);
+    const res = await fetch('/api/services', {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        id,
+        business_id: biz.id,
+        name: d.name,
+        description: d.description,
+        price_cents: price,
+        duration_min: Number(d.duration || 60),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to update service'); return; }
+    setServices((prev: any[]) => prev.map((s) => (s.id === id ? data.service : s)));
+    setSvcDrafts((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
+  }
+
+  async function deleteService(id: string) {
+    if (!biz) return;
+    const headers = await getAuthHeaders();
+    if (!headers) return;
+    await fetch('/api/services', {
+      method: 'DELETE',
+      headers,
+      body: JSON.stringify({ id, business_id: biz.id }),
+    });
+    setServices((prev: any[]) => prev.filter((s) => s.id !== id));
+    setSvcDrafts((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
+  }
+
+  async function addService() {
+    if (!biz) return;
+    const name = newSvc.name.trim();
+    const priceCents = Math.round(parseFloat(newSvc.price || '0') * 100);
+    if (!name || !priceCents) { setErr('Add a name and price'); return; }
+    const headers = await getAuthHeaders();
+    if (!headers) return;
+    const res = await fetch('/api/services', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        business_id: biz.id,
+        name,
+        description: newSvc.description || '',
+        price_cents: priceCents,
+        duration_min: Number(newSvc.duration || 60),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to add service'); return; }
+    setServices((prev: any[]) => [data.service, ...prev]);
+    setNewSvc({ name: '', price: '', duration: '60', description: '' });
+  }
+
   async function book() {
+    if (editMode) { setErr('Exit edit mode to book'); return; }
     const { data: { session } } = await getSB().auth.getSession();
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
     if (!selectedSvc) { setErr('Select a service to continue.'); return; }
@@ -335,7 +551,8 @@ export default function BizPage() {
 
   const tags = biz.service_tags || [];
   const cat = tags.length > 0 ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g,' ') : 'Service';
-  const imgs = [biz.cover_url, ...(biz.media_urls||[])].filter(Boolean);
+  const baseImgs = [biz.cover_url, ...(biz.media_urls || [])].filter(Boolean);
+  const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
 
   const availableSlots = date ? (() => {
     const dk = date.toISOString().split('T')[0];
@@ -448,6 +665,20 @@ export default function BizPage() {
         </div>
         <div className="mx-auto max-w-2xl px-4">
           <div className="rounded-2xl p-5 shadow-lg -mt-6 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
+            {canEdit && (
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[11px] font-bold uppercase tracking-widest" style={{ color: mu }}>
+                  {editMode ? 'Edit Mode' : 'Owner Tools'}
+                </div>
+                <button
+                  onClick={() => setEditMode((v) => !v)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                  style={{ background: editMode ? (dm ? '#1f2937' : '#e5e7eb') : accentWash, border: '1px solid ' + accentBorder, color: editMode ? (dm ? '#e5e7eb' : '#374151') : accent }}
+                >
+                  {editMode ? 'Exit edit mode' : 'Edit listing'}
+                </button>
+              </div>
+            )}
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
             <div className="flex gap-2 flex-wrap mb-3">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
@@ -459,7 +690,35 @@ export default function BizPage() {
               )}
               {(biz.review_count ?? 0) > 0 && biz.rating && <span className="text-xs font-semibold" style={{color:mu}}>{parseFloat(biz.rating).toFixed(1)} stars</span>}
             </div>
-            {biz.description && <p className="text-sm leading-relaxed mb-4" style={{color:mu}}>{biz.description}</p>}
+            {editMode ? (
+              <div className="mb-4">
+                <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Description</label>
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  maxLength={1000}
+                  rows={3}
+                  className="w-full rounded-xl px-3 py-2 text-sm"
+                  style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[11px]" style={{ color: mu }}>{editDesc.length}/1000</span>
+                  <button
+                    onClick={saveDescription}
+                    disabled={editSaving}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent, opacity: editSaving ? 0.6 : 1 }}
+                  >
+                    {editSaving ? 'Saving…' : 'Save description'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              biz.description && <p className="text-sm leading-relaxed mb-4" style={{color:mu}}>{biz.description}</p>
+            )}
+            {editNotice && (
+              <div className="mb-4 text-[11px] font-semibold" style={{ color: accent }}>{editNotice}</div>
+            )}
             <div className="flex gap-2 flex-wrap">
               <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
               <button onClick={shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Share</button>
@@ -467,28 +726,179 @@ export default function BizPage() {
               {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>}
             </div>
           </div>
+          {editMode && (
+            <div className="rounded-2xl p-4 mb-5" style={{ background: card, border: '1px solid ' + bdr }}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: tx }}>Photos & video</p>
+                  <p className="text-xs" style={{ color: mu }}>Drag to reorder. First image becomes the cover.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => imgInputRef.current?.click()}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
+                    Add photo
+                  </button>
+                  <button onClick={() => vidInputRef.current?.click()}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
+                    Add video
+                  </button>
+                </div>
+              </div>
+              {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
+              {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {editImages.map((url, i) => (
+                  <div key={url}
+                    draggable
+                    onDragStart={() => onDragStart(i)}
+                    onDragOver={(e) => onDragOver(e, i)}
+                    onDragEnd={onDragEnd}
+                    className="relative flex-shrink-0 rounded-xl overflow-hidden"
+                    style={{ width: 76, height: 76, opacity: dragIdx === i ? 0.5 : 1, border: i === 0 ? '2px solid #007e6d' : '1px solid ' + bdr, cursor: 'grab' }}>
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    {i === 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5" style={{ background: 'rgba(0,126,109,0.85)', color: 'white' }}>COVER</div>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                      className="absolute top-1 right-1 h-5 w-5 rounded-full flex items-center justify-center"
+                      style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {editImages.length === 0 && (
+                  <div className="text-xs px-2 py-6" style={{ color: mu }}>No photos yet</div>
+                )}
+              </div>
+              {editVideo && (
+                <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
+                  <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>
+                  <button onClick={removeVideo} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
+                </div>
+              )}
+              <input
+                ref={imgInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadMedia(file, 'image');
+                  if (e.target) e.target.value = '';
+                }}
+              />
+              <input
+                ref={vidInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadMedia(file, 'video');
+                  if (e.target) e.target.value = '';
+                }}
+              />
+            </div>
+          )}
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Services</h2>
           <div className="flex flex-col gap-3 mb-5">
             {services.length === 0 && <div className="rounded-2xl p-5 text-center" style={{background:card,border:'1px solid '+bdr}}><p className="text-sm" style={{color:mu}}>No services listed yet</p></div>}
-            {services.map(s => (
-              <button key={s.id} onClick={()=>{setSelectedSvc(s);}} className="w-full text-left rounded-2xl p-4" style={{background:selectedSvc?.id===s.id?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px solid '+(selectedSvc?.id===s.id?'#007e6d':bdr)}}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold" style={{color:tx}}>{s.name}</p>
-                    {s.description && <p className="text-sm mt-0.5" style={{color:mu}}>{s.description}</p>}
-                    <p className="text-xs mt-1" style={{color:mu}}>{s.duration_min} min</p>
+            {services.map(s => {
+              const draft = svcDrafts[s.id];
+              if (editMode) {
+                return (
+                  <div key={s.id} className="w-full rounded-2xl p-4" style={{ background: card, border: '1.5px solid ' + bdr }}>
+                    {draft ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 gap-2">
+                          <input value={draft.name} onChange={(e) => updateSvcDraft(s.id, 'name', e.target.value)} placeholder="Service name"
+                            className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                          <textarea value={draft.description} onChange={(e) => updateSvcDraft(s.id, 'description', e.target.value)} rows={2} placeholder="Description"
+                            className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input value={draft.price} onChange={(e) => updateSvcDraft(s.id, 'price', e.target.value)} placeholder="Price (e.g. 25)"
+                            className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                          <input value={draft.duration} onChange={(e) => updateSvcDraft(s.id, 'duration', e.target.value)} placeholder="Minutes"
+                            className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <button onClick={() => saveService(s.id)}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                            style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
+                            Save
+                          </button>
+                          <button onClick={() => setSvcDrafts((prev) => { const copy = { ...prev }; delete copy[s.id]; return copy; })}
+                            className="text-xs font-semibold" style={{ color: mu }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold" style={{ color: tx }}>{s.name}</p>
+                          {s.description && <p className="text-sm mt-0.5" style={{ color: mu }}>{s.description}</p>}
+                          <p className="text-xs mt-1" style={{ color: mu }}>{s.duration_min} min</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg" style={{ color: accent }}>{'$' + (s.price_cents / 100).toFixed(2)}</p>
+                          <div className="flex items-center gap-2 mt-2 justify-end">
+                            <button onClick={() => startEditService(s)} className="text-xs font-semibold" style={{ color: accent }}>Edit</button>
+                            <button onClick={() => deleteService(s.id)} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Delete</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="font-bold text-lg" style={{color:accent}}>{'$'+(s.price_cents/100).toFixed(2)}</p>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:accent}}>Book</span>
+                );
+              }
+              return (
+                <button key={s.id} onClick={()=>{setSelectedSvc(s);}} className="w-full text-left rounded-2xl p-4" style={{background:selectedSvc?.id===s.id?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px solid '+(selectedSvc?.id===s.id?'#007e6d':bdr)}}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold" style={{color:tx}}>{s.name}</p>
+                      {s.description && <p className="text-sm mt-0.5" style={{color:mu}}>{s.description}</p>}
+                      <p className="text-xs mt-1" style={{color:mu}}>{s.duration_min} min</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-bold text-lg" style={{color:accent}}>{'$'+(s.price_cents/100).toFixed(2)}</p>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:accent}}>Book</span>
+                    </div>
                   </div>
+                </button>
+              );
+            })}
+            {editMode ? (
+              <div className="w-full rounded-2xl p-4" style={{ background: card, border: '1.5px dashed ' + bdr }}>
+                <p className="text-sm font-bold mb-2" style={{ color: tx }}>Add new service</p>
+                <div className="grid grid-cols-1 gap-2">
+                  <input value={newSvc.name} onChange={(e) => setNewSvc((p) => ({ ...p, name: e.target.value }))} placeholder="Service name"
+                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                  <textarea value={newSvc.description} onChange={(e) => setNewSvc((p) => ({ ...p, description: e.target.value }))} rows={2} placeholder="Description"
+                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                 </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <input value={newSvc.price} onChange={(e) => setNewSvc((p) => ({ ...p, price: e.target.value }))} placeholder="Price (e.g. 25)"
+                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                  <input value={newSvc.duration} onChange={(e) => setNewSvc((p) => ({ ...p, duration: e.target.value }))} placeholder="Minutes"
+                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-[11px]" style={{ color: mu }}>This will appear immediately on your listing.</span>
+                  <button onClick={addService}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
+                    Add service
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={()=>{setSelectedSvc({ id: '__custom__', name: 'Custom Request' });}} className="w-full text-left rounded-2xl p-4" style={{background:isCustom?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px dashed '+(isCustom?'#007e6d':bdr)}}>
+                <p className="font-semibold text-sm" style={{color:tx}}>Custom Request</p>
+                <p className="text-xs mt-0.5" style={{color:mu}}>Describe what you need in the notes below</p>
               </button>
-            ))}
-            <button onClick={()=>{setSelectedSvc({ id: '__custom__', name: 'Custom Request' });}} className="w-full text-left rounded-2xl p-4" style={{background:isCustom?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px dashed '+(isCustom?'#007e6d':bdr)}}>
-              <p className="font-semibold text-sm" style={{color:tx}}>Custom Request</p>
-              <p className="text-xs mt-0.5" style={{color:mu}}>Describe what you need in the notes below</p>
-            </button>
+            )}
           </div>
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Reviews</h2>
           <div className="flex flex-col gap-3 mb-5">
@@ -537,7 +947,12 @@ export default function BizPage() {
           </>}
         <div className="rounded-2xl p-5 mb-8" style={{background:card,border:'1px solid '+bdr}}>
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Book Appointment</h2>
-          <div className="space-y-4">
+          {editMode && (
+            <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? '#1f2937' : '#ecfeff', color: dm ? '#e5e7eb' : '#0f766e', border: '1px solid ' + bdr }}>
+              Exit edit mode to book this service.
+            </div>
+          )}
+          <div className="space-y-4" style={{ opacity: editMode ? 0.5 : 1, pointerEvents: editMode ? 'none' : 'auto' }}>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Preferred date</p>
               <div className="rounded-2xl p-4" style={{ background: dm ? '#0d0d0d' : '#f9fafb', border: '1px solid '+bdr }}>
