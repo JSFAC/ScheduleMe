@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await supabase.from('businesses').update({ stripe_account_id: stripeAccountId }).eq('id', businessId);
     }
 
-    const linkType = mode === 'update' || business.stripe_account_id ? 'account_update' : 'account_onboarding';
+    const linkType = 'account_onboarding';
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${siteUrl}/business/dashboard?stripe=refresh&id=${businessId}`,

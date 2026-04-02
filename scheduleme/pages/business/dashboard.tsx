@@ -1342,23 +1342,11 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-neutral-900">Payment Account</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">{business?.stripe_onboarded ? 'Step 2/2: Bank connected — payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
+                      <p className="text-xs text-neutral-400 mt-0.5">{business?.stripe_onboarded ? 'Step 2/2: Bank connected — payouts live. Standard payouts arrive in 1–2 business days.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     </div>
                   </div>
                   {business?.stripe_onboarded ? (
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">Connected ✓</span>
-                      <button
-                        type="button"
-                        onClick={() => handleStripeConnect('update')}
-                        disabled={stripeLoading}
-                        className="text-xs font-bold px-3.5 py-2 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
-                        Enable instant payouts
-                      </button>
-                      {stripeConnectError && (
-                        <p className="text-[11px] text-amber-700 mt-1 max-w-[220px] text-right">{stripeConnectError}</p>
-                      )}
-                    </div>
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 shrink-0">Connected ✓</span>
                   ) : (
                     <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
                   )}
