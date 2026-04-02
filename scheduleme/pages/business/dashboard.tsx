@@ -580,6 +580,7 @@ const BusinessDashboard: NextPage = () => {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeConnectError, setStripeConnectError] = useState('');
   const [stripeStatusMsg, setStripeStatusMsg] = useState('');
+  const [payoutBalance, setPayoutBalance] = useState<{ available: number; pending: number } | null>(null);
   const stripeSuccess = router.query.stripe === 'success';
   const stripeCta = business?.stripe_account_id ? 'Continue Stripe setup →' : 'Connect bank & get paid →';
   const [campusEduEmail, setCampusEduEmail] = useState('');
@@ -691,6 +692,13 @@ const BusinessDashboard: NextPage = () => {
     // Pre-load message threads
     const msgsRes = await fetch('/api/messages?business_id=' + biz.id, { headers: await getAuthHeaders() });
     if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); setThreads(md.threads || []); }
+    try {
+      const balRes = await fetch('/api/stripe-balance', { method: 'POST', headers: await getAuthHeaders() });
+      if (balRes.ok) {
+        const b = await balRes.json();
+        if (typeof b?.available === 'number' && typeof b?.pending === 'number') setPayoutBalance({ available: b.available, pending: b.pending });
+      }
+    } catch {}
     setLoading(false);
   }, [router]);
 
@@ -863,6 +871,13 @@ const BusinessDashboard: NextPage = () => {
         return;
       }
       setBusiness(b => b ? { ...b, stripe_onboarded: !!data?.onboarded } : b);
+      try {
+        const balRes = await fetch('/api/stripe-balance', { method: 'POST', headers });
+        if (balRes.ok) {
+          const b = await balRes.json();
+          if (typeof b?.available === 'number' && typeof b?.pending === 'number') setPayoutBalance({ available: b.available, pending: b.pending });
+        }
+      } catch {}
       if (!data?.onboarded) {
         setStripeStatusMsg('Stripe setup isn’t finished yet. Click “Continue Stripe setup” to complete it.');
       }
@@ -1351,6 +1366,12 @@ const BusinessDashboard: NextPage = () => {
                         <p className="text-[11px] mt-1" style={{ color: dm ? '#6b7280' : '#94a3b8' }}>
                           New Stripe accounts may take up to 7 days for the first payout to arrive.
                         </p>
+                      )}
+                      {business?.stripe_onboarded && payoutBalance && (
+                        <div className="flex items-center gap-3 mt-2 text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>
+                          <span>Available: {fmt(payoutBalance.available)}</span>
+                          <span>Pending: {fmt(payoutBalance.pending)}</span>
+                        </div>
                       )}
                     </div>
                   </div>
