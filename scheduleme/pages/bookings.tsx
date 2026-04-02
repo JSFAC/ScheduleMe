@@ -1071,6 +1071,18 @@ function writeCoords(lat: number, lng: number) {
   const filteredBookings = bookings; // category filter removed - column doesn't exist in DB
   const activeBookings = filteredBookings.filter(b => !['completed', 'cancelled'].includes(b.status));
   const pastBookings   = filteredBookings.filter(b => ['completed', 'cancelled'].includes(b.status));
+  const PAGE_SIZE = 2;
+  const [activePage, setActivePage] = useState(0);
+  const [pastPage, setPastPage] = useState(0);
+  const activePages = Math.max(1, Math.ceil(activeBookings.length / PAGE_SIZE));
+  const pastPages = Math.max(1, Math.ceil(pastBookings.length / PAGE_SIZE));
+  const activeSlice = activeBookings.slice(activePage * PAGE_SIZE, activePage * PAGE_SIZE + PAGE_SIZE);
+  const pastSlice = pastBookings.slice(pastPage * PAGE_SIZE, pastPage * PAGE_SIZE + PAGE_SIZE);
+
+  useEffect(() => {
+    setActivePage(0);
+    setPastPage(0);
+  }, [activeBookings.length, pastBookings.length]);
 
   return (
     <>
@@ -1163,12 +1175,37 @@ function writeCoords(lat: number, lng: number) {
                 <>
                   {activeBookings.length > 0 && (
                     <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 16px 40px rgba(0,0,0,0.08)' }}>
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>Active</span>
-                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3 flex-1">
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>Active</span>
+                          <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
+                        </div>
+                        {activeBookings.length > PAGE_SIZE && (
+                          <div className="flex items-center gap-2 text-[11px] font-semibold" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                            <button
+                              type="button"
+                              onClick={() => setActivePage(p => Math.max(0, p - 1))}
+                              disabled={activePage === 0}
+                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
+                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+                            </button>
+                            <span>{activePage + 1}/{activePages}</span>
+                            <button
+                              type="button"
+                              onClick={() => setActivePage(p => Math.min(activePages - 1, p + 1))}
+                              disabled={activePage >= activePages - 1}
+                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
+                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 6l6 6-6 6" /></svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-4">
-                        {activeBookings.map(b => {
+                        {activeSlice.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
@@ -1216,12 +1253,37 @@ function writeCoords(lat: number, lng: number) {
 
                   {pastBookings.length > 0 && (
                     <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 16px 40px rgba(0,0,0,0.06)' }}>
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Past</span>
-                        <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3 flex-1">
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Past</span>
+                          <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
+                        </div>
+                        {pastBookings.length > PAGE_SIZE && (
+                          <div className="flex items-center gap-2 text-[11px] font-semibold" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                            <button
+                              type="button"
+                              onClick={() => setPastPage(p => Math.max(0, p - 1))}
+                              disabled={pastPage === 0}
+                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
+                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+                            </button>
+                            <span>{pastPage + 1}/{pastPages}</span>
+                            <button
+                              type="button"
+                              onClick={() => setPastPage(p => Math.min(pastPages - 1, p + 1))}
+                              disabled={pastPage >= pastPages - 1}
+                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
+                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 6l6 6-6 6" /></svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-4">
-                        {pastBookings.map(b => (
+                        {pastSlice.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
                             style={{

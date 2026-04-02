@@ -57,8 +57,18 @@ const NAV: { id: TabId; label: string; d: string }[] = [
 function fmt(cents: number) { return '$' + (cents / 100).toFixed(2); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function fmtTime(d: string) { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
-function canMarkComplete(b: Booking) {
+function canMarkComplete(b: Booking, bizHours?: any) {
   if (!b?.scheduled_start) return true;
+  try {
+    if (bizHours) {
+      const hoursArr = Array.isArray(bizHours) ? bizHours : Object.entries(bizHours).map(([day, time]) => ({ day, time }));
+      const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const dayName = dayNames[new Date(b.scheduled_start).getDay()];
+      const match = hoursArr.find((h: any) => typeof h?.day === 'string' && (h.day.includes(dayName) || h.day.includes(dayName.slice(0, 3))));
+      if (match?.time && String(match.time).toLowerCase() === 'by appointment') return true;
+      if (match?.time && String(match.time).toLowerCase() === '24 hours') return true;
+    }
+  } catch {}
   return new Date(b.scheduled_start).getTime() <= Date.now();
 }
 
@@ -1367,7 +1377,7 @@ const BusinessDashboard: NextPage = () => {
                         const scheduledLabel = b.scheduled_start
                           ? new Date(b.scheduled_start).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
                           : null;
-                        const canComplete = canMarkComplete(b);
+                        const canComplete = canMarkComplete(b, business?.hours);
                         return (
                         <div key={b.id} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
                           <div className="flex items-start justify-between gap-4 mb-3">
@@ -1721,7 +1731,7 @@ const BusinessDashboard: NextPage = () => {
                     <div className="divide-y divide-neutral-50 overflow-y-auto" style={{ maxHeight: 480 }}>
                       {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'paid').map(b => {
                         const bookingDay = new Date(b.created_at);
-                        const canComplete = canMarkComplete(b);
+                        const canComplete = canMarkComplete(b, business?.hours);
                         const isCustomBooking = !b.amount_cents;
                         return (
                           <div key={b.id} className="px-5 py-4">
