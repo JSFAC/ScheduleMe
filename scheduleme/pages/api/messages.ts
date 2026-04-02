@@ -75,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data, error } = await supabase
         .from('messages')
-        .select('id, booking_id, sender_type, content, read, created_at')
+        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
         .in('booking_id', bookingIds)
         .order('created_at', { ascending: true });
       if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
@@ -118,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data, error } = await supabase
         .from('messages')
-        .select('id, booking_id, sender_type, content, read, created_at')
+        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
         .in('booking_id', bookingIds)
         .order('created_at', { ascending: true });
       if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
@@ -176,7 +176,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data, error } = await supabase
         .from('messages')
-        .select('id, booking_id, sender_type, content, read, created_at')
+        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
         .eq('booking_id', booking_id)
         .order('created_at', { ascending: true });
       if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
@@ -352,14 +352,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
-    const { booking_id, sender_type, content } = req.body;
+    const { booking_id, sender_type, content, image_url } = req.body;
 
-    if (!booking_id || !sender_type || !content)
-      return res.status(400).json({ error: 'booking_id, sender_type, content required' });
+    if (!booking_id || !sender_type)
+      return res.status(400).json({ error: 'booking_id and sender_type required' });
+    if (!content && !image_url)
+      return res.status(400).json({ error: 'content or image required' });
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
     if (!['user', 'business'].includes(sender_type))
       return res.status(400).json({ error: 'sender_type must be user or business' });
-    if (typeof content !== 'string') return res.status(400).json({ error: 'Invalid content' });
+    if (content && typeof content !== 'string') return res.status(400).json({ error: 'Invalid content' });
+    if (image_url && typeof image_url !== 'string') return res.status(400).json({ error: 'Invalid image_url' });
 
     const supabase = getSupabase();
 
@@ -394,14 +397,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
-    // Filter profanity / threats
-    const filtered = filterMessage(content.trim());
-    if (!filtered.ok) return res.status(400).json({ error: filtered.error });
+    // Blocked check
+    const { data: block } = await supabase
+      .from('blocks')
+      .select('id, blocked_by')
+      .eq('business_id', booking.business_id)
+      .eq('user_id', booking.user_id)
+      .maybeSingle();
+    if (block) return res.status(403).json({ error: 'Messaging is blocked for this booking.' });
+
+    // Filter profanity / threats on text content
+    let filteredContent = '';
+    if (content) {
+      const filtered = filterMessage(content.trim());
+      if (!filtered.ok) return res.status(400).json({ error: filtered.error });
+      filteredContent = filtered.filtered;
+    }
+    const message_type = image_url ? (filteredContent ? 'mixed' : 'image') : 'text';
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({ booking_id, sender_type, content: filtered.filtered, read: false })
-      .select('id, booking_id, sender_type, content, read, created_at')
+      .insert({ booking_id, sender_type, content: filteredContent, image_url: image_url || null, message_type, read: false })
+      .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
       .single();
     if (error) return res.status(500).json({ error: 'Failed to send message' });
     return res.status(200).json({ message: data });

@@ -314,13 +314,20 @@ const Account: NextPage = () => {
       const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `avatars/${session.user.id}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) { alert('Upload failed: ' + upErr.message); return; }
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', session.user.id);
-      setAvatarUrl(publicUrl);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch('/api/upload-avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ file_data: base64, file_type: file.type, file_name: file.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Upload failed'); return; }
+      if (data.url) setAvatarUrl(data.url);
     } finally { setAvatarUploading(false); }
   }
 

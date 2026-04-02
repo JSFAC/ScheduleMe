@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, isValidUuid, requireAuth } from '../../lib/apiSecurity';
+import { moderateImageDataUrl } from '../../lib/moderation';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
@@ -32,6 +33,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const maxSize = isVideo ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
   if (buffer.length > maxSize)
     return res.status(400).json({ error: 'File too large' });
+
+  if (!isVideo) {
+    const mod = await moderateImageDataUrl(file_data);
+    if (!mod.ok) return res.status(400).json({ error: mod.reason || 'Image rejected by safety filters' });
+  }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
