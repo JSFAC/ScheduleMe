@@ -593,10 +593,13 @@ function CantFindThem() {
       <div className="bg-white rounded-2xl border border-neutral-100 p-6 space-y-4">
         <div>
           <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Business name <span className="text-red-400">*</span></label>
-          <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
-            placeholder="e.g. Joe's Plumbing, Maria's Cleaning Service"
-            maxLength={60}
-            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+          <div className="relative">
+            <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
+              placeholder="e.g. Joe's Plumbing, Maria's Cleaning Service"
+              maxLength={60}
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+            <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{bizName.length}/60</span>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -611,18 +614,24 @@ function CantFindThem() {
           </div>
           <div>
             <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Their area</label>
-          <input type="text" value={bizLocation} onChange={e => setBizLocation(e.target.value)}
-            placeholder="e.g. Mission District"
-            maxLength={120}
-            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+          <div className="relative">
+            <input type="text" value={bizLocation} onChange={e => setBizLocation(e.target.value)}
+              placeholder="e.g. Mission District"
+              maxLength={120}
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+            <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{bizLocation.length}/120</span>
+          </div>
           </div>
         </div>
         <div>
           <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Why do you recommend them?</label>
-          <textarea value={note} maxLength={500} onChange={e => setNote(e.target.value)}
-            placeholder="What did they do for you? How was the experience? Any contact info you have is helpful..."
-            rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" />
+          <div className="relative">
+            <textarea value={note} maxLength={500} onChange={e => setNote(e.target.value)}
+              placeholder="What did they do for you? How was the experience? Any contact info you have is helpful..."
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" />
+            <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{note.length}/500</span>
+          </div>
         </div>
         <button
           disabled={!bizName.trim()}

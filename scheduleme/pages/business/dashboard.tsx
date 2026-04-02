@@ -384,10 +384,13 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
 
           {/* Description — editable inline */}
           {editingCard ? (
-            <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
-              placeholder="Tell customers about your business…" rows={3}
-              className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3"
-              style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
+            <div className="relative mb-3">
+              <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
+                placeholder="Tell customers about your business…" rows={3}
+                className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
+                style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
+              <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{editDesc.length}/1000</span>
+            </div>
           ) : editDesc ? (
             <p className="text-sm leading-relaxed mb-3" style={{ color: dm ? '#ebebf0' : '#3a3a3c' }}>{editDesc}</p>
           ) : null}
@@ -448,10 +451,13 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
         {editingModal ? (
           <div>
             <p className="text-xs font-bold mb-1.5" style={{ color: muted }}>Description</p>
-            <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
-              placeholder="Tell customers about your business…" rows={3}
-              className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
-              style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
+            <div className="relative">
+              <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
+                placeholder="Tell customers about your business…" rows={3}
+                className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
+                style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
+              <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{editDesc.length}/1000</span>
+            </div>
           </div>
         ) : editDesc ? <p className="text-sm leading-relaxed" style={{ color: dm ? '#ebebf0' : '#3a3a3c' }}>{editDesc}</p> : null}
 
@@ -475,11 +481,14 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             <div key={icon} className="flex items-center gap-2.5">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#007e6d" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
               {editingModal && edit ? (
-                <input className="flex-1 text-sm bg-transparent border-b focus:outline-none focus:border-accent"
-                  style={{ color: dm ? '#f2f2f7' : '#1c1c1e', borderColor: dm ? '#404040' : '#d1d5db' }}
-                  maxLength={edit === 'phone' ? 20 : edit === 'website' ? 200 : 120}
-                  defaultValue={val || ''} placeholder={placeholder}
-                  onBlur={async e => { if (business) { await getSupabase().from('businesses').update({ [edit]: e.target.value }).eq('id', business.id); setBusiness((b: any) => b ? { ...b, [edit]: e.target.value } : b); } }} />
+                <div className="relative flex-1">
+                  <input className="w-full text-sm bg-transparent border-b focus:outline-none focus:border-accent"
+                    style={{ color: dm ? '#f2f2f7' : '#1c1c1e', borderColor: dm ? '#404040' : '#d1d5db' }}
+                    maxLength={edit === 'phone' ? 20 : edit === 'website' ? 200 : 120}
+                    defaultValue={val || ''} placeholder={placeholder}
+                    onBlur={async e => { if (business) { await getSupabase().from('businesses').update({ [edit]: e.target.value }).eq('id', business.id); setBusiness((b: any) => b ? { ...b, [edit]: e.target.value } : b); } }} />
+                  <span className="absolute -bottom-4 right-0 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{String(val || '').length}/{edit === 'phone' ? 20 : edit === 'website' ? 200 : 120}</span>
+                </div>
               ) : (
                 <span className="text-sm" style={{ color: val ? (dm ? '#ebebf0' : '#3a3a3c') : muted }}>{val || <em>Not set</em>}</span>
               )}
@@ -1750,8 +1759,14 @@ const BusinessDashboard: NextPage = () => {
               <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
                 <div className="flex flex-col gap-3">
-                  <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
-                  <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                  <div className="relative">
+                    <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                    <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcName.length}/60</span>
+                  </div>
+                  <div className="relative">
+                    <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                    <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcDesc.length}/300</span>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
@@ -1820,7 +1835,10 @@ const BusinessDashboard: NextPage = () => {
                     ] as const).map((f) => (
                       <div key={f.label}>
                         <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">{f.label}</label>
-                        <input type={f.t} className="form-input" value={f.v} maxLength={(f as any).max} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: dm ? '#1a1a1a' : '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
+                        <div className="relative">
+                          <input type={f.t} className="form-input" value={f.v} maxLength={(f as any).max} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: dm ? '#1a1a1a' : '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
+                          <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{String(f.v || '').length}/{(f as any).max}</span>
+                        </div>
                       {(f as any).requestChange && (
                         <button type="button" onClick={async () => {
                           const newName = prompt('Enter requested new business name:');
@@ -1837,7 +1855,10 @@ const BusinessDashboard: NextPage = () => {
                     ))}
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Description</label>
-                      <textarea className="form-input resize-none" rows={3} value={editDesc} maxLength={1000} placeholder="Tell customers about your business…" onChange={e => setEditDesc(e.target.value)} />
+                      <div className="relative">
+                        <textarea className="form-input resize-none" rows={3} value={editDesc} maxLength={1000} placeholder="Tell customers about your business…" onChange={e => setEditDesc(e.target.value)} />
+                        <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{editDesc.length}/1000</span>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Availability</label>
