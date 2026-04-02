@@ -269,7 +269,8 @@ const MessagesPage: NextPage = () => {
     setThreads(ts => ts.map(t => t.id === activeThread.id ? { ...t, lastMessage: tempMsg } : t));
 
     const res = await fetch('/api/messages', {
-      method: 'POST', headers: await getAuthHeaders(),
+      method: 'POST',
+      headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_id: bookingId, sender_type: 'user', sender_id: userId, content }),
     });
     if (res.ok) {

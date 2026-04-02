@@ -683,12 +683,12 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
         <div
           className="fixed inset-0 z-[2100] flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onClick={() => setDisputeOpen(false)}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setDisputeOpen(false); }}
         >
           <div
             className="w-full max-w-md mx-4 rounded-2xl p-5"
             style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
-            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Propose a new price</p>

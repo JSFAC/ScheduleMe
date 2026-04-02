@@ -95,6 +95,37 @@ function downloadIcs(filename: string, opts: { title: string; details?: string; 
   a.remove();
   URL.revokeObjectURL(url);
 }
+function downloadIcsBatch(filename: string, events: { title: string; details?: string; location?: string; start: Date; end: Date }[]) {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//ScheduleMe//EN',
+  ];
+  events.forEach((ev, i) => {
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${Date.now()}-${i}@scheduleme`,
+      `DTSTAMP:${toCalDate(new Date())}`,
+      `DTSTART:${toCalDate(ev.start)}`,
+      `DTEND:${toCalDate(ev.end)}`,
+      `SUMMARY:${ev.title}`,
+      ev.details ? `DESCRIPTION:${ev.details.replace(/\n/g, '\\n')}` : '',
+      ev.location ? `LOCATION:${ev.location}` : '',
+      'END:VEVENT',
+    );
+  });
+  lines.push('END:VCALENDAR');
+  const ics = lines.filter(Boolean).join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 function canMarkComplete(b: Booking, bizHours?: any) {
   if (!b?.scheduled_start) return true;
   try {
@@ -663,6 +694,7 @@ const BusinessDashboard: NextPage = () => {
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel'; priceCents?: number } | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const didAutoTabRef = useRef(false);
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
@@ -670,11 +702,11 @@ const BusinessDashboard: NextPage = () => {
   }
 
   useEffect(() => {
-    if (bkFilter === 'pending') {
-      const pendingCount = bookings.filter(b => b.status === 'pending').length;
-      if (pendingCount === 0) setBkFilter('active');
-    }
-  }, [bkFilter, bookings]);
+    if (didAutoTabRef.current) return;
+    const pendingCount = bookings.filter(b => b.status === 'pending').length;
+    if (pendingCount === 0) setBkFilter('active');
+    didAutoTabRef.current = true;
+  }, [bookings]);
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -908,7 +940,8 @@ const BusinessDashboard: NextPage = () => {
     setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: tempMsg } : t));
     try {
       const res = await fetch('/api/messages', {
-        method: 'POST', headers: await getAuthHeaders(),
+        method: 'POST',
+        headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, content }),
       });
       if (res.ok) {
@@ -918,6 +951,8 @@ const BusinessDashboard: NextPage = () => {
         setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       } else {
         setThreadMessages((m: any[]) => m.filter((msg: any) => msg.id != tempId));
+        const err = await res.json().catch(() => ({}));
+        showToast(err?.error || 'Message failed to send.', false);
       }
     } finally {
       setMsgSending(false);
@@ -944,7 +979,7 @@ const BusinessDashboard: NextPage = () => {
       });
       const uploadRes = await fetch('/api/upload-message-media', {
         method: 'POST',
-        headers: await getAuthHeaders(),
+        headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           booking_id: bookingId,
           file_data: dataUrl,
@@ -964,7 +999,7 @@ const BusinessDashboard: NextPage = () => {
       setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: tempMsg } : t));
       const res = await fetch('/api/messages', {
         method: 'POST',
-        headers: await getAuthHeaders(),
+        headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, image_url: imageUrl }),
       });
       if (res.ok) {
@@ -973,6 +1008,8 @@ const BusinessDashboard: NextPage = () => {
         setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
       } else {
         setThreadMessages((m: any[]) => m.filter((msg: any) => msg.id !== tempId));
+        const err = await res.json().catch(() => ({}));
+        showToast(err?.error || 'Message failed to send.', false);
       }
     } finally {
       setUploadingMsgImage(false);
@@ -1326,6 +1363,15 @@ const BusinessDashboard: NextPage = () => {
     const day = d.getDate();
     bookingDates.set(day, (bookingDates.get(day) || 0) + 1);
   });
+  const calendarEvents = bookings
+    .filter(b => b.status !== 'cancelled' && b.scheduled_start)
+    .map(b => ({
+      title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`,
+      details: b.note || '',
+      location: b.address || business?.address || '',
+      start: new Date(b.scheduled_start),
+      end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)),
+    }));
 
   const clientMap = new Map<string, { id?: string; name: string; email: string; phone: string; avatar_url?: string; bookingCount: number; totalSpent: number; lastBooking: string }>();
   bookings.forEach(b => {
@@ -1751,39 +1797,6 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>Requested for {scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
-                          {b.scheduled_start && (
-                            <div className="flex flex-wrap gap-2 text-[11px] mb-3">
-                              <a
-                                href={buildGoogleCalendarUrl({
-                                  title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`,
-                                  details: b.note || '',
-                                  location: b.address || business?.address || '',
-                                  start: new Date(b.scheduled_start),
-                                  end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)),
-                                })}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2.5 py-1 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 font-semibold"
-                              >
-                                Add to Google Calendar
-                              </a>
-                              <button
-                                onClick={() => downloadIcs(
-                                  `scheduleme-${b.id}.ics`,
-                                  {
-                                    title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`,
-                                    details: b.note || '',
-                                    location: b.address || business?.address || '',
-                                    start: new Date(b.scheduled_start),
-                                    end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)),
-                                  }
-                                )}
-                                className="px-2.5 py-1 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 font-semibold"
-                              >
-                                Download .ics
-                              </button>
-                            </div>
-                          )}
                           {(['pending', 'confirmed', 'active', 'payment_pending'].includes(b.status)) && (
                             <div className="flex gap-2">
                               {/* Price setting — required before confirm */}
@@ -2130,7 +2143,7 @@ const BusinessDashboard: NextPage = () => {
             {tab === 'calendar' && (
               <div className="flex flex-col xl:flex-row gap-6 items-start">
                 {/* Calendar */}
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6 shrink-0 w-full xl:w-[360px]">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6 shrink-0 w-full xl:w-[420px]">
                   <div className="flex items-center justify-between mb-5">
                     <h2 className="text-base font-black text-neutral-900">{today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
                     <span className="text-xs text-neutral-400 bg-neutral-50 px-2 py-1 rounded-lg border border-neutral-100">{bookingDates.size} days</span>
@@ -2183,14 +2196,22 @@ const BusinessDashboard: NextPage = () => {
 
                 {/* Booking list */}
                 <div className="flex-1 bg-white rounded-2xl border border-neutral-100 overflow-hidden w-full">
-                  <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
+                  <div className="px-5 py-4 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">
                         {calendarDay ? `Schedule for ${today.toLocaleDateString('en-US', { month: 'short' })} ${calendarDay}` : 'All Scheduled'}
                       </h2>
                       <p className="text-[11px] text-neutral-400 mt-0.5">Click a day to filter this list.</p>
                     </div>
-                    <span className="text-xs text-neutral-400">{bookings.filter(b => b.status === 'pending' || b.status === 'confirmed').length} active</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-neutral-400">{bookings.filter(b => b.status === 'pending' || b.status === 'confirmed').length} active</span>
+                      <button
+                        onClick={() => downloadIcsBatch('scheduleme-calendar.ics', calendarEvents)}
+                        disabled={calendarEvents.length === 0}
+                        className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 disabled:opacity-40">
+                        Export calendar
+                      </button>
+                    </div>
                   </div>
                   {(() => {
                     const list = bookings
@@ -2232,17 +2253,9 @@ const BusinessDashboard: NextPage = () => {
                               </div>
                               <div className="flex flex-wrap gap-2 pl-11 mt-2">
                                 {b.scheduled_start && (
-                                  <>
-                                    <a className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-600"
-                                      href={buildGoogleCalendarUrl({ title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`, details: b.note || '', location: business?.address || '', start: new Date(b.scheduled_start), end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)) })}>
-                                      Google Calendar
-                                    </a>
-                                    <button
-                                      onClick={() => downloadIcs({ title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`, details: b.note || '', location: business?.address || '', start: new Date(b.scheduled_start), end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)) })}
-                                      className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-600">
-                                      Download .ics
-                                    </button>
-                                  </>
+                                  <span className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-600">
+                                    Scheduled
+                                  </span>
                                 )}
                               </div>
                               {(b.status === 'pending' || b.status === 'confirmed') && (
