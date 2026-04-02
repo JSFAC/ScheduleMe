@@ -641,6 +641,24 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
               </div>
             </div>
           )}
+          {['completed', 'paid'].includes(booking.status) && !booking.reviewed && booking.business_id && booking.business_name && (
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  setReviewTarget({
+                    bookingId: booking.id,
+                    businessId: booking.business_id,
+                    businessName: booking.business_name,
+                    serviceName: booking.service || 'Booking',
+                  });
+                }}
+                className="w-full py-3 rounded-xl text-sm font-bold text-white"
+                style={{ background: '#007e6d' }}
+              >
+                Leave a review
+              </button>
+            </div>
+          )}
 
           {/* Cancel action */}
           {['pending', 'confirmed'].includes(booking.status) && !booking.paid_at && (
@@ -1182,17 +1200,16 @@ function writeCoords(lat: number, lng: number) {
             if (!hasNearbyRef.current) setNearbySafe([]);
           } catch { if (!hasNearbyRef.current) setNearbySafe([]); }
           setNearbyLoading(false);
-          // Check for unreviewed completed bookings — show review prompt
+          // Check for unreviewed completed bookings — show review banner
           const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
           );
           if (unreviewed && unreviewed.business_name) {
-            setTimeout(() => setReviewTarget({
-              bookingId: unreviewed.id,
-              businessId: unreviewed.business_id,
-              businessName: unreviewed.business_name,
-              serviceName: unreviewed.service,
-            }), 800);
+            const key = `sm_review_dismissed_${unreviewed.id}`;
+            const dismissed = typeof window !== 'undefined' && localStorage.getItem(key);
+            if (!dismissed) {
+              setReviewBanner(unreviewed);
+            }
           }
         }
       } else {
@@ -1331,7 +1348,43 @@ function writeCoords(lat: number, lng: number) {
             }}
           />
           <div className="relative z-10 space-y-6">
-              {loadingBookings ? (
+            {reviewBanner && (
+              <div className="rounded-2xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.12)', boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.25)' : '0 12px 30px rgba(0, 73, 128, 0.08)' }}>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>How was your recent booking?</p>
+                  <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                    Leave a review for {reviewBanner.business_name}.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setReviewTarget({
+                        bookingId: reviewBanner.id,
+                        businessId: reviewBanner.business_id,
+                        businessName: reviewBanner.business_name,
+                        serviceName: reviewBanner.service,
+                      });
+                      setReviewBanner(null);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                    style={{ background: '#007e6d' }}>
+                    Leave review
+                  </button>
+                  <button
+                    onClick={() => {
+                      try { localStorage.setItem(`sm_review_dismissed_${reviewBanner.id}`, 'true'); } catch {}
+                      setReviewBanner(null);
+                    }}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold"
+                    style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+            {loadingBookings ? (
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => <SkeletonBookingCard key={i} dm={dm} />)}
             </div>
@@ -1580,6 +1633,20 @@ function writeCoords(lat: number, lng: number) {
           fetchPaymentMethods={fetchPaymentMethods}
           setDefaultPaymentMethod={setDefaultPaymentMethod}
           setPaymentToast={setPaymentToast}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          bookingId={reviewTarget.bookingId}
+          businessId={reviewTarget.businessId}
+          businessName={reviewTarget.businessName}
+          serviceName={reviewTarget.serviceName}
+          onDone={() => {
+            setReviewTarget(null);
+            setReviewBanner(null);
+            setBookings((prev) => prev.map((b) => b.id === reviewTarget.bookingId ? { ...b, reviewed: true } : b));
+          }}
         />
       )}
 

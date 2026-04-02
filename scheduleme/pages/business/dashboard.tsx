@@ -21,13 +21,14 @@ interface Booking {
   id: string; service: string; status: string; created_at: string;
   scheduled_start?: string; scheduled_end?: string;
   amount_cents: number | null; paid_at: string | null;
-  profiles: { name: string; phone: string; email: string } | null;
+  user_id?: string;
+  profiles: { id?: string; name: string; phone: string; email: string; avatar_url?: string } | null;
 }
 interface Business {
   id: string; name: string; owner_name: string; owner_email: string;
   phone?: string; description?: string;
   stripe_account_id: string | null; stripe_onboarded: boolean;
-  service_tags: string[]; address: string; rating: number | null;
+  service_tags: string[]; address: string; rating: number | null; price_tier?: number | null; review_count?: number | null;
   availability_status?: string | null; break_until?: string | null;
   is_onboarded: boolean; website?: string; instagram?: string;
   school_domain?: string | null; edu_verified?: boolean;
@@ -262,8 +263,8 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
 
 
 // ─── Editable Preview Component ───────────────────────────────────────────────
-function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditDesc, setMediaImages, setMediaVideo, setBusiness, dm }: {
-  business: any; mediaImages: string[]; mediaVideo: string;
+function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc, setEditDesc, setMediaImages, setMediaVideo, setBusiness, dm }: {
+  business: any; services: any[]; mediaImages: string[]; mediaVideo: string;
   editDesc: string; setEditDesc: (v: string) => void;
   setMediaImages: (imgs: string[]) => void; setMediaVideo: (v: string) => void;
   setBusiness: (fn: (b: any) => any) => void; dm: boolean;
@@ -447,6 +448,9 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
               {(business!.service_tags ?? []).map((tag: string) => (
                 <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{tag.replace(/_/g, ' ')}</span>
               ))}
+              {business?.price_tier ? (
+                <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{'$'.repeat(business.price_tier)}</span>
+              ) : null}
             </div>
           )}
 
@@ -514,8 +518,31 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
             {(business!.service_tags ?? []).map((tag: string) => (
               <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{tag.replace(/_/g, ' ')}</span>
             ))}
+            {business?.price_tier ? (
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{'$'.repeat(business.price_tier)}</span>
+            ) : null}
           </div>
         )}
+
+        {/* Services preview */}
+        <div className="rounded-xl p-3.5 space-y-2" style={{ background: subtle }}>
+          <p className="text-[10px] font-black uppercase tracking-wider mb-2.5" style={{ color: muted }}>Services</p>
+          {services.length === 0 ? (
+            <p className="text-xs" style={{ color: muted }}>No services listed yet</p>
+          ) : (
+            services.slice(0, 4).map((s: any) => (
+              <div key={s.id || s.name} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{s.name}</p>
+                  {s.description && <p className="text-[11px] truncate" style={{ color: muted }}>{s.description}</p>}
+                </div>
+                {s.price_cents != null && (
+                  <span className="text-xs font-bold" style={{ color: '#007e6d' }}>${(s.price_cents / 100).toFixed(2)}</span>
+                )}
+              </div>
+            ))
+          )}
+        </div>
 
         {/* Contact info */}
         <div className="rounded-xl p-3.5 space-y-2" style={{ background: subtle }}>
@@ -632,6 +659,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifySuccess, setCampusVerifySuccess] = useState('');
   const [showCampusModal, setShowCampusModal] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
+  const [calendarDay, setCalendarDay] = useState<number | null>(null);
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel'; priceCents?: number } | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -640,6 +668,13 @@ const BusinessDashboard: NextPage = () => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 4000);
   }
+
+  useEffect(() => {
+    if (bkFilter === 'pending') {
+      const pendingCount = bookings.filter(b => b.status === 'pending').length;
+      if (pendingCount === 0) setBkFilter('active');
+    }
+  }, [bkFilter, bookings]);
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -653,6 +688,7 @@ const BusinessDashboard: NextPage = () => {
   const [msgSending, setMsgSending] = useState(false);
   const [uploadingMsgImage, setUploadingMsgImage] = useState(false);
   const [blockedCustomers, setBlockedCustomers] = useState<Record<string, boolean>>({});
+  const [blockConfirm, setBlockConfirm] = useState<{ userId: string; name: string; bookingIds: string[] } | null>(null);
   const msgBottomRef = useRef<HTMLDivElement>(null);
   const msgInputRef = useRef<HTMLTextAreaElement>(null);
   const msgFileInputRef = useRef<HTMLInputElement>(null);
@@ -944,11 +980,18 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
-  async function toggleBlockCustomer() {
-    if (!business || !activeMsgThread) return;
-    const userId = activeMsgThread.profiles?.id || activeMsgThread.customer_id;
-    if (!userId) return;
-    const isBlocked = !!blockedCustomers[userId];
+  function getBookingIdsForUser(userId: string) {
+    if (activeMsgThread && (activeMsgThread.profiles?.id === userId || activeMsgThread.customer_id === userId)) {
+      const ids = activeMsgThread.booking_ids || (activeMsgThread.booking_id ? [activeMsgThread.booking_id] : []);
+      if (ids.length) return ids;
+    }
+    return bookings
+      .filter(b => (b.profiles?.id === userId) && ['pending','confirmed','payment_pending'].includes(b.status))
+      .map(b => b.id);
+  }
+
+  async function applyBlock(userId: string, block: boolean, bookingIds: string[]) {
+    if (!business) return;
     try {
       const headers = await getAuthHeaders();
       const res = await fetch('/api/blocks', {
@@ -957,7 +1000,7 @@ const BusinessDashboard: NextPage = () => {
         body: JSON.stringify({
           business_id: business.id,
           user_id: userId,
-          action: isBlocked ? 'unblock' : 'block',
+          action: block ? 'block' : 'unblock',
         }),
       });
       if (!res.ok) {
@@ -965,11 +1008,69 @@ const BusinessDashboard: NextPage = () => {
         showToast(data?.error || 'Unable to update block', false);
         return;
       }
-      setBlockedCustomers((m) => ({ ...m, [userId]: !isBlocked }));
-      showToast(isBlocked ? 'Customer unblocked.' : 'Customer blocked.', true);
+      if (block && bookingIds.length) {
+        await Promise.all(bookingIds.map((id) =>
+          fetch('/api/bookings', {
+            method: 'PATCH',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: id, status: 'cancelled' }),
+          })
+        ));
+        setBookings(bs => bs.map(b => bookingIds.includes(b.id) ? { ...b, status: 'cancelled' } : b));
+      }
+      setBlockedCustomers((m) => ({ ...m, [userId]: block }));
+      showToast(block ? 'Customer blocked.' : 'Customer unblocked.', true);
     } catch {
       showToast('Unable to update block', false);
     }
+  }
+
+  async function toggleBlockCustomer() {
+    if (!activeMsgThread) return;
+    const userId = activeMsgThread.profiles?.id || activeMsgThread.customer_id;
+    if (!userId) return;
+    const isBlocked = !!blockedCustomers[userId];
+    if (isBlocked) {
+      await applyBlock(userId, false, []);
+    } else {
+      const bookingIds = getBookingIdsForUser(userId);
+      setBlockConfirm({
+        userId,
+        name: activeMsgThread.profiles?.name || activeMsgThread.profiles?.email || 'customer',
+        bookingIds,
+      });
+    }
+  }
+
+  async function openCustomerThread(userId: string) {
+    if (!business?.id) return;
+    const existing = msgThreads.find((t: any) => t.profiles?.id === userId || t.customer_id === userId || t.id === userId);
+    setTab('messages');
+    if (existing) {
+      if (activeMsgThread?.id === existing.id) return;
+      setActiveMsgThread(existing);
+      setThreadMessages([]);
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch('/api/messages?thread_customer_id=' + existing.id + '&business_id=' + business.id, { headers: authHeaders });
+      if (res.ok) {
+        const d = await res.json();
+        setThreadMessages(d.messages || []);
+        if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t);
+      }
+      setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      return;
+    }
+    const authHeaders = await getAuthHeaders();
+    const res = await fetch('/api/messages?thread_customer_id=' + userId + '&business_id=' + business.id, { headers: authHeaders });
+    if (res.ok) {
+      const d = await res.json();
+      if (d.thread) {
+        setMsgThreads((ts: any[]) => ts.find((x) => x.id === d.thread.id) ? ts : [d.thread, ...ts]);
+        setActiveMsgThread(d.thread);
+      }
+      setThreadMessages(d.messages || []);
+    }
+    setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
 
   async function sendBusinessMessage() {
@@ -1210,7 +1311,7 @@ const BusinessDashboard: NextPage = () => {
   const filteredBookings = bookings.filter(b => {
     if (bkFilter === 'all') return true;
     if (bkFilter === 'pending') return b.status === 'pending';
-    if (bkFilter === 'active') return b.status === 'confirmed';
+    if (bkFilter === 'active') return b.status === 'confirmed' || b.status === 'payment_pending';
     if (bkFilter === 'completed') return b.status === 'completed' || b.status === 'paid';
     if (bkFilter === 'cancelled') return b.status === 'cancelled';
     return true;
@@ -1226,12 +1327,12 @@ const BusinessDashboard: NextPage = () => {
     bookingDates.set(day, (bookingDates.get(day) || 0) + 1);
   });
 
-  const clientMap = new Map<string, { name: string; email: string; phone: string; avatar_url?: string; bookingCount: number; totalSpent: number; lastBooking: string }>();
+  const clientMap = new Map<string, { id?: string; name: string; email: string; phone: string; avatar_url?: string; bookingCount: number; totalSpent: number; lastBooking: string }>();
   bookings.forEach(b => {
     if (!b.profiles?.email) return;
     const ex = clientMap.get(b.profiles.email);
     if (ex) { ex.bookingCount++; ex.totalSpent += b.amount_cents || 0; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
-    else clientMap.set(b.profiles.email, { name: b.profiles.name, email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
+    else clientMap.set(b.profiles.email, { id: b.profiles.id, name: b.profiles.name, email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
   });
   const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -1242,6 +1343,7 @@ const BusinessDashboard: NextPage = () => {
     { title: 'Bookings & calendar', body: 'Confirm or complete bookings here. The calendar tab helps you see upcoming work at a glance.' },
     { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
     { title: 'Settings & payouts', body: 'Update your listing, hours, and connect Stripe to get paid.' },
+    { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Business landing page link.' },
   ];
   const tour = TOUR_STEPS[tourStep];
   function finishTour() {
@@ -1605,7 +1707,7 @@ const BusinessDashboard: NextPage = () => {
                   {([
                     { key: 'all', label: 'All (' + bookings.length + ')' },
                     { key: 'pending', label: 'Pending (' + bookings.filter(b => b.status === 'pending').length + ')' },
-                    { key: 'active', label: 'Confirmed (' + bookings.filter(b => b.status === 'confirmed').length + ')' },
+                    { key: 'active', label: 'Active (' + bookings.filter(b => b.status === 'confirmed').length + ')' },
                     { key: 'completed', label: 'Completed (' + bookings.filter(b => b.status === 'completed' || b.status === 'paid').length + ')' },
                     { key: 'cancelled', label: 'Cancelled (' + bookings.filter(b => b.status === 'cancelled').length + ')' },
                   ] as const).map(f => (
@@ -1758,10 +1860,11 @@ const BusinessDashboard: NextPage = () => {
                     <div>
                       {Array.from({ length: 4 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
                     </div>
-                  ) : msgThreads.length === 0 ? (
+                    ) : msgThreads.length === 0 ? (
                       <div className="p-6 text-center text-neutral-400 text-sm">No conversations yet.</div>
                     ) : msgThreads.map((t: any) => (
                       <button key={t.id} onClick={async () => {
+                        if (activeMsgThread?.id === t.id) return;
                         setActiveMsgThread(t);
                         setThreadMessages([]);
                         const authHeaders = await getAuthHeaders();
@@ -1959,6 +2062,8 @@ const BusinessDashboard: NextPage = () => {
                 {clients.length === 0
                   ? <div className="bg-white rounded-2xl border border-neutral-100 py-12 text-center text-neutral-400 text-sm">No clients yet.</div>
                   : clients.map(c => {
+                      const userId = c.id;
+                      const isBlocked = userId ? !!blockedCustomers[userId] : false;
                       const cb = bookings.filter(b => b.profiles?.email === c.email);
                       return (
                         <div key={c.email} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
@@ -1992,6 +2097,28 @@ const BusinessDashboard: NextPage = () => {
                               {cb.length > 3 && <span className="text-[10px] text-neutral-400 py-1">+{cb.length - 3} more</span>}
                             </div>
                           )}
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <button
+                              onClick={() => userId && openCustomerThread(userId)}
+                              disabled={!userId}
+                              className="text-xs font-semibold px-3.5 py-2 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 transition-colors disabled:opacity-40">
+                              Message
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (!userId) return;
+                                if (isBlocked) {
+                                  applyBlock(userId, false, []);
+                                } else {
+                                  const bookingIds = getBookingIdsForUser(userId);
+                                  setBlockConfirm({ userId, name: c.name || c.email, bookingIds });
+                                }
+                              }}
+                              disabled={!userId}
+                              className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition-colors disabled:opacity-40 ${isBlocked ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'}`}>
+                              {isBlocked ? 'Unblock' : 'Block'}
+                            </button>
+                          </div>
                         </div>
                       );
                     })
@@ -1999,23 +2126,24 @@ const BusinessDashboard: NextPage = () => {
               </div>
             )}
 
-            {/* CALENDAR — compact grid left, expanded list right */}
+            {/* CALENDAR — interactive grid + daily list */}
             {tab === 'calendar' && (
-              <div className="flex gap-5 items-start">
-                {/* Compact calendar */}
-                <div className="bg-white rounded-2xl border border-neutral-100 p-5 shrink-0" style={{ width: 300 }}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-bold text-neutral-900">{today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
+              <div className="flex flex-col xl:flex-row gap-6 items-start">
+                {/* Calendar */}
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6 shrink-0 w-full xl:w-[360px]">
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-base font-black text-neutral-900">{today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
                     <span className="text-xs text-neutral-400 bg-neutral-50 px-2 py-1 rounded-lg border border-neutral-100">{bookingDates.size} days</span>
                   </div>
-                  <div className="grid grid-cols-7 mb-1">
-                    {['S','M','T','W','T','F','S'].map((d,i) => <div key={i} className="text-center text-[10px] font-bold text-neutral-400 py-0.5">{d}</div>)}
+                  <div className="grid grid-cols-7 mb-2">
+                    {['S','M','T','W','T','F','S'].map((d,i) => <div key={i} className="text-center text-[11px] font-bold text-neutral-400 py-0.5">{d}</div>)}
                   </div>
-                  <div className="grid grid-cols-7 gap-0.5">
+                  <div className="grid grid-cols-7 gap-1">
                     {Array.from({ length: firstDay }).map((_, i) => <div key={'e'+i} />)}
                     {Array.from({ length: daysInMonth }).map((_, i) => {
                       const day = i + 1;
                       const isToday = day === today.getDate();
+                      const isSelected = calendarDay === day;
                       const count = bookingDates.get(day) || 0;
                       const dayBookings = bookings.filter(b => {
                         if (b.status === 'cancelled') return false;
@@ -2023,89 +2151,127 @@ const BusinessDashboard: NextPage = () => {
                         return d.getDate() === day;
                       });
                       return (
-                        <div key={day} title={count > 0 ? dayBookings.map(b => b.profiles?.name || b.profiles?.email || 'Customer').join(', ') : ''}
-                          className={`aspect-square flex flex-col items-center justify-center rounded-lg text-[11px] relative cursor-default transition-colors ${
-                            isToday ? 'bg-accent text-white font-black shadow-sm' :
+                        <button
+                          key={day}
+                          type="button"
+                          title={count > 0 ? dayBookings.map(b => b.profiles?.name || b.profiles?.email || 'Customer').join(', ') : ''}
+                          onClick={() => setCalendarDay(isSelected ? null : day)}
+                          className={`aspect-square flex flex-col items-center justify-center rounded-xl text-[12px] relative transition-colors ${
+                            isSelected ? 'bg-accent text-white font-black shadow-md' :
+                            isToday ? 'bg-accent/10 text-accent font-bold' :
                             count > 0 ? 'bg-blue-50 text-blue-700 font-bold hover:bg-blue-100' :
                             'text-neutral-400 hover:bg-neutral-50'
-                          }`}>
+                          }`}
+                        >
                           {day}
-                          {count > 0 && !isToday && (
-                            <span className="absolute bottom-0.5 flex gap-0.5">
+                          {count > 0 && !isSelected && !isToday && (
+                            <span className="absolute bottom-1 flex gap-0.5">
                               {Array.from({length: Math.min(count, 3)}).map((_,di) => (
                                 <span key={di} className="h-1 w-1 rounded-full bg-accent" />
                               ))}
                             </span>
                           )}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
-                  {/* Legend */}
                   <div className="mt-4 pt-4 border-t border-neutral-100 flex items-center gap-4 text-[10px] text-neutral-400">
                     <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-accent" />Today</div>
                     <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-blue-100" />Has bookings</div>
                   </div>
                 </div>
 
-                {/* Booking list — flex-1, scrollable */}
-                <div className="flex-1 bg-white rounded-2xl border border-neutral-100 overflow-hidden" style={{ minHeight: 400 }}>
+                {/* Booking list */}
+                <div className="flex-1 bg-white rounded-2xl border border-neutral-100 overflow-hidden w-full">
                   <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-neutral-900">All Scheduled</h2>
+                    <div>
+                      <h2 className="text-sm font-bold text-neutral-900">
+                        {calendarDay ? `Schedule for ${today.toLocaleDateString('en-US', { month: 'short' })} ${calendarDay}` : 'All Scheduled'}
+                      </h2>
+                      <p className="text-[11px] text-neutral-400 mt-0.5">Click a day to filter this list.</p>
+                    </div>
                     <span className="text-xs text-neutral-400">{bookings.filter(b => b.status === 'pending' || b.status === 'confirmed').length} active</span>
                   </div>
-                  {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'paid').length === 0 ? (
-                    <div className="px-5 py-10 text-center text-neutral-400 text-sm">No active bookings.</div>
-                  ) : (
-                    <div className="divide-y divide-neutral-50 overflow-y-auto" style={{ maxHeight: 480 }}>
-                      {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'paid').map(b => {
-                        const bookingDay = new Date(b.created_at);
-                        const canComplete = canMarkComplete(b, business?.hours);
-                        const isCustomBooking = !b.amount_cents;
-                        return (
-                          <div key={b.id} className="px-5 py-4">
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                              <div className="flex items-start gap-3 min-w-0">
-                                <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0 mt-0.5">
-                                  <span className="text-accent text-xs font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
+                  {(() => {
+                    const list = bookings
+                      .filter(b => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'paid')
+                      .filter(b => {
+                        if (!calendarDay) return true;
+                        const d = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
+                        return d.getDate() === calendarDay;
+                      });
+                    if (list.length === 0) {
+                      return <div className="px-5 py-10 text-center text-neutral-400 text-sm">No bookings for this day.</div>;
+                    }
+                    return (
+                      <div className="divide-y divide-neutral-50 overflow-y-auto" style={{ maxHeight: 520 }}>
+                        {list.map(b => {
+                          const bookingDay = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
+                          const canComplete = canMarkComplete(b, business?.hours);
+                          const isCustomBooking = !b.amount_cents;
+                          return (
+                            <div key={b.id} className="px-5 py-4">
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                                    {b.profiles?.avatar_url
+                                      ? <img src={b.profiles.avatar_url} alt={b.profiles?.name || 'Customer'} className="h-full w-full object-cover" />
+                                      : <span className="text-accent text-xs font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
+                                    }
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
+                                    <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{b.service || 'Custom Request'}</p>
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
-                                  <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{b.service || 'Custom Request'}</p>
-                                </div>
+                                <StatusBadge status={b.status} />
                               </div>
-                              <StatusBadge status={b.status} />
-                            </div>
-                            <div className="flex items-center gap-3 pl-11 text-[10px] text-neutral-400">
-                              <span>📅 {bookingDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</span>
-                              {b.profiles?.phone && <span>{b.profiles.phone}</span>}
-                            </div>
-                            {(b.status === 'pending' || b.status === 'confirmed') && (
-                              <div className="flex gap-1.5 mt-2.5 pl-11">
-                                <button
-                                  onClick={() => setConfirmComplete(b)}
-                                  disabled={!canComplete}
-                                  title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
-                                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                  Complete
-                                </button>
-                                {b.status === 'pending' && isCustomBooking && (
-                                  <button onClick={() => handleUpdateBooking(b.id, 'confirmed')}
-                                    className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
-                                    Confirm
-                                  </button>
+                              <div className="flex items-center gap-3 pl-11 text-[10px] text-neutral-400">
+                                <span>{bookingDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</span>
+                                {b.profiles?.phone && <span>{b.profiles.phone}</span>}
+                              </div>
+                              <div className="flex flex-wrap gap-2 pl-11 mt-2">
+                                {b.scheduled_start && (
+                                  <>
+                                    <a className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-600"
+                                      href={buildGoogleCalendarUrl({ title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`, details: b.note || '', location: business?.address || '', start: new Date(b.scheduled_start), end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)) })}>
+                                      Google Calendar
+                                    </a>
+                                    <button
+                                      onClick={() => downloadIcs({ title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`, details: b.note || '', location: business?.address || '', start: new Date(b.scheduled_start), end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)) })}
+                                      className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-600">
+                                      Download .ics
+                                    </button>
+                                  </>
                                 )}
-                                <button onClick={() => handleUpdateBooking(b.id, 'cancelled')}
-                                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-500 border border-neutral-200 hover:bg-neutral-200 transition-colors ml-auto">
-                                  Cancel
-                                </button>
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                              {(b.status === 'pending' || b.status === 'confirmed') && (
+                                <div className="flex gap-1.5 mt-2.5 pl-11">
+                                  <button
+                                    onClick={() => setConfirmComplete(b)}
+                                    disabled={!canComplete}
+                                    title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
+                                    className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Complete
+                                  </button>
+                                  {b.status === 'pending' && isCustomBooking && (
+                                    <button onClick={() => handleUpdateBooking(b.id, 'confirmed')}
+                                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
+                                      Confirm
+                                    </button>
+                                  )}
+                                  <button onClick={() => handleUpdateBooking(b.id, 'cancelled')}
+                                    className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-500 border border-neutral-200 hover:bg-neutral-200 transition-colors ml-auto">
+                                    Cancel
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -2166,6 +2332,7 @@ const BusinessDashboard: NextPage = () => {
             {tab === 'preview' && (
               <EditablePreview
                 business={business}
+                services={services}
                 mediaImages={mediaImages}
                 mediaVideo={mediaVideo ?? ''}
                 editDesc={editDesc}
@@ -2343,6 +2510,34 @@ const BusinessDashboard: NextPage = () => {
       {toast && (
         <div className={`fixed top-6 right-6 z-[600] px-5 py-3 rounded-xl text-sm font-semibold shadow-xl ${toast.ok ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
           {toast.msg}
+        </div>
+      )}
+      {blockConfirm && (
+        <div className="fixed inset-0 z-[650] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Block this customer?</p>
+                <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                  This will cancel their current booking and prevent future bookings.
+                </p>
+              </div>
+              <button onClick={() => setBlockConfirm(null)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+            </div>
+            <div className="text-xs mb-4" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{blockConfirm.name}</div>
+            <div className="flex gap-2">
+              <button onClick={() => setBlockConfirm(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Back</button>
+              <button
+                onClick={async () => {
+                  await applyBlock(blockConfirm.userId, true, blockConfirm.bookingIds);
+                  setBlockConfirm(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white"
+                style={{ background: '#ef4444' }}>
+                Block customer
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {confirmAction && (() => {

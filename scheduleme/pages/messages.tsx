@@ -52,8 +52,11 @@ const MessagesPage: NextPage = () => {
   const [threadError, setThreadError] = useState('');
   const [sendError, setSendError] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadDrag, setUploadDrag] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const supabaseRef = useRef(getSupabase());
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -511,15 +514,14 @@ const MessagesPage: NextPage = () => {
                   {/* Input */}
                   <div className="px-4 py-3 border-t" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                     <div className="flex items-end gap-2">
-                      <label className={`shrink-0 h-10 w-10 rounded-xl border flex items-center justify-center cursor-pointer ${uploadingImage ? 'opacity-60' : ''}`}
+                      <button
+                        type="button"
+                        disabled={uploadingImage}
+                        onClick={() => setUploadOpen(true)}
+                        className={`shrink-0 h-10 w-10 rounded-xl border flex items-center justify-center ${uploadingImage ? 'opacity-60' : ''}`}
                         style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#e5e7eb' : '#374151' }}>
-                        <input type="file" accept="image/*" className="hidden" disabled={uploadingImage} onChange={e => {
-                          const f = e.target.files?.[0];
-                          if (f) sendImage(f);
-                          e.target.value = '';
-                        }} />
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18M4 5l3.5 4.5M20 5l-3.5 4.5M4 19h16M4 12h16" /></svg>
-                      </label>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75V6.75a4.5 4.5 0 10-9 0v9a3.75 3.75 0 007.5 0V8.25a2.25 2.25 0 00-4.5 0v7.5" /></svg>
+                      </button>
                       <textarea
                         ref={inputRef}
                         value={input}
@@ -541,6 +543,61 @@ const MessagesPage: NextPage = () => {
                     <p className="text-[10px] text-neutral-400 mt-1.5 px-1">↵ to send · Shift+↵ for new line</p>
                     {sendError && <p className="text-[11px] text-red-500 mt-1 px-1">{sendError}</p>}
                   </div>
+
+                  {uploadOpen && (
+                    <div className="fixed inset-0 z-[1200] flex items-center justify-center px-4"
+                      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+                      onClick={() => { if (!uploadingImage) { setUploadOpen(false); setUploadDrag(false); } }}>
+                      <div
+                        className="w-full max-w-md rounded-2xl p-6"
+                        style={{ background: dm ? '#111214' : 'white', border: `1px solid ${dm ? '#262626' : '#e5e7eb'}` }}
+                        onClick={(e) => e.stopPropagation()}
+                        onDragOver={(e) => { e.preventDefault(); setUploadDrag(true); }}
+                        onDragLeave={() => setUploadDrag(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setUploadDrag(false);
+                          const f = e.dataTransfer.files?.[0];
+                          if (f) sendImage(f);
+                          setUploadOpen(false);
+                        }}
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>Upload image</p>
+                            <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Drag a photo here, or click to browse.</p>
+                          </div>
+                          <button onClick={() => { if (!uploadingImage) setUploadOpen(false); }} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#1f2937' : '#f3f4f6' }}>
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => uploadInputRef.current?.click()}
+                          className="w-full rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors"
+                          style={{
+                            borderColor: uploadDrag ? '#007e6d' : (dm ? '#2c2c2e' : '#d1d5db'),
+                            background: uploadDrag ? (dm ? 'rgba(0,126,109,0.15)' : '#e7f5f1') : (dm ? '#0d0d0d' : '#f9fafb'),
+                            color: dm ? '#d1d5db' : '#374151',
+                          }}
+                        >
+                          {uploadingImage ? 'Uploading…' : 'Drop image here or click to browse'}
+                        </button>
+                        <input
+                          ref={uploadInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) sendImage(f);
+                            setUploadOpen(false);
+                            if (e.target) e.target.value = '';
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="hidden sm:flex flex-1 items-center justify-center rounded-2xl border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(10,132,255,0.08)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>

@@ -126,6 +126,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       const supabase = getSupabase();
+      const blockUserId = user_id || authUser?.id;
+      if (blockUserId) {
+        const { data: block } = await supabase
+          .from('blocks')
+          .select('id')
+          .eq('business_id', business_id)
+          .eq('user_id', blockUserId)
+          .maybeSingle();
+        if (block) {
+          return res.status(403).json({ error: 'This business has blocked new bookings from your account.' });
+        }
+      }
       // Block paid bookings if business hasn't connected Stripe
       if (typeof service_price_cents === 'number') {
         const { data: biz } = await supabase
@@ -449,7 +461,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         const { data, error } = await supabase
           .from('bookings')
-          .select('*, profiles(name, phone, email, avatar_url)')
+          .select('*, profiles(id, name, phone, email, avatar_url)')
           .eq('business_id', business_id)
           .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null')
           .order('created_at', { ascending: false })
