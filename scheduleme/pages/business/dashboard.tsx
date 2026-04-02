@@ -1342,7 +1342,11 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-neutral-900">Payment Account</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">{business?.stripe_onboarded ? 'Step 2/2: Bank connected — payouts live. Standard payouts arrive in 1–2 business days.' : 'Step 1/2: Connect bank & get paid.'}</p>
+                      <p className="text-xs font-semibold mt-0.5" style={{ color: business?.stripe_onboarded ? '#0f766e' : '#9ca3af' }}>
+                        {business?.stripe_onboarded
+                          ? 'Step 2/2: Bank connected — payouts live. Standard payouts arrive in 1–2 business days.'
+                          : 'Step 1/2: Connect bank & get paid.'}
+                      </p>
                     </div>
                   </div>
                   {business?.stripe_onboarded ? (
