@@ -26,6 +26,8 @@ const AdminPage: NextPage = () => {
   const [schoolDomains, setSchoolDomains] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
+  const [stripeHealth, setStripeHealth] = useState<any>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
@@ -42,10 +44,17 @@ const AdminPage: NextPage = () => {
       const data = await res.json();
       setBusinesses(data.businesses ?? []);
       setAuthed(true);
+      setStripeLoading(true);
+      const stripeRes = await fetch('/api/admin-stripe-health', { headers: { 'x-notify-secret': s } });
+      if (stripeRes.ok) {
+        const stripeData = await stripeRes.json();
+        setStripeHealth(stripeData);
+      }
     } catch {
       showToast('Failed to load businesses', false);
     } finally {
       setLoading(false);
+      setStripeLoading(false);
     }
   }, []);
 
@@ -139,6 +148,51 @@ const AdminPage: NextPage = () => {
                 <p className="text-xs text-neutral-500 mt-1">{label}</p>
               </div>
             ))}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-bold text-white">Stripe Health</p>
+                <p className="text-xs text-neutral-500 mt-1">Webhook + event status</p>
+              </div>
+              <button onClick={() => loadBusinesses(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                Refresh
+              </button>
+            </div>
+            {stripeLoading ? (
+              <div className="text-xs text-neutral-500">Loading Stripe status…</div>
+            ) : stripeHealth ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                  <p className="text-neutral-400">Webhook Secret</p>
+                  <p className={`text-sm font-semibold mt-1 ${stripeHealth.webhookSecretConfigured ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {stripeHealth.webhookSecretConfigured ? 'Configured' : 'Missing'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                  <p className="text-neutral-400">Webhook Endpoint</p>
+                  <p className={`text-sm font-semibold mt-1 ${stripeHealth.endpointFound ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {stripeHealth.endpointFound ? `Found (${stripeHealth.endpointStatus || 'unknown'})` : 'Not found'}
+                  </p>
+                  <p className="text-[10px] text-neutral-600 mt-2">Expected: {stripeHealth.expectedUrl}</p>
+                </div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                  <p className="text-neutral-400">Last Stripe Event</p>
+                  <p className="text-sm font-semibold mt-1 text-white">{stripeHealth.lastEventType || 'None found'}</p>
+                  {stripeHealth.lastEventCreated && (
+                    <p className="text-[10px] text-neutral-500 mt-1">{new Date(stripeHealth.lastEventCreated).toLocaleString()}</p>
+                  )}
+                </div>
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                  <p className="text-neutral-400">Live Mode</p>
+                  <p className={`text-sm font-semibold mt-1 ${stripeHealth.lastEventLivemode ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {stripeHealth.lastEventLivemode ? 'Live events' : 'Test or unknown'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-neutral-500">Stripe status not loaded yet.</div>
+            )}
           </div>
           <div className="flex gap-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1 mb-6 w-fit">
             {(['pending', 'approved', 'all'] as const).map(f => (
