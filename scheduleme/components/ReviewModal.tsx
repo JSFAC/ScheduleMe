@@ -1,5 +1,5 @@
 // components/ReviewModal.tsx — post-booking review popup
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useDm } from '../lib/DarkModeContext';
 
@@ -20,9 +20,12 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function submit() {
     if (!rating) return;
@@ -36,7 +39,7 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ booking_id: bookingId, business_id: businessId, rating, comment }),
+        body: JSON.stringify({ booking_id: bookingId, business_id: businessId, rating, comment, image_urls: imageUrls }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
@@ -48,6 +51,37 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
 
   const LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
   const activeRating = hovered || rating;
+
+  async function handleImageUpload(file: File) {
+    if (!file || uploading) return;
+    if (imageUrls.length >= 3) { setError('You can add up to 3 photos.'); return; }
+    setUploading(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/upload-review-media', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ booking_id: bookingId, file_data: dataUrl, file_type: file.type, file_name: file.name || 'review.jpg' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data?.error || 'Upload failed'); return; }
+      setImageUrls((imgs) => [...imgs, data.url].slice(0, 3));
+    } catch {
+      setError('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0"
@@ -116,6 +150,46 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
                 color: dm ? '#f3f4f6' : '#171717',
               }}
             />
+
+            <div className="mb-4">
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: dm ? 'rgba(255,255,255,0.5)' : '#737373' }}>
+                Add photos (optional)
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {imageUrls.map((url, i) => (
+                  <div key={url} className="relative">
+                    <img src={url} alt={`Review ${i + 1}`} className="h-16 w-16 rounded-xl object-cover border" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }} />
+                    <button
+                      type="button"
+                      onClick={() => setImageUrls(imgs => imgs.filter((u) => u !== url))}
+                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full text-xs font-bold flex items-center justify-center"
+                      style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#f3f4f6' : '#111827' }}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {imageUrls.length < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-16 w-16 rounded-xl border border-dashed flex items-center justify-center text-xs font-semibold"
+                    style={{ borderColor: dm ? '#262626' : '#d1d5db', color: dm ? '#9ca3af' : '#6b7280' }}>
+                    {uploading ? 'Uploading…' : 'Add'}
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImageUpload(f);
+                  if (e.target) e.target.value = '';
+                }}
+              />
+            </div>
 
             {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 

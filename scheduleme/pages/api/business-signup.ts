@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndFilter } from '../../lib/profanity';
+import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, isValidEmail, isValidPhone } from '../../lib/apiSecurity';
 import { sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail } from '../../lib/email';
 
@@ -64,12 +65,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Invalid service category' });
 
   // Profanity checks on all text fields
+  const nameMod = await moderateText(businessName);
+  if (!nameMod.ok) return res.status(400).json({ error: nameMod.reason || 'Business name violates content policy' });
   const nameCheck = validateAndFilter(businessName, { maxLength: 60, fieldName: 'Business name' });
   if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
 
+  if (ownerName) {
+    const ownerMod = await moderateText(ownerName);
+    if (!ownerMod.ok) return res.status(400).json({ error: ownerMod.reason || 'Owner name violates content policy' });
+  }
   const ownerCheck = validateAndFilter(ownerName || '', { maxLength: 60, fieldName: 'Owner name' });
   if (!ownerCheck.ok) return res.status(400).json({ error: ownerCheck.error });
 
+  const cityMod = await moderateText(city);
+  if (!cityMod.ok) return res.status(400).json({ error: cityMod.reason || 'City violates content policy' });
   // Validate optional text fields
   const cityCheck = validateAndFilter(city, { maxLength: 120, fieldName: 'City' });
   if (!cityCheck.ok) return res.status(400).json({ error: cityCheck.error });
@@ -90,6 +99,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Service description is too long' });
   if (schoolName && typeof schoolName === 'string' && schoolName.length > 100)
     return res.status(400).json({ error: 'School name is too long' });
+  if (otherCategory) {
+    const otherMod = await moderateText(otherCategory);
+    if (!otherMod.ok) return res.status(400).json({ error: otherMod.reason || 'Service description violates content policy' });
+  }
+  if (schoolName) {
+    const schoolMod = await moderateText(schoolName);
+    if (!schoolMod.ok) return res.status(400).json({ error: schoolMod.reason || 'School name violates content policy' });
+  }
 
   try {
     const supabase = getSupabase();

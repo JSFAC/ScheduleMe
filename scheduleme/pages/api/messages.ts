@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { filterMessage } from '../../lib/profanity';
+import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 
 function getSupabase() {
@@ -108,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const resq = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone)')
+        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone, avatar_url)')
         .eq('business_id', business_id)
         .eq('user_id', thread_customer_id)
         .order('created_at', { ascending: false });
@@ -249,7 +250,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const latest = sorted[0];
         const bookingIds = sorted.map((b: any) => b.id);
         const { data: msgs } = await supabase.from('messages')
-          .select('id, sender_type, content, created_at')
+          .select('id, sender_type, content, image_url, message_type, created_at')
           .in('booking_id', bookingIds).order('created_at', { ascending: false }).limit(1);
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
@@ -282,7 +283,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let bookings: any[] = [];
       const resq = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone)')
+        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone, avatar_url)')
         .eq('business_id', business_id)
         .order('created_at', { ascending: false });
       if (resq.error) {
@@ -297,7 +298,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (!b.user_id) continue;
           const { data: prof } = await supabase
             .from('profiles')
-            .select('id, name, email, phone')
+            .select('id, name, email, phone, avatar_url')
             .eq('id', b.user_id)
             .maybeSingle();
           if (prof) b.profiles = prof;
@@ -320,7 +321,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const latest = sorted[0];
         const bookingIds = sorted.map((b: any) => b.id);
         const { data: msgs } = await supabase.from('messages')
-          .select('id, sender_type, content, created_at')
+          .select('id, sender_type, content, image_url, message_type, created_at')
           .in('booking_id', bookingIds).order('created_at', { ascending: false }).limit(1);
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
@@ -409,6 +410,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Filter profanity / threats on text content
     let filteredContent = '';
     if (content) {
+      const textMod = await moderateText(content);
+      if (!textMod.ok) return res.status(400).json({ error: textMod.reason || 'Text violates content policy' });
       const filtered = filterMessage(content.trim());
       if (!filtered.ok) return res.status(400).json({ error: filtered.error });
       filteredContent = filtered.filtered;

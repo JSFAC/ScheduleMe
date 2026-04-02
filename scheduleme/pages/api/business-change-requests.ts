@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
 import { containsProfanity, containsThreat } from '../../lib/profanity';
+import { moderateText } from '../../lib/moderation';
 import { sendChangeRequestAdminEmail, sendChangeRequestReceiptEmail } from '../../lib/email';
 
 const ADMIN_EMAIL = 'usescheduleme@gmail.com';
@@ -66,6 +67,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (['name', 'address', 'description', 'category'].includes(k)) {
       const v = String(changesObj[k] ?? '').trim();
+      const textMod = await moderateText(v);
+      if (!textMod.ok) return res.status(400).json({ error: textMod.reason || 'Text violates content policy' });
       if (containsThreat(v)) { flagged = true; flagReasons.push('threat content'); }
       if (containsProfanity(v)) { flagged = true; flagReasons.push('explicit language'); }
     }

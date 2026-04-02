@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
+import { moderateText } from '../../lib/moderation';
 
 function getSupabase() {
   return createClient(
@@ -21,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
-    const { booking_id, business_id, rating, comment } = req.body;
+    const { booking_id, business_id, rating, comment, image_urls } = req.body;
 
     if (!booking_id || !business_id || !rating)
       return res.status(400).json({ error: 'booking_id, business_id, rating required' });
@@ -33,9 +34,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Filter comment if provided
     let cleanComment = '';
     if (comment) {
+      const textMod = await moderateText(comment);
+      if (!textMod.ok) return res.status(400).json({ error: textMod.reason || 'Review violates content policy' });
       const check = validateAndFilter(comment, { maxLength: 500, fieldName: 'Review' });
       if (!check.ok) return res.status(400).json({ error: check.error });
       cleanComment = check.value;
+    }
+
+    let safeImages: string[] = [];
+    if (Array.isArray(image_urls)) {
+      safeImages = image_urls.filter((u: any) => typeof u === 'string').slice(0, 3);
     }
 
     const supabase = getSupabase();
@@ -70,8 +78,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_id: user.id,
         rating,
         comment: cleanComment || null,
+        image_urls: safeImages.length ? safeImages : null,
       })
-      .select('id, rating, comment, created_at')
+      .select('id, rating, comment, image_urls, created_at')
       .single();
 
     if (error) return res.status(500).json({ error: 'Failed to submit review' });
@@ -107,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('reviews')
-      .select('id, rating, comment, created_at, profiles(name)')
+      .select('id, rating, comment, image_urls, created_at, profiles(name, avatar_url)')
       .eq('business_id', business_id)
       .order('created_at', { ascending: false })
       .limit(50);

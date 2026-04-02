@@ -193,6 +193,8 @@ export default function BizPage() {
   const [shareUrl, setShareUrl] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
 
   useEffect(() => {
@@ -218,6 +220,16 @@ export default function BizPage() {
         setLoading(false);
       });
   }, [slug]);
+
+  useEffect(() => {
+    if (!biz?.id) return;
+    setReviewsLoading(true);
+    fetch('/api/reviews?business_id=' + biz.id)
+      .then(r => r.json())
+      .then(d => setReviews(d.reviews || []))
+      .catch(() => {})
+      .finally(() => setReviewsLoading(false));
+  }, [biz?.id]);
 
   useEffect(() => {
     if (!biz?.id) return;
@@ -477,6 +489,45 @@ export default function BizPage() {
               <p className="font-semibold text-sm" style={{color:tx}}>Custom Request</p>
               <p className="text-xs mt-0.5" style={{color:mu}}>Describe what you need in the notes below</p>
             </button>
+          </div>
+          <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Reviews</h2>
+          <div className="flex flex-col gap-3 mb-5">
+            {reviewsLoading && (
+              <div className="rounded-2xl p-5 text-center" style={{background:card,border:'1px solid '+bdr}}>
+                <p className="text-sm" style={{color:mu}}>Loading reviews…</p>
+              </div>
+            )}
+            {!reviewsLoading && reviews.length === 0 && (
+              <div className="rounded-2xl p-5 text-center" style={{background:card,border:'1px solid '+bdr}}>
+                <p className="text-sm" style={{color:mu}}>No reviews yet</p>
+              </div>
+            )}
+            {reviews.map((r: any) => (
+              <div key={r.id} className="rounded-2xl p-4" style={{background:card,border:'1px solid '+bdr}}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full overflow-hidden border" style={{borderColor:bdr}}>
+                      {r.profiles?.avatar_url
+                        ? <img src={r.profiles.avatar_url} alt={r.profiles?.name || 'User'} className="h-full w-full object-cover" />
+                        : <div className="h-full w-full flex items-center justify-center text-xs font-bold" style={{background:accentWash,color:accent}}>{(r.profiles?.name || 'U').charAt(0).toUpperCase()}</div>}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold" style={{color:tx}}>{r.profiles?.name || 'Customer'}</p>
+                      <p className="text-[11px]" style={{color:mu}}>{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+                  <div className="text-xs font-bold" style={{color:accent}}>{'★'.repeat(r.rating || 0)}</div>
+                </div>
+                {r.comment && <p className="text-sm leading-relaxed mb-2" style={{color:mu}}>{r.comment}</p>}
+                {Array.isArray(r.image_urls) && r.image_urls.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {r.image_urls.map((u: string) => (
+                      <img key={u} src={u} alt="Review" className="h-20 w-20 rounded-xl object-cover border" style={{borderColor:bdr}} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
           {normalizeHours(biz.hours).length > 0 && <>
             <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Hours</h2>

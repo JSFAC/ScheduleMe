@@ -57,6 +57,43 @@ const NAV: { id: TabId; label: string; d: string }[] = [
 function fmt(cents: number) { return '$' + (cents / 100).toFixed(2); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function fmtTime(d: string) { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+function toCalDate(d: Date) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z'); }
+function buildGoogleCalendarUrl(opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: opts.title,
+    dates: `${toCalDate(opts.start)}/${toCalDate(opts.end)}`,
+    details: opts.details || '',
+    location: opts.location || '',
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+function downloadIcs(filename: string, opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//ScheduleMe//EN',
+    'BEGIN:VEVENT',
+    `UID:${Date.now()}@scheduleme`,
+    `DTSTAMP:${toCalDate(new Date())}`,
+    `DTSTART:${toCalDate(opts.start)}`,
+    `DTEND:${toCalDate(opts.end)}`,
+    `SUMMARY:${opts.title}`,
+    opts.details ? `DESCRIPTION:${opts.details.replace(/\n/g, '\\n')}` : '',
+    opts.location ? `LOCATION:${opts.location}` : '',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 function canMarkComplete(b: Booking, bizHours?: any) {
   if (!b?.scheduled_start) return true;
   try {
@@ -614,8 +651,11 @@ const BusinessDashboard: NextPage = () => {
   const [threadMessages, setThreadMessages] = useState<any[]>([]);
   const [msgInput, setMsgInput] = useState('');
   const [msgSending, setMsgSending] = useState(false);
+  const [uploadingMsgImage, setUploadingMsgImage] = useState(false);
+  const [blockedCustomers, setBlockedCustomers] = useState<Record<string, boolean>>({});
   const msgBottomRef = useRef<HTMLDivElement>(null);
   const msgInputRef = useRef<HTMLTextAreaElement>(null);
+  const msgFileInputRef = useRef<HTMLInputElement>(null);
   const supabaseRef = useRef(getSupabase());
   const msgPollRef2 = useRef<NodeJS.Timeout | null>(null);
 
@@ -634,6 +674,8 @@ const BusinessDashboard: NextPage = () => {
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [settingsNotice, setSettingsNotice] = useState('');
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   const HOURS_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   function hoursToMap(hours: any): Record<string, string> {
@@ -680,6 +722,7 @@ const BusinessDashboard: NextPage = () => {
       return;
     }
     setBusiness(biz);
+    loadBlockedCustomers(biz.id);
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
     setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
     setEditServices((biz.service_tags || []).join(', '));
@@ -712,6 +755,14 @@ const BusinessDashboard: NextPage = () => {
   }, [tab, business]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
+
+  useEffect(() => {
+    if (!business?.id) return;
+    if (typeof window === 'undefined') return;
+    const key = 'sm_biz_tour_seen';
+    if (localStorage.getItem(key) === '1') return;
+    setShowTour(true);
+  }, [business?.id]);
 
   useEffect(() => {
     if (!business) return;
@@ -785,6 +836,18 @@ const BusinessDashboard: NextPage = () => {
     if (res.ok) { const d = await res.json(); setThreads(d.threads || []); setMsgThreads(d.threads || []); }
   }
 
+  async function loadBlockedCustomers(businessId: string) {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/blocks?business_id=${businessId}`, { headers });
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, boolean> = {};
+      for (const b of data.blocks || []) map[b.user_id] = true;
+      setBlockedCustomers(map);
+    } catch {}
+  }
+
   async function loadThreadMessages(bookingId: string) {
     const res = await fetch('/api/messages?thread_customer_id=' + bookingId + '&business_id=' + business?.id, { headers: await getAuthHeaders() });
     if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t); }
@@ -795,6 +858,11 @@ const BusinessDashboard: NextPage = () => {
     if (!activeMsgThread || !raw.trim() || msgSending) return;
     const bookingId = activeMsgThread.booking_id || activeMsgThread.booking_ids?.[0];
     if (!bookingId) return;
+    const activeCustomerId = activeMsgThread.profiles?.id || activeMsgThread.customer_id;
+    if (activeCustomerId && blockedCustomers[activeCustomerId]) {
+      showToast('Messaging blocked for this customer.', false);
+      return;
+    }
     setMsgSending(true);
     const content = raw.trim();
     setMsgInput('');
@@ -818,6 +886,89 @@ const BusinessDashboard: NextPage = () => {
     } finally {
       setMsgSending(false);
       msgInputRef.current?.focus();
+    }
+  }
+
+  async function sendBizImage(file: File) {
+    if (!activeMsgThread || !file || uploadingMsgImage) return;
+    const bookingId = activeMsgThread.booking_id || activeMsgThread.booking_ids?.[0];
+    if (!bookingId) return;
+    const activeCustomerId = activeMsgThread.profiles?.id || activeMsgThread.customer_id;
+    if (activeCustomerId && blockedCustomers[activeCustomerId]) {
+      showToast('Messaging blocked for this customer.', false);
+      return;
+    }
+    setUploadingMsgImage(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const uploadRes = await fetch('/api/upload-message-media', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({
+          booking_id: bookingId,
+          file_data: dataUrl,
+          file_type: file.type,
+          file_name: file.name || 'image.jpg',
+        }),
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) {
+        showToast(uploadData?.error || 'Image upload failed', false);
+        return;
+      }
+      const imageUrl = uploadData.url;
+      const tempId = `temp-${Date.now()}`;
+      const tempMsg = { id: tempId, booking_id: bookingId, sender_type: 'business', content: '', image_url: imageUrl, message_type: 'image', created_at: new Date().toISOString() };
+      setThreadMessages((m: any[]) => [...m, tempMsg]);
+      setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: tempMsg } : t));
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, image_url: imageUrl }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setThreadMessages((m: any[]) => m.map((msg: any) => msg.id === tempId ? data.message : msg));
+        setMsgThreads((ts: any[]) => ts.map((t: any) => t.id === activeMsgThread.id ? { ...t, lastMessage: data.message } : t));
+      } else {
+        setThreadMessages((m: any[]) => m.filter((msg: any) => msg.id !== tempId));
+      }
+    } finally {
+      setUploadingMsgImage(false);
+      if (msgFileInputRef.current) msgFileInputRef.current.value = '';
+    }
+  }
+
+  async function toggleBlockCustomer() {
+    if (!business || !activeMsgThread) return;
+    const userId = activeMsgThread.profiles?.id || activeMsgThread.customer_id;
+    if (!userId) return;
+    const isBlocked = !!blockedCustomers[userId];
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/blocks', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_id: business.id,
+          user_id: userId,
+          action: isBlocked ? 'unblock' : 'block',
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data?.error || 'Unable to update block', false);
+        return;
+      }
+      setBlockedCustomers((m) => ({ ...m, [userId]: !isBlocked }));
+      showToast(isBlocked ? 'Customer unblocked.' : 'Customer blocked.', true);
+    } catch {
+      showToast('Unable to update block', false);
     }
   }
 
@@ -1069,17 +1220,34 @@ const BusinessDashboard: NextPage = () => {
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
   const bookingDates = new Map<number, number>();
-  bookings.filter(b => b.status !== 'cancelled').forEach(b => { const day = new Date(b.created_at).getDate(); bookingDates.set(day, (bookingDates.get(day) || 0) + 1); });
+  bookings.filter(b => b.status !== 'cancelled').forEach(b => {
+    const d = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
+    const day = d.getDate();
+    bookingDates.set(day, (bookingDates.get(day) || 0) + 1);
+  });
 
-  const clientMap = new Map<string, { name: string; email: string; phone: string; bookingCount: number; totalSpent: number; lastBooking: string }>();
+  const clientMap = new Map<string, { name: string; email: string; phone: string; avatar_url?: string; bookingCount: number; totalSpent: number; lastBooking: string }>();
   bookings.forEach(b => {
     if (!b.profiles?.email) return;
     const ex = clientMap.get(b.profiles.email);
     if (ex) { ex.bookingCount++; ex.totalSpent += b.amount_cents || 0; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
-    else clientMap.set(b.profiles.email, { name: b.profiles.name, email: b.profiles.email, phone: b.profiles.phone, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
+    else clientMap.set(b.profiles.email, { name: b.profiles.name, email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
   });
   const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+  const activeCustomerId = activeMsgThread?.profiles?.id || activeMsgThread?.customer_id;
+  const isCustomerBlocked = activeCustomerId ? !!blockedCustomers[activeCustomerId] : false;
+  const TOUR_STEPS = [
+    { title: 'Welcome to your dashboard', body: 'This is your business HQ. Use the sidebar to switch between Overview, Bookings, Messages, and Settings.' },
+    { title: 'Bookings & calendar', body: 'Confirm or complete bookings here. The calendar tab helps you see upcoming work at a glance.' },
+    { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
+    { title: 'Settings & payouts', body: 'Update your listing, hours, and connect Stripe to get paid.' },
+  ];
+  const tour = TOUR_STEPS[tourStep];
+  function finishTour() {
+    if (typeof window !== 'undefined') localStorage.setItem('sm_biz_tour_seen', '1');
+    setShowTour(false);
+  }
 
   return (
     <>
@@ -1090,6 +1258,47 @@ const BusinessDashboard: NextPage = () => {
             <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" />
           </div>
           <p className="text-white font-semibold text-sm tracking-wide">Signing you out…</p>
+        </div>
+      )}
+      {showTour && tour && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+          <div className="w-full max-w-md rounded-3xl p-6 shadow-2xl" style={{ background: dm ? '#0f1115' : 'white', border: `1px solid ${dm ? '#1f2937' : '#e5e7eb'}` }}>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#94a3b8' }}>
+              Step {tourStep + 1} of {TOUR_STEPS.length}
+            </p>
+            <p className="text-lg font-black mb-2" style={{ color: dm ? '#f3f4f6' : '#111827' }}>{tour.title}</p>
+            <p className="text-sm" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{tour.body}</p>
+            <div className="mt-6 flex items-center justify-between">
+              <button
+                onClick={finishTour}
+                className="text-xs font-semibold px-3 py-2 rounded-xl border"
+                style={{ borderColor: dm ? '#2a2a2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}
+              >
+                Skip
+              </button>
+              <div className="flex items-center gap-2">
+                {tourStep > 0 && (
+                  <button
+                    onClick={() => setTourStep(s => Math.max(0, s - 1))}
+                    className="text-xs font-semibold px-3 py-2 rounded-xl border"
+                    style={{ borderColor: dm ? '#2a2a2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151' }}
+                  >
+                    Back
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (tourStep >= TOUR_STEPS.length - 1) finishTour();
+                    else setTourStep(s => s + 1);
+                  }}
+                  className="text-xs font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: '#007e6d' }}
+                >
+                  {tourStep >= TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       <Head><title>{business?.name || 'Dashboard'} — ScheduleMe for Business</title></Head>
@@ -1419,8 +1628,11 @@ const BusinessDashboard: NextPage = () => {
                         <div key={b.id} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
                           <div className="flex items-start justify-between gap-4 mb-3">
                             <div className="flex items-start gap-3 min-w-0">
-                              <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 mt-0.5">
-                                <span className="text-accent text-sm font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
+                              <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                                {b.profiles?.avatar_url
+                                  ? <img src={b.profiles.avatar_url} alt={b.profiles?.name || 'Customer'} className="h-full w-full object-cover" />
+                                  : <span className="text-accent text-sm font-black">{(b.profiles?.name || '?').charAt(0).toUpperCase()}</span>
+                                }
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
@@ -1437,6 +1649,39 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>Requested for {scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
+                          {b.scheduled_start && (
+                            <div className="flex flex-wrap gap-2 text-[11px] mb-3">
+                              <a
+                                href={buildGoogleCalendarUrl({
+                                  title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`,
+                                  details: b.note || '',
+                                  location: b.address || business?.address || '',
+                                  start: new Date(b.scheduled_start),
+                                  end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)),
+                                })}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2.5 py-1 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 font-semibold"
+                              >
+                                Add to Google Calendar
+                              </a>
+                              <button
+                                onClick={() => downloadIcs(
+                                  `scheduleme-${b.id}.ics`,
+                                  {
+                                    title: `${b.service || 'Booking'} — ${business?.name || 'ScheduleMe'}`,
+                                    details: b.note || '',
+                                    location: b.address || business?.address || '',
+                                    start: new Date(b.scheduled_start),
+                                    end: new Date(b.scheduled_end || new Date(new Date(b.scheduled_start).getTime() + 60 * 60 * 1000)),
+                                  }
+                                )}
+                                className="px-2.5 py-1 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 font-semibold"
+                              >
+                                Download .ics
+                              </button>
+                            </div>
+                          )}
                           {(['pending', 'confirmed', 'active', 'payment_pending'].includes(b.status)) && (
                             <div className="flex gap-2">
                               {/* Price setting — required before confirm */}
@@ -1534,8 +1779,11 @@ const BusinessDashboard: NextPage = () => {
                         className="w-full text-left px-4 py-3.5 border-b transition-colors" style={{ borderColor: dm ? '#1e1e1e' : '#fafafa', background: activeMsgThread?.id === t.id ? (dm ? '#1e2130' : '#eff6ff') : 'transparent' }}>
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                              <span className="text-accent text-[10px] font-black">{(t.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
+                            <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0 overflow-hidden">
+                              {t.profiles?.avatar_url
+                                ? <img src={t.profiles.avatar_url} alt={t.profiles?.name || 'Customer'} className="h-full w-full object-cover" />
+                                : <span className="text-accent text-[10px] font-black">{(t.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
+                              }
                             </div>
                             <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{t.profiles?.name || t.profiles?.email || 'Customer'}</p>
                           </div>
@@ -1547,7 +1795,8 @@ const BusinessDashboard: NextPage = () => {
                         <p className="text-[11px] truncate mb-0.5 pl-9" style={{ color: dm ? '#9ca3af' : '#737373' }}>{t.service}</p>
                         {t.lastMessage
                           ? <p className={`text-[11px] truncate pl-9 ${t.unreadCount > 0 ? 'font-semibold text-neutral-700' : 'text-neutral-400'}`}>
-                              {t.lastMessage.sender_type === 'business' ? 'You: ' : ''}{t.lastMessage.content}
+                              {t.lastMessage.sender_type === 'business' ? 'You: ' : ''}
+                              {t.lastMessage.image_url ? (t.lastMessage.content || 'Photo') : t.lastMessage.content}
                             </p>
                           : <p className="text-[11px] text-neutral-300 italic pl-9">No messages yet</p>
                         }
@@ -1566,8 +1815,11 @@ const BusinessDashboard: NextPage = () => {
                           <button onClick={() => setActiveMsgThread(null)} className="lg:hidden p-1.5 rounded-lg hover:bg-neutral-100 mr-1 shrink-0">
                             <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                           </button>
-                          <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                            <span className="text-accent font-black text-sm">{(activeMsgThread.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
+                          <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 overflow-hidden">
+                            {activeMsgThread.profiles?.avatar_url
+                              ? <img src={activeMsgThread.profiles.avatar_url} alt={activeMsgThread.profiles?.name || 'Customer'} className="h-full w-full object-cover" />
+                              : <span className="text-accent font-black text-sm">{(activeMsgThread.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
+                            }
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{activeMsgThread.profiles?.name || activeMsgThread.profiles?.email || 'Customer'}</p>
@@ -1580,6 +1832,13 @@ const BusinessDashboard: NextPage = () => {
                               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
                               {activeMsgThread.profiles.phone}
                             </a>
+                          )}
+                          {activeCustomerId && (
+                            <button
+                              onClick={toggleBlockCustomer}
+                              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${isCustomerBlocked ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'}`}>
+                              {isCustomerBlocked ? 'Unblock' : 'Block'}
+                            </button>
                           )}
                           <button onClick={() => setTab('bookings')} className="text-xs font-semibold text-neutral-500 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-100 transition-colors">
                             View booking
@@ -1612,6 +1871,13 @@ const BusinessDashboard: NextPage = () => {
                             {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
                             <div className={`flex ${isBiz ? 'justify-end' : 'justify-start'}`}>
                               <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isBiz ? 'bg-accent text-white rounded-br-md' : (dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md')}`}>
+                                {msg.image_url && (
+                                  <img
+                                    src={msg.image_url}
+                                    alt="Message attachment"
+                                    className="mb-2 rounded-lg border border-white/10 max-w-full"
+                                  />
+                                )}
                                 {msg.content}
                               </div>
                             </div>
@@ -1624,6 +1890,24 @@ const BusinessDashboard: NextPage = () => {
                     {/* Input */}
                     <div className="px-4 py-3 border-t" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                       <div className="flex items-end gap-2">
+                        <input
+                          ref={msgFileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) await sendBizImage(file);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={isCustomerBlocked || uploadingMsgImage}
+                          onClick={() => msgFileInputRef.current?.click()}
+                          className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all border"
+                          style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', opacity: (isCustomerBlocked || uploadingMsgImage) ? 0.4 : 1 }}>
+                          <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75V6.75a4.5 4.5 0 10-9 0v9a3.75 3.75 0 007.5 0V8.25a2.25 2.25 0 00-4.5 0v7.5" /></svg>
+                        </button>
                         <textarea
                           ref={msgInputRef}
                           value={msgInput}
@@ -1634,13 +1918,14 @@ const BusinessDashboard: NextPage = () => {
                               await sendBizMessage(msgInput);
                             }
                           }}
-                          placeholder={`Reply to ${activeMsgThread.profiles?.name || 'customer'}…`}
+                          placeholder={isCustomerBlocked ? 'Messaging is blocked for this customer.' : `Reply to ${activeMsgThread.profiles?.name || 'customer'}…`}
                           rows={1}
+                          disabled={isCustomerBlocked}
                           className="flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
                           style={{ maxHeight: 100, background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
                         />
                         <button
-                          disabled={!msgInput.trim()}
+                          disabled={isCustomerBlocked || !msgInput.trim()}
                           onClick={async () => {
                             await sendBizMessage(msgInput);
                           }}
@@ -1679,8 +1964,11 @@ const BusinessDashboard: NextPage = () => {
                         <div key={c.email} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                                <span className="text-accent font-black text-sm">{c.name.charAt(0).toUpperCase()}</span>
+                              <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 overflow-hidden">
+                                {c.avatar_url
+                                  ? <img src={c.avatar_url} alt={c.name} className="h-full w-full object-cover" />
+                                  : <span className="text-accent font-black text-sm">{c.name.charAt(0).toUpperCase()}</span>
+                                }
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-bold text-neutral-900">{c.name}</p>
@@ -1729,7 +2017,11 @@ const BusinessDashboard: NextPage = () => {
                       const day = i + 1;
                       const isToday = day === today.getDate();
                       const count = bookingDates.get(day) || 0;
-                      const dayBookings = bookings.filter(b => b.status !== 'cancelled' && new Date(b.created_at).getDate() === day);
+                      const dayBookings = bookings.filter(b => {
+                        if (b.status === 'cancelled') return false;
+                        const d = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
+                        return d.getDate() === day;
+                      });
                       return (
                         <div key={day} title={count > 0 ? dayBookings.map(b => b.profiles?.name || b.profiles?.email || 'Customer').join(', ') : ''}
                           className={`aspect-square flex flex-col items-center justify-center rounded-lg text-[11px] relative cursor-default transition-colors ${

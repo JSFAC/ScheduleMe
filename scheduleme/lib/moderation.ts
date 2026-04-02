@@ -30,3 +30,31 @@ export async function moderateImageDataUrl(dataUrl: string): Promise<ModerationR
     return { ok: false, reason: e?.message || 'Moderation failed' };
   }
 }
+
+export async function moderateText(text: string): Promise<ModerationResult> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return { ok: false, reason: 'Text moderation not configured' };
+  const trimmed = (text || '').trim();
+  if (!trimmed) return { ok: true };
+  try {
+    const res = await fetch(MODERATION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: MODERATION_MODEL,
+        input: trimmed,
+      }),
+    });
+    const data: any = await res.json();
+    if (!res.ok) return { ok: false, reason: data?.error?.message || 'Moderation failed' };
+    const r = data?.results?.[0];
+    if (!r) return { ok: false, reason: 'Moderation failed' };
+    if (r.flagged) return { ok: false, reason: 'Text violates content policy' };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, reason: e?.message || 'Moderation failed' };
+  }
+}

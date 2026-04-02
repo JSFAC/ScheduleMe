@@ -66,6 +66,7 @@ interface Booking {
   stripe_payment_method_id?: string;
   stripe_customer_id?: string;
   stripe_setup_intent_id?: string;
+  reviewed?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
@@ -99,6 +100,48 @@ function formatDate(iso: string) {
 
 function formatDateLong(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function toCalDate(d: Date) {
+  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+function buildGoogleCalendarUrl(opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: opts.title,
+    dates: `${toCalDate(opts.start)}/${toCalDate(opts.end)}`,
+    details: opts.details || '',
+    location: opts.location || '',
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function downloadIcs(filename: string, opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//ScheduleMe//EN',
+    'BEGIN:VEVENT',
+    `UID:${Date.now()}@scheduleme`,
+    `DTSTAMP:${toCalDate(new Date())}`,
+    `DTSTART:${toCalDate(opts.start)}`,
+    `DTEND:${toCalDate(opts.end)}`,
+    `SUMMARY:${opts.title}`,
+    opts.details ? `DESCRIPTION:${opts.details.replace(/\n/g, '\\n')}` : '',
+    opts.location ? `LOCATION:${opts.location}` : '',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -371,6 +414,50 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
               </div>
             )}
 
+            {booking.scheduled_at && (
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h4m-6 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Add to calendar</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <a
+                      href={buildGoogleCalendarUrl({
+                        title: `${booking.service} — ${booking.business_name || 'ScheduleMe'}`,
+                        details: booking.note || booking.notes || '',
+                        location: booking.address || '',
+                        start: new Date(booking.scheduled_at),
+                        end: new Date(new Date(booking.scheduled_at).getTime() + 60 * 60 * 1000),
+                      })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                    >
+                      Google Calendar
+                    </a>
+                    <button
+                      onClick={() => downloadIcs(
+                        `scheduleme-${booking.id}.ics`,
+                        {
+                          title: `${booking.service} — ${booking.business_name || 'ScheduleMe'}`,
+                          details: booking.note || booking.notes || '',
+                          location: booking.address || '',
+                          start: new Date(booking.scheduled_at),
+                          end: new Date(new Date(booking.scheduled_at).getTime() + 60 * 60 * 1000),
+                        }
+                      )}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-100 transition-colors"
+                    >
+                      Download .ics
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {booking.address && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -575,8 +662,16 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
       </div>
 
       {disputeOpen && (
-        <div className="fixed inset-0 z-[2100] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
-          <div className="w-full max-w-md mx-4 rounded-2xl p-5" style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}>
+        <div
+          className="fixed inset-0 z-[2100] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setDisputeOpen(false)}
+        >
+          <div
+            className="w-full max-w-md mx-4 rounded-2xl p-5"
+            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Propose a new price</p>
               <button onClick={() => setDisputeOpen(false)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#1f2937' : '#f3f4f6' }}>
@@ -880,6 +975,7 @@ const BookingsPage: NextPage = () => {
   const [paymentDefaultId, setPaymentDefaultId] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
+  const [reviewBanner, setReviewBanner] = useState<Booking | null>(null);
 
 const COORDS_KEY = 'sm_last_coords';
 function readCoords(): { lat: number; lng: number } | null {

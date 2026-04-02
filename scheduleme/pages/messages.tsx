@@ -52,7 +52,6 @@ const MessagesPage: NextPage = () => {
   const [threadError, setThreadError] = useState('');
   const [sendError, setSendError] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [blockedBusinesses, setBlockedBusinesses] = useState<Record<string, boolean>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const supabaseRef = useRef(getSupabase());
@@ -77,21 +76,8 @@ const MessagesPage: NextPage = () => {
       if (!session) { router.replace('/signin'); return; }
       setUserId(session.user.id);
       loadThreads(session.user.id);
-      loadBlocks(session.user.id);
     });
   }, [router]);
-
-  async function loadBlocks(uid: string) {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/blocks?user_id=${uid}`, { headers });
-      if (!res.ok) return;
-      const data = await res.json();
-      const map: Record<string, boolean> = {};
-      for (const b of data.blocks || []) map[b.business_id] = true;
-      setBlockedBusinesses(map);
-    } catch {}
-  }
 
   // Open thread from query param (e.g., from bookings page)
   useEffect(() => {
@@ -254,24 +240,8 @@ const MessagesPage: NextPage = () => {
     }, 2000);
   }
 
-  async function toggleBlockBusiness(businessId: string) {
-    if (!userId) return;
-    const blocked = !!blockedBusinesses[businessId];
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch('/api/blocks', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_id: businessId, user_id: userId, action: blocked ? 'unblock' : 'block' }),
-      });
-      if (res.ok) {
-        setBlockedBusinesses(m => ({ ...m, [businessId]: !blocked }));
-      }
-    } catch {}
-  }
-
   async function sendMessage() {
-    if (!input.trim() || !activeThread || !userId || sending || isBlocked) return;
+    if (!input.trim() || !activeThread || !userId || sending) return;
     setSending(true);
     const content = input.trim();
     setInput('');
@@ -318,7 +288,7 @@ const MessagesPage: NextPage = () => {
   }
 
   async function sendImage(file: File) {
-    if (!activeThread || !userId || uploadingImage || isBlocked) return;
+    if (!activeThread || !userId || uploadingImage) return;
     setUploadingImage(true);
     let bookingId = activeThread.booking_id || (activeThread.booking_ids && activeThread.booking_ids[0]) || activeThread.id;
     if (!activeThread.booking_id && activeThread.business_id) {
@@ -367,7 +337,6 @@ const MessagesPage: NextPage = () => {
   }
 
   const totalUnread = threads.reduce((s, t) => s + t.unreadCount, 0);
-  const isBlocked = !!(activeThread?.business_id && blockedBusinesses[activeThread.business_id]);
 
   return (
     <>
@@ -482,16 +451,7 @@ const MessagesPage: NextPage = () => {
                           <p className="text-[11px] text-neutral-400 truncate">{activeThread.service}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {activeThread.business_id && (
-                          <button
-                            onClick={() => toggleBlockBusiness(activeThread.business_id!)}
-                            className="text-[11px] font-bold px-3 py-1.5 rounded-full border"
-                            style={{ borderColor: isBlocked ? '#ef4444' : '#d1d5db', color: isBlocked ? '#ef4444' : '#6b7280', background: dm ? '#1f1f1f' : 'white' }}>
-                            {isBlocked ? 'Unblock' : 'Block'}
-                          </button>
-                        )}
-                      </div>
+                      <div className="flex items-center gap-2" />
                     </div>
                   </div>
 
@@ -550,11 +510,10 @@ const MessagesPage: NextPage = () => {
 
                   {/* Input */}
                   <div className="px-4 py-3 border-t" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
-                    {isBlocked && <p className="text-[11px] text-red-500 font-semibold mb-2">Messaging is blocked for this business.</p>}
                     <div className="flex items-end gap-2">
                       <label className={`shrink-0 h-10 w-10 rounded-xl border flex items-center justify-center cursor-pointer ${uploadingImage ? 'opacity-60' : ''}`}
                         style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#e5e7eb' : '#374151' }}>
-                        <input type="file" accept="image/*" className="hidden" disabled={uploadingImage || isBlocked} onChange={e => {
+                        <input type="file" accept="image/*" className="hidden" disabled={uploadingImage} onChange={e => {
                           const f = e.target.files?.[0];
                           if (f) sendImage(f);
                           e.target.value = '';
@@ -570,9 +529,8 @@ const MessagesPage: NextPage = () => {
                         rows={1}
                         className="flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
                         style={{ maxHeight: 120, background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
-                        disabled={isBlocked}
                       />
-                      <button onClick={sendMessage} disabled={!input.trim() || sending || isBlocked}
+                      <button onClick={sendMessage} disabled={!input.trim() || sending}
                         className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
                         style={{ background: input.trim() ? '#007e6d' : '#e5e7eb' }}>
                         <svg className={`h-4 w-4 ${input.trim() ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

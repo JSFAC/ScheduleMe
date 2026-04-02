@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
+import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 
 const PLATFORM_FEE_PERCENT = 12;
@@ -23,7 +24,7 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
   try {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, status, created_at, businesses(name, owner_email, phone), profiles(name, email, phone)')
+      .select('id, service, status, created_at, businesses(name, owner_email, phone), profiles(name, email, phone, avatar_url)')
       .eq('id', bookingId)
       .single();
     if (!booking) return;
@@ -117,6 +118,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (typeof note === 'string' && note.length > LIMITS.note) {
       return res.status(400).json({ error: `Note must be ${LIMITS.note} characters or less` });
+    }
+    if (typeof note === 'string' && note.trim()) {
+      const textMod = await moderateText(note);
+      if (!textMod.ok) return res.status(400).json({ error: textMod.reason || 'Note violates content policy' });
     }
 
     try {
@@ -444,7 +449,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         const { data, error } = await supabase
           .from('bookings')
-          .select('*, profiles(name, phone, email)')
+          .select('*, profiles(name, phone, email, avatar_url)')
           .eq('business_id', business_id)
           .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null')
           .order('created_at', { ascending: false })
@@ -489,7 +494,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const idList = Array.from(ids).filter(Boolean);
       let query = supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, business_id, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email)')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -507,7 +512,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, business_id, stripe_payment_method_id, stripe_customer_id')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, stripe_payment_method_id, stripe_customer_id')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {
