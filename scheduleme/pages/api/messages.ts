@@ -348,7 +348,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // POST — send a message
   if (req.method === 'POST') {
     // Rate limit: 30 messages/min per IP (prevents flooding)
-    if (!rateLimit(req, res, { max: 300, windowMs: 60_000, keyPrefix: 'msg-post' })) return;
+    if (!rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'msg-post' })) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;

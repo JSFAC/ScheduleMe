@@ -29,6 +29,7 @@ interface Business {
   phone?: string; description?: string;
   stripe_account_id: string | null; stripe_onboarded: boolean;
   service_tags: string[]; address: string; rating: number | null; price_tier?: number | null; review_count?: number | null;
+  slug?: string | null;
   availability_status?: string | null; break_until?: string | null;
   is_onboarded: boolean; website?: string; instagram?: string;
   school_domain?: string | null; edu_verified?: boolean;
@@ -690,6 +691,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifySuccess, setCampusVerifySuccess] = useState('');
   const [showCampusModal, setShowCampusModal] = useState(false);
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
+  const [bkFilterTouched, setBkFilterTouched] = useState(false);
   const [calendarDay, setCalendarDay] = useState<number | null>(null);
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel'; priceCents?: number } | null>(null);
@@ -702,11 +704,12 @@ const BusinessDashboard: NextPage = () => {
   }
 
   useEffect(() => {
-    if (didAutoTabRef.current) return;
+    if (didAutoTabRef.current || bkFilterTouched) return;
+    if (bookings.length === 0) return;
     const pendingCount = bookings.filter(b => b.status === 'pending').length;
-    if (pendingCount === 0) setBkFilter('active');
+    setBkFilter(pendingCount > 0 ? 'pending' : 'active');
     didAutoTabRef.current = true;
-  }, [bookings]);
+  }, [bookings, bkFilterTouched]);
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -1757,7 +1760,7 @@ const BusinessDashboard: NextPage = () => {
                     { key: 'completed', label: 'Completed (' + bookings.filter(b => b.status === 'completed' || b.status === 'paid').length + ')' },
                     { key: 'cancelled', label: 'Cancelled (' + bookings.filter(b => b.status === 'cancelled').length + ')' },
                   ] as const).map(f => (
-                    <button key={f.key} onClick={() => setBkFilter(f.key)}
+                    <button key={f.key} onClick={() => { setBkFilterTouched(true); setBkFilter(f.key); }}
                       className={`text-xs font-bold px-3.5 py-2 rounded-xl transition-all border ${bkFilter === f.key ? 'bg-accent text-white border-accent shadow-sm' : 'bg-white text-neutral-500 border-neutral-200 hover:border-neutral-300 hover:text-neutral-700'}`}>
                       {f.label}
                     </button>
@@ -2343,18 +2346,34 @@ const BusinessDashboard: NextPage = () => {
             </div>
             )}
             {tab === 'preview' && (
-              <EditablePreview
-                business={business}
-                services={services}
-                mediaImages={mediaImages}
-                mediaVideo={mediaVideo ?? ''}
-                editDesc={editDesc}
-                setEditDesc={setEditDesc}
-                setMediaImages={setMediaImages}
-                setMediaVideo={setMediaVideo}
-                setBusiness={setBusiness}
-                dm={dm}
-              />
+              <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-neutral-500">Live Preview</p>
+                    <p className="text-[11px] text-neutral-400">This renders the same layout as the public business page.</p>
+                  </div>
+                  {business?.slug && (
+                    <a
+                      href={`/biz/${business.slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    >
+                      Open full page
+                    </a>
+                  )}
+                </div>
+                {business?.slug ? (
+                  <iframe
+                    title="Business preview"
+                    src={`/biz/${business.slug}`}
+                    className="w-full"
+                    style={{ height: '80vh', border: 'none' }}
+                  />
+                ) : (
+                  <div className="p-6 text-sm text-neutral-500">Preview unavailable — missing business slug.</div>
+                )}
+              </div>
             )}
 
             {tab === 'settings' && (

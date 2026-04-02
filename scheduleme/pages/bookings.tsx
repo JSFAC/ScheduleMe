@@ -641,14 +641,14 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
               </div>
             </div>
           )}
-          {['completed', 'paid'].includes(booking.status) && !booking.reviewed && booking.business_id && booking.business_name && (
+          {['completed', 'paid'].includes(booking.status) && !booking.reviewed && booking.business_id && (
             <div className="mt-4">
               <button
                 onClick={() => {
                   setReviewTarget({
                     bookingId: booking.id,
                     businessId: booking.business_id,
-                    businessName: booking.business_name,
+                    businessName: booking.business_name || 'Provider',
                     serviceName: booking.service || 'Booking',
                   });
                 }}
@@ -683,12 +683,14 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
         <div
           className="fixed inset-0 z-[2100] flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setDisputeOpen(false); }}
+          onMouseDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) setDisputeOpen(false); }}
+          onClick={(e) => { e.stopPropagation(); }}
         >
           <div
             className="w-full max-w-md mx-4 rounded-2xl p-5"
             style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
             onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Propose a new price</p>
@@ -1204,7 +1206,7 @@ function writeCoords(lat: number, lng: number) {
           const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
           );
-          if (unreviewed && unreviewed.business_name) {
+          if (unreviewed) {
             const key = `sm_review_dismissed_${unreviewed.id}`;
             const dismissed = typeof window !== 'undefined' && localStorage.getItem(key);
             if (!dismissed) {
@@ -1354,7 +1356,7 @@ function writeCoords(lat: number, lng: number) {
                 <div>
                   <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>How was your recent booking?</p>
                   <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                    Leave a review for {reviewBanner.business_name}.
+                    Leave a review for {reviewBanner.business_name || 'your provider'}.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

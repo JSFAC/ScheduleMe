@@ -283,7 +283,8 @@ const MessagesPage: NextPage = () => {
       setSendError('');
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } else {
-      setSendError('Message failed to send. Please try again.');
+      const err = await res.json().catch(() => ({}));
+      setSendError(err?.error || 'Message failed to send. Please try again.');
       setMessages(m => m.filter(msg => msg.id !== tempId));
       setInput(content);
     }
