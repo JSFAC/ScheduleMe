@@ -1347,6 +1347,11 @@ const BusinessDashboard: NextPage = () => {
                           ? 'Step 2/2: Bank connected — payouts live. Standard payouts arrive in 1–2 business days.'
                           : 'Step 1/2: Connect bank & get paid.'}
                       </p>
+                      {business?.stripe_onboarded && (
+                        <p className="text-[11px] mt-1" style={{ color: dm ? '#6b7280' : '#94a3b8' }}>
+                          New Stripe accounts may take up to 7 days for the first payout to arrive.
+                        </p>
+                      )}
                     </div>
                   </div>
                   {business?.stripe_onboarded ? (
@@ -1999,7 +2004,7 @@ const BusinessDashboard: NextPage = () => {
                           className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
                           Enable instant payouts
                         </button>
-                        <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts.</p>
+                        <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts. New Stripe accounts may take up to 7 days for the first payout to arrive.</p>
                         {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
                       </div>
                     ) : (
