@@ -251,3 +251,4 @@ npm start
 - [ ] Real-time dashboard updates via WebSocket or polling
 - [ ] Provider availability calendar integration (Cal.com API)
 - [ ] Stripe payments for booking deposits
+# redeploy Thu Apr  2 16:53:48 PDT 2026
