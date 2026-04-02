@@ -384,7 +384,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
 
           {/* Description — editable inline */}
           {editingCard ? (
-            <textarea value={editDesc} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
+            <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
               placeholder="Tell customers about your business…" rows={3}
               className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3"
               style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
@@ -448,7 +448,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
         {editingModal ? (
           <div>
             <p className="text-xs font-bold mb-1.5" style={{ color: muted }}>Description</p>
-            <textarea value={editDesc} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
+            <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
               placeholder="Tell customers about your business…" rows={3}
               className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
               style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
@@ -477,6 +477,7 @@ function EditablePreview({ business, mediaImages, mediaVideo, editDesc, setEditD
               {editingModal && edit ? (
                 <input className="flex-1 text-sm bg-transparent border-b focus:outline-none focus:border-accent"
                   style={{ color: dm ? '#f2f2f7' : '#1c1c1e', borderColor: dm ? '#404040' : '#d1d5db' }}
+                  maxLength={edit === 'phone' ? 20 : edit === 'website' ? 200 : 120}
                   defaultValue={val || ''} placeholder={placeholder}
                   onBlur={async e => { if (business) { await getSupabase().from('businesses').update({ [edit]: e.target.value }).eq('id', business.id); setBusiness((b: any) => b ? { ...b, [edit]: e.target.value } : b); } }} />
               ) : (
@@ -1749,8 +1750,8 @@ const BusinessDashboard: NextPage = () => {
               <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
                 <div className="flex flex-col gap-3">
-                  <input value={svcName} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
-                  <textarea value={svcDesc} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                  <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                  <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
@@ -1811,20 +1812,21 @@ const BusinessDashboard: NextPage = () => {
                     {settingsError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{settingsError}</div>}
                     {settingsNotice && <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700">{settingsNotice}</div>}
                     {([
-                      { label: 'Business Name', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true, requestChange: true },
-                      { label: 'Phone', v: editPhone, s: setEditPhone, ph: '(415) 555-0192', t: 'tel' },
-                      { label: 'Address / City', v: editAddress, s: setEditAddress, ph: 'San Francisco, CA', t: 'text' },
-                      { label: 'Website', v: editWebsite, s: setEditWebsite, ph: 'https://...', t: 'url' },
-                      { label: 'Services (comma-separated)', v: editServices, s: setEditServices, ph: 'Plumbing, Drain Cleaning', t: 'text' },
+                      { label: 'Business Name', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true, requestChange: true, max: 60 },
+                      { label: 'Phone', v: editPhone, s: setEditPhone, ph: '(415) 555-0192', t: 'tel', max: 20 },
+                      { label: 'Address / City', v: editAddress, s: setEditAddress, ph: 'San Francisco, CA', t: 'text', max: 120 },
+                      { label: 'Website', v: editWebsite, s: setEditWebsite, ph: 'https://...', t: 'url', max: 200 },
+                      { label: 'Services (comma-separated)', v: editServices, s: setEditServices, ph: 'Plumbing, Drain Cleaning', t: 'text', max: 200 },
                     ] as const).map((f) => (
                       <div key={f.label}>
                         <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">{f.label}</label>
-                        <input type={f.t} className="form-input" value={f.v} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: dm ? '#1a1a1a' : '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
+                        <input type={f.t} className="form-input" value={f.v} maxLength={(f as any).max} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: dm ? '#1a1a1a' : '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
                       {(f as any).requestChange && (
                         <button type="button" onClick={async () => {
                           const newName = prompt('Enter requested new business name:');
                           if (newName?.trim()) {
-                            fetch('/api/business-change-requests', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify({ business_id: business?.id, changes: { name: newName }, request_type: 'profile' }) }).catch(() => {});
+                            const trimmed = newName.trim().slice(0, 60);
+                            fetch('/api/business-change-requests', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify({ business_id: business?.id, changes: { name: trimmed }, request_type: 'profile' }) }).catch(() => {});
                             alert('Request sent! We\'ll update your name within 24 hours.');
                           }
                         }} className="mt-1.5 text-xs font-semibold text-accent hover:underline">
@@ -1835,7 +1837,7 @@ const BusinessDashboard: NextPage = () => {
                     ))}
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Description</label>
-                      <textarea className="form-input resize-none" rows={3} value={editDesc} placeholder="Tell customers about your business…" onChange={e => setEditDesc(e.target.value)} />
+                      <textarea className="form-input resize-none" rows={3} value={editDesc} maxLength={1000} placeholder="Tell customers about your business…" onChange={e => setEditDesc(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Availability</label>

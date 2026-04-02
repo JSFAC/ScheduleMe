@@ -64,14 +64,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Invalid service category' });
 
   // Profanity checks on all text fields
-  const nameCheck = validateAndFilter(businessName, { maxLength: 100, fieldName: 'Business name' });
+  const nameCheck = validateAndFilter(businessName, { maxLength: 60, fieldName: 'Business name' });
   if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
 
-  const ownerCheck = validateAndFilter(ownerName || '', { maxLength: 100, fieldName: 'Owner name' });
+  const ownerCheck = validateAndFilter(ownerName || '', { maxLength: 60, fieldName: 'Owner name' });
   if (!ownerCheck.ok) return res.status(400).json({ error: ownerCheck.error });
 
   // Validate optional text fields
-  const cityCheck = validateAndFilter(city, { maxLength: 100, fieldName: 'City' });
+  const cityCheck = validateAndFilter(city, { maxLength: 120, fieldName: 'City' });
   if (!cityCheck.ok) return res.status(400).json({ error: cityCheck.error });
 
   const cleanName = nameCheck.value;
@@ -84,11 +84,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Invalid website URL' });
   if (calendlyUrl && (typeof calendlyUrl !== 'string' || calendlyUrl.length > 200 || !urlRegex.test(calendlyUrl)))
     return res.status(400).json({ error: 'Invalid Calendly URL' });
+  if (instagram && typeof instagram === 'string' && instagram.length > 200)
+    return res.status(400).json({ error: 'Invalid Instagram handle' });
+  if (otherCategory && typeof otherCategory === 'string' && otherCategory.length > 60)
+    return res.status(400).json({ error: 'Service description is too long' });
+  if (schoolName && typeof schoolName === 'string' && schoolName.length > 100)
+    return res.status(400).json({ error: 'School name is too long' });
 
   try {
     const supabase = getSupabase();
     const geo = await geocodeLocation(cleanCity);
-    const category = serviceCategory === 'Other' ? (otherCategory?.slice(0, 50) ?? 'Other') : serviceCategory;
+    const category = serviceCategory === 'Other' ? (otherCategory?.slice(0, 60) ?? 'Other') : serviceCategory;
     const slug = slugify(cleanName) + '-' + Date.now().toString(36);
 
     const { data, error } = await supabase.from('businesses').insert({
@@ -103,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       rating: 0,
       calendly_url: calendlyUrl || null,
       website: website || null,
-      instagram: typeof instagram === 'string' ? instagram.slice(0, 50) : null,
+      instagram: typeof instagram === 'string' ? instagram.slice(0, 200) : null,
       phone: phone || null,
       owner_name: cleanOwner,
       owner_email: email.toLowerCase().trim(),

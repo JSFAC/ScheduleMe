@@ -595,6 +595,7 @@ function CantFindThem() {
           <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Business name <span className="text-red-400">*</span></label>
           <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
             placeholder="e.g. Joe's Plumbing, Maria's Cleaning Service"
+            maxLength={60}
             className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -610,14 +611,15 @@ function CantFindThem() {
           </div>
           <div>
             <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Their area</label>
-            <input type="text" value={bizLocation} onChange={e => setBizLocation(e.target.value)}
-              placeholder="e.g. Mission District"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+          <input type="text" value={bizLocation} onChange={e => setBizLocation(e.target.value)}
+            placeholder="e.g. Mission District"
+            maxLength={120}
+            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
           </div>
         </div>
         <div>
           <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Why do you recommend them?</label>
-          <textarea value={note} onChange={e => setNote(e.target.value)}
+          <textarea value={note} maxLength={500} onChange={e => setNote(e.target.value)}
             placeholder="What did they do for you? How was the experience? Any contact info you have is helpful..."
             rows={3}
             className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" />

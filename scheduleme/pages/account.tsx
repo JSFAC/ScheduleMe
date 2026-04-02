@@ -623,15 +623,15 @@ const Account: NextPage = () => {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Label</label>
-                      <input type="text" className="form-input" placeholder="Home, Office, etc." value={addrLabel} onChange={e => { setAddrLabel(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: e.target.value, street: addrStreet, city: addrCity })); }} />
+                    <input type="text" maxLength={40} className="form-input" placeholder="Home, Office, etc." value={addrLabel} onChange={e => { setAddrLabel(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: e.target.value, street: addrStreet, city: addrCity })); }} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Street Address</label>
-                      <input type="text" className="form-input" placeholder="123 Main St" value={addrStreet} onChange={e => { setAddrStreet(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: e.target.value, city: addrCity })); }} />
+                    <input type="text" maxLength={120} className="form-input" placeholder="123 Main St" value={addrStreet} onChange={e => { setAddrStreet(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: e.target.value, city: addrCity })); }} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>City, State ZIP</label>
-                      <input type="text" className="form-input" placeholder="Austin, TX 78701" value={addrCity} onChange={e => { setAddrCity(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: addrStreet, city: e.target.value })); }} />
+                    <input type="text" maxLength={120} className="form-input" placeholder="Austin, TX 78701" value={addrCity} onChange={e => { setAddrCity(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_address', JSON.stringify({ label: addrLabel, street: addrStreet, city: e.target.value })); }} />
                     </div>
                     <div className="flex gap-2 pt-1">
                       <button onClick={addAddress} className="btn-primary text-sm px-5 py-2">Save</button>
@@ -897,7 +897,7 @@ const Account: NextPage = () => {
                   {saveError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{saveError}</div>}
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Full name</label>
-                    <input type="text" className="form-input" value={name} onChange={e => { setName(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name: e.target.value, phone })); }} placeholder="Jane Smith" />
+                    <input type="text" maxLength={60} className="form-input" value={name} onChange={e => { setName(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name: e.target.value, phone })); }} placeholder="Jane Smith" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Email address</label>
@@ -906,7 +906,7 @@ const Account: NextPage = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Phone number</label>
-                    <input type="tel" className="form-input" value={phone} onChange={e => { setPhone(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name, phone: e.target.value })); }} placeholder="(555) 000-1234" />
+                    <input type="tel" maxLength={20} className="form-input" value={phone} onChange={e => { setPhone(e.target.value); if (typeof window !== 'undefined') localStorage.setItem('sm_draft_profile', JSON.stringify({ name, phone: e.target.value })); }} placeholder="(555) 000-1234" />
                     <p className="text-xs mt-1" style={{ color: textMuted }}>Used for SMS and matching with local pros.</p>
                   </div>
                   <button type="submit" disabled={saving} className="btn-primary w-full py-2.5 text-sm">

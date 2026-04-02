@@ -163,14 +163,14 @@ const SignupPage: NextPage = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business name *</label>
-                    <input type="text" className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.businessName ? 'ring-2 ring-red-400' : ''}`}
+                    <input type="text" maxLength={60} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.businessName ? 'ring-2 ring-red-400' : ''}`}
                       placeholder="Mike R. Plumbing" value={form.businessName} onChange={e => set('businessName', e.target.value)} />
                     {errors.businessName && <p className="mt-1 text-xs text-red-400">{errors.businessName}</p>}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-neutral-400 mb-1.5">Owner / contact name *</label>
-                      <input type="text" className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.ownerName ? 'ring-2 ring-red-400' : ''}`}
+                      <input type="text" maxLength={60} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.ownerName ? 'ring-2 ring-red-400' : ''}`}
                         placeholder="Mike Rodriguez" value={form.ownerName} onChange={e => set('ownerName', e.target.value)} />
                       {errors.ownerName && <p className="mt-1 text-xs text-red-400">{errors.ownerName}</p>}
                     </div>
@@ -194,13 +194,13 @@ const SignupPage: NextPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-400 mb-1.5">Email *</label>
-                    <input type="email" autoComplete="email" className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.email ? 'ring-2 ring-red-400' : ''}`}
+                    <input type="email" autoComplete="email" maxLength={200} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.email ? 'ring-2 ring-red-400' : ''}`}
                       placeholder="mike@example.com" value={form.email} onChange={e => set('email', e.target.value)} />
                     {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-neutral-400 mb-1.5">Phone *</label>
-                    <input type="tel" autoComplete="tel" className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.phone ? 'ring-2 ring-red-400' : ''}`}
+                    <input type="tel" autoComplete="tel" maxLength={20} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.phone ? 'ring-2 ring-red-400' : ''}`}
                       placeholder="(512) 555-0100" value={form.phone} onChange={e => set('phone', e.target.value)} />
                     {errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}
                   </div>
@@ -228,7 +228,7 @@ const SignupPage: NextPage = () => {
                   {form.serviceCategory === 'Other' && (
                     <div>
                       <label className="block text-sm font-medium text-neutral-400 mb-1.5">Describe your service *</label>
-                      <input type="text" className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.otherCategory ? 'ring-2 ring-red-400' : ''}`}
+                      <input type="text" maxLength={60} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.otherCategory ? 'ring-2 ring-red-400' : ''}`}
                         placeholder="e.g. Pool maintenance" value={form.otherCategory} onChange={e => set('otherCategory', e.target.value)} />
                       {errors.otherCategory && <p className="mt-1 text-xs text-red-400">{errors.otherCategory}</p>}
                     </div>
@@ -236,7 +236,7 @@ const SignupPage: NextPage = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-neutral-400 mb-1.5">Primary city / zip *</label>
-                      <input type="text" className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.city ? 'ring-2 ring-red-400' : ''}`}
+                      <input type="text" maxLength={120} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.city ? 'ring-2 ring-red-400' : ''}`}
                         placeholder="Austin, TX or 78701" value={form.city} onChange={e => set('city', e.target.value)} />
                       {errors.city && <p className="mt-1 text-xs text-red-400">{errors.city}</p>}
                     </div>
@@ -266,7 +266,7 @@ const SignupPage: NextPage = () => {
                 <div>
                   <label className="block text-sm font-medium text-neutral-400 mb-1.5">Calendly URL</label>
                   <input type="url" className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                    placeholder="https://calendly.com/your-name" value={form.calendlyUrl} onChange={e => set('calendlyUrl', e.target.value)} />
+                    maxLength={200} placeholder="https://calendly.com/your-name" value={form.calendlyUrl} onChange={e => set('calendlyUrl', e.target.value)} />
                   <p className="text-xs text-neutral-600 mt-1.5">If provided, customers can book directly from their match results.</p>
                 </div>
               </fieldset>
@@ -301,7 +301,7 @@ const SignupPage: NextPage = () => {
                       <label className="block text-sm font-medium text-neutral-400 mb-1.5">Which school?</label>
                       <input type="text" className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                         placeholder="e.g. Arizona State University"
-                        value={form.schoolName} onChange={e => set('schoolName', e.target.value)} />
+                        maxLength={100} value={form.schoolName} onChange={e => set('schoolName', e.target.value)} />
                       <p className="text-xs text-neutral-600 mt-1.5">We'll verify your campus affiliation after approval.</p>
                     </div>
                   )}

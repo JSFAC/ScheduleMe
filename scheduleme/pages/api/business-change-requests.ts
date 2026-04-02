@@ -8,6 +8,14 @@ import { sendChangeRequestAdminEmail, sendChangeRequestReceiptEmail } from '../.
 const ADMIN_EMAIL = 'usescheduleme@gmail.com';
 const APPROVAL_FIELDS = new Set(['name', 'category', 'address', 'description', 'cover_url', 'media_urls', 'video_url']);
 const AUTO_FIELDS = new Set(['phone', 'website', 'service_tags', 'hours', 'calendly_url', 'availability_status']);
+const LIMITS: Record<string, number> = {
+  name: 60,
+  category: 60,
+  address: 120,
+  description: 1000,
+  website: 200,
+  instagram: 200,
+};
 
 function getSupabase() {
   return createClient(
@@ -51,6 +59,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   for (const k of keys) {
     before[k] = (biz as any)[k] ?? null;
     if (APPROVAL_FIELDS.has(k)) requiresApproval = true;
+
+    if (typeof changesObj[k] === 'string' && LIMITS[k] && changesObj[k].length > LIMITS[k]) {
+      return res.status(400).json({ error: `${k} must be ${LIMITS[k]} characters or less` });
+    }
 
     if (['name', 'address', 'description', 'category'].includes(k)) {
       const v = String(changesObj[k] ?? '').trim();

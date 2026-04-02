@@ -7,6 +7,10 @@ import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 
 const PLATFORM_FEE_PERCENT = 12;
+const LIMITS = {
+  service: 120,
+  note: 500,
+};
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -108,8 +112,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (service_price_cents && typeof service_price_cents !== 'number') return res.status(400).json({ error: 'Invalid service_price_cents' });
 
     if (service) {
-      const svcCheck = validateAndFilter(service, { maxLength: 500, fieldName: 'Service description' });
+      const svcCheck = validateAndFilter(service, { maxLength: LIMITS.service, fieldName: 'Service description' });
       if (!svcCheck.ok) return res.status(400).json({ error: svcCheck.error });
+    }
+    if (typeof note === 'string' && note.length > LIMITS.note) {
+      return res.status(400).json({ error: `Note must be ${LIMITS.note} characters or less` });
     }
 
     try {
@@ -179,9 +186,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { data, error } = await supabase.from('bookings').insert({
         business_id,
         user_id: resolvedUserId ?? null,
-        service: (service?.slice(0, 500) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
+        service: (service?.slice(0, LIMITS.service) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
         amount_cents: typeof service_price_cents === 'number' ? service_price_cents : undefined,
-        note: typeof note === 'string' ? note.slice(0, 2000) : null,
+        note: typeof note === 'string' ? note.slice(0, LIMITS.note) : null,
         scheduled_start: scheduledStart ?? null,
         scheduled_end: scheduledEnd ?? null,
         timezone: typeof timezone === 'string' ? timezone : undefined,
@@ -196,7 +203,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { data: fallback, error: fbErr } = await supabase.from('bookings').insert({
           business_id,
           user_id: resolvedUserId ?? null,
-          service: (service?.slice(0, 500) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
+          service: (service?.slice(0, LIMITS.service) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
           status: 'pending',
           requires_manual_action: true,
         stripe_customer_id: profileStripeCustomerId || undefined,
