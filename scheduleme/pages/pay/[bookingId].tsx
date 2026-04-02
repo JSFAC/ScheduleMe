@@ -19,7 +19,7 @@ function getSupabase() {
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
-function PayCardForm({ bookingId, onSaved, onError, dm }: { bookingId: string; onSaved: () => void; onError: (msg: string) => void; dm: boolean }) {
+function PayCardForm({ bookingId, onSaved, onError, dm, forceNew }: { bookingId: string; onSaved: () => void; onError: (msg: string) => void; dm: boolean; forceNew?: boolean }) {
   const stripe = useStripe();
   const elements = useElements();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -34,7 +34,7 @@ function PayCardForm({ bookingId, onSaved, onError, dm }: { bookingId: string; o
         const res = await fetch('/api/create-setup-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-          body: JSON.stringify({ booking_id: bookingId }),
+          body: JSON.stringify({ booking_id: bookingId, force_new: !!forceNew }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Unable to start card setup');
@@ -103,6 +103,7 @@ const PayPage: NextPage = () => {
   const [paymentDefaultId, setPaymentDefaultId] = useState<string | null>(null);
   const [paymentReady, setPaymentReady] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function fetchPaymentMethods() {
     try {
@@ -135,6 +136,18 @@ const PayPage: NextPage = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.already_saved) setPaymentReady(true);
+    } catch {}
+  }
+
+  async function sendPaymentSavedEmail() {
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) return;
+      await fetch('/api/payment-method-saved', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
     } catch {}
   }
 
@@ -178,7 +191,7 @@ const PayPage: NextPage = () => {
       <Head><title>Payment — ScheduleMe</title></Head>
       <div className="min-h-screen" style={{ background: bg }}>
         <Nav />
-        <div className="max-w-2xl mx-auto px-4 pb-20 pt-10">
+        <div className="max-w-3xl mx-auto px-4 pb-32 pt-20" style={{ minHeight: 'calc(100vh - 64px)' }}>
           <div className="mb-6">
             <h1 className="text-2xl font-black" style={{ color: textPrimary, letterSpacing: '-0.02em' }}>Payment</h1>
             <p className="text-sm mt-1" style={{ color: textMuted }}>Secure your booking by saving a payment method.</p>
@@ -207,31 +220,32 @@ const PayPage: NextPage = () => {
 
               <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
                 <h2 className="text-sm font-bold mb-3" style={{ color: textPrimary }}>Select payment method</h2>
-                {paymentMethods.length > 0 && !showAddCard ? (
-                  <div className="space-y-2">
-                    {paymentMethods.map((m) => {
-                      const isDefault = (paymentDefaultId || paymentMethods[0]?.id) === m.id;
-                      return (
-                        <label key={m.id} className="flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer" style={{ borderColor: cardBorder }}>
-                          <input type="radio" checked={isDefault} onChange={() => setDefaultPaymentMethod(m.id)} />
-                          <div>
-                            <p className="text-sm font-semibold" style={{ color: textPrimary }}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4}`}</p>
-                            <p className="text-xs" style={{ color: textMuted }}>{`Exp ${m.exp_month}/${String(m.exp_year).slice(-2)}`}</p>
-                          </div>
-                        </label>
-                      );
-                    })}
-                    <button onClick={() => setShowAddCard(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#007e6d' }}>
-                      Add new card
+                {paymentMethods.length > 0 && (
+                  <div className="space-y-3">
+                    <select
+                      value={paymentDefaultId || paymentMethods[0]?.id}
+                      onChange={(e) => setDefaultPaymentMethod(e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2 text-sm bg-transparent"
+                      style={{ borderColor: cardBorder, color: textPrimary, background: dm ? '#0f1f1c' : '#ffffff' }}
+                    >
+                      {paymentMethods.map((m) => (
+                        <option key={m.id} value={m.id}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}</option>
+                      ))}
+                    </select>
+                    <button onClick={() => setShowAddCard((v) => !v)} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#007e6d' }}>
+                      {showAddCard ? 'Hide card form' : 'Add new card'}
                     </button>
                   </div>
-                ) : (
-                  <div className="rounded-xl border p-4" style={{ borderColor: cardBorder, background: dm ? '#0f1f1c' : '#ecfdf3' }}>
+                )}
+
+                {(showAddCard || paymentMethods.length === 0) && (
+                  <div className="rounded-xl border p-4 mt-3" style={{ borderColor: cardBorder, background: dm ? '#0f1f1c' : '#ecfdf3' }}>
                     {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
                       <Elements stripe={stripePromise} options={{ appearance: { theme: dm ? 'night' : 'stripe', variables: { colorPrimary: '#007e6d', colorText: dm ? '#e5f9f4' : '#0f3d35', colorBackground: dm ? '#0b1513' : '#ffffff', colorTextSecondary: dm ? '#8dd9c9' : '#0f766e' } } }}>
                         <PayCardForm
                           bookingId={bookingId}
                           dm={dm}
+                          forceNew={showAddCard}
                           onSaved={() => { setShowAddCard(false); setPaymentReady(true); fetchPaymentMethods(); }}
                           onError={(msg) => setErr(msg)}
                         />
@@ -247,7 +261,16 @@ const PayPage: NextPage = () => {
                 <button onClick={() => router.push('/bookings')} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>
                   Back to bookings
                 </button>
-                <button onClick={() => router.push('/bookings')} className="flex-1 py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>
+                <button
+                  onClick={async () => {
+                    if (!paymentReady) {
+                      setErr('Please save a payment method first.');
+                      return;
+                    }
+                    await sendPaymentSavedEmail();
+                    setShowConfirm(true);
+                  }}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>
                   Continue
                 </button>
               </div>
@@ -255,6 +278,18 @@ const PayPage: NextPage = () => {
           )}
         </div>
       </div>
+      {showConfirm && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="w-full max-w-md rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+            <h3 className="text-lg font-bold" style={{ color: textPrimary }}>Payment method saved</h3>
+            <p className="text-sm mt-2" style={{ color: textMuted }}>You’re all set. We’ll email you updates as the booking progresses.</p>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Close</button>
+              <button onClick={() => router.push('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>Go to bookings</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

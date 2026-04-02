@@ -1372,7 +1372,7 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>Requested for {scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
-                          {(b.status === 'pending' || b.status === 'confirmed') && (
+                          {(['pending', 'confirmed', 'active', 'payment_pending'].includes(b.status)) && (
                             <div className="flex gap-2">
                               {/* Price setting — required before confirm */}
                               {b.status === 'pending' && isCustom && (

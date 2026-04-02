@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAuth(req, res);
   if (!user) return;
 
-  const { booking_id } = req.body || {};
+  const { booking_id, force_new } = req.body || {};
   if (!booking_id || !isValidUuid(booking_id)) return res.status(400).json({ error: 'Valid booking_id required' });
 
   const supabase = getSupabase();
@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('id', user.id)
     .maybeSingle();
 
-  if (profile?.stripe_payment_method_id) {
+  if (!force_new && profile?.stripe_payment_method_id) {
     await supabase
       .from('bookings')
       .update({
