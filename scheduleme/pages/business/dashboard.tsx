@@ -1349,11 +1349,15 @@ const BusinessDashboard: NextPage = () => {
                     <div className="flex flex-col items-end gap-2 shrink-0">
                       <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">Connected ✓</span>
                       <button
+                        type="button"
                         onClick={() => handleStripeConnect('update')}
                         disabled={stripeLoading}
                         className="text-xs font-bold px-3.5 py-2 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
                         Enable instant payouts
                       </button>
+                      {stripeConnectError && (
+                        <p className="text-[11px] text-amber-700 mt-1 max-w-[220px] text-right">{stripeConnectError}</p>
+                      )}
                     </div>
                   ) : (
                     <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
@@ -1990,10 +1994,25 @@ const BusinessDashboard: NextPage = () => {
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
                     <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
-                    {business?.stripe_onboarded
-                      ? <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Bank account connected</div>
-                      : <button onClick={handleStripeConnect} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5">{stripeLoading ? 'Loading…' : stripeCta}</button>
-                    }
+                    {business?.stripe_onboarded ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Bank account connected
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleStripeConnect('update')}
+                          disabled={stripeLoading}
+                          className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                          Enable instant payouts
+                        </button>
+                        <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts.</p>
+                        {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
+                      </div>
+                    ) : (
+                      <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5">{stripeLoading ? 'Loading…' : stripeCta}</button>
+                    )}
                   </div>
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Session</h2>
