@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
 
   if (req.method === 'POST') {
-    if (!rateLimit(req, res, { max: 300, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
+    if (!rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
 
     const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
     let email = user_email;
@@ -246,7 +246,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PATCH') {
     // Business confirms/cancels/completes a booking
-    if (!rateLimit(req, res, { max: 120, windowMs: 60_000, keyPrefix: 'book-patch' })) return;
+    if (!rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-patch' })) return;
     const user = await requireAuth(req, res);
     if (!user) return;
 
@@ -403,6 +403,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     await supabase.from('bookings').update(updatePayload).eq('id', booking_id);
 
+    // Notify business of dispute so they can respond immediately
+    if (status === 'price_disputed' && biz?.owner_email) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+      fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+        body: JSON.stringify({
+          type: 'status_update',
+          to: biz.owner_email,
+          name: biz?.name || 'there',
+          service: booking.service,
+          status: 'price_disputed',
+          businessName: biz?.name,
+        }),
+      }).catch(() => {});
+    }
+
     // Notify consumer of status change
     let consumer: any = null;
     if (booking.user_id) {
@@ -474,7 +491,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'book-get' })) return;
+    if (!rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-get' })) return;
 
     const { business_id, user_id } = req.query;
 
@@ -494,7 +511,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .from('bookings')
           .select('*, profiles(id, name, phone, email, avatar_url)')
           .eq('business_id', business_id)
-          .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null')
+          .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null,status.eq.price_disputed')
           .order('created_at', { ascending: false })
           .limit(200);
 

@@ -711,7 +711,11 @@ const BusinessDashboard: NextPage = () => {
     if (didAutoTabRef.current || bkFilterTouched) return;
     if (bookings.length === 0) return;
     const pendingCount = bookings.filter(b => b.status === 'pending').length;
-    setBkFilter(pendingCount > 0 ? 'pending' : 'active');
+    if (pendingCount > 0) {
+      setBkFilter('pending');
+    } else {
+      setBkFilter('active');
+    }
     didAutoTabRef.current = true;
   }, [bookings, bkFilterTouched]);
 
@@ -1762,7 +1766,7 @@ const BusinessDashboard: NextPage = () => {
                     { key: 'all', label: 'All (' + bookings.length + ')' },
                     { key: 'pending', label: 'Pending (' + bookings.filter(b => b.status === 'pending').length + ')' },
                     { key: 'disputed', label: 'Disputed (' + bookings.filter(b => b.status === 'price_disputed').length + ')' },
-                    { key: 'active', label: 'Active (' + bookings.filter(b => b.status === 'confirmed').length + ')' },
+                    { key: 'active', label: 'Active (' + bookings.filter(b => b.status === 'confirmed' || b.status === 'payment_pending').length + ')' },
                     { key: 'completed', label: 'Completed (' + bookings.filter(b => b.status === 'completed' || b.status === 'paid').length + ')' },
                     { key: 'cancelled', label: 'Cancelled (' + bookings.filter(b => b.status === 'cancelled').length + ')' },
                   ] as const).map(f => (

@@ -2,7 +2,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { filterMessage } from '../../lib/profanity';
-import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 
 function getSupabase() {
@@ -17,8 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // GET — fetch messages or threads
   if (req.method === 'GET') {
-    // Rate limit: 60 reads/min per IP
-    if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'msg-get' })) return;
+    // Rate limit: 600 reads/min per IP
+    if (!rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-get' })) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;
@@ -347,8 +346,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // POST — send a message
   if (req.method === 'POST') {
-    // Rate limit: 30 messages/min per IP (prevents flooding)
-    if (!rateLimit(req, res, { max: 5000, windowMs: 60_000, keyPrefix: 'msg-post' })) return;
+    // Rate limit: 600 messages/min per IP (prevents flooding)
+    if (!rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-post' })) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;

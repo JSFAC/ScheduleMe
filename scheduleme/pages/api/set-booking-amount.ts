@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     .from('bookings')
     .select('id, status, user_id, business_id, businesses(owner_email, stripe_onboarded, stripe_account_id, name)')
     .eq('id', booking_id)
-    .in('status', ['pending', 'confirmed', 'payment_pending'])
+    .in('status', ['pending', 'confirmed', 'payment_pending', 'price_disputed'])
     .maybeSingle();
 
   if (bErr || !booking) return res.status(404).json({ error: 'Booking not found' });
@@ -46,7 +46,13 @@ export default async function handler(req, res) {
   // Update the amount
   const { error: uErr } = await sb
     .from('bookings')
-    .update({ amount_cents: cents })
+    .update({
+      amount_cents: cents,
+      status: 'payment_pending',
+      dispute_amount_cents: null,
+      dispute_note: null,
+      dispute_at: null,
+    })
     .eq('id', booking_id);
 
   if (uErr) return res.status(500).json({ error: uErr.message });
