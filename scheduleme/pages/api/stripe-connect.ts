@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAuth(req, res);
   if (!user) return;
 
-  const { businessId } = req.body;
+  const { businessId, mode } = req.body;
   if (!businessId) return res.status(400).json({ error: 'businessId required' });
   if (!isValidUuid(businessId)) return res.status(400).json({ error: 'Invalid businessId' });
 
@@ -45,11 +45,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await supabase.from('businesses').update({ stripe_account_id: stripeAccountId }).eq('id', businessId);
     }
 
+    const linkType = mode === 'update' || business.stripe_account_id ? 'account_update' : 'account_onboarding';
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${siteUrl}/business/dashboard?stripe=refresh&id=${businessId}`,
       return_url: `${siteUrl}/business/dashboard?stripe=success&id=${businessId}`,
-      type: 'account_onboarding',
+      type: linkType,
     });
 
     return res.status(200).json({ url: accountLink.url });

@@ -825,13 +825,13 @@ const BusinessDashboard: NextPage = () => {
     setMsgSending(false);
   }
 
-  async function handleStripeConnect() {
+  async function handleStripeConnect(mode: 'onboarding' | 'update' = 'onboarding') {
     if (!business) return;
     setStripeLoading(true);
     setStripeConnectError('');
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/stripe-connect', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: business.id }) });
+      const res = await fetch('/api/stripe-connect', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: business.id, mode }) });
       const data = await res.json();
       if (!res.ok || !data?.url) {
         setStripeConnectError(data?.error || 'Failed to start Stripe onboarding.');
@@ -1345,9 +1345,19 @@ const BusinessDashboard: NextPage = () => {
                       <p className="text-xs text-neutral-400 mt-0.5">{business?.stripe_onboarded ? 'Step 2/2: Bank connected — payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     </div>
                   </div>
-                  {business?.stripe_onboarded
-                    ? <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 shrink-0">Connected ✓</span>
-                    : <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>}
+                  {business?.stripe_onboarded ? (
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">Connected ✓</span>
+                      <button
+                        onClick={() => handleStripeConnect('update')}
+                        disabled={stripeLoading}
+                        className="text-xs font-bold px-3.5 py-2 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                        Enable instant payouts
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
+                  )}
                 </div>
               </div>
             )}
