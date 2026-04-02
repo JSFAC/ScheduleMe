@@ -84,7 +84,7 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0"
+    <div className="fixed inset-0 z-[4000] flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
       <div className="w-full max-w-md rounded-3xl shadow-2xl animate-fade-up"
         style={{ background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#f0f0f0'}` }}>

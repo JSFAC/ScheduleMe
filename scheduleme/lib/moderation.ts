@@ -21,7 +21,12 @@ export async function moderateImageDataUrl(dataUrl: string): Promise<ModerationR
       }),
     });
     const data: any = await res.json();
-    if (!res.ok) return { ok: false, reason: data?.error?.message || 'Moderation failed' };
+    if (!res.ok) {
+      if (res.status === 429 || res.status >= 500) {
+        return { ok: true, reason: 'Moderation temporarily unavailable' };
+      }
+      return { ok: false, reason: data?.error?.message || 'Moderation failed' };
+    }
     const r = data?.results?.[0];
     if (!r) return { ok: false, reason: 'Moderation failed' };
     if (r.flagged) return { ok: false, reason: 'Image violates content policy' };
@@ -49,7 +54,12 @@ export async function moderateText(text: string): Promise<ModerationResult> {
       }),
     });
     const data: any = await res.json();
-    if (!res.ok) return { ok: false, reason: data?.error?.message || 'Moderation failed' };
+    if (!res.ok) {
+      if (res.status === 429 || res.status >= 500) {
+        return { ok: true, reason: 'Moderation temporarily unavailable' };
+      }
+      return { ok: false, reason: data?.error?.message || 'Moderation failed' };
+    }
     const r = data?.results?.[0];
     if (!r) return { ok: false, reason: 'Moderation failed' };
     if (r.flagged) return { ok: false, reason: 'Text violates content policy' };

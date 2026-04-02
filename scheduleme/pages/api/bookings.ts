@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
 
   if (req.method === 'POST') {
-    if (!rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
+    if (!rateLimit(req, res, { max: 60, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
 
     const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
     let email = user_email;

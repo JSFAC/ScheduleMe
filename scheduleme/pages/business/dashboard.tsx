@@ -2352,16 +2352,12 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-xs font-semibold text-neutral-500">Live Preview</p>
                     <p className="text-[11px] text-neutral-400">This renders the same layout as the public business page.</p>
                   </div>
-                  {business?.slug && (
-                    <a
-                      href={`/biz/${business.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    >
-                      Open full page
-                    </a>
-                  )}
+                  <button
+                    onClick={() => setTab('settings')}
+                    className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  >
+                    Edit listing
+                  </button>
                 </div>
                 {business?.slug ? (
                   <iframe
