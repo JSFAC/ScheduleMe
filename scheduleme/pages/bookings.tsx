@@ -644,14 +644,15 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
           {['completed', 'paid'].includes(booking.status) && !booking.reviewed && booking.business_id && (
             <div className="mt-4">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setReviewTarget({
                     bookingId: booking.id,
                     businessId: booking.business_id,
                     businessName: booking.business_name || 'Provider',
                     serviceName: booking.service || 'Booking',
                   });
-                  setSelectedBooking(null);
+                  setTimeout(() => setSelectedBooking(null), 0);
                 }}
                 className="w-full py-3 rounded-xl text-sm font-bold text-white"
                 style={{ background: '#007e6d' }}
@@ -722,11 +723,15 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
                 setDisputeSending(true);
                 try {
                   const headers = await getAuthHeaders();
-                  const content = `Price dispute: customer proposes $${amt.toFixed(2)}${disputeNote ? `\nNotes: ${disputeNote}` : ''}`;
-                  const res = await fetch('/api/messages', {
-                    method: 'POST',
+                  const res = await fetch('/api/bookings', {
+                    method: 'PATCH',
                     headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ booking_id: booking.id, sender_type: 'user', content }),
+                    body: JSON.stringify({
+                      booking_id: booking.id,
+                      status: 'price_disputed',
+                      dispute_amount_cents: Math.round(amt * 100),
+                      dispute_note: disputeNote || null,
+                    }),
                   });
                   if (!res.ok) {
                     const d = await res.json().catch(() => ({}));

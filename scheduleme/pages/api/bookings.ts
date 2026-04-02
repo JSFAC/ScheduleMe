@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
 
   if (req.method === 'POST') {
-    if (!rateLimit(req, res, { max: 60, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
+    if (!rateLimit(req, res, { max: 300, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
 
     const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
     let email = user_email;
@@ -246,13 +246,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PATCH') {
     // Business confirms/cancels/completes a booking
-    if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'book-patch' })) return;
+    if (!rateLimit(req, res, { max: 120, windowMs: 60_000, keyPrefix: 'book-patch' })) return;
     const user = await requireAuth(req, res);
     if (!user) return;
 
-    const { booking_id, status } = req.body;
+    const { booking_id, status, dispute_amount_cents, dispute_note } = req.body;
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
-    const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid'];
+    const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid', 'price_disputed'];
     if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
     const supabase = getSupabase();
@@ -277,6 +277,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const isBusinessOwner = biz?.owner_email === user.email;
     let canCancelAsConsumer = false;
+    let canDisputeAsConsumer = false;
     if (!isBusinessOwner && status === 'cancelled') {
       let canCancel = booking.user_id === user.id;
       if (!canCancel && user.email) {
@@ -299,11 +300,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       canCancelAsConsumer = canCancel;
     }
+    if (!isBusinessOwner && status === 'price_disputed') {
+      let canDispute = booking.user_id === user.id;
+      if (!canDispute && user.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (profile?.id && booking.user_id === profile.id) canDispute = true;
+        if (!canDispute) {
+          try {
+            const { data: legacyUser } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (legacyUser?.id && booking.user_id === legacyUser.id) canDispute = true;
+          } catch {}
+        }
+      }
+      canDisputeAsConsumer = canDispute;
+    }
 
-    if (!isBusinessOwner && !canCancelAsConsumer)
+    if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
 
     const updatePayload: any = { status };
+    if (status === 'price_disputed') {
+      if (!dispute_amount_cents || dispute_amount_cents <= 0) {
+        return res.status(400).json({ error: 'Valid dispute_amount_cents required' });
+      }
+      updatePayload.dispute_amount_cents = Math.round(dispute_amount_cents);
+      updatePayload.dispute_note = dispute_note || null;
+      updatePayload.dispute_at = new Date().toISOString();
+    }
 
     // If cancelling a paid booking, issue a full refund and reverse transfer + app fee
     if (status === 'cancelled' && booking.stripe_payment_intent_id && booking.paid_at) {

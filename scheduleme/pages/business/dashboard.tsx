@@ -22,6 +22,9 @@ interface Booking {
   scheduled_start?: string; scheduled_end?: string;
   amount_cents: number | null; paid_at: string | null;
   user_id?: string;
+  dispute_amount_cents?: number | null;
+  dispute_note?: string | null;
+  dispute_at?: string | null;
   profiles: { id?: string; name: string; phone: string; email: string; avatar_url?: string } | null;
 }
 interface Business {
@@ -38,6 +41,7 @@ interface Business {
 const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text: string; border: string }> = {
   pending:         { label: 'Pending',         dot: 'bg-amber-400',   bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
   confirmed:       { label: 'Confirmed',       dot: 'bg-blue-500',    bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
+  price_disputed:  { label: 'Disputed',        dot: 'bg-orange-500',  bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200' },
   paid:            { label: 'Paid',            dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   payment_pending: { label: 'Pmt Pending',     dot: 'bg-orange-400',  bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200' },
   payment_failed:  { label: 'Pmt Failed',      dot: 'bg-red-500',     bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200' },
@@ -690,7 +694,7 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifyError, setCampusVerifyError] = useState('');
   const [campusVerifySuccess, setCampusVerifySuccess] = useState('');
   const [showCampusModal, setShowCampusModal] = useState(false);
-  const [bkFilter, setBkFilter] = useState<'all'|'pending'|'active'|'completed'|'cancelled'>('pending');
+  const [bkFilter, setBkFilter] = useState<'all'|'pending'|'disputed'|'active'|'completed'|'cancelled'>('pending');
   const [bkFilterTouched, setBkFilterTouched] = useState(false);
   const [calendarDay, setCalendarDay] = useState<number | null>(null);
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
@@ -1351,6 +1355,7 @@ const BusinessDashboard: NextPage = () => {
   const filteredBookings = bookings.filter(b => {
     if (bkFilter === 'all') return true;
     if (bkFilter === 'pending') return b.status === 'pending';
+    if (bkFilter === 'disputed') return b.status === 'price_disputed';
     if (bkFilter === 'active') return b.status === 'confirmed' || b.status === 'payment_pending';
     if (bkFilter === 'completed') return b.status === 'completed' || b.status === 'paid';
     if (bkFilter === 'cancelled') return b.status === 'cancelled';
@@ -1756,6 +1761,7 @@ const BusinessDashboard: NextPage = () => {
                   {([
                     { key: 'all', label: 'All (' + bookings.length + ')' },
                     { key: 'pending', label: 'Pending (' + bookings.filter(b => b.status === 'pending').length + ')' },
+                    { key: 'disputed', label: 'Disputed (' + bookings.filter(b => b.status === 'price_disputed').length + ')' },
                     { key: 'active', label: 'Active (' + bookings.filter(b => b.status === 'confirmed').length + ')' },
                     { key: 'completed', label: 'Completed (' + bookings.filter(b => b.status === 'completed' || b.status === 'paid').length + ')' },
                     { key: 'cancelled', label: 'Cancelled (' + bookings.filter(b => b.status === 'cancelled').length + ')' },
@@ -1800,10 +1806,15 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>Requested for {scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
-                          {(['pending', 'confirmed', 'active', 'payment_pending'].includes(b.status)) && (
+                          {b.status === 'price_disputed' && b.dispute_amount_cents && (
+                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
+                              Customer proposed {fmt(b.dispute_amount_cents)}{b.dispute_note ? ` — ${b.dispute_note}` : ''}
+                            </div>
+                          )}
+                          {(['pending', 'confirmed', 'active', 'payment_pending', 'price_disputed'].includes(b.status)) && (
                             <div className="flex gap-2">
                               {/* Price setting — required before confirm */}
-                              {b.status === 'pending' && isCustom && (
+                              {(b.status === 'pending' || b.status === 'price_disputed') && isCustom && (
                                 <div className="w-full mb-2">
                                   <div className="flex items-center gap-2">
                                     <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
@@ -1812,7 +1823,7 @@ const BusinessDashboard: NextPage = () => {
                                         type="number" min="1" step="0.01" placeholder="Set price"
                                         className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
                                         style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
-                                        value={bookingPrices[b.id] ?? (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')}
+                                        value={bookingPrices[b.id] ?? (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : ''))}
                                         onChange={e => setBookingPrices(p => ({ ...p, [b.id]: e.target.value }))}
                                       />
                                     </div>

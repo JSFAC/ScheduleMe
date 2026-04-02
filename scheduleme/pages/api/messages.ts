@@ -348,7 +348,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // POST — send a message
   if (req.method === 'POST') {
     // Rate limit: 30 messages/min per IP (prevents flooding)
-    if (!rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'msg-post' })) return;
+    if (!rateLimit(req, res, { max: 5000, windowMs: 60_000, keyPrefix: 'msg-post' })) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;
@@ -407,11 +407,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .maybeSingle();
     if (block) return res.status(403).json({ error: 'Messaging is blocked for this booking.' });
 
-    // Filter profanity / threats on text content
+    // Filter profanity / threats on text content (local filter only to avoid rate-limit blocks)
     let filteredContent = '';
     if (content) {
-      const textMod = await moderateText(content);
-      if (!textMod.ok) return res.status(400).json({ error: textMod.reason || 'Text violates content policy' });
       const filtered = filterMessage(content.trim());
       if (!filtered.ok) return res.status(400).json({ error: filtered.error });
       filteredContent = filtered.filtered;
