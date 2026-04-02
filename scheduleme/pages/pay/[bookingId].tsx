@@ -104,6 +104,7 @@ const PayPage: NextPage = () => {
   const [paymentReady, setPaymentReady] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showCardMenu, setShowCardMenu] = useState(false);
 
   async function fetchPaymentMethods() {
     try {
@@ -214,7 +215,7 @@ const PayPage: NextPage = () => {
                   )}
                 </div>
                 <div className="mt-3 text-xs" style={{ color: textMuted }}>
-                  {paymentReady ? 'Payment received (authorized).' : 'Payment not yet saved.'}
+                  {paymentReady ? 'Payment accepted for this booking (authorized).' : 'Payment not yet saved.'}
                 </div>
               </div>
 
@@ -222,16 +223,40 @@ const PayPage: NextPage = () => {
                 <h2 className="text-sm font-bold mb-3" style={{ color: textPrimary }}>Select payment method</h2>
                 {paymentMethods.length > 0 && (
                   <div className="space-y-3">
-                    <select
-                      value={paymentDefaultId || paymentMethods[0]?.id}
-                      onChange={(e) => setDefaultPaymentMethod(e.target.value)}
-                      className="w-full rounded-xl border px-3 py-2 text-sm bg-transparent"
-                      style={{ borderColor: cardBorder, color: textPrimary, background: dm ? '#0f1f1c' : '#ffffff' }}
-                    >
-                      {paymentMethods.map((m) => (
-                        <option key={m.id} value={m.id}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowCardMenu(v => !v)}
+                        className="w-full rounded-xl border px-3 py-2 text-sm flex items-center justify-between"
+                        style={{ borderColor: cardBorder, color: textPrimary, background: dm ? '#0f1f1c' : '#ffffff' }}
+                      >
+                        <span>
+                          {(() => {
+                            const current = paymentMethods.find(m => m.id === (paymentDefaultId || paymentMethods[0]?.id)) || paymentMethods[0];
+                            return `${current?.brand?.toUpperCase() || 'CARD'} •••• ${current?.last4} (exp ${current?.exp_month}/${String(current?.exp_year).slice(-2)})`;
+                          })()}
+                        </span>
+                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      {showCardMenu && (
+                        <div className="absolute z-10 mt-2 w-full rounded-xl border shadow-lg overflow-hidden"
+                          style={{ borderColor: cardBorder, background: dm ? '#111827' : '#ffffff' }}>
+                          {paymentMethods.map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => { setDefaultPaymentMethod(m.id); setShowCardMenu(false); }}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-black/5"
+                              style={{ color: textPrimary, background: 'transparent' }}
+                            >
+                              {`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <button onClick={() => setShowAddCard((v) => !v)} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#007e6d' }}>
                       {showAddCard ? 'Hide card form' : 'Add new card'}
                     </button>
@@ -258,7 +283,7 @@ const PayPage: NextPage = () => {
               </div>
 
               <div className="flex gap-2">
-                <button onClick={() => router.push('/bookings')} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>
+                <button onClick={() => router.push('/bookings')} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151', border: `1px solid ${dm ? '#2c2c2e' : '#e5e7eb'}` }}>
                   Back to bookings
                 </button>
                 <button
@@ -281,8 +306,8 @@ const PayPage: NextPage = () => {
       {showConfirm && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
           <div className="w-full max-w-md rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
-            <h3 className="text-lg font-bold" style={{ color: textPrimary }}>Payment method saved</h3>
-            <p className="text-sm mt-2" style={{ color: textMuted }}>You’re all set. We’ll email you updates as the booking progresses.</p>
+            <h3 className="text-lg font-bold" style={{ color: textPrimary }}>Payment accepted</h3>
+            <p className="text-sm mt-2" style={{ color: textMuted }}>Your payment method has been accepted for this booking. We’ll email you updates as it moves forward.</p>
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Close</button>
               <button onClick={() => router.push('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>Go to bookings</button>
