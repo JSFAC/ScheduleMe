@@ -744,7 +744,7 @@ export default function BizPage() {
           </div>
         )}
         <div className="relative" style={{ height: 500, background: bg }}>
-          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: -40 }}>
+          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: -80 }}>
             <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 820 }}>
               {imgs[galleryIdx] && (
                 <img
