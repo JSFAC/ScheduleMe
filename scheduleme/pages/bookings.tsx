@@ -165,6 +165,24 @@ async function enrichBusinessNames(list: Booking[]): Promise<Booking[]> {
   }
 }
 
+async function backfillBusinessNamesOnce(list: Booking[]): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const key = 'sm_backfill_biznames_done';
+  if (sessionStorage.getItem(key) === '1') return;
+  const stillMissing = list.some(b => !formatBusinessName(b.business_name));
+  if (!stillMissing) return;
+  sessionStorage.setItem(key, '1');
+  try {
+    const supabase = getSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await fetch('/api/backfill-booking-business-names', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+  } catch {}
+}
+
 function toCalDate(d: Date) {
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 }
@@ -1125,6 +1143,17 @@ function writeCoords(lat: number, lng: number) {
             if (res.ok) {
               const nextBookings = await enrichBusinessNames(data?.bookings || []);
               setBookings(nextBookings);
+              await backfillBusinessNamesOnce(nextBookings);
+              if (typeof window !== 'undefined' && sessionStorage.getItem('sm_backfill_biznames_done') === '1') {
+                try {
+                  const refetch = await fetch(`/api/bookings`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` },
+                    cache: 'no-store',
+                  });
+                  const refetched = await refetch.json();
+                  if (refetch.ok) setBookings(refetched?.bookings || nextBookings);
+                } catch {}
+              }
             }
           } catch {}
         });
@@ -1240,6 +1269,17 @@ function writeCoords(lat: number, lng: number) {
             bookingsData = data?.bookings || [];
             const enriched = await enrichBusinessNames(bookingsData);
             setBookings(enriched);
+            await backfillBusinessNamesOnce(enriched);
+            if (typeof window !== 'undefined' && sessionStorage.getItem('sm_backfill_biznames_done') === '1') {
+              try {
+                const refetch = await fetch(`/api/bookings`, {
+                  headers: { 'Authorization': `Bearer ${session.access_token}` },
+                  cache: 'no-store',
+                });
+                const refetched = await refetch.json();
+                if (refetch.ok) setBookings(refetched?.bookings || enriched);
+              } catch {}
+            }
           } else {
             setBookings([]);
           }
