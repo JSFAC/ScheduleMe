@@ -61,6 +61,7 @@ interface Booking {
   business_name?: string;
   business_phone?: string;
   business_email?: string;
+  business_id?: string;
   amount_cents?: number;
   paid_at?: string;
   stripe_payment_method_id?: string;
@@ -130,6 +131,33 @@ function formatBusinessName(name?: string | null): string | null {
   if (!cleaned) return null;
   if (cleaned.toLowerCase() === 'provider pending') return null;
   return cleaned;
+}
+
+async function enrichBusinessNames(list: Booking[]): Promise<Booking[]> {
+  const missing = list.filter(b => !formatBusinessName(b.business_name) && b.business_id);
+  if (missing.length === 0) return list;
+  try {
+    const supabase = getSupabase();
+    const bizIds = Array.from(new Set(missing.map(b => b.business_id).filter(Boolean))) as string[];
+    if (bizIds.length === 0) return list;
+    const { data } = await supabase
+      .from('businesses')
+      .select('id, name, phone, email')
+      .in('id', bizIds);
+    const map = new Map((data || []).map((b: any) => [b.id, b]));
+    return list.map(b => {
+      const info = b.business_id ? map.get(b.business_id) : null;
+      if (!info) return b;
+      return {
+        ...b,
+        business_name: b.business_name || info.name || null,
+        business_phone: b.business_phone || info.phone || null,
+        business_email: b.business_email || info.email || null,
+      };
+    });
+  } catch {
+    return list;
+  }
 }
 
 function toCalDate(d: Date) {
@@ -1089,7 +1117,10 @@ function writeCoords(lat: number, lng: number) {
           try {
             const res = await fetch(`/api/bookings`, { headers: { 'Authorization': `Bearer ${session.access_token}` }, cache: 'no-store' });
             const data = await res.json();
-            if (res.ok) setBookings(data?.bookings || []);
+            if (res.ok) {
+              const nextBookings = await enrichBusinessNames(data?.bookings || []);
+              setBookings(nextBookings);
+            }
           } catch {}
         });
       }
@@ -1202,7 +1233,8 @@ function writeCoords(lat: number, lng: number) {
           const data = await res.json();
           if (res.ok) {
             bookingsData = data?.bookings || [];
-            setBookings(bookingsData);
+            const enriched = await enrichBusinessNames(bookingsData);
+            setBookings(enriched);
           } else {
             setBookings([]);
           }
