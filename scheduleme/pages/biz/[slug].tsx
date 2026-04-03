@@ -326,6 +326,14 @@ export default function BizPage() {
     setMediaErr('');
     setMediaUploading(true);
     try {
+      if (type === 'image' && editImages.length >= 8) {
+        setMediaErr('Limit reached: 8 photos max.');
+        return;
+      }
+      if (type === 'video' && editVideo) {
+        setMediaErr('Limit reached: 1 video max.');
+        return;
+      }
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -352,7 +360,7 @@ export default function BizPage() {
         await submitChangeRequest({ video_url: data.url }, 'media');
         setEditNotice('Video submitted for review.');
       } else if (data.url) {
-        const next = [...editImages, data.url];
+        const next = Array.from(new Set([...editImages, data.url]));
         setEditImages(next);
         await submitChangeRequest({ media_urls: next, cover_url: next[0] || null }, 'media');
         setEditNotice('Photos submitted for review.');
@@ -576,7 +584,7 @@ export default function BizPage() {
 
   const tags = biz.service_tags || [];
   const cat = tags.length > 0 ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g,' ') : 'Service';
-  const baseImgs = [biz.cover_url, ...(biz.media_urls || [])].filter(Boolean);
+  const baseImgs = Array.from(new Set([biz.cover_url, ...(biz.media_urls || [])].filter(Boolean)));
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
 
   const availableSlots = date ? (() => {
@@ -734,8 +742,8 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative overflow-hidden" style={{height:460,background:bg}}>
-          <div className="relative h-full w-full mx-auto" style={{ maxWidth: 980 }}>
+        <div className="relative overflow-hidden" style={{height:520,background:bg}}>
+          <div className="relative h-full w-full mx-auto rounded-2xl overflow-hidden" style={{ maxWidth: 980, padding: '18px 0' }}>
             {imgs[galleryIdx] && (
               <img
                 src={imgs[galleryIdx]}
@@ -748,14 +756,14 @@ export default function BizPage() {
               <>
                 <button
                   onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full flex items-center justify-center text-white"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
                   ‹
                 </button>
                 <button
                   onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full flex items-center justify-center text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
                   ›
