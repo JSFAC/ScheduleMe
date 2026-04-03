@@ -119,6 +119,7 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   if (req.method === 'POST') {
     if (!rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;

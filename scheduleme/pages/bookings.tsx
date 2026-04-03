@@ -1087,7 +1087,7 @@ function writeCoords(lat: number, lng: number) {
         getSupabase().auth.getSession().then(async ({ data: { session } }) => {
           if (!session) return;
           try {
-            const res = await fetch(`/api/bookings`, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+            const res = await fetch(`/api/bookings`, { headers: { 'Authorization': `Bearer ${session.access_token}` }, cache: 'no-store' });
             const data = await res.json();
             if (res.ok) setBookings(data?.bookings || []);
           } catch {}
@@ -1197,6 +1197,7 @@ function writeCoords(lat: number, lng: number) {
         try {
           const res = await fetch(`/api/bookings`, {
             headers: { 'Authorization': `Bearer ${session.access_token}` },
+            cache: 'no-store',
           });
           const data = await res.json();
           if (res.ok) {

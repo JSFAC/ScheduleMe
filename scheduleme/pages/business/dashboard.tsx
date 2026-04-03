@@ -1381,8 +1381,8 @@ const BusinessDashboard: NextPage = () => {
   const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const completedCount = bookings.filter(b => b.status === 'completed' || b.status === 'paid').length;
-  const uniqueClients = new Set(bookings.map(b => b.profiles?.email).filter(Boolean)).size;
   const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);
+  const isActiveOrCompleted = (b: any) => ['confirmed', 'payment_pending', 'price_disputed', 'paid', 'completed'].includes(b.status);
   const thisMonthGross = bookings.filter(b => isRevenueBooking(b) && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth()).reduce((s, b) => s + (b.amount_cents || 0), 0);
   const thisMonthEarned = Math.round(thisMonthGross * (1 - PLATFORM_FEE));
   // Pending payments (confirmed + amount set, not yet paid)
@@ -1420,12 +1420,14 @@ const BusinessDashboard: NextPage = () => {
   const clientMap = new Map<string, { id?: string; name: string; email: string; phone: string; avatar_url?: string; bookingCount: number; totalSpent: number; lastBooking: string }>();
   bookings.forEach(b => {
     if (!b.profiles?.email) return;
+    if (!isActiveOrCompleted(b)) return;
     const ex = clientMap.get(b.profiles.email);
     const addSpend = isRevenueBooking(b) ? (b.amount_cents || 0) : 0;
     if (ex) { ex.bookingCount++; ex.totalSpent += addSpend; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
     else clientMap.set(b.profiles.email, { id: b.profiles.id, name: b.profiles.name || 'Customer', email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: addSpend, lastBooking: b.created_at });
   });
   const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
+  const uniqueClients = clients.length;
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
   const activeCustomerId = activeMsgThread?.profiles?.id || activeMsgThread?.customer_id;
   const isCustomerBlocked = activeCustomerId ? !!blockedCustomers[activeCustomerId] : false;
@@ -2183,7 +2185,7 @@ const BusinessDashboard: NextPage = () => {
                   : clients.map(c => {
                       const userId = c.id;
                       const isBlocked = userId ? !!blockedCustomers[userId] : false;
-                      const cb = bookings.filter(b => b.profiles?.email === c.email);
+                      const cb = bookings.filter(b => b.profiles?.email === c.email && isActiveOrCompleted(b));
                       return (
                         <div key={c.email} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
                           <div className="flex items-center justify-between gap-4">
