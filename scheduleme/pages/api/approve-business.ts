@@ -14,6 +14,12 @@ function getSupabase() {
   );
 }
 
+function normalizeCampusKey(name?: string | null): string | null {
+  if (!name) return null;
+  const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return cleaned ? cleaned.replace(/\s+/g, '_') : null;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -34,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get business details
     const { data: business, error: fetchError } = await supabase
       .from('businesses')
-      .select('id, name, owner_name, owner_email, is_onboarded')
+      .select('id, name, owner_name, owner_email, is_onboarded, campus_provider, campus_school_name, campus_key, founder50')
       .eq('id', businessId)
       .single();
 
@@ -48,6 +54,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (schoolDomain && typeof schoolDomain === 'string' && schoolDomain.endsWith('.edu')) {
       updatePayload.school_domain = schoolDomain.toLowerCase().trim();
       updatePayload.edu_verified = false; // explicitly false until they self-verify
+    }
+
+    // Founder50 assignment happens at approval time (if campus-linked and under 50)
+    if (!business.founder50 && business.campus_provider && business.campus_school_name) {
+      const campusKey = business.campus_key || normalizeCampusKey(business.campus_school_name);
+      if (campusKey) {
+        updatePayload.campus_key = campusKey;
+        try {
+          const { data: founderRow, error: founderErr } = await supabase
+            .from('campus_founder50')
+            .select('founder_count')
+            .eq('campus_key', campusKey)
+            .maybeSingle();
+          if (!founderErr) {
+            const currentCount = founderRow?.founder_count ?? 0;
+            if (currentCount < 50) {
+              updatePayload.founder50 = true;
+              await supabase.from('campus_founder50').upsert({
+                campus_key: campusKey,
+                founder_count: currentCount + 1,
+              }, { onConflict: 'campus_key' });
+            }
+          }
+        } catch (err) {
+          console.warn('[approve-business] founder50 assignment failed', err);
+        }
+      }
     }
     await supabase.from('businesses').update(updatePayload).eq('id', businessId);
 

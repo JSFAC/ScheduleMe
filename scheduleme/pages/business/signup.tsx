@@ -353,7 +353,8 @@ const SignupPage: NextPage = () => {
                       Joining is completely free. ScheduleMe takes a <strong className="text-accent">12% platform fee</strong> only when a customer pays you for a completed job. No monthly fees, no per-lead charges.
                     </p>
                     <p className="text-xs text-neutral-500 mt-2">
-                      <strong className="text-accent">Founder50:</strong> Standard platform fee is 12%, but as a Founder50 member, you are locked into 6% forever.
+                      <strong className="text-accent">Founder50:</strong> Standard platform fee is 12%, but Founder50 members are locked into 6% forever.
+                      Founder50 is assigned after approval to the first 50 providers per campus.
                     </p>
                   </div>
                 </div>

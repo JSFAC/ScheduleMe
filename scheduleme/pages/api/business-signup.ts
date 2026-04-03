@@ -127,25 +127,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const slug = slugify(cleanName) + '-' + Date.now().toString(36);
     const campusKey = campusProvider ? normalizeCampusKey(schoolName) : null;
 
-    let founder50 = false;
-    if (campusKey) {
-      const { data: founderRow, error: founderErr } = await supabase
-        .from('campus_founder50')
-        .select('founder_count')
-        .eq('campus_key', campusKey)
-        .maybeSingle();
-      if (!founderErr) {
-        const currentCount = founderRow?.founder_count ?? 0;
-        if (currentCount < 50) {
-          founder50 = true;
-          await supabase.from('campus_founder50').upsert({
-            campus_key: campusKey,
-            founder_count: currentCount + 1,
-          }, { onConflict: 'campus_key' });
-        }
-      }
-    }
-
     const { data, error } = await supabase.from('businesses').insert({
       name: cleanName,
       slug,
@@ -168,7 +149,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       campus_provider: campusProvider === true,
       campus_school_name: campusProvider && schoolName ? schoolName.slice(0, 100) : null,
       campus_key: campusKey,
-      founder50,
     }).select('id').single();
 
     if (error) {

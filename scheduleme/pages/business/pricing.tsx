@@ -64,7 +64,7 @@ const FAQ = [
   },
   {
     q: 'What is Founder50?',
-    a: 'Founder50 is a campus-based early partner program. The first 50 approved providers at a campus are locked into a 6% platform fee forever. Once those spots are filled, the standard 12% applies.',
+    a: 'Founder50 is a campus-based early partner program. The first 50 approved providers at a campus are locked into a 6% platform fee forever. Founder50 is assigned after approval; once those spots are filled, the standard 12% applies.',
   },
   {
     q: 'When do I get paid?',
