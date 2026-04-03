@@ -380,7 +380,7 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast, businessNameMap }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
@@ -395,7 +395,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
   fetchPaymentMethods: () => void;
   setDefaultPaymentMethod: (id: string) => void;
   setPaymentToast: (value: 'cancelled' | 'setup_success' | 'setup_cancelled' | null) => void;
+  businessNameMap: Record<string, string>;
 }) {
+  const displayBizName = businessNameMap[booking.id] || booking.business_name;
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
   const [mounted, setMounted] = useState(false);
   const [err, setErr] = useState<string>('');
@@ -506,9 +508,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
 
         <div className="px-6 pb-8 pt-6 max-w-xl mx-auto">
                       <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service || 'Custom Request'}</h2>
-          {formatBusinessName(booking.business_name || bizNameByBookingId[booking.id]) && (
+          {formatBusinessName(displayBizName) && (
             <p className="text-sm font-semibold text-neutral-700 mt-0.5">
-              {formatBusinessName(booking.business_name || bizNameByBookingId[booking.id])}
+              {formatBusinessName(displayBizName)}
             </p>
           )}
           <p className="text-xs text-neutral-400 mt-1 mb-5">Submitted {formatDate(booking.created_at)}</p>
@@ -550,7 +552,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                   <div className="flex items-center gap-2 mt-1.5">
                     <a
                       href={buildGoogleCalendarUrl({
-                        title: `${booking.service} — ${booking.business_name || 'ScheduleMe'}`,
+                        title: `${booking.service} — ${displayBizName || 'ScheduleMe'}`,
                         details: booking.note || booking.notes || '',
                         location: booking.address || '',
                         start: new Date(booking.scheduled_at),
@@ -566,7 +568,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                       onClick={() => downloadIcs(
                         `scheduleme-${booking.id}.ics`,
                         {
-                          title: `${booking.service} — ${booking.business_name || 'ScheduleMe'}`,
+                          title: `${booking.service} — ${displayBizName || 'ScheduleMe'}`,
                           details: booking.note || booking.notes || '',
                           location: booking.address || '',
                           start: new Date(booking.scheduled_at),
@@ -596,7 +598,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
               </div>
             )}
 
-            {booking.business_name && (
+            {displayBizName && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                   <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -605,7 +607,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Business</p>
-                  <p className="text-sm font-semibold text-neutral-800 mt-0.5">{booking.business_name}</p>
+                  <p className="text-sm font-semibold text-neutral-800 mt-0.5">{displayBizName}</p>
                   {(booking.business_phone || booking.business_email) && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       
@@ -1848,6 +1850,7 @@ function writeCoords(lat: number, lng: number) {
           fetchPaymentMethods={fetchPaymentMethods}
           setDefaultPaymentMethod={setDefaultPaymentMethod}
           setPaymentToast={setPaymentToast}
+          businessNameMap={bizNameByBookingId}
         />
       )}
 
