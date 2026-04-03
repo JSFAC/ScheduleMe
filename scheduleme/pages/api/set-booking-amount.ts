@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   const { booking_id, amount_cents } = req.body;
   if (!booking_id || !isValidUuid(booking_id)) return res.status(400).json({ error: 'Valid booking_id required' });
   const cents = Number(amount_cents);
-  if (!Number.isFinite(cents) || cents < 100 || cents > 500000) return res.status(400).json({ error: 'Invalid amount' });
+  if (!Number.isFinite(cents) || cents < 1 || cents > 500000) return res.status(400).json({ error: 'Invalid amount' });
 
   const sb = getSupabase();
 

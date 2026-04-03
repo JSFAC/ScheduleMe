@@ -564,6 +564,13 @@ export default function BizPage() {
   const tx = dm ? '#f2f2f7' : '#111';
   const mu = dm ? '#8e8e93' : '#6b7280';
 
+  useEffect(() => {
+    if (!biz) return;
+    const baseImgs = [biz.cover_url, ...(biz.media_urls || [])].filter(Boolean);
+    const activeImgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
+    if (galleryIdx >= activeImgs.length) setGalleryIdx(0);
+  }, [biz, editMode, editImages, galleryIdx]);
+
   if (loading) return <><Head><title>Loading — ScheduleMe</title></Head><div style={{background:bg,minHeight:'100vh'}}><Nav /></div></>;
   if (!biz) return null;
 
@@ -571,9 +578,6 @@ export default function BizPage() {
   const cat = tags.length > 0 ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g,' ') : 'Service';
   const baseImgs = [biz.cover_url, ...(biz.media_urls || [])].filter(Boolean);
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
-  useEffect(() => {
-    if (galleryIdx >= imgs.length) setGalleryIdx(0);
-  }, [imgs.length]);
 
   const availableSlots = date ? (() => {
     const dk = date.toISOString().split('T')[0];
