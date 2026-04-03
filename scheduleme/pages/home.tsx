@@ -301,7 +301,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
               ? <div className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
               : <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
             }
-            Find Pro
+            Get Matches
           </button>
         </div>
       </div>
@@ -407,52 +407,6 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
               <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
             </div>
           )}
-      </div>
-    </button>
-  );
-}
-
-function MatchResultRow({ biz, dm, onClick }: { biz: Business; dm?: boolean; onClick: () => void }) {
-  const hasCover = biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all hover:-translate-y-0.5"
-      style={{
-        background: dm ? '#111111' : 'white',
-        borderColor: dm ? '#262626' : '#e5e7eb',
-        boxShadow: dm ? 'none' : '0 10px 24px rgba(0,0,0,0.06)',
-      }}
-    >
-      <div className="relative h-12 w-12 rounded-lg overflow-hidden flex-shrink-0" style={{ background: dm ? '#1f2937' : '#e5e7eb' }}>
-        {hasCover ? (
-          <img src={biz.coverUrl} alt={biz.name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="h-full w-full flex items-center justify-center">
-            <span className="text-xs font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
-          </div>
-        )}
-        {(biz as any).founder50 && (
-          <span
-            className="absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em]"
-            style={{
-              background: 'rgba(0,0,0,0.6)',
-              color: 'white',
-              border: '1px solid rgba(255,255,255,0.16)',
-            }}
-          >
-            F50
-          </span>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
-        <p className="text-[11px] mt-0.5 truncate" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-          {biz.category}{biz.distance ? ` · ${biz.distance}` : ''}
-        </p>
-      </div>
-      <div className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-        {(biz.reviews ?? 0) > 0 && biz.rating != null ? `${biz.rating.toFixed(1)}★` : 'New'}
       </div>
     </button>
   );
@@ -834,9 +788,13 @@ async function togglePinned(bizId: string) {
               {/* Search — constrained width */}
               <div className="flex-1 min-w-0 max-w-lg">
                 <AISearchBar userName={userName} onSubmit={runMatch} />
-                {matchRan && (
-                  <div className="mt-4 rounded-2xl border overflow-hidden" style={{ background: dm ? '#0f0f0f' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
-                    <div className="px-4 pt-3 pb-2 border-b" style={{ borderColor: dm ? '#262626' : '#f1f5f9' }}>
+              </div>
+              {/* Right rail: swap utility tiles with match results */}
+              <div className="hidden lg:block w-[320px] shrink-0">
+                {matchRan ? (
+                  <div className="rounded-3xl border overflow-hidden animate-fade-up"
+                    style={{ background: dm ? '#0f0f0f' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', boxShadow: dm ? 'none' : '0 20px 40px rgba(0,0,0,0.08)' }}>
+                    <div className="px-5 pt-4 pb-3 border-b" style={{ borderColor: dm ? '#262626' : '#f1f5f9' }}>
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.7)' : '#0f0f0f' }}>Match Results</p>
                         {matching && (
@@ -852,23 +810,50 @@ async function togglePinned(bizId: string) {
                         </p>
                       )}
                     </div>
-                    <div className="p-3 space-y-2">
+                    <div className="p-4 space-y-3">
                       {matching && (
                         <>
                           {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: dm ? '#1c1c1e' : '#f1f5f9' }} />
+                            <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: dm ? '#1c1c1e' : '#f1f5f9' }} />
                           ))}
                         </>
                       )}
                       {!matching && matchResults.length > 0 && (
                         <>
                           {matchResults.map(biz => (
-                            <MatchResultRow key={biz.id} biz={biz} dm={dm} onClick={() => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }} />
+                            <button
+                              key={biz.id}
+                              onClick={() => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                              className="w-full rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5"
+                              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#111111' : '#fafafa' }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="h-14 w-14 rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
+                                  {biz.coverUrl ? (
+                                    <img src={biz.coverUrl} alt={biz.name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center">
+                                      <span className="text-xs font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
+                                  <p className="text-[11px] mt-0.5 truncate" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.category}{biz.distance ? ` · ${biz.distance}` : ''}</p>
+                                  {biz.tagline && (
+                                    <p className="text-[11px] mt-1 line-clamp-2" style={{ color: dm ? '#8e8e93' : '#94a3b8' }}>{biz.tagline}</p>
+                                  )}
+                                </div>
+                                <div className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                                  {(biz.reviews ?? 0) > 0 && biz.rating != null ? `${biz.rating.toFixed(1)}★` : 'New'}
+                                </div>
+                              </div>
+                            </button>
                           ))}
                         </>
                       )}
                       {!matching && matchResults.length === 0 && (
-                        <div className="rounded-xl border px-4 py-4 text-center" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#111111' : '#f8fafc' }}>
+                        <div className="rounded-2xl border px-4 py-6 text-center" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#111111' : '#f8fafc' }}>
                           <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#0f172a' }}>No results found</p>
                           <p className="text-[11px] mt-1" style={{ color: dm ? '#9ca3af' : '#94a3b8' }}>Try different keywords or browse all services.</p>
                           <Link href="/browse" scroll={false}
@@ -879,44 +864,44 @@ async function togglePinned(bizId: string) {
                       )}
                     </div>
                   </div>
-                )}
-              </div>
-              {/* 4 utility nav tiles — right side, desktop only */}
-              <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2.5 w-[260px] shrink-0">
-                {([
-                  { label: 'My Bookings', sub: 'Track your jobs', href: '/bookings', d: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
-                  { label: 'Browse Services', sub: 'See all services', href: '/browse', d: 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' },
-                  { label: 'How It Works', sub: 'Pricing & info', href: '/pricing', d: 'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z' },
-                  { label: 'Refer a Pro', sub: 'Know someone good?', href: '#refer', isModal: true, d: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
-                ] as const).map((tile) => tile.label === 'Refer a Pro' ? (
-                  <button key={tile.label} onClick={() => setShowReferModal(true)}
-                    className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md text-left"
-                    style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid rgb(38, 38, 38)' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
-                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(0, 126, 109, 0.18)' }}>
-                      <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
-                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#007e6d' }}>{tile.sub}</p>
-                    </div>
-                  </button>
                 ) : (
-                  <Link key={tile.label} href={tile.href} scroll={false}
-                    className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
-                    style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid rgb(38,38,38)' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
-                    <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(0, 126, 109, 0.18)' }}>
-                      <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
-                      <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#007e6d' }}>{tile.sub}</p>
-                    </div>
-                  </Link>
-                ))}
+                  <div className="grid grid-cols-2 grid-rows-2 gap-2.5">
+                    {([
+                      { label: 'My Bookings', sub: 'Track your jobs', href: '/bookings', d: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
+                      { label: 'Browse Services', sub: 'See all services', href: '/browse', d: 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' },
+                      { label: 'How It Works', sub: 'Pricing & info', href: '/pricing', d: 'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z' },
+                      { label: 'Refer a Pro', sub: 'Know someone good?', href: '#refer', isModal: true, d: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
+                    ] as const).map((tile) => tile.label === 'Refer a Pro' ? (
+                      <button key={tile.label} onClick={() => setShowReferModal(true)}
+                        className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md text-left"
+                        style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid rgb(38, 38, 38)' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+                        <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(0, 126, 109, 0.18)' }}>
+                          <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
+                          <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#007e6d' }}>{tile.sub}</p>
+                        </div>
+                      </button>
+                    ) : (
+                      <Link key={tile.label} href={tile.href} scroll={false}
+                        className="flex flex-col justify-between rounded-2xl px-3.5 py-3.5 transition-all hover:scale-[1.02] hover:shadow-md"
+                        style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid rgb(38,38,38)' : '1px solid #e5e5e5', aspectRatio: '1', boxShadow: dm ? 'none' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+                        <div className="h-8 w-8 rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(0, 126, 109, 0.18)' }}>
+                          <svg className="h-4 w-4" style={{ color: '#007e6d' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-black leading-snug" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{tile.label}</p>
+                          <p className="text-[10px] mt-0.5 font-medium" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#007e6d' }}>{tile.sub}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
