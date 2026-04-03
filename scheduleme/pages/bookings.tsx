@@ -505,10 +505,10 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
         </button>
 
         <div className="px-6 pb-8 pt-6 max-w-xl mx-auto">
-          <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service || 'Custom Request'}</h2>
-          {formatBusinessName(booking.business_name) && (
+                      <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service || 'Custom Request'}</h2>
+          {formatBusinessName(booking.business_name || bizNameByBookingId[booking.id]) && (
             <p className="text-sm font-semibold text-neutral-700 mt-0.5">
-              {formatBusinessName(booking.business_name)}
+              {formatBusinessName(booking.business_name || bizNameByBookingId[booking.id])}
             </p>
           )}
           <p className="text-xs text-neutral-400 mt-1 mb-5">Submitted {formatDate(booking.created_at)}</p>
@@ -1131,6 +1131,7 @@ const BookingsPage: NextPage = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
   const [reviewBanner, setReviewBanner] = useState<Booking | null>(null);
+  const [bizNameByBookingId, setBizNameByBookingId] = useState<Record<string, string>>({});
 
 const COORDS_KEY = 'sm_last_coords';
 function readCoords(): { lat: number; lng: number } | null {
@@ -1297,6 +1298,27 @@ function writeCoords(lat: number, lng: number) {
 
         // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
+        async function fetchBizNameMap(ids: string[]) {
+          try {
+            if (ids.length === 0) return;
+            const res = await fetch('/api/booking-businesses', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ booking_ids: ids }),
+            });
+            if (!res.ok) return;
+            const json = await res.json();
+            const map = json?.businesses || {};
+            const next: Record<string, string> = {};
+            Object.keys(map).forEach((id) => {
+              if (map[id]?.name) next[id] = map[id].name;
+            });
+            if (Object.keys(next).length > 0) {
+              setBizNameByBookingId(prev => ({ ...prev, ...next }));
+            }
+          } catch {}
+        }
+
         try {
           const res = await fetch(`/api/bookings`, {
             headers: { 'Authorization': `Bearer ${session.access_token}` },
@@ -1318,6 +1340,7 @@ function writeCoords(lat: number, lng: number) {
                 if (refetch.ok) setBookings(normalizeBookings(refetched?.bookings || enriched));
               } catch {}
             }
+            await fetchBizNameMap((enriched || []).map(b => b.id).filter(Boolean));
           } else {
             setBookings([]);
           }
@@ -1601,7 +1624,7 @@ function writeCoords(lat: number, lng: number) {
                       <div className="space-y-4">
                         {activeSlice.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
-                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
+                          const bizName = formatBusinessName(b.business_name || bizNameByBookingId[b.id] || (b as any).businesses?.name);
                           const primaryTime = b.scheduled_at ? formatTimeUntil(b.scheduled_at) : formatDate(b.created_at);
                           const scheduledLabel = b.scheduled_at ? formatShortDateTime(b.scheduled_at) : null;
                           return (
@@ -1690,7 +1713,7 @@ function writeCoords(lat: number, lng: number) {
                       </div>
                       <div className="space-y-4">
                         {pastSlice.map(b => {
-                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
+                          const bizName = formatBusinessName(b.business_name || bizNameByBookingId[b.id] || (b as any).businesses?.name);
                           return (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
