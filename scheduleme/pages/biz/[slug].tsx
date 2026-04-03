@@ -584,7 +584,8 @@ export default function BizPage() {
 
   const tags = biz.service_tags || [];
   const cat = tags.length > 0 ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g,' ') : 'Service';
-  const baseImgs = Array.from(new Set([biz.cover_url, ...(biz.media_urls || [])].filter(Boolean)));
+  const baseImgs = Array.from(new Set([biz.cover_url, ...(biz.media_urls || [])].filter(Boolean)))
+    .filter((u) => !String(u).match(/\.(mp4|mov|webm|m4v)$/i));
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
 
   const availableSlots = date ? (() => {
@@ -744,7 +745,7 @@ export default function BizPage() {
         )}
         <div className="relative" style={{ height: 560, background: bg }}>
           <div className="relative h-full w-full mx-auto" style={{ maxWidth: 980 }}>
-            <div className="absolute inset-0 px-6 py-6 flex items-center justify-center">
+            <div className="absolute inset-0 px-6 pt-8 pb-4 flex items-center justify-center">
               {imgs[galleryIdx] && (
                 <img
                   src={imgs[galleryIdx]}
@@ -758,14 +759,14 @@ export default function BizPage() {
               <>
                 <button
                   onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white text-2xl leading-none"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
                   ‹
                 </button>
                 <button
                   onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white text-2xl leading-none"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
                   ›
@@ -779,7 +780,7 @@ export default function BizPage() {
         </div>
         <div className="mx-auto max-w-2xl px-4">
           {!editMode && imgs.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto py-3">
+            <div className="flex gap-2 overflow-x-auto py-2">
               {imgs.map((url, i) => (
                 <button
                   key={url}
@@ -792,7 +793,20 @@ export default function BizPage() {
               ))}
             </div>
           )}
-          <div className="rounded-2xl p-5 shadow-lg mt-4 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
+          <div className="rounded-2xl p-5 shadow-lg mt-3 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
+            <button
+              onClick={toggleFavorite}
+              className="absolute -top-3 right-4 h-8 w-8 rounded-full flex items-center justify-center"
+              style={{ background: isFavorited ? 'rgba(16,185,129,0.18)' : (dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6'), border: '1px solid ' + (isFavorited ? 'rgba(16,185,129,0.45)' : bdr) }}
+              title={isFavorited ? 'Pinned' : 'Pin'}
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke={isFavorited ? '#10b981' : (dm ? '#d1d5db' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 4l6 6" />
+                <path d="M4 10l6 6" />
+                <path d="M14 6l4 4-6 6-4-4 6-6z" />
+                <path d="M12 14l-2 6" />
+              </svg>
+            </button>
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
             <div className="flex gap-2 flex-wrap mb-3">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
@@ -836,7 +850,6 @@ export default function BizPage() {
             <div className="flex gap-2 flex-wrap">
               <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
               <button onClick={shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Share</button>
-              <button onClick={toggleFavorite} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background: isFavorited ? (dm ? 'rgba(251,191,36,0.18)' : '#fef3c7') : accentWash, border:'1px solid '+accentBorder, color: isFavorited ? (dm ? '#f59e0b' : '#92400e') : accent}}>{isFavorited ? 'Pinned' : 'Pin'}</button>
               {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>}
             </div>
           </div>
