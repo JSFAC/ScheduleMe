@@ -172,6 +172,7 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
 export default function BizPage() {
   const router = useRouter();
   const { slug } = router.query;
+  const allowEditInBiz = false;
   const [biz, setBiz] = useState(null);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -233,9 +234,16 @@ export default function BizPage() {
             setIsFavorited(!!fav);
             if (session.user?.email && data.owner_email && session.user.email === data.owner_email) {
               setCanEdit(true);
-              if (router.query?.edit === '1') setEditMode(true);
+              if (router.query?.edit === '1' && !allowEditInBiz) {
+                showToast('Edit your listing in the business dashboard.');
+                setEditMode(false);
+                router.replace('/business/dashboard#edit');
+              } else if (router.query?.edit === '1' && allowEditInBiz) {
+                setEditMode(true);
+              }
             } else if (router.query?.edit === '1') {
-              showToast('Edit mode is only for the business owner.');
+              showToast('Edit your listing in the business dashboard.');
+              router.replace('/business/dashboard#edit');
             }
           } catch {}
         })();
@@ -713,15 +721,15 @@ export default function BizPage() {
             {canEdit && (
               <div className="flex items-center justify-between mb-3">
                 <div className="text-[11px] font-bold uppercase tracking-widest" style={{ color: mu }}>
-                  {editMode ? 'Edit Mode' : 'Owner Tools'}
+                  Owner tools
                 </div>
-                <button
-                  onClick={() => setEditMode((v) => !v)}
+                <a
+                  href="/business/dashboard#edit"
                   className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                  style={{ background: editMode ? (dm ? '#1f2937' : '#e5e7eb') : accentWash, border: '1px solid ' + accentBorder, color: editMode ? (dm ? '#e5e7eb' : '#374151') : accent }}
+                  style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}
                 >
-                  {editMode ? 'Exit edit mode' : 'Edit listing'}
-                </button>
+                  Edit in dashboard
+                </a>
               </div>
             )}
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
