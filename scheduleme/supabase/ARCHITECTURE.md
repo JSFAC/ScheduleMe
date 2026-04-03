@@ -48,7 +48,6 @@ Redeploy after saving.
 
 ## Step 4 — Test the search
 
-Visit `/search-test` on your local or deployed site to test geo search visually.
 
 Or test directly with curl:
 

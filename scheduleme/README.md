@@ -31,7 +31,6 @@ scheduleme/
 │       └── intake.ts         # POST /api/intake
 ├── components/
 │   ├── Hero.tsx
-│   └── IntakeForm.tsx
 ├── styles/
 │   └── globals.css
 ├── tailwind.config.js
