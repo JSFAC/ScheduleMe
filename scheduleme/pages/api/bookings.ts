@@ -6,7 +6,7 @@ import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
-import { getPlatformFeePercent } from '../../lib/platformFees';
+import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
 const LIMITS = {
   service: 120,
   note: 500,
@@ -361,6 +361,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       try {
         const platformFeePercent = getPlatformFeePercent(biz);
+        if (!assertPlatformFeePercent(biz, platformFeePercent)) {
+          return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
+        }
         const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);
         const pi = await stripe.paymentIntents.create({
           amount: booking.amount_cents,

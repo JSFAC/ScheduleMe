@@ -4,7 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
-import { getPlatformFeePercent } from '../../lib/platformFees';
+import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
 function getSupabase() {
@@ -74,6 +74,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Card already saved for this booking.' });
 
   const platformFeePercent = getPlatformFeePercent(biz);
+  if (!assertPlatformFeePercent(biz, platformFeePercent)) {
+    return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
+  }
   const platformFeeCents = Math.round(amountCents * platformFeePercent / 100);
 
   // DEPRECATED: Checkout is no longer used for card setup; use /api/create-setup-intent with Stripe Elements.

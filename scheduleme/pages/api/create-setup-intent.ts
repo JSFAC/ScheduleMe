@@ -4,7 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
-import { getPlatformFeePercent } from '../../lib/platformFees';
+import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
 
 function getSupabase() {
   return createClient(
@@ -87,6 +87,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const platformFeePercent = getPlatformFeePercent(biz);
+  if (!assertPlatformFeePercent(biz, platformFeePercent)) {
+    return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
+  }
   const platformFeeCents = Math.round(amountCents * platformFeePercent / 100);
 
   try {
