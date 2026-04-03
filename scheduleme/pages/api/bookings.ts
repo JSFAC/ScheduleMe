@@ -174,7 +174,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (existing?.id) {
           profileId = existing.id;
         } else {
-          const payload: any = { email: email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) };
+          const payload: any = { email: email, name: user_name?.slice(0, 100), full_name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) };
           if (authUser?.id) payload.id = authUser.id;
           const { data: userData } = await supabase
             .from('profiles')
@@ -522,14 +522,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         const { data, error } = await supabase
           .from('bookings')
-          .select('*, profiles(id, name, phone, email, avatar_url)')
+          .select('*, profiles(id, name, full_name, phone, email, avatar_url)')
           .eq('business_id', business_id)
           .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null,status.eq.price_disputed')
           .order('created_at', { ascending: false })
           .limit(200);
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-        return res.status(200).json({ bookings: data });
+        const normalized = (data || []).map((b: any) => ({
+          ...b,
+          profiles: b.profiles ? { ...b.profiles, name: b.profiles.name || b.profiles.full_name || null } : null,
+        }));
+        return res.status(200).json({ bookings: normalized });
       } catch (err) {
         return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
       }
@@ -598,10 +602,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (error) return res.status(500).json({ error: error.message || 'Failed to fetch bookings' });
-      const needsBizLookup = (data || []).some((b: any) => (!b.businesses?.name) && b.business_id);
+      const needsBizLookup = (data || []).some((b: any) => (!b.businesses?.name) && (b.business_id || b.businesses?.id));
       let bizMap: Record<string, { name?: string | null; phone?: string | null; email?: string | null }> = {};
       if (needsBizLookup) {
-        const bizIds = Array.from(new Set((data || []).map((b: any) => b.business_id).filter(Boolean)));
+        const bizIds = Array.from(new Set((data || []).map((b: any) => b.business_id || b.businesses?.id).filter(Boolean)));
         if (bizIds.length > 0) {
           const { data: bizData } = await supabase
             .from('businesses')
@@ -615,9 +619,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const bookings = (data || []).map((b: any) => ({
         ...b,
         scheduled_at: b.scheduled_start ?? null,
-        business_name: b.businesses?.name ?? bizMap[b.business_id]?.name ?? null,
-        business_phone: b.businesses?.phone ?? bizMap[b.business_id]?.phone ?? null,
-        business_email: b.businesses?.email ?? bizMap[b.business_id]?.email ?? null,
+        business_name: b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
+        business_phone: b.businesses?.phone ?? bizMap[b.business_id || b.businesses?.id]?.phone ?? null,
+        business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,
         businesses: undefined,
       }));
       return res.status(200).json({ bookings });

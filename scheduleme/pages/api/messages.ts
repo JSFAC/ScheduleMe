@@ -108,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const resq = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone, avatar_url)')
+        .select('id, service, status, created_at, user_id, profiles(id, name, full_name, email, phone, avatar_url)')
         .eq('business_id', business_id)
         .eq('user_id', thread_customer_id)
         .order('created_at', { ascending: false });
@@ -124,6 +124,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
 
       const latest = bookings[0];
+      const latestProfile = latest.profiles
+        ? { ...latest.profiles, name: latest.profiles.name || latest.profiles.full_name || null }
+        : null;
       const thread = {
         id: thread_customer_id,
         customer_id: thread_customer_id,
@@ -131,7 +134,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         service: latest.service,
         status: latest.status,
         created_at: latest.created_at,
-        profiles: latest.profiles || null,
+        profiles: latestProfile,
         lastMessage: data?.[data.length - 1] ?? null,
         unreadCount: 0,
         booking_ids: bookingIds,
@@ -282,7 +285,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let bookings: any[] = [];
       const resq = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone, avatar_url)')
+        .select('id, service, status, created_at, user_id, profiles(id, name, full_name, email, phone, avatar_url)')
         .eq('business_id', business_id)
         .order('created_at', { ascending: false });
       if (resq.error) {
@@ -297,13 +300,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (!b.user_id) continue;
           const { data: prof } = await supabase
             .from('profiles')
-            .select('id, name, email, phone, avatar_url')
+            .select('id, name, full_name, email, phone, avatar_url')
             .eq('id', b.user_id)
             .maybeSingle();
-          if (prof) b.profiles = prof;
+          if (prof) b.profiles = { ...prof, name: prof.name || prof.full_name || null };
         }
       } else {
-        bookings = resq.data || [];
+        bookings = (resq.data || []).map((b: any) => ({
+          ...b,
+          profiles: b.profiles ? { ...b.profiles, name: b.profiles.name || b.profiles.full_name || null } : null,
+        }));
       }
 
       // Group by customer
@@ -325,6 +331,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
           .in('booking_id', bookingIds).eq('read', false).eq('sender_type', 'user');
+        const normalizedProfile = latest.profiles
+          ? { ...latest.profiles, name: latest.profiles.name || latest.profiles.full_name || null }
+          : null;
         return {
           id: customerId,
           customer_id: customerId,
@@ -332,7 +341,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           service: latest.service,
           status: latest.status,
           created_at: latest.created_at,
-          profiles: latest.profiles || null,
+          profiles: normalizedProfile,
           lastMessage: msgs?.[0] ?? null,
           unreadCount: count ?? 0,
           booking_ids: bookingIds,

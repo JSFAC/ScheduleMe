@@ -1956,7 +1956,7 @@ const BusinessDashboard: NextPage = () => {
                                 : <span className="text-accent text-[10px] font-black">{(t.profiles?.name || 'U').charAt(0).toUpperCase()}</span>
                               }
                             </div>
-                            <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{t.profiles?.name || 'Customer'}</p>
+                            <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{t.profiles?.name || t.profiles?.full_name || 'Customer'}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {t.unreadCount > 0 && <span className="h-4 w-4 rounded-full bg-accent flex items-center justify-center text-[9px] font-black text-white">{t.unreadCount}</span>}
@@ -1993,7 +1993,7 @@ const BusinessDashboard: NextPage = () => {
                             }
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{activeMsgThread.profiles?.name || 'Customer'}</p>
+                            <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{activeMsgThread.profiles?.name || activeMsgThread.profiles?.full_name || 'Customer'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -2133,7 +2133,7 @@ const BusinessDashboard: NextPage = () => {
                               await sendBizMessage(msgInput);
                             }
                           }}
-                          placeholder={isCustomerBlocked ? 'Messaging is blocked for this customer.' : `Reply to ${activeMsgThread.profiles?.name || 'customer'}…`}
+                          placeholder={isCustomerBlocked ? 'Messaging is blocked for this customer.' : `Reply to ${activeMsgThread.profiles?.name || activeMsgThread.profiles?.full_name || 'customer'}…`}
                           rows={1}
                           disabled={isCustomerBlocked}
                           className="flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
