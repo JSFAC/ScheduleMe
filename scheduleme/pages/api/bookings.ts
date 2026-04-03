@@ -174,13 +174,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (existing?.id) {
           profileId = existing.id;
         } else {
-          const payload: any = { email: email, name: user_name?.slice(0, 100), full_name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) };
+          const payload: any = { email: email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) };
           if (authUser?.id) payload.id = authUser.id;
           const { data: userData } = await supabase
             .from('profiles')
             .upsert(payload, { onConflict: authUser?.id ? 'id' : 'email' })
             .select('id').single();
           profileId = userData?.id ?? null;
+        }
+        if (existing?.id && user_name) {
+          await supabase
+            .from('profiles')
+            .update({ name: user_name.slice(0, 100) })
+            .eq('id', existing.id)
+            .is('name', null);
         }
       }
       if (profileId) resolvedUserId = profileId;
@@ -522,18 +529,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         const { data, error } = await supabase
           .from('bookings')
-          .select('*, profiles(id, name, full_name, phone, email, avatar_url)')
+          .select('*, profiles(id, name, phone, email, avatar_url)')
           .eq('business_id', business_id)
           .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null,status.eq.price_disputed')
           .order('created_at', { ascending: false })
           .limit(200);
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-        const normalized = (data || []).map((b: any) => ({
-          ...b,
-          profiles: b.profiles ? { ...b.profiles, name: b.profiles.name || b.profiles.full_name || null } : null,
-        }));
-        return res.status(200).json({ bookings: normalized });
+        return res.status(200).json({ bookings: data || [] });
       } catch (err) {
         return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
       }
@@ -622,7 +625,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         business_name: b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
         business_phone: b.businesses?.phone ?? bizMap[b.business_id || b.businesses?.id]?.phone ?? null,
         business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,
-        businesses: undefined,
       }));
       return res.status(200).json({ bookings });
     } catch (err) {

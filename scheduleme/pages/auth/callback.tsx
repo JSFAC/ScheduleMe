@@ -56,7 +56,6 @@ const AuthCallback: NextPage = () => {
             id: userId,
             email,
             name,
-            full_name: name,
             has_seen_welcome: false,
           }, { onConflict: 'id', ignoreDuplicates: true });
 

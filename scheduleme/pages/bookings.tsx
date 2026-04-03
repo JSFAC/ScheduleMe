@@ -1485,7 +1485,7 @@ function writeCoords(lat: number, lng: number) {
                       <div className="space-y-4">
                         {activeSlice.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
-                          const bizName = formatBusinessName(b.business_name);
+                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
                           const primaryTime = b.scheduled_at ? formatTimeUntil(b.scheduled_at) : formatDate(b.created_at);
                           const scheduledLabel = b.scheduled_at ? formatShortDateTime(b.scheduled_at) : null;
                           return (
@@ -1574,7 +1574,7 @@ function writeCoords(lat: number, lng: number) {
                       </div>
                       <div className="space-y-4">
                         {pastSlice.map(b => {
-                          const bizName = formatBusinessName(b.business_name);
+                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
                           return (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
