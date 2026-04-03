@@ -2443,7 +2443,11 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-[11px] text-neutral-400">This renders the same layout as the public business page.</p>
                   </div>
                   <button
-                    onClick={() => setTab('settings')}
+                    onClick={() => {
+                      if (business?.slug) {
+                        window.open(`/biz/${business.slug}?edit=1`, '_blank');
+                      }
+                    }}
                     className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
                   >
                     Edit listing

@@ -653,6 +653,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
                     businessName: booking.business_name || 'Provider',
                     serviceName: booking.service || 'Booking',
                   });
+                  setTimeout(() => setSelectedBooking(null), 60);
                 }}
                 className="w-full py-3 rounded-xl text-sm font-bold text-white"
                 style={{ background: '#007e6d' }}
