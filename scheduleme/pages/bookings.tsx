@@ -134,27 +134,54 @@ function formatBusinessName(name?: string | null): string | null {
 }
 
 async function enrichBusinessNames(list: Booking[]): Promise<Booking[]> {
-  const missing = list.filter(b => !formatBusinessName(b.business_name) && b.business_id);
+  const missing = list.filter(b => !formatBusinessName(b.business_name) && (b.business_id || (b as any).businesses?.id));
   if (missing.length === 0) return list;
   try {
     const supabase = getSupabase();
-    const bizIds = Array.from(new Set(missing.map(b => b.business_id).filter(Boolean))) as string[];
+    const bizIds = Array.from(new Set(missing.map(b => b.business_id || (b as any).businesses?.id).filter(Boolean))) as string[];
     if (bizIds.length === 0) return list;
     const { data } = await supabase
       .from('businesses')
       .select('id, name, phone, email')
       .in('id', bizIds);
     const map = new Map((data || []).map((b: any) => [b.id, b]));
-    return list.map(b => {
-      const info = b.business_id ? map.get(b.business_id) : null;
+    let updated = list.map(b => {
+      const info = (b.business_id || (b as any).businesses?.id) ? map.get(b.business_id || (b as any).businesses?.id) : null;
       if (!info) return b;
       return {
         ...b,
         business_name: b.business_name || info.name || null,
         business_phone: b.business_phone || info.phone || null,
         business_email: b.business_email || info.email || null,
+        business_id: b.business_id || (b as any).businesses?.id || null,
       };
     });
+    const stillMissing = updated.filter(b => !formatBusinessName(b.business_name));
+    if (stillMissing.length === 0) return updated;
+    const bookingIds = updated.map(b => b.id).filter(Boolean);
+    if (bookingIds.length === 0) return updated;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return updated;
+    const res = await fetch('/api/booking-businesses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ booking_ids: bookingIds }),
+    });
+    if (!res.ok) return updated;
+    const json = await res.json();
+    const apiMap = json?.businesses || {};
+    updated = updated.map(b => {
+      const info = apiMap[b.id];
+      if (!info) return b;
+      return {
+        ...b,
+        business_id: b.business_id || info.business_id || null,
+        business_name: b.business_name || info.name || null,
+        business_phone: b.business_phone || info.phone || null,
+        business_email: b.business_email || info.email || null,
+      };
+    });
+    return updated;
   } catch {
     return list;
   }
