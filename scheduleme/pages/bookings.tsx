@@ -135,31 +135,10 @@ function formatBusinessName(name?: string | null): string | null {
 
 function normalizeBookings(list: any[]): Booking[] {
   return (list || []).map((b: any) => {
-    const businessName =
-      b.business_name ??
-      b.businessName ??
-      b.businesses?.name ??
-      b.business?.name ??
-      b.business?.business_name ??
-      null;
-    const businessId =
-      b.business_id ??
-      b.businessId ??
-      b.businesses?.id ??
-      b.business?.id ??
-      null;
-    const businessPhone =
-      b.business_phone ??
-      b.businessPhone ??
-      b.businesses?.phone ??
-      b.business?.phone ??
-      null;
-    const businessEmail =
-      b.business_email ??
-      b.businessEmail ??
-      b.businesses?.email ??
-      b.business?.email ??
-      null;
+    const businessName = b.business_name ?? b.businesses?.name ?? b.business?.name ?? null;
+    const businessId = b.business_id ?? b.businesses?.id ?? b.business?.id ?? null;
+    const businessPhone = b.business_phone ?? b.businesses?.phone ?? b.business?.phone ?? null;
+    const businessEmail = b.business_email ?? b.businesses?.email ?? b.business?.email ?? null;
     return {
       ...b,
       business_name: businessName,
@@ -168,56 +147,6 @@ function normalizeBookings(list: any[]): Booking[] {
       business_email: businessEmail,
     };
   });
-}
-
-async function enrichBusinessNames(list: Booking[]): Promise<Booking[]> {
-  try {
-    const supabase = getSupabase();
-    const bookingIds = list.map(b => b.id).filter(Boolean);
-    if (bookingIds.length === 0) return list;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return list;
-    const res = await fetch('/api/booking-businesses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ booking_ids: bookingIds }),
-    });
-    if (!res.ok) return list;
-    const json = await res.json();
-    const apiMap = json?.businesses || {};
-    const updated = list.map(b => {
-      const info = apiMap[b.id];
-      if (!info) return b;
-      return {
-        ...b,
-        business_id: b.business_id || info.business_id || null,
-        business_name: b.business_name || info.name || null,
-        business_phone: b.business_phone || info.phone || null,
-        business_email: b.business_email || info.email || null,
-      };
-    });
-    return updated;
-  } catch {
-    return list;
-  }
-}
-
-async function backfillBusinessNamesOnce(list: Booking[]): Promise<void> {
-  if (typeof window === 'undefined') return;
-  const key = 'sm_backfill_biznames_done';
-  if (sessionStorage.getItem(key) === '1') return;
-  const stillMissing = list.some(b => !formatBusinessName(b.business_name));
-  if (!stillMissing) return;
-  sessionStorage.setItem(key, '1');
-  try {
-    const supabase = getSupabase();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await fetch('/api/backfill-booking-business-names', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-  } catch {}
 }
 
 function toCalDate(d: Date) {
@@ -380,7 +309,7 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast, businessNameMap }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
@@ -395,9 +324,8 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
   fetchPaymentMethods: () => void;
   setDefaultPaymentMethod: (id: string) => void;
   setPaymentToast: (value: 'cancelled' | 'setup_success' | 'setup_cancelled' | null) => void;
-  businessNameMap: Record<string, string>;
 }) {
-  const displayBizName = businessNameMap[booking.id] || booking.business_name;
+  const displayBizName = booking.business_name || (booking as any)?.businesses?.name;
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
   const [mounted, setMounted] = useState(false);
   const [err, setErr] = useState<string>('');
@@ -1133,7 +1061,6 @@ const BookingsPage: NextPage = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
   const [reviewBanner, setReviewBanner] = useState<Booking | null>(null);
-  const [bizNameByBookingId, setBizNameByBookingId] = useState<Record<string, string>>({});
 
 const COORDS_KEY = 'sm_last_coords';
 function readCoords(): { lat: number; lng: number } | null {
@@ -1182,19 +1109,7 @@ function writeCoords(lat: number, lng: number) {
             const data = await res.json();
             if (res.ok) {
               const normalized = normalizeBookings(data?.bookings || []);
-              const nextBookings = await enrichBusinessNames(normalized);
-              setBookings(nextBookings);
-              await backfillBusinessNamesOnce(nextBookings);
-              if (typeof window !== 'undefined' && sessionStorage.getItem('sm_backfill_biznames_done') === '1') {
-                try {
-                  const refetch = await fetch(`/api/bookings`, {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` },
-                    cache: 'no-store',
-                  });
-                  const refetched = await refetch.json();
-                  if (refetch.ok) setBookings(normalizeBookings(refetched?.bookings || nextBookings));
-                } catch {}
-              }
+              setBookings(normalized);
             }
           } catch {}
         });
@@ -1300,26 +1215,6 @@ function writeCoords(lat: number, lng: number) {
 
         // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
-        async function fetchBizNameMap(ids: string[]) {
-          try {
-            if (ids.length === 0) return;
-            const res = await fetch('/api/booking-businesses', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-              body: JSON.stringify({ booking_ids: ids }),
-            });
-            if (!res.ok) return;
-            const json = await res.json();
-            const map = json?.businesses || {};
-            const next: Record<string, string> = {};
-            Object.keys(map).forEach((id) => {
-              if (map[id]?.name) next[id] = map[id].name;
-            });
-            if (Object.keys(next).length > 0) {
-              setBizNameByBookingId(prev => ({ ...prev, ...next }));
-            }
-          } catch {}
-        }
 
         try {
           const res = await fetch(`/api/bookings`, {
@@ -1329,20 +1224,7 @@ function writeCoords(lat: number, lng: number) {
           const data = await res.json();
           if (res.ok) {
             bookingsData = normalizeBookings(data?.bookings || []);
-            const enriched = await enrichBusinessNames(bookingsData);
-            setBookings(enriched);
-            await backfillBusinessNamesOnce(enriched);
-            if (typeof window !== 'undefined' && sessionStorage.getItem('sm_backfill_biznames_done') === '1') {
-              try {
-                const refetch = await fetch(`/api/bookings`, {
-                  headers: { 'Authorization': `Bearer ${session.access_token}` },
-                  cache: 'no-store',
-                });
-                const refetched = await refetch.json();
-                if (refetch.ok) setBookings(normalizeBookings(refetched?.bookings || enriched));
-              } catch {}
-            }
-            await fetchBizNameMap((enriched || []).map(b => b.id).filter(Boolean));
+            setBookings(bookingsData);
           } else {
             setBookings([]);
           }
@@ -1626,7 +1508,7 @@ function writeCoords(lat: number, lng: number) {
                       <div className="space-y-4">
                         {activeSlice.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
-                          const bizName = formatBusinessName(b.business_name || bizNameByBookingId[b.id] || (b as any).businesses?.name);
+                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
                           const primaryTime = b.scheduled_at ? formatTimeUntil(b.scheduled_at) : formatDate(b.created_at);
                           const scheduledLabel = b.scheduled_at ? formatShortDateTime(b.scheduled_at) : null;
                           return (
@@ -1715,7 +1597,7 @@ function writeCoords(lat: number, lng: number) {
                       </div>
                       <div className="space-y-4">
                         {pastSlice.map(b => {
-                          const bizName = formatBusinessName(b.business_name || bizNameByBookingId[b.id] || (b as any).businesses?.name);
+                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
                           return (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
@@ -1850,7 +1732,6 @@ function writeCoords(lat: number, lng: number) {
           fetchPaymentMethods={fetchPaymentMethods}
           setDefaultPaymentMethod={setDefaultPaymentMethod}
           setPaymentToast={setPaymentToast}
-          businessNameMap={bizNameByBookingId}
         />
       )}
 
