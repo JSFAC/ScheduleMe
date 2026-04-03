@@ -598,7 +598,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (error) return res.status(500).json({ error: error.message || 'Failed to fetch bookings' });
-      const needsBizLookup = (data || []).some((b: any) => !b.businesses && b.business_id);
+      const needsBizLookup = (data || []).some((b: any) => (!b.businesses?.name) && b.business_id);
       let bizMap: Record<string, { name?: string | null; phone?: string | null; email?: string | null }> = {};
       if (needsBizLookup) {
         const bizIds = Array.from(new Set((data || []).map((b: any) => b.business_id).filter(Boolean)));

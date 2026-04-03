@@ -284,9 +284,19 @@ const Account: NextPage = () => {
       setAuthProvider(u.app_metadata?.provider || 'email');
       // Load edu verified status
       const sb2 = getSupabase();
-      sb2.from('profiles').select('edu_verified,school_email').eq('id', u.id).maybeSingle().then(({data}) => {
+      sb2.from('profiles').select('edu_verified,school_email,name,phone,email').eq('id', u.id).maybeSingle().then(async ({data}) => {
         setEduVerified(data?.edu_verified ?? false);
         if (data?.school_email) setEduEmail(data.school_email);
+        if ((u.user_metadata?.full_name || u.user_metadata?.phone) && (!data?.name || !data?.phone)) {
+          try {
+            await sb2.from('profiles').upsert({
+              id: u.id,
+              name: u.user_metadata?.full_name || data?.name || null,
+              phone: u.user_metadata?.phone || data?.phone || null,
+              email: u.email || data?.email || null,
+            }, { onConflict: 'id' });
+          } catch {}
+        }
       });
       if (u.user_metadata?.notif_prefs) setNotifPrefs(p => ({ ...p, ...u.user_metadata.notif_prefs }));
       if (u.user_metadata?.addresses) setAddresses(u.user_metadata.addresses);
@@ -336,6 +346,16 @@ const Account: NextPage = () => {
     setSaving(true); setSaveError('');
     const supabase = getSupabase();
     const { error } = await supabase.auth.updateUser({ data: { full_name: name, phone } });
+    if (!error && user?.id) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          name: name || null,
+          phone: phone || null,
+          email: user.email || null,
+        }, { onConflict: 'id' });
+      } catch {}
+    }
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true); setProfileDraft(false);

@@ -1502,10 +1502,12 @@ function writeCoords(lat: number, lng: number) {
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>
                                       {b.service || 'Custom Request'}
-                                      {bizName && (
-                                        <span className="ml-2 text-sm font-semibold" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>· {bizName}</span>
-                                      )}
                                     </h3>
+                                    {bizName && (
+                                      <p className="text-xs font-semibold mt-0.5" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>
+                                        {bizName}
+                                      </p>
+                                    )}
                                     <div className="flex items-center gap-2 mt-1.5">
                                       <p className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>{primaryTime}</p>
                                       {scheduledLabel && (
@@ -1584,12 +1586,10 @@ function writeCoords(lat: number, lng: number) {
                             }}>
                             <div className="p-6 pt-5 pb-5 flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>
-                                  {b.service || 'Custom Request'}
-                                  {bizName && (
-                                    <span className="ml-2 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#737373' }}>· {bizName}</span>
-                                  )}
-                                </h3>
+                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service || 'Custom Request'}</h3>
+                                {bizName && (
+                                  <p className="text-xs mt-0.5 font-semibold" style={{ color: dm ? '#9ca3af' : '#737373' }}>{bizName}</p>
+                                )}
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
                                   {b.amount_cents && (
