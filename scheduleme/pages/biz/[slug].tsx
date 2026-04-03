@@ -735,24 +735,34 @@ export default function BizPage() {
           </div>
         )}
         <div className="relative overflow-hidden" style={{height:460,background:bg}}>
-          {imgs[galleryIdx] && (
-            <img
-              src={imgs[galleryIdx]}
-              alt={biz.name}
-              className="absolute inset-0 w-full h-full object-contain"
-              onClick={() => imgs.length > 0 && setGalleryOpen(true)}
-            />
-          )}
-          {imgs.length > 1 && (
-            <>
-              <button onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)} className="absolute left-6 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
-                ‹
-              </button>
-              <button onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)} className="absolute right-6 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
-                ›
-              </button>
-            </>
-          )}
+          <div className="relative h-full w-full mx-auto" style={{ maxWidth: 980 }}>
+            {imgs[galleryIdx] && (
+              <img
+                src={imgs[galleryIdx]}
+                alt={biz.name}
+                className="absolute inset-0 w-full h-full object-contain"
+                onClick={() => imgs.length > 0 && setGalleryOpen(true)}
+              />
+            )}
+            {imgs.length > 1 && (
+              <>
+                <button
+                  onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full flex items-center justify-center text-white"
+                  style={{ background: 'rgba(0,0,0,0.35)' }}
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full flex items-center justify-center text-white"
+                  style={{ background: 'rgba(0,0,0,0.35)' }}
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </div>
           <button onClick={()=>router.back()} className="absolute top-4 left-4 flex items-center justify-center rounded-full" style={{width:36,height:36,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(8px)'}}>
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
           </button>
