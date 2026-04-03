@@ -223,6 +223,9 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           {(biz.reviews ?? 0) === 0 && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
           )}
+          {(biz as any).founder50 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(16,185,129,0.18)' : '#ecfdf5', color: dm ? '#6ee7b7' : '#047857' }}>Founder50</span>
+          )}
           <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
           </span>
@@ -633,6 +636,9 @@ function writeCoords(lat: number, lng: number) {
                           </div>
                           {(biz.reviews ?? 0) === 0 && (
                             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
+                          )}
+                          {(biz as any).founder50 && (
+                            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" style={{ background: dm ? 'rgba(16,185,129,0.18)' : '#ecfdf5', color: dm ? '#6ee7b7' : '#047857' }}>Founder50</span>
                           )}
                         </div>
                         <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>

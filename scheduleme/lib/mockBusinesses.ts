@@ -27,6 +27,7 @@ export interface Business {
   lng: number;
   sponsored?: boolean;
   independent?: boolean;
+  founder50?: boolean;
   topReview?: string;
   reviewer?: { name: string; avatarUrl: string };
   realId?: string;

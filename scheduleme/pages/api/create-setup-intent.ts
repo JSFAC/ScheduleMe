@@ -4,8 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
-
-const PLATFORM_FEE_PERCENT = 12;
+import { getPlatformFeePercent } from '../../lib/platformFees';
 
 function getSupabase() {
   return createClient(
@@ -29,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, status, user_id, amount_cents, businesses(id, stripe_account_id, stripe_onboarded, name)')
+    .select('id, status, user_id, amount_cents, businesses(id, stripe_account_id, stripe_onboarded, name, founder50)')
     .eq('id', booking_id)
     .maybeSingle();
 
@@ -87,13 +86,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
   }
 
-  const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PERCENT / 100);
+  const platformFeePercent = getPlatformFeePercent(biz);
+  const platformFeeCents = Math.round(amountCents * platformFeePercent / 100);
 
   try {
     const setupIntent = await stripe.setupIntents.create({
     customer: customerId,
     usage: 'off_session',
-    metadata: { bookingId: booking_id, businessId: biz.id, userId: user.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents) },
+    metadata: { bookingId: booking_id, businessId: biz.id, userId: user.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents), platform_fee_percent: String(platformFeePercent) },
   });
 
   await supabase.from('profiles').update({ stripe_setup_intent_id: setupIntent.id }).eq('id', user.id);

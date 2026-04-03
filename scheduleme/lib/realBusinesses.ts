@@ -58,6 +58,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     lng: b.lng,
     category,
     independent: true,
+    founder50: !!b.founder50,
     available: effectiveAvailability !== 'closed' && effectiveAvailability !== 'break',
     distance: dist,
     reviews: b.review_count ?? 0,

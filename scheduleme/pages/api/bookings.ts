@@ -6,8 +6,7 @@ import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
-
-const PLATFORM_FEE_PERCENT = 12;
+import { getPlatformFeePercent } from '../../lib/platformFees';
 const LIMITS = {
   service: 120,
   note: 500,
@@ -260,7 +259,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded)')
+      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -270,7 +269,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!biz && booking.business_id) {
       const { data: fallbackBiz } = await supabase
         .from('businesses')
-        .select('id, owner_email, name, stripe_account_id, stripe_onboarded')
+        .select('id, owner_email, name, stripe_account_id, stripe_onboarded, founder50')
         .eq('id', booking.business_id)
         .maybeSingle();
       biz = fallbackBiz || null;
@@ -361,7 +360,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Customer has not saved a card yet' });
       }
       try {
-        const platformFeeCents = Math.round(booking.amount_cents * PLATFORM_FEE_PERCENT / 100);
+        const platformFeePercent = getPlatformFeePercent(biz);
+        const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);
         const pi = await stripe.paymentIntents.create({
           amount: booking.amount_cents,
           currency: 'usd',
@@ -371,7 +371,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           off_session: true,
           application_fee_amount: platformFeeCents,
           transfer_data: { destination: biz.stripe_account_id },
-          metadata: { bookingId: booking_id, businessId: biz.id },
+          metadata: { bookingId: booking_id, businessId: biz.id, platform_fee_percent: String(platformFeePercent) },
         });
 
         if (pi.status !== 'succeeded') {

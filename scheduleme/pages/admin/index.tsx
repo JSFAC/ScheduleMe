@@ -11,6 +11,8 @@ interface Business {
   is_onboarded: boolean; stripe_onboarded: boolean; created_at: string;
   campus_provider?: boolean; campus_school_name?: string | null;
   edu_verified?: boolean; school_domain?: string | null;
+  campus_key?: string | null;
+  founder50?: boolean | null;
 }
 
 function formatDate(iso: string) {
@@ -26,6 +28,7 @@ const AdminPage: NextPage = () => {
   const [schoolDomains, setSchoolDomains] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
+  const [campusFilter, setCampusFilter] = useState<string>('all');
   const [stripeHealth, setStripeHealth] = useState<any>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [refundBookingId, setRefundBookingId] = useState('');
@@ -36,10 +39,11 @@ const AdminPage: NextPage = () => {
     setTimeout(() => setToast(null), 4000);
   }
 
-  const loadBusinesses = useCallback(async (s: string) => {
+  const loadBusinesses = useCallback(async (s: string, campusKey = campusFilter) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin-businesses', {
+      const qs = campusKey && campusKey !== 'all' ? `?campus=${encodeURIComponent(campusKey)}` : '';
+      const res = await fetch(`/api/admin-businesses${qs}`, {
         headers: { 'x-notify-secret': s },
       });
       if (res.status === 401) { setAuthed(false); showToast('Invalid secret', false); setLoading(false); return; }
@@ -110,6 +114,13 @@ const AdminPage: NextPage = () => {
     return true;
   });
   const pendingCount = businesses.filter(b => !b.is_onboarded).length;
+  const campusLabelMap = new Map<string, string>();
+  businesses.forEach(b => {
+    if (b.campus_key && !campusLabelMap.has(b.campus_key)) {
+      campusLabelMap.set(b.campus_key, b.campus_school_name || b.campus_key);
+    }
+  });
+  const campusOptions = Array.from(campusLabelMap.entries()).map(([key, label]) => ({ key, label }));
 
   if (!authed) {
     return (
@@ -239,13 +250,27 @@ const AdminPage: NextPage = () => {
             </div>
             <p className="text-[11px] text-neutral-500 mt-2">Only works for paid bookings with a Stripe payment intent.</p>
           </div>
-          <div className="flex gap-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1 mb-6 w-fit">
-            {(['pending', 'approved', 'all'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}>
-                {f}{f === 'pending' && pendingCount > 0 && <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingCount}</span>}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <div className="flex gap-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1 w-fit">
+              {(['pending', 'approved', 'all'] as const).map(f => (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}>
+                  {f}{f === 'pending' && pendingCount > 0 && <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingCount}</span>}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <span>Campus</span>
+              <select
+                value={campusFilter}
+                onChange={e => { const next = e.target.value; setCampusFilter(next); loadBusinesses(secret, next); }}
+                className="bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200">
+                <option value="all">All campuses</option>
+                {campusOptions.map(opt => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
           {loading ? (
             <div className="flex justify-center py-20">

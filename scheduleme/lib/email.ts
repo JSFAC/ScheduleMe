@@ -513,7 +513,7 @@ export async function sendBusinessApprovalEmail(opts: {
         <tr><td style="padding:20px 24px;">
           <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">What happens next</p>
           <table role="presentation" cellpadding="0" cellspacing="0">
-            ${['Set up your account password or connect Google', 'Connect your bank via Stripe to receive payments', 'Your profile goes live — leads start arriving', 'Complete jobs and get paid (we take 12%)'].map((step, i) => `
+            ${['Set up your account password or connect Google', 'Connect your bank via Stripe to receive payments', 'Your profile goes live — leads start arriving', 'Complete jobs and get paid (standard fee is 12%, Founder50 is 6%)'].map((step, i) => `
             <tr>
               <td style="padding:6px 0;vertical-align:top;">
                 <span style="display:inline-block;width:22px;height:22px;background:#1d4ed8;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:700;color:#fff;margin-right:12px;">${i + 1}</span>
@@ -682,7 +682,7 @@ export function paymentReceiptCustomerHtml(opts: {
           <a href="${SITE_URL}/bookings" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View Booking →</a>
         </td></tr>
       </table>
-      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">A 12% platform fee is included in this amount. ScheduleMe takes care of the rest.</p>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Standard platform fee is 12% (Founder50 members are 6%). ScheduleMe takes care of the rest.</p>
     </td></tr>
   `;
   return layout('Payment confirmed', body, `$${opts.amountDollars} payment confirmed for ${opts.service}`);

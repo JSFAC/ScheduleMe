@@ -41,8 +41,8 @@ const HOW_IT_WORKS = [
   },
   {
     step: '04',
-    title: 'Get paid — we keep 12%',
-    desc: 'The customer pays through ScheduleMe. You receive 88% of the job value, transferred directly to your bank.',
+    title: 'Get paid — standard 12%',
+    desc: 'The customer pays through ScheduleMe. You receive 88% of the job value, transferred directly to your bank (Founder50 is 6%).',
   },
 ];
 
@@ -61,6 +61,10 @@ const FAQ = [
   {
     q: 'What does the 12% commission cover?',
     a: 'It covers payment processing, customer matching, fraud protection, dispute handling, and platform maintenance. There are no additional fees on top of the 12%.',
+  },
+  {
+    q: 'What is Founder50?',
+    a: 'Founder50 is a campus-based early partner program. The first 50 approved providers at a campus are locked into a 6% platform fee forever. Once those spots are filled, the standard 12% applies.',
   },
   {
     q: 'When do I get paid?',
@@ -113,7 +117,7 @@ const BusinessPricing: NextPage = () => {
     <>
       <Head>
         <title>Pricing — ScheduleMe for Business</title>
-        <meta name="description" content="No subscriptions. No lead fees. Join free and only pay 12% when you get paid." />
+        <meta name="description" content="No subscriptions. No lead fees. Join free and only pay 12% when you get paid (Founder50 members lock in 6%)." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -131,9 +135,12 @@ const BusinessPricing: NextPage = () => {
               Free to join.<br />
               <span className="text-accent">12% when you earn.</span>
             </h1>
-            <p className="text-xl text-neutral-400 max-w-xl mx-auto leading-relaxed mb-10">
+            <p className="text-xl text-neutral-400 max-w-xl mx-auto leading-relaxed mb-5">
               No subscriptions. No monthly fees. No per-lead charges.
               You only pay when a customer pays you.
+            </p>
+            <p className="text-sm text-emerald-300 font-semibold mb-10">
+              Founder50: Standard platform fee is 12%, but as a Founder50 member, you are locked into 6% forever.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/business/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
@@ -156,7 +163,8 @@ const BusinessPricing: NextPage = () => {
               <div className="relative">
                 <p className="text-neutral-400 text-sm font-semibold uppercase tracking-widest mb-4">The only number that matters</p>
                 <p className="text-8xl md:text-9xl font-black text-white mb-2" style={{ letterSpacing: '-0.04em' }}>12<span className="text-accent">%</span></p>
-                <p className="text-neutral-400 text-lg mb-8">commission on completed jobs. That's it.</p>
+                <p className="text-neutral-400 text-lg mb-4">commission on completed jobs. That's it.</p>
+                <p className="text-emerald-300 text-sm font-semibold mb-8">Founder50 members are locked into 6% forever.</p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-sm">
                   <div className="flex items-center gap-2 text-neutral-300">
                     <CheckIcon />

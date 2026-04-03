@@ -19,10 +19,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     { auth: { persistSession: false } }
   );
 
-  const { data, error } = await supabase
+  const campus = typeof req.query.campus === 'string' ? req.query.campus : '';
+
+  let query = supabase
     .from('businesses')
-    .select('id, name, owner_name, owner_email, phone, address, service_tags, is_onboarded, stripe_onboarded, created_at')
+    .select('id, name, owner_name, owner_email, phone, address, service_tags, is_onboarded, stripe_onboarded, created_at, campus_school_name, campus_key, founder50')
     .order('created_at', { ascending: false });
+
+  if (campus) {
+    query = query.eq('campus_key', campus);
+  }
+
+  const { data, error } = await query;
 
   if (error) return res.status(500).json({ error: 'Failed to fetch businesses' });
   return res.status(200).json({ businesses: data });

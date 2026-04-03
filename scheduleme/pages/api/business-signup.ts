@@ -29,6 +29,12 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+function normalizeCampusKey(name?: string | null): string | null {
+  if (!name) return null;
+  const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return cleaned ? cleaned.replace(/\s+/g, '_') : null;
+}
+
 const ADMIN_EMAIL = 'usescheduleme@gmail.com';
 
 const VALID_CATEGORIES = [
@@ -47,11 +53,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const {
     businessName, ownerName, email, phone, serviceCategory, otherCategory,
-    city, calendlyUrl, website, instagram, campusProvider, schoolName,
+    city, zip, calendlyUrl, website, instagram, campusProvider, schoolName,
   } = req.body;
 
   // Required fields
-  if (!businessName || !email || !city || !serviceCategory)
+  if (!businessName || !email || !city || !zip || !serviceCategory)
     return res.status(400).json({ error: 'Missing required fields' });
 
   // Email validation
@@ -83,9 +89,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const cityCheck = validateAndFilter(city, { maxLength: 120, fieldName: 'City' });
   if (!cityCheck.ok) return res.status(400).json({ error: cityCheck.error });
 
+  const zipCheck = validateAndFilter(zip, { maxLength: 10, fieldName: 'ZIP' });
+  if (!zipCheck.ok) return res.status(400).json({ error: zipCheck.error });
+  const cleanZip = zipCheck.value.trim();
+  if (!/^\d{5}(-\d{4})?$/.test(cleanZip)) return res.status(400).json({ error: 'Invalid ZIP code' });
+
   const cleanName = nameCheck.value;
   const cleanOwner = ownerCheck.value;
   const cleanCity = cityCheck.value;
+  const cleanAddress = `${cleanCity}, ${cleanZip}`;
 
   // URL validation (optional fields)
   const urlRegex = /^https?:\/\/.+/;
@@ -110,15 +122,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = getSupabase();
-    const geo = await geocodeLocation(cleanCity);
+    const geo = await geocodeLocation(cleanAddress);
     const category = serviceCategory === 'Other' ? (otherCategory?.slice(0, 60) ?? 'Other') : serviceCategory;
     const slug = slugify(cleanName) + '-' + Date.now().toString(36);
+    const campusKey = campusProvider ? normalizeCampusKey(schoolName) : null;
+
+    let founder50 = false;
+    if (campusKey) {
+      const { data: founderRow, error: founderErr } = await supabase
+        .from('campus_founder50')
+        .select('founder_count')
+        .eq('campus_key', campusKey)
+        .maybeSingle();
+      if (!founderErr) {
+        const currentCount = founderRow?.founder_count ?? 0;
+        if (currentCount < 50) {
+          founder50 = true;
+          await supabase.from('campus_founder50').upsert({
+            campus_key: campusKey,
+            founder_count: currentCount + 1,
+          }, { onConflict: 'campus_key' });
+        }
+      }
+    }
 
     const { data, error } = await supabase.from('businesses').insert({
       name: cleanName,
       slug,
       description: `${category} service in ${cleanCity}`,
-      address: cleanCity,
+      address: cleanAddress,
+      city: cleanCity,
+      zip: cleanZip,
       lat: geo?.lat ?? null,
       lng: geo?.lng ?? null,
       service_tags: [category.toLowerCase().replace(/\s+/g, '_')],
@@ -133,6 +167,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       is_onboarded: false,
       campus_provider: campusProvider === true,
       campus_school_name: campusProvider && schoolName ? schoolName.slice(0, 100) : null,
+      campus_key: campusKey,
+      founder50,
     }).select('id').single();
 
     if (error) {
@@ -149,7 +185,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email,
         phone: phone || 'not provided',
         category: category,
-        city: cleanCity,
+        city: cleanAddress,
         campusProvider: campusProvider === true,
         schoolName: campusProvider ? schoolName : undefined,
       });
@@ -163,7 +199,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ownerName: cleanOwner,
         businessName: cleanName,
         category: category,
-        city: cleanCity,
+        city: cleanAddress,
       });
     } catch (err) {
       console.error('[business-signup] applicant email failed', err);

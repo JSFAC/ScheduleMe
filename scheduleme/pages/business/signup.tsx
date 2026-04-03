@@ -8,7 +8,7 @@ import BusinessNav from '../../components/BusinessNav';
 type Step = 'form' | 'submitting' | 'success';
 interface FormData {
   businessName: string; ownerName: string; email: string; phone: string;
-  serviceCategory: string; otherCategory: string; city: string; radiusMiles: string;
+  serviceCategory: string; otherCategory: string; city: string; zip: string; radiusMiles: string;
   licenseNumber: string; yearsInBusiness: string; calendlyUrl: string; agree: boolean;
   campusProvider: boolean; schoolName: string;
 }
@@ -25,7 +25,7 @@ const SignupPage: NextPage = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>({
     businessName:'', ownerName:'', email:'', phone:'', serviceCategory:'', otherCategory:'',
-    city:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', calendlyUrl:'', agree:false,
+    city:'', zip:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', calendlyUrl:'', agree:false,
     campusProvider:false, schoolName:'',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -43,7 +43,9 @@ const SignupPage: NextPage = () => {
     if (!/^[\d\s\-().+]{7,20}$/.test(form.phone)) e.phone = 'Enter a valid phone number.';
     if (!form.serviceCategory) e.serviceCategory = 'Select a service category.';
     if (form.serviceCategory === 'Other' && !form.otherCategory.trim()) e.otherCategory = 'Please describe your service.';
-    if (!form.city.trim()) e.city = 'Enter your city or zip code.';
+    if (!form.city.trim()) e.city = 'Enter your city.';
+    if (!form.zip.trim()) e.zip = 'Enter your ZIP code.';
+    if (form.zip && !/^\d{5}(-\d{4})?$/.test(form.zip.trim())) e.zip = 'Enter a valid ZIP code.';
     if (!form.agree) e.agree = 'You must agree to the terms.';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -250,13 +252,22 @@ const SignupPage: NextPage = () => {
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Primary city / zip *</label>
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">City *</label>
                       <div className="relative">
                         <input type="text" maxLength={120} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.city ? 'ring-2 ring-red-400' : ''}`}
-                          placeholder="Austin, TX or 78701" value={form.city} onChange={e => set('city', e.target.value)} />
+                          placeholder="Austin, TX" value={form.city} onChange={e => set('city', e.target.value)} />
                         <span className="absolute bottom-2 right-3 text-[10px] text-neutral-500">{form.city.length}/120</span>
                       </div>
                       {errors.city && <p className="mt-1 text-xs text-red-400">{errors.city}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">ZIP code *</label>
+                      <div className="relative">
+                        <input type="text" maxLength={10} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.zip ? 'ring-2 ring-red-400' : ''}`}
+                          placeholder="95060" value={form.zip} onChange={e => set('zip', e.target.value)} />
+                        <span className="absolute bottom-2 right-3 text-[10px] text-neutral-500">{form.zip.length}/10</span>
+                      </div>
+                      {errors.zip && <p className="mt-1 text-xs text-red-400">{errors.zip}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-neutral-400 mb-1.5">Service radius</label>
@@ -339,7 +350,10 @@ const SignupPage: NextPage = () => {
                   <div>
                     <p className="text-sm font-semibold text-white mb-1">How payments work</p>
                     <p className="text-sm text-neutral-400">
-                      Joining is completely free. ScheduleMe takes a <strong className="text-accent">12% commission</strong> only when a customer pays you for a completed job. No monthly fees, no per-lead charges.
+                      Joining is completely free. ScheduleMe takes a <strong className="text-accent">12% platform fee</strong> only when a customer pays you for a completed job. No monthly fees, no per-lead charges.
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-2">
+                      <strong className="text-accent">Founder50:</strong> Standard platform fee is 12%, but as a Founder50 member, you are locked into 6% forever.
                     </p>
                   </div>
                 </div>

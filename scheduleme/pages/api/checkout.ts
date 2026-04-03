@@ -4,10 +4,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import { getPlatformFeePercent } from '../../lib/platformFees';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
-const PLATFORM_FEE_PERCENT = 12; // 12% platform fee
-
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Load booking with business details
   const { data: booking } = await supabase
     .from('bookings')
-    .select('*, businesses(id, name, stripe_account_id, stripe_onboarded), profiles(name, email)')
+    .select('*, businesses(id, name, stripe_account_id, stripe_onboarded, founder50), profiles(name, email)')
     .eq('id', booking_id)
     .maybeSingle();
 
@@ -74,7 +73,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (booking.stripe_payment_method_id)
     return res.status(400).json({ error: 'Card already saved for this booking.' });
 
-  const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PERCENT / 100);
+  const platformFeePercent = getPlatformFeePercent(biz);
+  const platformFeeCents = Math.round(amountCents * platformFeePercent / 100);
 
   // DEPRECATED: Checkout is no longer used for card setup; use /api/create-setup-intent with Stripe Elements.
   // Keeping this endpoint for backward compatibility.
@@ -87,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     success_url: `${siteUrl}/bookings?setup=success&booking=${booking_id}`,
     cancel_url: `${siteUrl}/bookings?setup=cancelled&booking=${booking_id}`,
     client_reference_id: booking_id,
-    metadata: { booking_id, business_id: biz.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents) },
+    metadata: { booking_id, business_id: biz.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents), platform_fee_percent: String(platformFeePercent) },
     setup_intent_data: {
       metadata: { bookingId: booking_id, businessId: biz.id },
       usage: 'off_session',
