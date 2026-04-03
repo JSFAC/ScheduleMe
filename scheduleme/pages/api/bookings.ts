@@ -598,12 +598,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (error) return res.status(500).json({ error: error.message || 'Failed to fetch bookings' });
+      const needsBizLookup = (data || []).some((b: any) => !b.businesses && b.business_id);
+      let bizMap: Record<string, { name?: string | null; phone?: string | null; email?: string | null }> = {};
+      if (needsBizLookup) {
+        const bizIds = Array.from(new Set((data || []).map((b: any) => b.business_id).filter(Boolean)));
+        if (bizIds.length > 0) {
+          const { data: bizData } = await supabase
+            .from('businesses')
+            .select('id, name, phone, email')
+            .in('id', bizIds);
+          (bizData || []).forEach((biz: any) => {
+            bizMap[biz.id] = { name: biz.name, phone: biz.phone, email: biz.email };
+          });
+        }
+      }
       const bookings = (data || []).map((b: any) => ({
         ...b,
         scheduled_at: b.scheduled_start ?? null,
-        business_name: b.businesses?.name ?? null,
-        business_phone: b.businesses?.phone ?? null,
-        business_email: b.businesses?.email ?? null,
+        business_name: b.businesses?.name ?? bizMap[b.business_id]?.name ?? null,
+        business_phone: b.businesses?.phone ?? bizMap[b.business_id]?.phone ?? null,
+        business_email: b.businesses?.email ?? bizMap[b.business_id]?.email ?? null,
         businesses: undefined,
       }));
       return res.status(200).json({ bookings });
