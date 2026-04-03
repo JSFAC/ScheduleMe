@@ -19,7 +19,8 @@ function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number):
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function getCover(cover_url?: string | null): string {
+function getCover(cover_url?: string | null, media_urls?: string[] | null): string {
+  if (Array.isArray(media_urls) && media_urls.length > 0) return media_urls[0];
   return cover_url || TRANSPARENT_PIXEL;
 }
 
@@ -38,6 +39,9 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
   const breakUntil = b.break_until ? new Date(b.break_until) : null;
   const breakActive = availability === 'break' && breakUntil && !Number.isNaN(breakUntil.getTime()) && breakUntil.getTime() > Date.now();
   const effectiveAvailability = breakActive ? 'break' : (availability === 'break' ? 'open' : availability);
+  const mediaUrls = Array.isArray(b.media_urls) && b.media_urls.length > 0 ? b.media_urls : [];
+  const cover = getCover(b.cover_url, mediaUrls);
+  const allImages = mediaUrls.length > 0 ? mediaUrls : (cover ? [cover] : []);
   return {
     id: b.id,
     realId: b.id,
@@ -57,8 +61,8 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     price_tier: b.price_tier ?? null,
     availability_status: effectiveAvailability,
     break_until: breakUntil ? breakUntil.toISOString() : null,
-    coverUrl: getCover(b.cover_url),
-    allImages: b.media_urls || [getCover(b.cover_url)],
+    coverUrl: cover,
+    allImages,
     phone: b.phone || '',
     website: b.website || '',
     calendly_url: b.calendly_url || '',
