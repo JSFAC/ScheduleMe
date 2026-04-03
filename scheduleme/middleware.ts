@@ -10,10 +10,24 @@ function parseAllowedOrigins(): string[] {
     .map(v => (v.endsWith('/') ? v.slice(0, -1) : v));
 }
 
-function isOriginAllowed(origin: string | null, allowlist: string[]): boolean {
+function normalizeHost(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value.startsWith('http') ? value : `https://${value}`);
+    return url.hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return value.replace(/^www\./i, '').toLowerCase();
+  }
+}
+
+function isOriginAllowed(origin: string | null, allowlist: string[], host: string | null): boolean {
   if (!origin) return true; // non-browser clients
   const normalized = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-  return allowlist.includes(normalized);
+  if (allowlist.includes(normalized)) return true;
+  const originHost = normalizeHost(origin);
+  const reqHost = normalizeHost(host);
+  if (originHost && reqHost && originHost === reqHost) return true;
+  return false;
 }
 
 export function middleware(req: NextRequest) {
@@ -21,8 +35,9 @@ export function middleware(req: NextRequest) {
 
   const allowlist = parseAllowedOrigins();
   const origin = req.headers.get('origin');
+  const host = req.headers.get('host');
 
-  if (allowlist.length > 0 && !isOriginAllowed(origin, allowlist)) {
+  if (allowlist.length > 0 && !isOriginAllowed(origin, allowlist, host)) {
     return new NextResponse(JSON.stringify({ error: 'CORS origin not allowed' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
@@ -30,7 +45,7 @@ export function middleware(req: NextRequest) {
   }
 
   const corsHeaders: Record<string, string> = {};
-  if (origin && (allowlist.length === 0 || isOriginAllowed(origin, allowlist))) {
+  if (origin && (allowlist.length === 0 || isOriginAllowed(origin, allowlist, host))) {
     corsHeaders['Access-Control-Allow-Origin'] = origin;
     corsHeaders['Access-Control-Allow-Credentials'] = 'true';
     corsHeaders['Access-Control-Allow-Methods'] = 'GET,POST,PATCH,PUT,DELETE,OPTIONS';
