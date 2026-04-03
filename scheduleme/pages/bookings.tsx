@@ -697,13 +697,20 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
               </button>
             </div>
             <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">Your proposed price</label>
-            <input
-              value={disputePrice}
-              onChange={(e) => setDisputePrice(e.target.value)}
-              placeholder="e.g. 25"
-              className="w-full rounded-xl border px-3 py-2 text-sm"
-              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+              <input
+                value={disputePrice ? (Number(disputePrice) / 100).toFixed(2) : ''}
+                onChange={(e) => {
+                  const digits = (e.target.value || '').replace(/[^\d]/g, '').slice(0, 7);
+                  setDisputePrice(digits);
+                }}
+                inputMode="numeric"
+                placeholder="0.00"
+                className="w-full rounded-xl border pl-7 pr-3 py-2 text-sm"
+                style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
+              />
+            </div>
             <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mt-3 mb-1">Notes (optional)</label>
             <textarea
               value={disputeNote}
@@ -714,8 +721,8 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             />
             <button
               onClick={async () => {
-                const amt = parseFloat(disputePrice || '0');
-                if (!(amt > 0)) { setErr('Enter a valid price'); return; }
+                const cents = parseInt(disputePrice || '0', 10);
+                if (!(cents > 0)) { setErr('Enter a valid price'); return; }
                 setDisputeSending(true);
                 try {
                   const headers = await getAuthHeaders();
@@ -725,7 +732,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                     body: JSON.stringify({
                       booking_id: booking.id,
                       status: 'price_disputed',
-                      dispute_amount_cents: Math.round(amt * 100),
+                      dispute_amount_cents: cents,
                       dispute_note: disputeNote || null,
                     }),
                   });

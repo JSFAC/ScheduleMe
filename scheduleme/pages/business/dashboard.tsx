@@ -646,6 +646,7 @@ const BusinessDashboard: NextPage = () => {
   const dm = darkMode;
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','settings'];
   const [tab, setTab] = useState<TabId>('overview');
+  const [previewEditMode, setPreviewEditMode] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [services, setServices] = useState([]);
   const [svcLoading, setSvcLoading] = useState(false);
@@ -1297,8 +1298,10 @@ const BusinessDashboard: NextPage = () => {
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Failed to set price'); return false; }
+      const nextAmount = data?.amount_cents ?? amountCents;
+      const nextStatus = data?.status || 'payment_pending';
       setBookings(bs => bs.map(b => b.id === bookingId
-        ? { ...b, amount_cents: amountCents, status: data.status || b.status }
+        ? { ...b, amount_cents: nextAmount, status: nextStatus }
         : b
       ));
       return true;
@@ -2444,17 +2447,17 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                   <button
                     onClick={() => {
-                      setTab('settings');
+                      setPreviewEditMode(v => !v);
                     }}
                     className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
                   >
-                    Edit listing
+                    {previewEditMode ? 'Back to preview' : 'Edit listing'}
                   </button>
                 </div>
                 {business?.slug ? (
                   <iframe
                     title="Business preview"
-                    src={`/biz/${business.slug}`}
+                    src={previewEditMode ? `/biz/${business.slug}?edit=1&from=dashboard` : `/biz/${business.slug}`}
                     className="w-full"
                     style={{ height: '80vh', border: 'none' }}
                   />

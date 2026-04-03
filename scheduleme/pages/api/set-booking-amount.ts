@@ -92,5 +92,5 @@ export default async function handler(req, res) {
     // Non-fatal
   }
 
-  return res.status(200).json({ ok: true });
+  return res.status(200).json({ ok: true, status: 'payment_pending', amount_cents: cents });
 }
