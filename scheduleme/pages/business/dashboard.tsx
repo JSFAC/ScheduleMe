@@ -814,19 +814,20 @@ const BusinessDashboard: NextPage = () => {
     setEditHours(hoursToMap(biz.hours));
     setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
     setMediaVideo(biz.video_url || null);
-    // Use API to fetch bookings (bypasses RLS issues with anon key)
-    const bkgRes = await fetch('/api/bookings?business_id=' + biz.id, { headers: await getAuthHeaders() });
-    if (bkgRes.ok) { const bkgData = await bkgRes.json(); setBookings(bkgData.bookings || []); }
-    // Pre-load message threads
-    const msgsRes = await fetch('/api/messages?business_id=' + biz.id, { headers: await getAuthHeaders() });
-    if (msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); setThreads(md.threads || []); }
-    try {
-      const balRes = await fetch('/api/stripe-balance', { method: 'POST', headers: await getAuthHeaders() });
-      if (balRes.ok) {
+    const authHeaders = await getAuthHeaders();
+    const [bkgRes, msgsRes, balRes] = await Promise.all([
+      fetch('/api/bookings?business_id=' + biz.id, { headers: authHeaders }),
+      fetch('/api/messages?business_id=' + biz.id, { headers: authHeaders }),
+      fetch('/api/stripe-balance', { method: 'POST', headers: authHeaders }).catch(() => null),
+    ]);
+    if (bkgRes && bkgRes.ok) { const bkgData = await bkgRes.json(); setBookings(bkgData.bookings || []); }
+    if (msgsRes && msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); setThreads(md.threads || []); }
+    if (balRes && balRes.ok) {
+      try {
         const b = await balRes.json();
         if (typeof b?.available === 'number' && typeof b?.pending === 'number') setPayoutBalance({ available: b.available, pending: b.pending });
-      }
-    } catch {}
+      } catch {}
+    }
     setLoading(false);
   }, [router]);
 
@@ -1381,7 +1382,8 @@ const BusinessDashboard: NextPage = () => {
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const completedCount = bookings.filter(b => b.status === 'completed' || b.status === 'paid').length;
   const uniqueClients = new Set(bookings.map(b => b.profiles?.email).filter(Boolean)).size;
-  const thisMonthGross = bookings.filter(b => (b.status === 'paid' || b.status === 'completed') && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth()).reduce((s, b) => s + (b.amount_cents || 0), 0);
+  const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);
+  const thisMonthGross = bookings.filter(b => isRevenueBooking(b) && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth()).reduce((s, b) => s + (b.amount_cents || 0), 0);
   const thisMonthEarned = Math.round(thisMonthGross * (1 - PLATFORM_FEE));
   // Pending payments (confirmed + amount set, not yet paid)
   const pendingPaymentAmount = bookings.filter(b => ['confirmed', 'payment_pending'].includes(b.status) && b.amount_cents && !b.paid_at).reduce((s, b) => s + (b.amount_cents || 0), 0);
@@ -1419,8 +1421,9 @@ const BusinessDashboard: NextPage = () => {
   bookings.forEach(b => {
     if (!b.profiles?.email) return;
     const ex = clientMap.get(b.profiles.email);
-    if (ex) { ex.bookingCount++; ex.totalSpent += b.amount_cents || 0; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
-    else clientMap.set(b.profiles.email, { id: b.profiles.id, name: b.profiles.name || 'Customer', email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
+    const addSpend = isRevenueBooking(b) ? (b.amount_cents || 0) : 0;
+    if (ex) { ex.bookingCount++; ex.totalSpent += addSpend; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
+    else clientMap.set(b.profiles.email, { id: b.profiles.id, name: b.profiles.name || 'Customer', email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: addSpend, lastBooking: b.created_at });
   });
   const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);

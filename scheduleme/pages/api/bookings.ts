@@ -641,19 +641,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (error) return res.status(500).json({ error: error.message || 'Failed to fetch bookings' });
-      const needsBizLookup = (data || []).some((b: any) => (!b.businesses?.name) && (b.business_id || b.businesses?.id));
       let bizMap: Record<string, { name?: string | null; phone?: string | null; email?: string | null }> = {};
-      if (needsBizLookup) {
-        const bizIds = Array.from(new Set((data || []).map((b: any) => b.business_id || b.businesses?.id).filter(Boolean)));
-        if (bizIds.length > 0) {
-          const { data: bizData } = await supabase
-            .from('businesses')
-            .select('id, name, phone, email')
-            .in('id', bizIds);
-          (bizData || []).forEach((biz: any) => {
-            bizMap[biz.id] = { name: biz.name, phone: biz.phone, email: biz.email };
-          });
-        }
+      const bizIds = Array.from(new Set((data || []).map((b: any) => b.business_id || b.businesses?.id).filter(Boolean)));
+      if (bizIds.length > 0) {
+        const { data: bizData } = await supabase
+          .from('businesses')
+          .select('id, name, phone, email')
+          .in('id', bizIds);
+        (bizData || []).forEach((biz: any) => {
+          bizMap[biz.id] = { name: biz.name, phone: biz.phone, email: biz.email };
+        });
       }
       const bookings = (data || []).map((b: any) => ({
         ...b,
