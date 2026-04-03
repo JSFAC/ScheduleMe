@@ -788,6 +788,19 @@ export default function BizPage() {
               {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
               {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
               <div
+                className="mb-3 rounded-xl border border-dashed px-4 py-4 text-center text-xs"
+                style={{ borderColor: dm ? '#2d2d2f' : '#d1d5db', color: mu, background: dm ? '#0c0c0d' : '#f9fafb' }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) uploadMedia(file, 'image');
+                }}
+                onClick={() => imgInputRef.current?.click()}
+              >
+                Drag & drop a photo here, or click to choose a file.
+              </div>
+              <div
                 className="flex gap-2 overflow-x-auto pb-1"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {

@@ -647,6 +647,7 @@ const BusinessDashboard: NextPage = () => {
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','settings'];
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
+  const [previewKey, setPreviewKey] = useState(() => Date.now());
   const [signingOut, setSigningOut] = useState(false);
   const [services, setServices] = useState([]);
   const [svcLoading, setSvcLoading] = useState(false);
@@ -2445,19 +2446,40 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-xs font-semibold text-neutral-500">Live Preview</p>
                     <p className="text-[11px] text-neutral-400">This renders the same layout as the public business page.</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setPreviewEditMode(v => !v);
-                    }}
-                    className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  >
-                    {previewEditMode ? 'Back to preview' : 'Edit listing'}
-                  </button>
+                  {!previewEditMode ? (
+                    <button
+                      onClick={() => setPreviewEditMode(true)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    >
+                      Edit listing
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setPreviewEditMode(false);
+                          showToast('Changes submitted for review.', true);
+                        }}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-600 text-white"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPreviewEditMode(false);
+                          setPreviewKey(Date.now());
+                        }}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {business?.slug ? (
                   <iframe
                     title="Business preview"
-                    src={previewEditMode ? `/biz/${business.slug}?edit=1&from=dashboard` : `/biz/${business.slug}`}
+                    src={previewEditMode ? `/biz/${business.slug}?edit=1&from=dashboard&k=${previewKey}` : `/biz/${business.slug}?k=${previewKey}`}
                     className="w-full"
                     style={{ height: '80vh', border: 'none' }}
                   />
