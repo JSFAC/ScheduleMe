@@ -40,8 +40,11 @@ function renderCover(opts: {
     return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} />;
   }
   return (
-    <div className={opts.fallbackClassName || 'flex items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
+    <div className={opts.fallbackClassName || 'flex flex-col items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
       <span className="text-xs font-bold" style={{ color: '#6b7280' }}>{initials(opts.name)}</span>
+      {opts.showLabel && (
+        <span className="text-[9px] mt-1" style={{ color: '#9ca3af' }}>{opts.label || 'No photos yet'}</span>
+      )}
     </div>
   );
 }
@@ -205,6 +208,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           style: { objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 },
           fallbackClassName: 'absolute inset-0 flex items-center justify-center',
           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+          showLabel: true,
         })}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
@@ -603,9 +607,15 @@ function writeCoords(lat: number, lng: number) {
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
                       style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
-                        <img src={biz.coverUrl} alt={biz.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-                          style={{ objectPosition: 'center 25%' }} />
+                        {renderCover({
+                          src: biz.coverUrl,
+                          name: biz.name,
+                          className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]',
+                          style: { objectPosition: 'center 25%' },
+                          fallbackClassName: 'w-full h-full flex flex-col items-center justify-center',
+                          fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                          showLabel: true,
+                        })}
                         <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
                           <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
                           <span className="text-[9px] font-bold text-white">{listStatus.label}</span>
@@ -613,8 +623,10 @@ function writeCoords(lat: number, lng: number) {
                       </div>
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
-                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" data-pill style={PILL_STYLE}>{biz.category}</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
+                            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" data-pill style={PILL_STYLE}>{biz.category}</span>
+                          </div>
                           {(biz.reviews ?? 0) === 0 && (
                             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
                           )}
@@ -790,4 +802,3 @@ function writeCoords(lat: number, lng: number) {
 };
 
 export default BrowsePage;
-

@@ -742,28 +742,30 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative overflow-hidden" style={{height:520,background:bg}}>
-          <div className="relative h-full w-full mx-auto rounded-2xl overflow-hidden" style={{ maxWidth: 980, padding: '18px 0' }}>
-            {imgs[galleryIdx] && (
-              <img
-                src={imgs[galleryIdx]}
-                alt={biz.name}
-                className="absolute inset-0 w-full h-full object-contain"
-                onClick={() => imgs.length > 0 && setGalleryOpen(true)}
-              />
-            )}
+        <div className="relative" style={{ height: 560, background: bg }}>
+          <div className="relative h-full w-full mx-auto" style={{ maxWidth: 980 }}>
+            <div className="absolute inset-0 px-6 py-6 flex items-center justify-center">
+              {imgs[galleryIdx] && (
+                <img
+                  src={imgs[galleryIdx]}
+                  alt={biz.name}
+                  className="max-h-full max-w-full object-contain rounded-2xl"
+                  onClick={() => imgs.length > 0 && setGalleryOpen(true)}
+                />
+              )}
+            </div>
             {imgs.length > 1 && (
               <>
                 <button
                   onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
                   ‹
                 </button>
                 <button
                   onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
                   ›
