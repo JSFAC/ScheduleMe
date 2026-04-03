@@ -109,6 +109,7 @@ const KEYWORD_EXPANSIONS: Record<string, string[]> = {
   handyman: ['handyman', 'repair', 'install', 'mount', 'assemble'],
   moving: ['move', 'moving'],
   landscaping: ['yard', 'lawn', 'grass', 'garden', 'weeds', 'mulch'],
+  printing: ['print', 'printed', 'printing', '3d', 'model', 'prototype'],
 };
 
 function tokenizeQuery(query: string): string[] {
@@ -117,7 +118,7 @@ function tokenizeQuery(query: string): string[] {
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .map(w => w.trim())
-    .filter(w => w.length > 2 && !MATCH_STOPWORDS.has(w));
+    .filter(w => w.length >= 2 && !MATCH_STOPWORDS.has(w));
 }
 
 function expandKeywords(tokens: string[]): string[] {

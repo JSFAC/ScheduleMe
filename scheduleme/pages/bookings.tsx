@@ -103,6 +103,27 @@ function formatDateLong(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function formatTimeUntil(iso: string) {
+  const target = new Date(iso).getTime();
+  const now = Date.now();
+  const diff = target - now;
+  if (!Number.isFinite(diff)) return '';
+  if (diff <= 0) return 'Now';
+  const mins = Math.round(diff / 60000);
+  if (mins < 60) return `in ${mins}m`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `in ${hrs}h`;
+  const days = Math.round(hrs / 24);
+  return `in ${days}d`;
+}
+
+function formatShortDateTime(iso: string) {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${date} · ${time}`;
+}
+
 function formatBusinessName(name?: string | null): string | null {
   if (!name) return null;
   const cleaned = String(name).trim();
@@ -397,6 +418,11 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
 
         <div className="px-6 pb-8 pt-6 max-w-xl mx-auto">
           <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service || 'Custom Request'}</h2>
+          {formatBusinessName(booking.business_name) && (
+            <p className="text-sm font-semibold text-neutral-700 mt-0.5">
+              {formatBusinessName(booking.business_name)}
+            </p>
+          )}
           <p className="text-xs text-neutral-400 mt-1 mb-5">Submitted {formatDate(booking.created_at)}</p>
 
           <StatusBadge status={booking.status} />
@@ -1460,6 +1486,8 @@ function writeCoords(lat: number, lng: number) {
                         {activeSlice.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           const bizName = formatBusinessName(b.business_name);
+                          const primaryTime = b.scheduled_at ? formatTimeUntil(b.scheduled_at) : formatDate(b.created_at);
+                          const scheduledLabel = b.scheduled_at ? formatShortDateTime(b.scheduled_at) : null;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left booking-card group overflow-hidden transition-all hover:-translate-y-0.5"
@@ -1479,12 +1507,12 @@ function writeCoords(lat: number, lng: number) {
                                       )}
                                     </h3>
                                     <div className="flex items-center gap-2 mt-1.5">
-                                      <p className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>{formatDate(b.created_at)}</p>
-                                      {b.scheduled_at && (
+                                      <p className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>{primaryTime}</p>
+                                      {scheduledLabel && (
                                         <>
                                           <span className="text-neutral-200">·</span>
                                           <span className="text-[10px] font-semibold" style={{ color: cfg.barColor }}>
-                                            {new Date(b.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {scheduledLabel}
                                           </span>
                                         </>
                                       )}

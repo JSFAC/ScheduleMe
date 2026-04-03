@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'ScheduleMe Feedback <notifications@usescheduleme.com>',
-        to: 'hello@usescheduleme.com',
+        to: 'usescheduleme@gmail.com',
         reply_to: email || undefined,
         subject,
         html,
