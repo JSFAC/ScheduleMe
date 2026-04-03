@@ -734,17 +734,16 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative overflow-hidden" style={{height:280,background:dm?'#1c1c1e':'#e5e7eb'}}>
+        <div className="relative overflow-hidden" style={{height:360,background:dm?'#121212':'#eef2f7'}}>
           {imgs[galleryIdx] && (
             <img
               src={imgs[galleryIdx]}
               alt={biz.name}
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{objectPosition:'center 30%'}}
+              className="absolute inset-0 w-full h-full object-contain"
               onClick={() => imgs.length > 0 && setGalleryOpen(true)}
             />
           )}
-          <div className="absolute inset-0" style={{background:'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55))'}} />
+          <div className="absolute inset-0" style={{background:'linear-gradient(to bottom,rgba(0,0,0,0.15),rgba(0,0,0,0.45))'}} />
           {imgs.length > 1 && (
             <>
               <button onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)} className="absolute left-4 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
@@ -774,7 +773,7 @@ export default function BizPage() {
               ))}
             </div>
           )}
-          <div className="rounded-2xl p-5 shadow-lg -mt-6 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
+          <div className="rounded-2xl p-5 shadow-lg mt-4 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
             <div className="flex gap-2 flex-wrap mb-3">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
