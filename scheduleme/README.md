@@ -19,7 +19,6 @@ AI-assisted scheduling/booking for local service businesses. Describe your issue
 scheduleme/
 ├── cms_content.json          # All CMS copy (nav, hero, features, steps)
 ├── data/
-│   └── mockLeads.json        # Mock dashboard leads
 ├── lib/
 │   ├── claude.ts             # Claude API helper + triage prompt (12 examples)
 │   └── mockProviders.ts      # Mock provider data + matching logic

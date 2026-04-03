@@ -38,6 +38,3 @@ export interface Business {
 }
 
 // Empty arrays — no mock data. All business data comes from Supabase.
-export const SPONSORED: Business[] = [];
-export const INDEPENDENT: Business[] = [];
-export const NEARBY: Business[] = [];
