@@ -1592,8 +1592,8 @@ function writeCoords(lat: number, lng: number) {
                 ? Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="animate-shimmer rounded-xl flex-shrink-0" style={{ width: 200, height: 180 }} />
                   ))
-                : nearbyBizList.map(biz => (
-                <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
+                : nearbyBizList.slice(0, 8).map(biz => (
+                <Link key={biz.id} href={`/biz/${biz.slug || biz.realId || biz.id}`} scroll={false}
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
                   style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(10,132,255,0.12)', background: dm ? '#171717' : 'white' }}>
                   <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>

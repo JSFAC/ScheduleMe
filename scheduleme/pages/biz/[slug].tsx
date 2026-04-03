@@ -743,15 +743,15 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative" style={{ height: 500, background: bg }}>
-          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: -80 }}>
-            <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 820 }}>
+        <div className="relative" style={{ height: 470, background: bg }}>
+          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 0 }}>
+            <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 800 }}>
               {imgs[galleryIdx] && (
                 <img
                   src={imgs[galleryIdx]}
                   alt={biz.name}
                   className="object-contain rounded-2xl"
-                  style={{ maxHeight: 380, maxWidth: '100%' }}
+                  style={{ maxHeight: 320, maxWidth: '100%' }}
                   onClick={() => imgs.length > 0 && setGalleryOpen(true)}
                 />
               )}
@@ -805,7 +805,7 @@ export default function BizPage() {
               style={{ background: isFavorited ? 'rgba(16,185,129,0.18)' : (dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6'), border: '1px solid ' + (isFavorited ? 'rgba(16,185,129,0.45)' : bdr) }}
               title={isFavorited ? 'Pinned' : 'Pin'}
             >
-              <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke={isFavorited ? '#10b981' : (dm ? '#d1d5db' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke={isFavorited ? '#10b981' : (dm ? '#d1d5db' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
                 <path d="M9 15l-5 5" />
               </svg>
