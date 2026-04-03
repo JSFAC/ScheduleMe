@@ -234,6 +234,8 @@ export default function BizPage() {
             if (session.user?.email && data.owner_email && session.user.email === data.owner_email) {
               setCanEdit(true);
               if (router.query?.edit === '1') setEditMode(true);
+            } else if (router.query?.edit === '1') {
+              showToast('Edit mode is only for the business owner.');
             }
           } catch {}
         })();
@@ -251,6 +253,10 @@ export default function BizPage() {
       .catch(() => {})
       .finally(() => setReviewsLoading(false));
   }, [biz?.id]);
+
+  useEffect(() => {
+    if (!canEdit && editMode) setEditMode(false);
+  }, [canEdit]);
 
   useEffect(() => {
     if (!biz?.id) return;
@@ -462,6 +468,7 @@ export default function BizPage() {
     if (!name || !priceCents) { setErr('Add a name and price'); return; }
     const headers = await getAuthHeaders();
     if (!headers) return;
+    const maxOrder = services.reduce((max: number, s: any) => Math.max(max, s.sort_order ?? 0), -1);
     const res = await fetch('/api/services', {
       method: 'POST',
       headers,
@@ -471,11 +478,12 @@ export default function BizPage() {
         description: newSvc.description || '',
         price_cents: priceCents,
         duration_min: Number(newSvc.duration || 60),
+        sort_order: maxOrder + 1,
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { setErr(data.error || 'Failed to add service'); return; }
-    setServices((prev: any[]) => [data.service, ...prev]);
+    setServices((prev: any[]) => [...prev, data.service]);
     setNewSvc({ name: '', price: '', duration: '60', description: '' });
   }
 
@@ -587,6 +595,43 @@ export default function BizPage() {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 1800);
+  }
+
+  const orderedServices = [...services].sort((a: any, b: any) => {
+    const ao = a.sort_order ?? 0;
+    const bo = b.sort_order ?? 0;
+    if (ao !== bo) return ao - bo;
+    const an = a.name || '';
+    const bn = b.name || '';
+    return an.localeCompare(bn);
+  });
+
+  async function moveService(id: string, dir: -1 | 1) {
+    const idx = orderedServices.findIndex((s: any) => s.id === id);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= orderedServices.length) return;
+    const a = orderedServices[idx];
+    const b = orderedServices[swapIdx];
+    const headers = await getAuthHeaders();
+    if (!headers) return;
+    const aOrder = a.sort_order ?? idx;
+    const bOrder = b.sort_order ?? swapIdx;
+    await fetch('/api/services', {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ id: a.id, business_id: biz.id, sort_order: bOrder }),
+    });
+    await fetch('/api/services', {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ id: b.id, business_id: biz.id, sort_order: aOrder }),
+    });
+    setServices((prev: any[]) =>
+      prev.map((s) =>
+        s.id === a.id ? { ...s, sort_order: bOrder } :
+        s.id === b.id ? { ...s, sort_order: aOrder } : s
+      )
+    );
   }
 
   async function toggleFavorite() {
@@ -748,7 +793,15 @@ export default function BizPage() {
               </div>
               {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
               {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div
+                className="flex gap-2 overflow-x-auto pb-1"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) uploadMedia(file, 'image');
+                }}
+              >
                 {editImages.map((url, i) => (
                   <div key={url}
                     draggable
@@ -804,8 +857,8 @@ export default function BizPage() {
           )}
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Services</h2>
           <div className="flex flex-col gap-3 mb-5">
-            {services.length === 0 && <div className="rounded-2xl p-5 text-center" style={{background:card,border:'1px solid '+bdr}}><p className="text-sm" style={{color:mu}}>No services listed yet</p></div>}
-            {services.map(s => {
+            {orderedServices.length === 0 && <div className="rounded-2xl p-5 text-center" style={{background:card,border:'1px solid '+bdr}}><p className="text-sm" style={{color:mu}}>No services listed yet</p></div>}
+            {orderedServices.map(s => {
               const draft = svcDrafts[s.id];
               if (editMode) {
                 return (
@@ -844,6 +897,8 @@ export default function BizPage() {
                         <div className="text-right">
                           <p className="font-bold text-lg" style={{ color: accent }}>{'$' + (s.price_cents / 100).toFixed(2)}</p>
                           <div className="flex items-center gap-2 mt-2 justify-end">
+                            <button onClick={() => moveService(s.id, -1)} className="text-xs font-semibold" style={{ color: mu }}>Up</button>
+                            <button onClick={() => moveService(s.id, 1)} className="text-xs font-semibold" style={{ color: mu }}>Down</button>
                             <button onClick={() => startEditService(s)} className="text-xs font-semibold" style={{ color: accent }}>Edit</button>
                             <button onClick={() => deleteService(s.id)} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Delete</button>
                           </div>

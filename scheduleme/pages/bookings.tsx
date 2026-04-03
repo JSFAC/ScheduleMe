@@ -263,11 +263,12 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string) => void;
+  onRequestReview: (booking: Booking) => void;
   dm: boolean;
   paymentMethods: any[];
   paymentDefaultId: string | null;
@@ -647,13 +648,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, dm, paymentMethod
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setReviewTarget({
-                    bookingId: booking.id,
-                    businessId: booking.business_id,
-                    businessName: booking.business_name || 'Provider',
-                    serviceName: booking.service || 'Booking',
-                  });
-                  setTimeout(() => setSelectedBooking(null), 60);
+                  onRequestReview(booking);
                 }}
                 className="w-full py-3 rounded-xl text-sm font-bold text-white"
                 style={{ background: '#007e6d' }}
@@ -1634,6 +1629,16 @@ function writeCoords(lat: number, lng: number) {
           originRect={originRect}
           onClose={() => setSelectedBooking(null)}
           onCancel={cancelBooking}
+          onRequestReview={(b) => {
+            if (!b.business_id) { setPaymentToast('setup_cancelled'); return; }
+            setReviewTarget({
+              bookingId: b.id,
+              businessId: b.business_id,
+              businessName: b.business_name || 'Provider',
+              serviceName: b.service || 'Booking',
+            });
+            setTimeout(() => setSelectedBooking(null), 120);
+          }}
           dm={dm}
           paymentMethods={paymentMethods}
           paymentDefaultId={paymentDefaultId}
