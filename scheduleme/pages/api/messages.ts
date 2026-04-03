@@ -11,6 +11,36 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+async function hydrateProfileFromAuth(
+  supabase: ReturnType<typeof getSupabase>,
+  userId: string | null | undefined,
+  profile: any,
+  cache: Map<string, any>
+) {
+  if (!userId) return profile;
+  if (cache.has(userId)) return cache.get(userId);
+  let nextProfile = profile;
+  if (nextProfile?.name) {
+    cache.set(userId, nextProfile);
+    return nextProfile;
+  }
+  try {
+    const { data: authData } = await supabase.auth.admin.getUserById(userId);
+    const authUser = authData?.user;
+    const metaName = authUser?.user_metadata?.full_name;
+    if (metaName) {
+      await supabase.from('profiles').upsert({
+        id: userId,
+        name: metaName,
+        email: authUser?.email || nextProfile?.email || null,
+      }, { onConflict: 'id' });
+      nextProfile = { ...(nextProfile || {}), id: userId, name: metaName, email: authUser?.email || nextProfile?.email || null };
+    }
+  } catch {}
+  cache.set(userId, nextProfile);
+  return nextProfile;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
 
@@ -124,7 +154,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
 
       const latest = bookings[0];
-      const latestProfile = latest.profiles || null;
+      const profileCache = new Map<string, any>();
+      const latestProfile = await hydrateProfileFromAuth(supabase, latest.profiles?.id || latest.user_id, latest.profiles || null, profileCache);
       const thread = {
         id: thread_customer_id,
         customer_id: thread_customer_id,
@@ -306,6 +337,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else {
         bookings = resq.data || [];
       }
+
+      const profileCache = new Map<string, any>();
+      const hydrated = await Promise.all((bookings || []).map(async (b: any) => {
+        const userId = b.profiles?.id || b.user_id || null;
+        const prof = await hydrateProfileFromAuth(supabase, userId, b.profiles || null, profileCache);
+        return { ...b, profiles: prof || b.profiles };
+      }));
+      bookings = hydrated;
 
       // Group by customer
       const byCustomer = new Map();

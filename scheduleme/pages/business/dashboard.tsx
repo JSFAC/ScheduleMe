@@ -1112,7 +1112,7 @@ const BusinessDashboard: NextPage = () => {
       const bookingIds = getBookingIdsForUser(userId);
       setBlockConfirm({
         userId,
-        name: activeMsgThread.profiles?.name || activeMsgThread.profiles?.email || 'customer',
+        name: activeMsgThread.profiles?.name || 'customer',
         bookingIds,
       });
     }
@@ -1420,7 +1420,7 @@ const BusinessDashboard: NextPage = () => {
     if (!b.profiles?.email) return;
     const ex = clientMap.get(b.profiles.email);
     if (ex) { ex.bookingCount++; ex.totalSpent += b.amount_cents || 0; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
-    else clientMap.set(b.profiles.email, { id: b.profiles.id, name: b.profiles.name, email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
+    else clientMap.set(b.profiles.email, { id: b.profiles.id, name: b.profiles.name || 'Customer', email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: b.amount_cents || 0, lastBooking: b.created_at });
   });
   const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -1741,7 +1741,7 @@ const BusinessDashboard: NextPage = () => {
                         {bookings.slice(0, 5).map(b => (
                           <div key={b.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
+                              <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || 'Customer'}</p>
                               <p className="text-xs text-neutral-400 mt-0.5 truncate">{b.service || 'Custom Request'} · {fmtDate(b.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
@@ -1831,7 +1831,7 @@ const BusinessDashboard: NextPage = () => {
                                 }
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
+                                <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || 'Customer'}</p>
                                 <p className="text-[12px] mt-0.5 line-clamp-1" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{b.service || 'Custom Request'}</p>
                               </div>
                             </div>
@@ -2192,8 +2192,7 @@ const BusinessDashboard: NextPage = () => {
                                 }
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-neutral-900">{c.name}</p>
-                                <p className="text-xs text-neutral-400 truncate">{c.email}</p>
+                                <p className="text-sm font-bold text-neutral-900">{c.name || 'Customer'}</p>
                                 {c.phone && <p className="text-xs text-neutral-400">{c.phone}</p>}
                               </div>
                             </div>
@@ -2270,7 +2269,7 @@ const BusinessDashboard: NextPage = () => {
                         <button
                           key={day}
                           type="button"
-                          title={count > 0 ? dayBookings.map(b => b.profiles?.name || b.profiles?.email || 'Customer').join(', ') : ''}
+                          title={count > 0 ? dayBookings.map(b => b.profiles?.name || 'Customer').join(', ') : ''}
                           onClick={() => setCalendarDay(isSelected ? null : day)}
                           className={`aspect-square flex flex-col items-center justify-center rounded-xl text-[12px] relative transition-colors ${
                             isSelected ? 'bg-accent text-white font-black shadow-md' :
@@ -2344,7 +2343,7 @@ const BusinessDashboard: NextPage = () => {
                                     }
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || b.profiles?.email || 'Customer'}</p>
+                                    <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}>{b.profiles?.name || 'Customer'}</p>
                                     <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{b.service || 'Custom Request'}</p>
                                   </div>
                                 </div>

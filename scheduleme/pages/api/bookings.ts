@@ -19,6 +19,36 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+async function hydrateProfileFromAuth(
+  supabase: ReturnType<typeof getSupabase>,
+  userId: string | null | undefined,
+  profile: any,
+  cache: Map<string, any>
+) {
+  if (!userId) return profile;
+  if (cache.has(userId)) return cache.get(userId);
+  let nextProfile = profile;
+  if (nextProfile?.name) {
+    cache.set(userId, nextProfile);
+    return nextProfile;
+  }
+  try {
+    const { data: authData } = await supabase.auth.admin.getUserById(userId);
+    const authUser = authData?.user;
+    const metaName = authUser?.user_metadata?.full_name;
+    if (metaName) {
+      await supabase.from('profiles').upsert({
+        id: userId,
+        name: metaName,
+        email: authUser?.email || nextProfile?.email || null,
+      }, { onConflict: 'id' });
+      nextProfile = { ...(nextProfile || {}), id: userId, name: metaName, email: authUser?.email || nextProfile?.email || null };
+    }
+  } catch {}
+  cache.set(userId, nextProfile);
+  return nextProfile;
+}
+
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
   try {
     const { data: booking } = await supabase
@@ -527,16 +557,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
 
       try {
-        const { data, error } = await supabase
-          .from('bookings')
-          .select('*, profiles(id, name, phone, email, avatar_url)')
-          .eq('business_id', business_id)
-          .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null,status.eq.price_disputed')
-          .order('created_at', { ascending: false })
-          .limit(200);
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*, profiles(id, name, phone, email, avatar_url)')
+        .eq('business_id', business_id)
+        .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null,status.eq.price_disputed')
+        .order('created_at', { ascending: false })
+        .limit(200);
 
-        if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-        return res.status(200).json({ bookings: data || [] });
+      if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+      const profileCache = new Map<string, any>();
+      const withProfiles = await Promise.all((data || []).map(async (b: any) => {
+        const userId = b.profiles?.id || b.user_id || null;
+        const prof = await hydrateProfileFromAuth(supabase, userId, b.profiles, profileCache);
+        return { ...b, profiles: prof || b.profiles };
+      }));
+      return res.status(200).json({ bookings: withProfiles || [] });
       } catch (err) {
         return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
       }
@@ -574,7 +610,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const idList = Array.from(ids).filter(Boolean);
       let query = supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -622,7 +658,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const bookings = (data || []).map((b: any) => ({
         ...b,
         scheduled_at: b.scheduled_start ?? null,
-        business_name: b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
+        business_name: b.business_name ?? b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
         business_phone: b.businesses?.phone ?? bizMap[b.business_id || b.businesses?.id]?.phone ?? null,
         business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,
       }));

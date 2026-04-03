@@ -92,16 +92,22 @@ export default function Nav({ variant = 'light' }: NavProps) {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(EDU_CACHE_KEY) === 'true';
   });
+  const [bizEduVerified, setBizEduVerified] = useState<boolean | null>(null);
+  const [profileEduVerified, setProfileEduVerified] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (bizEduVerified === null && profileEduVerified === null) return;
+    const merged = bizEduVerified === true || profileEduVerified === true;
+    setEduVerified(merged);
+    if (typeof window !== 'undefined') localStorage.setItem(EDU_CACHE_KEY, String(merged));
+  }, [bizEduVerified, profileEduVerified]);
 
   useEffect(() => {
     if (!user?.email) return;
     const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     sbBiz.from('businesses').select('id, edu_verified').eq('owner_email', user.email).maybeSingle().then(({data}) => {
       if (data?.id) setIsBiz(true);
-      if (data?.edu_verified === true) {
-        setEduVerified(true);
-        localStorage.setItem(EDU_CACHE_KEY, 'true');
-      }
+      if (typeof data?.edu_verified === 'boolean') setBizEduVerified(data.edu_verified);
     });
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -109,9 +115,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
       if (!userId) return;
       supabase.from('profiles').select('edu_verified').eq('id', userId).maybeSingle()
         .then(({ data }) => {
-          const verified = data?.edu_verified === true;
-          setEduVerified(prev => verified || prev);
-          localStorage.setItem(EDU_CACHE_KEY, String(verified || localStorage.getItem(EDU_CACHE_KEY) === 'true'));
+          if (typeof data?.edu_verified === 'boolean') setProfileEduVerified(data.edu_verified);
         });
     });
   }, [user?.email]);
