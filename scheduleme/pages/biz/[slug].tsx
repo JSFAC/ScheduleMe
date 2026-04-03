@@ -734,7 +734,7 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative overflow-hidden" style={{height:360,background:dm?'#121212':'#eef2f7'}}>
+        <div className="relative overflow-hidden" style={{height:460,background:bg}}>
           {imgs[galleryIdx] && (
             <img
               src={imgs[galleryIdx]}
@@ -743,13 +743,12 @@ export default function BizPage() {
               onClick={() => imgs.length > 0 && setGalleryOpen(true)}
             />
           )}
-          <div className="absolute inset-0" style={{background:'linear-gradient(to bottom,rgba(0,0,0,0.15),rgba(0,0,0,0.45))'}} />
           {imgs.length > 1 && (
             <>
-              <button onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)} className="absolute left-4 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
+              <button onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)} className="absolute left-6 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
                 ‹
               </button>
-              <button onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)} className="absolute right-4 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
+              <button onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)} className="absolute right-6 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
                 ›
               </button>
             </>
@@ -764,7 +763,7 @@ export default function BizPage() {
               {imgs.map((url, i) => (
                 <button
                   key={url}
-                  onClick={() => { setGalleryIdx(i); setGalleryOpen(true); }}
+                  onClick={() => { setGalleryIdx(i); }}
                   className="h-16 w-16 rounded-xl overflow-hidden flex-shrink-0 border"
                   style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb') }}
                 >
