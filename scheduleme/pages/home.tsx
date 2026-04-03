@@ -4,7 +4,7 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
@@ -92,6 +92,66 @@ function getOpenStatus(hours: { day: string; time: string }[], availability?: st
 
 function initials(name: string): string {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+const MATCH_STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'for', 'to', 'of', 'in', 'on', 'with', 'my', 'your', 'our', 'need', 'needs',
+  'looking', 'look', 'find', 'someone', 'anyone', 'help', 'please', 'asap', 'soon', 'today', 'tomorrow', 'this',
+  'that', 'it', 'is', 'are', 'be', 'do', 'does', 'done', 'fix', 'repair', 'service', 'services'
+]);
+
+const KEYWORD_EXPANSIONS: Record<string, string[]> = {
+  plumbing: ['plumber', 'pipe', 'leak', 'leaking', 'drain', 'toilet', 'faucet', 'water', 'heater'],
+  electrical: ['electric', 'electrician', 'breaker', 'outlet', 'wiring', 'light', 'lighting'],
+  cleaning: ['clean', 'cleaner', 'deep', 'maid', 'housekeeping'],
+  hvac: ['ac', 'air', 'conditioning', 'furnace', 'heater', 'heating'],
+  painting: ['paint', 'repaint', 'wall', 'walls', 'primer'],
+  handyman: ['handyman', 'repair', 'install', 'mount', 'assemble'],
+  moving: ['move', 'moving'],
+  landscaping: ['yard', 'lawn', 'grass', 'garden', 'weeds', 'mulch'],
+};
+
+function tokenizeQuery(query: string): string[] {
+  return query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map(w => w.trim())
+    .filter(w => w.length > 2 && !MATCH_STOPWORDS.has(w));
+}
+
+function expandKeywords(tokens: string[]): string[] {
+  const expanded = new Set(tokens);
+  for (const [cat, keys] of Object.entries(KEYWORD_EXPANSIONS)) {
+    if (tokens.includes(cat) || keys.some(k => tokens.includes(k))) {
+      expanded.add(cat);
+      keys.forEach(k => expanded.add(k));
+    }
+  }
+  return Array.from(expanded);
+}
+
+function matchBusinesses(query: string, pool: Business[]): Business[] {
+  const baseTokens = tokenizeQuery(query);
+  const tokens = expandKeywords(baseTokens);
+  if (tokens.length === 0) return [];
+  const scored = pool.map(biz => {
+    const name = (biz.name || '').toLowerCase();
+    const category = (biz.category || '').toLowerCase();
+    const tagline = (biz.tagline || '').toLowerCase();
+    const description = (biz.description || '').toLowerCase();
+    const services = (biz.services || []).map(s => s.name).join(' ').toLowerCase();
+    let score = 0;
+    for (const t of tokens) {
+      if (name.includes(t)) score += 3;
+      if (category.includes(t)) score += 4;
+      if (services.includes(t)) score += 2;
+      if (tagline.includes(t) || description.includes(t)) score += 1;
+    }
+    return { biz, score };
+  }).filter(r => r.score > 0);
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 6).map(r => r.biz);
 }
 
 // PILL_STYLE is now inline-dynamic in components that have dm
@@ -218,7 +278,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           <svg className="h-3.5 w-3.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
           </svg>
-          <span className="text-[10px] font-black text-accent uppercase tracking-[0.14em]">AI Matching</span>
+          <span className="text-[10px] font-black text-accent uppercase tracking-[0.14em]">Quick Match</span>
         </div>
         <textarea
           ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
@@ -306,6 +366,19 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
             <path d="M9 15l-5 5" />
           </svg>
         </button>
+        {(biz as any).founder50 && (
+          <div
+            className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+            style={{
+              background: 'rgba(0,0,0,0.6)',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(6px)',
+            }}
+          >
+            Founder50
+          </div>
+        )}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
         <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
@@ -314,18 +387,6 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
           {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
           {(biz.reviews ?? 0) === 0 && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
-          )}
-          {(biz as any).founder50 && (
-            <span
-              className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-              style={{
-                background: dm ? 'rgba(248,113,113,0.18)' : '#fff1f2',
-                color: dm ? '#fca5a5' : '#b91c1c',
-                border: dm ? '1px solid rgba(248,113,113,0.35)' : '1px solid #fecdd3',
-              }}
-            >
-              Founder50
-            </span>
           )}
           <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
@@ -345,6 +406,52 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
               <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
             </div>
           )}
+      </div>
+    </button>
+  );
+}
+
+function MatchResultRow({ biz, dm, onClick }: { biz: Business; dm?: boolean; onClick: () => void }) {
+  const hasCover = biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all hover:-translate-y-0.5"
+      style={{
+        background: dm ? '#111111' : 'white',
+        borderColor: dm ? '#262626' : '#e5e7eb',
+        boxShadow: dm ? 'none' : '0 10px 24px rgba(0,0,0,0.06)',
+      }}
+    >
+      <div className="relative h-12 w-12 rounded-lg overflow-hidden flex-shrink-0" style={{ background: dm ? '#1f2937' : '#e5e7eb' }}>
+        {hasCover ? (
+          <img src={biz.coverUrl} alt={biz.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center">
+            <span className="text-xs font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+          </div>
+        )}
+        {(biz as any).founder50 && (
+          <span
+            className="absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em]"
+            style={{
+              background: 'rgba(0,0,0,0.6)',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.16)',
+            }}
+          >
+            F50
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
+        <p className="text-[11px] mt-0.5 truncate" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+          {biz.category}{biz.distance ? ` · ${biz.distance}` : ''}
+        </p>
+      </div>
+      <div className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+        {(biz.reviews ?? 0) > 0 && biz.rating != null ? `${biz.rating.toFixed(1)}★` : 'New'}
       </div>
     </button>
   );
@@ -557,7 +664,26 @@ const HomePage: NextPage = () => {
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const [matchQuery, setMatchQuery] = useState('');
+  const [matchResults, setMatchResults] = useState<Business[]>([]);
+  const [matching, setMatching] = useState(false);
+  const [matchRan, setMatchRan] = useState(false);
   const sectionBg = dm ? '#0a0a0a' : '#FCFAF6';
+  const matchPool = realBizList.length > 0 ? realBizList : [];
+  const matchKeywords = useMemo(() => expandKeywords(tokenizeQuery(matchQuery)), [matchQuery]);
+
+  function runMatch(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed || matching) return;
+    setMatchQuery(trimmed);
+    setMatchRan(true);
+    setMatching(true);
+    const pool = matchPool;
+    setTimeout(() => {
+      setMatchResults(matchBusinesses(trimmed, pool));
+      setMatching(false);
+    }, 520);
+  }
 
 const COORDS_KEY = 'sm_last_coords';
 function readCoords(): { lat: number; lng: number } | null {
@@ -706,7 +832,53 @@ async function togglePinned(bizId: string) {
             <div className="flex items-center gap-10">
               {/* Search — constrained width */}
               <div className="flex-1 min-w-0 max-w-lg">
-                <AISearchBar userName={userName} onSubmit={q => router.push(`/browse?q=${encodeURIComponent(q)}`)} />
+                <AISearchBar userName={userName} onSubmit={runMatch} />
+                {matchRan && (
+                  <div className="mt-4 rounded-2xl border overflow-hidden" style={{ background: dm ? '#0f0f0f' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+                    <div className="px-4 pt-3 pb-2 border-b" style={{ borderColor: dm ? '#262626' : '#f1f5f9' }}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.7)' : '#0f0f0f' }}>Match Results</p>
+                        {matching && (
+                          <div className="flex items-center gap-2 text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#94a3b8' }}>
+                            <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                            Matching
+                          </div>
+                        )}
+                      </div>
+                      {!matching && matchKeywords.length > 0 && (
+                        <p className="text-[11px] mt-1" style={{ color: dm ? '#9ca3af' : '#94a3b8' }}>
+                          Keywords: {matchKeywords.slice(0, 6).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                    <div className="p-3 space-y-2">
+                      {matching && (
+                        <>
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: dm ? '#1c1c1e' : '#f1f5f9' }} />
+                          ))}
+                        </>
+                      )}
+                      {!matching && matchResults.length > 0 && (
+                        <>
+                          {matchResults.map(biz => (
+                            <MatchResultRow key={biz.id} biz={biz} dm={dm} onClick={() => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }} />
+                          ))}
+                        </>
+                      )}
+                      {!matching && matchResults.length === 0 && (
+                        <div className="rounded-xl border px-4 py-4 text-center" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#111111' : '#f8fafc' }}>
+                          <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#0f172a' }}>No results found</p>
+                          <p className="text-[11px] mt-1" style={{ color: dm ? '#9ca3af' : '#94a3b8' }}>Try different keywords or browse all services.</p>
+                          <Link href="/browse" scroll={false}
+                            className="inline-flex mt-3 text-[11px] font-black uppercase tracking-[0.14em] text-accent hover:opacity-70 transition-opacity">
+                            Browse all
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               {/* 4 utility nav tiles — right side, desktop only */}
               <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2.5 w-[260px] shrink-0">

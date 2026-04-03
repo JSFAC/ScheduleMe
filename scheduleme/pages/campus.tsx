@@ -464,6 +464,19 @@ const CampusPage: NextPage = () => {
               <path d="M9 15l-5 5" />
             </svg>
           </button>
+          {(biz as any).founder50 && (
+            <div
+              className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+              style={{
+                background: 'rgba(0,0,0,0.6)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.18)',
+                backdropFilter: 'blur(6px)',
+              }}
+            >
+              Founder50
+            </div>
+          )}
         </div>
         <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
           <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
@@ -472,18 +485,6 @@ const CampusPage: NextPage = () => {
             {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
             {(biz.reviews ?? 0) === 0 && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
-            )}
-            {(biz as any).founder50 && (
-              <span
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                style={{
-                  background: dm ? 'rgba(248,113,113,0.18)' : '#fff1f2',
-                  color: dm ? '#fca5a5' : '#b91c1c',
-                  border: dm ? '1px solid rgba(248,113,113,0.35)' : '1px solid #fecdd3',
-                }}
-              >
-                Founder50
-              </span>
             )}
             <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
               <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}

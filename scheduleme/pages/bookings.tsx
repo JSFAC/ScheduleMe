@@ -103,6 +103,14 @@ function formatDateLong(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function formatBusinessName(name?: string | null): string | null {
+  if (!name) return null;
+  const cleaned = String(name).trim();
+  if (!cleaned) return null;
+  if (cleaned.toLowerCase() === 'provider pending') return null;
+  return cleaned;
+}
+
 function toCalDate(d: Date) {
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 }
@@ -1451,6 +1459,7 @@ function writeCoords(lat: number, lng: number) {
                       <div className="space-y-4">
                         {activeSlice.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
+                          const bizName = formatBusinessName(b.business_name);
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left booking-card group overflow-hidden transition-all hover:-translate-y-0.5"
@@ -1465,13 +1474,10 @@ function writeCoords(lat: number, lng: number) {
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>
                                       {b.service || 'Custom Request'}
-                                      {b.business_name && (
-                                        <span className="ml-2 text-sm font-semibold" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>· {b.business_name}</span>
+                                      {bizName && (
+                                        <span className="ml-2 text-sm font-semibold" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>· {bizName}</span>
                                       )}
                                     </h3>
-                                    {!b.business_name && (
-                                      <p className="text-xs mt-0.5 font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Provider pending</p>
-                                    )}
                                     <div className="flex items-center gap-2 mt-1.5">
                                       <p className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>{formatDate(b.created_at)}</p>
                                       {b.scheduled_at && (
@@ -1537,7 +1543,9 @@ function writeCoords(lat: number, lng: number) {
                         )}
                       </div>
                       <div className="space-y-4">
-                        {pastSlice.map(b => (
+                        {pastSlice.map(b => {
+                          const bizName = formatBusinessName(b.business_name);
+                          return (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
                             style={{
@@ -1548,8 +1556,12 @@ function writeCoords(lat: number, lng: number) {
                             }}>
                             <div className="p-6 pt-5 pb-5 flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service || 'Custom Request'}</h3>
-                                {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
+                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>
+                                  {b.service || 'Custom Request'}
+                                  {bizName && (
+                                    <span className="ml-2 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#737373' }}>· {bizName}</span>
+                                  )}
+                                </h3>
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
                                   {b.amount_cents && (
@@ -1568,7 +1580,8 @@ function writeCoords(lat: number, lng: number) {
                               </div>
                             </div>
                           </button>
-                        ))}
+                        );
+                        })}
                       </div>
                     </div>
                   )}

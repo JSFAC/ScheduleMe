@@ -755,6 +755,19 @@ export default function BizPage() {
                   onClick={() => imgs.length > 0 && setGalleryOpen(true)}
                 />
               )}
+              {(biz as any).founder50 && (
+                <div
+                  className="absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                  style={{
+                    background: 'rgba(0,0,0,0.55)',
+                    color: 'white',
+                    border: '1px solid rgba(255,255,255,0.18)',
+                    backdropFilter: 'blur(6px)',
+                  }}
+                >
+                  Founder50
+                </div>
+              )}
               {imgs.length > 1 && (
                 <>
                   <button
@@ -818,18 +831,6 @@ export default function BizPage() {
               ) : null}
               {(biz.review_count ?? 0) === 0 && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
-              )}
-              {(biz as any).founder50 && (
-                <span
-                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                  style={{
-                    background: dm ? 'rgba(248,113,113,0.18)' : '#fff1f2',
-                    color: dm ? '#fca5a5' : '#b91c1c',
-                    border: dm ? '1px solid rgba(248,113,113,0.35)' : '1px solid #fecdd3',
-                  }}
-                >
-                  Founder50
-                </span>
               )}
               {(biz.review_count ?? 0) > 0 && biz.rating && <span className="text-xs font-semibold" style={{color:mu}}>{parseFloat(biz.rating).toFixed(1)} stars</span>}
             </div>
