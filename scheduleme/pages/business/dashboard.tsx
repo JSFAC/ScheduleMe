@@ -1863,9 +1863,11 @@ const BusinessDashboard: NextPage = () => {
                                     </div>
                                     <button
                                       onClick={() => {
-                                        const dollars = parseFloat(bookingPrices[b.id] || '0');
-                                        if (!(dollars > 0) && !b.amount_cents) return;
-                                        const cents = dollars > 0 ? Math.round(dollars * 100) : (b.amount_cents || 0);
+                                        const raw = bookingPrices[b.id];
+                                        const dollars = parseFloat(raw || '0');
+                                        const fallbackCents = b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                        if (!(dollars > 0) && fallbackCents <= 0) return;
+                                        const cents = dollars > 0 ? Math.round(dollars * 100) : fallbackCents;
                                         setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
                                       }}
                                       disabled={!bookingPrices[b.id] && !b.amount_cents}

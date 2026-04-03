@@ -210,6 +210,8 @@ export default function BizPage() {
   const [newSvc, setNewSvc] = useState({ name: '', price: '', duration: '60', description: '' });
   const imgInputRef = useRef<HTMLInputElement | null>(null);
   const vidInputRef = useRef<HTMLInputElement | null>(null);
+  const [galleryIdx, setGalleryIdx] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
 
   useEffect(() => {
@@ -569,6 +571,9 @@ export default function BizPage() {
   const cat = tags.length > 0 ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g,' ') : 'Service';
   const baseImgs = [biz.cover_url, ...(biz.media_urls || [])].filter(Boolean);
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
+  useEffect(() => {
+    if (galleryIdx >= imgs.length) setGalleryIdx(0);
+  }, [imgs.length]);
 
   const availableSlots = date ? (() => {
     const dk = date.toISOString().split('T')[0];
@@ -709,14 +714,62 @@ export default function BizPage() {
             {toast}
           </div>
         )}
+        {galleryOpen && imgs.length > 0 && (
+          <div className="fixed inset-0 z-[10001] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
+            <button className="absolute top-6 right-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={() => setGalleryOpen(false)} style={{ background: 'rgba(0,0,0,0.4)' }}>×</button>
+            {imgs.length > 1 && (
+              <button className="absolute left-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)} style={{ background: 'rgba(0,0,0,0.4)' }}>
+                ‹
+              </button>
+            )}
+            <img src={imgs[galleryIdx]} alt="Gallery" className="max-h-[80vh] max-w-[90vw] rounded-2xl object-contain" />
+            {imgs.length > 1 && (
+              <button className="absolute right-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)} style={{ background: 'rgba(0,0,0,0.4)' }}>
+                ›
+              </button>
+            )}
+          </div>
+        )}
         <div className="relative overflow-hidden" style={{height:280,background:dm?'#1c1c1e':'#e5e7eb'}}>
-          {imgs[0] && <img src={imgs[0]} alt={biz.name} className="absolute inset-0 w-full h-full object-cover" style={{objectPosition:'center 30%'}} />}
+          {imgs[galleryIdx] && (
+            <img
+              src={imgs[galleryIdx]}
+              alt={biz.name}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{objectPosition:'center 30%'}}
+              onClick={() => imgs.length > 0 && setGalleryOpen(true)}
+            />
+          )}
           <div className="absolute inset-0" style={{background:'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55))'}} />
+          {imgs.length > 1 && (
+            <>
+              <button onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)} className="absolute left-4 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
+                ‹
+              </button>
+              <button onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)} className="absolute right-4 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.35)' }}>
+                ›
+              </button>
+            </>
+          )}
           <button onClick={()=>router.back()} className="absolute top-4 left-4 flex items-center justify-center rounded-full" style={{width:36,height:36,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(8px)'}}>
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
           </button>
         </div>
         <div className="mx-auto max-w-2xl px-4">
+          {!editMode && imgs.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto py-3">
+              {imgs.map((url, i) => (
+                <button
+                  key={url}
+                  onClick={() => { setGalleryIdx(i); setGalleryOpen(true); }}
+                  className="h-16 w-16 rounded-xl overflow-hidden flex-shrink-0 border"
+                  style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb') }}
+                >
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
           <div className="rounded-2xl p-5 shadow-lg -mt-6 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
             <div className="flex gap-2 flex-wrap mb-3">

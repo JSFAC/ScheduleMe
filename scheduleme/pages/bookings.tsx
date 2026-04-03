@@ -69,15 +69,15 @@ interface Booking {
   reviewed?: boolean;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
-  pending:         { label: 'Pending Review',   bg: 'bg-emerald-50  border-emerald-100',  text: 'text-emerald-700',  dot: 'bg-emerald-500', barColor: '#10b981' },
-  price_disputed:  { label: 'Disputing Price',  bg: 'bg-amber-100   border-amber-200',    text: 'text-amber-800',    dot: 'bg-amber-500',   barColor: '#f59e0b' },
-  confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6' },
-  payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6' },
-  paid:            { label: 'Paid',              bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e' },
-  completed:       { label: 'Completed',         bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e' },
-  cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3' },
-  payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444' },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string; badgeBg: string; badgeText: string }> = {
+  pending:         { label: 'Pending Review',   bg: 'bg-emerald-50  border-emerald-100',  text: 'text-emerald-700',  dot: 'bg-emerald-500', barColor: '#10b981', badgeBg: 'rgba(16,185,129,0.12)', badgeText: '#047857' },
+  price_disputed:  { label: 'Disputing Price',  bg: 'bg-amber-100   border-amber-200',    text: 'text-amber-800',    dot: 'bg-amber-500',   barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.18)', badgeText: '#92400e' },
+  confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6', badgeBg: 'rgba(59,130,246,0.12)', badgeText: '#1d4ed8' },
+  payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6', badgeBg: 'rgba(139,92,246,0.12)', badgeText: '#5b21b6' },
+  paid:            { label: 'Paid',              bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
+  completed:       { label: 'Completed',         bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
+  cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3', badgeBg: 'rgba(163,163,163,0.16)', badgeText: '#6b7280' },
+  payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444', badgeBg: 'rgba(239,68,68,0.12)', badgeText: '#b91c1c' },
 };
 
 const STEPS = ['pending', 'confirmed', 'paid', 'completed'];
