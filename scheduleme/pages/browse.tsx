@@ -43,7 +43,7 @@ function renderCover(opts: {
     <div className={opts.fallbackClassName || 'flex flex-col items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
       <span className="text-xs font-bold" style={{ color: '#6b7280' }}>{initials(opts.name)}</span>
       {opts.showLabel && (
-        <span className="text-[9px] mt-1" style={{ color: '#9ca3af' }}>{opts.label || 'No photos yet'}</span>
+        <span className="block text-center text-[9px] mt-1" style={{ color: '#9ca3af' }}>{opts.label || 'No photos yet'}</span>
       )}
     </div>
   );
@@ -202,11 +202,11 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {renderCover({
-          src: biz.coverUrl,
+          src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
           name: biz.name,
           className: 'absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]',
           style: { objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 },
-          fallbackClassName: 'absolute inset-0 flex items-center justify-center',
+          fallbackClassName: 'absolute inset-0 flex flex-col items-center justify-center gap-1',
           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
           showLabel: true,
         })}
@@ -608,11 +608,11 @@ function writeCoords(lat: number, lng: number) {
                       style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
                         {renderCover({
-                          src: biz.coverUrl,
+                          src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
                           name: biz.name,
                           className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]',
                           style: { objectPosition: 'center 25%' },
-                          fallbackClassName: 'w-full h-full flex flex-col items-center justify-center',
+                          fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
                           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                           showLabel: true,
                         })}
@@ -695,7 +695,7 @@ function writeCoords(lat: number, lng: number) {
                 <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
                   <div className="flex items-center gap-3 p-3">
                     {renderCover({
-                      src: selectedMapBizData.coverUrl,
+                      src: selectedMapBizData.coverUrl || (selectedMapBizData as any).allImages?.[0] || (selectedMapBizData as any).cover_url || (selectedMapBizData as any).media_urls?.[0],
                       name: selectedMapBizData.name || 'Business',
                       className: 'h-14 w-14 rounded-xl object-cover flex-shrink-0',
                       fallbackClassName: 'h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0',
@@ -721,7 +721,7 @@ function writeCoords(lat: number, lng: number) {
                     style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.3 : 1, transition: 'opacity 0.25s ease' }}>
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
                       {renderCover({
-                        src: biz.coverUrl,
+                        src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
                         name: biz.name,
                         className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]',
                         style: { objectPosition: 'center 25%' },
@@ -752,11 +752,12 @@ function writeCoords(lat: number, lng: number) {
                       style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#007e6d' : (dm ? '#262626' : 'rgba(0,126,109,0.12)'), background: dm ? '#171717' : 'white' }}>
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
                         {renderCover({
-                          src: biz.coverUrl,
+                          src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
                           name: biz.name,
                           className: 'w-full h-full object-cover',
-                          fallbackClassName: 'w-full h-full flex items-center justify-center',
+                          fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
                           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
+                          showLabel: true,
                         })}
                       </div>
                       <div className="flex-1 min-w-0">

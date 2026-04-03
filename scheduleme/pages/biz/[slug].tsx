@@ -744,32 +744,35 @@ export default function BizPage() {
           </div>
         )}
         <div className="relative" style={{ height: 560, background: bg }}>
-          <div className="relative h-full w-full mx-auto" style={{ maxWidth: 980 }}>
-            <div className="absolute inset-0 px-6 pt-8 pb-4 flex items-center justify-center">
-              {imgs[galleryIdx] && (
-                <img
-                  src={imgs[galleryIdx]}
-                  alt={biz.name}
-                  className="max-h-full max-w-full object-contain rounded-2xl"
-                  onClick={() => imgs.length > 0 && setGalleryOpen(true)}
-                />
-              )}
-            </div>
+          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 36, paddingBottom: 20 }}>
+            {imgs[galleryIdx] && (
+              <img
+                src={imgs[galleryIdx]}
+                alt={biz.name}
+                className="object-contain rounded-2xl"
+                style={{ maxHeight: 440, maxWidth: '100%' }}
+                onClick={() => imgs.length > 0 && setGalleryOpen(true)}
+              />
+            )}
             {imgs.length > 1 && (
               <>
                 <button
                   onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white text-2xl leading-none"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
-                  ‹
+                  <svg className="h-7 w-7 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
                 </button>
                 <button
                   onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white text-2xl leading-none"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white"
                   style={{ background: 'rgba(0,0,0,0.35)' }}
                 >
-                  ›
+                  <svg className="h-7 w-7 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
                 </button>
               </>
             )}
@@ -793,18 +796,16 @@ export default function BizPage() {
               ))}
             </div>
           )}
-          <div className="rounded-2xl p-5 shadow-lg mt-3 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
+          <div className="rounded-2xl p-5 shadow-lg mt-2.5 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
             <button
               onClick={toggleFavorite}
-              className="absolute -top-3 right-4 h-8 w-8 rounded-full flex items-center justify-center"
+              className="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center"
               style={{ background: isFavorited ? 'rgba(16,185,129,0.18)' : (dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6'), border: '1px solid ' + (isFavorited ? 'rgba(16,185,129,0.45)' : bdr) }}
               title={isFavorited ? 'Pinned' : 'Pin'}
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke={isFavorited ? '#10b981' : (dm ? '#d1d5db' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 4l6 6" />
-                <path d="M4 10l6 6" />
-                <path d="M14 6l4 4-6 6-4-4 6-6z" />
-                <path d="M12 14l-2 6" />
+                <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
+                <path d="M9 15l-5 5" />
               </svg>
             </button>
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>

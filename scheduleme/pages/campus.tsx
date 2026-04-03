@@ -453,6 +453,17 @@ const CampusPage: NextPage = () => {
               <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos yet</span>
             </div>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }}
+            className="absolute top-2 right-2 h-7 w-7 rounded-full flex items-center justify-center"
+            style={{ background: pinned ? 'rgba(16,185,129,0.18)' : (dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6'), border: '1px solid ' + (pinned ? 'rgba(16,185,129,0.45)' : (dm ? 'rgba(255,255,255,0.12)' : '#e5e7eb')) }}
+            aria-label={pinned ? 'Unpin' : 'Pin'}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke={pinned ? '#10b981' : (dm ? '#9ca3af' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
+              <path d="M9 15l-5 5" />
+            </svg>
+          </button>
         </div>
         <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
           <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
@@ -462,11 +473,6 @@ const CampusPage: NextPage = () => {
             {(biz.reviews ?? 0) === 0 && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
             )}
-            <button onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }} className="h-6 w-6 rounded-full flex items-center justify-center" style={{ background: pinned ? (dm ? 'rgba(251,191,36,0.18)' : '#fef3c7') : (dm ? 'rgba(255,255,255,0.06)' : '#f3f4f6'), border: '1px solid '+(pinned ? (dm ? 'rgba(251,191,36,0.35)' : '#fde68a') : (dm ? 'rgba(255,255,255,0.12)' : '#e5e7eb')) }} aria-label={pinned ? 'Unpin' : 'Pin'}>
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: pinned ? (dm ? '#f59e0b' : '#92400e') : (dm ? '#9ca3af' : '#6b7280') }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6l1 6-4 4v6l-2-2-2 2v-6l-4-4 1-6z" />
-              </svg>
-            </button>
             <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
               <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
             </span>
