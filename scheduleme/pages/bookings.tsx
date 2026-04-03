@@ -133,6 +133,43 @@ function formatBusinessName(name?: string | null): string | null {
   return cleaned;
 }
 
+function normalizeBookings(list: any[]): Booking[] {
+  return (list || []).map((b: any) => {
+    const businessName =
+      b.business_name ??
+      b.businessName ??
+      b.businesses?.name ??
+      b.business?.name ??
+      b.business?.business_name ??
+      null;
+    const businessId =
+      b.business_id ??
+      b.businessId ??
+      b.businesses?.id ??
+      b.business?.id ??
+      null;
+    const businessPhone =
+      b.business_phone ??
+      b.businessPhone ??
+      b.businesses?.phone ??
+      b.business?.phone ??
+      null;
+    const businessEmail =
+      b.business_email ??
+      b.businessEmail ??
+      b.businesses?.email ??
+      b.business?.email ??
+      null;
+    return {
+      ...b,
+      business_name: businessName,
+      business_id: businessId,
+      business_phone: businessPhone,
+      business_email: businessEmail,
+    };
+  });
+}
+
 async function enrichBusinessNames(list: Booking[]): Promise<Booking[]> {
   try {
     const supabase = getSupabase();
@@ -1141,7 +1178,8 @@ function writeCoords(lat: number, lng: number) {
             const res = await fetch(`/api/bookings`, { headers: { 'Authorization': `Bearer ${session.access_token}` }, cache: 'no-store' });
             const data = await res.json();
             if (res.ok) {
-              const nextBookings = await enrichBusinessNames(data?.bookings || []);
+              const normalized = normalizeBookings(data?.bookings || []);
+              const nextBookings = await enrichBusinessNames(normalized);
               setBookings(nextBookings);
               await backfillBusinessNamesOnce(nextBookings);
               if (typeof window !== 'undefined' && sessionStorage.getItem('sm_backfill_biznames_done') === '1') {
@@ -1151,7 +1189,7 @@ function writeCoords(lat: number, lng: number) {
                     cache: 'no-store',
                   });
                   const refetched = await refetch.json();
-                  if (refetch.ok) setBookings(refetched?.bookings || nextBookings);
+                  if (refetch.ok) setBookings(normalizeBookings(refetched?.bookings || nextBookings));
                 } catch {}
               }
             }
@@ -1266,7 +1304,7 @@ function writeCoords(lat: number, lng: number) {
           });
           const data = await res.json();
           if (res.ok) {
-            bookingsData = data?.bookings || [];
+            bookingsData = normalizeBookings(data?.bookings || []);
             const enriched = await enrichBusinessNames(bookingsData);
             setBookings(enriched);
             await backfillBusinessNamesOnce(enriched);
@@ -1277,7 +1315,7 @@ function writeCoords(lat: number, lng: number) {
                   cache: 'no-store',
                 });
                 const refetched = await refetch.json();
-                if (refetch.ok) setBookings(refetched?.bookings || enriched);
+                if (refetch.ok) setBookings(normalizeBookings(refetched?.bookings || enriched));
               } catch {}
             }
           } else {
