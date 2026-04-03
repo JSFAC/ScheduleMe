@@ -20,8 +20,12 @@ function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number):
 }
 
 function getCover(cover_url?: string | null, media_urls?: string[] | null): string {
-  if (Array.isArray(media_urls) && media_urls.length > 0) return media_urls[0];
-  return cover_url || TRANSPARENT_PIXEL;
+  if (Array.isArray(media_urls) && media_urls.length > 0) {
+    const firstImage = media_urls.find((u) => u && !String(u).match(/\.(mp4|mov|webm|m4v)$/i));
+    if (firstImage) return firstImage;
+  }
+  if (cover_url && !String(cover_url).match(/\.(mp4|mov|webm|m4v)$/i)) return cover_url;
+  return TRANSPARENT_PIXEL;
 }
 
 function mapBusiness(b: any, distanceMiles?: number): Business {

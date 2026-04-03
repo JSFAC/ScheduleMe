@@ -1463,12 +1463,17 @@ function writeCoords(lat: number, lng: number) {
                               <div className="p-6 pt-5 pb-5">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service || 'Custom Request'}</h3>
-                                    {b.business_name
-                                      ? <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>
-                                      : <p className="text-xs mt-0.5 italic" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>Matching you with a pro…</p>}
+                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>
+                                      {b.service || 'Custom Request'}
+                                      {b.business_name && (
+                                        <span className="ml-2 text-sm font-semibold" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>· {b.business_name}</span>
+                                      )}
+                                    </h3>
+                                    {!b.business_name && (
+                                      <p className="text-xs mt-0.5 font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Provider pending</p>
+                                    )}
                                     <div className="flex items-center gap-2 mt-1.5">
-                                      <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
+                                      <p className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>{formatDate(b.created_at)}</p>
                                       {b.scheduled_at && (
                                         <>
                                           <span className="text-neutral-200">·</span>
@@ -1480,6 +1485,11 @@ function writeCoords(lat: number, lng: number) {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
+                                    {b.amount_cents != null && (
+                                      <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#e5e7eb' : '#111827' }}>
+                                        {'$'}{(b.amount_cents / 100).toFixed(2)}
+                                      </span>
+                                    )}
                                     <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: cfg.badgeBg, color: cfg.badgeText }}>{cfg.label}</span>
                                     <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />

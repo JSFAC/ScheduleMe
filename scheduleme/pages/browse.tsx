@@ -35,9 +35,11 @@ function renderCover(opts: {
   fallbackStyle?: any;
   showLabel?: boolean;
   label?: string;
+  onLoad?: () => void;
+  onError?: () => void;
 }) {
   if (isRealCover(opts.src)) {
-    return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} />;
+    return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} onLoad={opts.onLoad} onError={opts.onError} />;
   }
   return (
     <div className={opts.fallbackClassName || 'flex flex-col items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
@@ -209,6 +211,8 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           fallbackClassName: 'absolute inset-0 flex flex-col items-center justify-center gap-1',
           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
           showLabel: true,
+          onLoad: () => setImgLoaded(true),
+          onError: () => setImgLoaded(true),
         })}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
