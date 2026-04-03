@@ -302,8 +302,8 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
           aria-label={pinned ? 'Unpin' : 'Pin'}
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke={pinned ? '#10b981' : (dm ? '#9ca3af' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 3h6l-1 6 3 3-5 5-3-3-6 1 1-6z" />
-            <path d="M12 14l-2 6" />
+            <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
+            <path d="M9 15l-5 5" />
           </svg>
         </button>
       </div>

@@ -743,15 +743,15 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative" style={{ height: 560, background: bg }}>
-          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 18 }}>
-            <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 860 }}>
+        <div className="relative" style={{ height: 500, background: bg }}>
+          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 22, paddingBottom: 10 }}>
+            <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 820 }}>
               {imgs[galleryIdx] && (
                 <img
                   src={imgs[galleryIdx]}
                   alt={biz.name}
                   className="object-contain rounded-2xl"
-                  style={{ maxHeight: 420, maxWidth: '100%' }}
+                  style={{ maxHeight: 380, maxWidth: '100%' }}
                   onClick={() => imgs.length > 0 && setGalleryOpen(true)}
                 />
               )}
@@ -785,7 +785,7 @@ export default function BizPage() {
         </div>
         <div className="mx-auto max-w-2xl px-4">
           {!editMode && imgs.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto py-1.5">
+            <div className="flex gap-2 overflow-x-auto py-1">
               {imgs.map((url, i) => (
                 <button
                   key={url}
@@ -798,7 +798,7 @@ export default function BizPage() {
               ))}
             </div>
           )}
-          <div className="rounded-2xl p-5 shadow-lg mt-1 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
+          <div className="rounded-2xl p-5 shadow-lg mt-0.5 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
             <button
               onClick={toggleFavorite}
               className="absolute top-3 right-3 h-9 w-9 rounded-full flex items-center justify-center"
@@ -806,8 +806,8 @@ export default function BizPage() {
               title={isFavorited ? 'Pinned' : 'Pin'}
             >
               <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke={isFavorited ? '#10b981' : (dm ? '#d1d5db' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 4h6l1 4-2 2v4l-1 1-1-1v-4l-2-2 1-4z" />
-                <path d="M12 14v7" />
+                <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
+                <path d="M9 15l-5 5" />
               </svg>
             </button>
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
