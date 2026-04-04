@@ -1,7 +1,7 @@
 // pages/api/business-change-requests.ts — submit business listing change requests
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, getUnknownFields } from '../../lib/apiSecurity';
 import { containsProfanity, containsThreat } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 import { sendChangeRequestAdminEmail, sendChangeRequestReceiptEmail } from '../../lib/email';
@@ -34,6 +34,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAuth(req, res);
   if (!user) return;
 
+  const allowed = ['business_id','changes','request_type'];
+  const unknown = getUnknownFields(req.body, allowed);
+  if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
   const { business_id, changes, request_type } = req.body || {};
   if (!business_id || !changes || typeof changes !== 'object')
     return res.status(400).json({ error: 'business_id and changes are required' });

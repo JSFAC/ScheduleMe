@@ -1,7 +1,7 @@
 // pages/api/reviews.ts — submit and fetch business reviews
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, getUnknownFields } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 
@@ -22,6 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
+    const allowed = ['booking_id','business_id','rating','comment','image_urls'];
+    const unknown = getUnknownFields(req.body, allowed);
+    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { booking_id, business_id, rating, comment, image_urls } = req.body;
 
     if (!booking_id || !business_id || !rating)

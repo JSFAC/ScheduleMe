@@ -1,7 +1,7 @@
 // pages/api/review-change-request.ts — SECURED (admin only)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, getUnknownFields } from '../../lib/apiSecurity';
 import { sendChangeRequestDecisionEmail } from '../../lib/email';
 
 const ALLOWED_FIELDS = new Set(['name', 'address', 'description', 'cover_url', 'media_urls', 'video_url', 'service_tags', 'phone', 'website', 'hours', 'calendly_url']);
@@ -16,6 +16,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'admin-review' }))) return;
 
+  const allowed = ['id','action','notes'];
+  const unknown = getUnknownFields(req.body, allowed);
+  if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
   const { id, action, notes } = req.body || {};
   if (!id || !['approve', 'reject'].includes(action))
     return res.status(400).json({ error: 'id and valid action are required' });

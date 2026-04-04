@@ -191,3 +191,12 @@ export function pickFields<T extends object>(
   }
   return result;
 }
+
+// Return unknown fields in a request body (for strict allowlisting)
+export function getUnknownFields(
+  body: unknown,
+  allowed: string[]
+): string[] {
+  if (!body || typeof body !== 'object') return [];
+  return Object.keys(body as object).filter((key) => !allowed.includes(key));
+}

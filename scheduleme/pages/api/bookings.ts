@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail, getUnknownFields } from '../../lib/apiSecurity';
 import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
 const LIMITS = {
   service: 120,
@@ -171,6 +171,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     if (!(await rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
 
+    const allowed = ['business_id','user_id','service','user_name','user_phone','user_email','scheduled_start','scheduled_end','timezone','note','service_price_cents','scheduled_slot'];
+    const unknown = getUnknownFields(req.body, allowed);
+    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
     let email = user_email;
 
@@ -344,6 +347,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
+    const allowed = ['booking_id','status','dispute_amount_cents','dispute_note'];
+    const unknown = getUnknownFields(req.body, allowed);
+    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { booking_id, status, dispute_amount_cents, dispute_note } = req.body;
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
     const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid', 'price_disputed'];

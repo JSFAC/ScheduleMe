@@ -1,7 +1,7 @@
 // pages/api/profile.ts — update profile with service role
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { requireAuth, rateLimit, setSecurityHeaders } from '../../lib/apiSecurity';
+import { requireAuth, rateLimit, setSecurityHeaders, getUnknownFields } from '../../lib/apiSecurity';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -19,6 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAuth(req, res);
   if (!user) return;
 
+  const allowedFields = ['name', 'phone'];
+  const unknown = getUnknownFields(req.body, allowedFields);
+  if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
   const { name, phone } = req.body || {};
   const safeName = typeof name === 'string' ? name.slice(0, 100) : null;
   const safePhone = typeof phone === 'string' ? phone.slice(0, 30) : null;

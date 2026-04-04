@@ -1,7 +1,7 @@
 // pages/api/blocks.ts — block/unblock messaging between a user and business
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, getUnknownFields } from '../../lib/apiSecurity';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -49,6 +49,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
+    const allowed = ['business_id','user_id','action','reason'];
+    const unknown = getUnknownFields(req.body, allowed);
+    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { business_id, user_id, action, reason } = req.body;
     if (!business_id || !isValidUuid(business_id)) return res.status(400).json({ error: 'Valid business_id required' });
     if (!user_id || !isValidUuid(user_id)) return res.status(400).json({ error: 'Valid user_id required' });

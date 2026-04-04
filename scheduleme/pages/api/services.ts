@@ -2,7 +2,7 @@
 // pages/api/services.ts — CRUD for business service menu items
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, getUnknownFields } from '../../lib/apiSecurity';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
@@ -43,6 +43,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
+    const allowed = ['business_id', 'name', 'description', 'price_cents', 'duration_min', 'sort_order', 'requires_time'];
+    const unknown = getUnknownFields(req.body, allowed);
+    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { business_id, name, description, price_cents, duration_min, sort_order, requires_time } = req.body;
     if (!business_id || !name || price_cents === undefined) return res.status(400).json({ error: 'business_id, name, price_cents required' });
     if (typeof name !== 'string' || name.trim().length === 0) return res.status(400).json({ error: 'Service name required' });
@@ -64,6 +67,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PATCH') {
+    const allowed = ['id', 'business_id', 'name', 'description', 'price_cents', 'duration_min', 'sort_order', 'requires_time', 'active'];
+    const unknown = getUnknownFields(req.body, allowed);
+    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { id, business_id, ...updates } = req.body;
     if (!id || !business_id) return res.status(400).json({ error: 'id and business_id required' });
     if (!(await verifyOwner(business_id))) return res.status(403).json({ error: 'Access denied' });
