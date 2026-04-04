@@ -96,6 +96,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  if ((!methodsData || methodsData.length == 0) && resolvedEmail) {
+    const customers = await stripe.customers.list({ email: resolvedEmail, limit: 5 });
+    let best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+    for (const candidate of customers.data) {
+      try {
+        const methods = await stripe.paymentMethods.list({ customer: candidate.id, type: 'card' });
+        if (methods.data.length > 0) {
+          best = candidate;
+          methodsData = methods.data;
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+    if (best?.id && methodsData) {
+      customerId = best.id;
+      await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
+    }
+  }
+
   if (!methodsData) {
     return res.status(200).json({ methods: [], defaultId: null });
   }

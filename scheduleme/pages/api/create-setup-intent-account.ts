@@ -24,14 +24,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: profile } = await supabase
     .from('profiles')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, email')
     .eq('id', user.id)
     .maybeSingle();
 
   let customerId = profile?.stripe_customer_id as string | null;
   if (!customerId) {
+    let resolvedEmail = user.email || profile?.email || null;
+    if (!resolvedEmail) {
+      try {
+        const { data: authData } = await supabase.auth.admin.getUserById(user.id);
+        resolvedEmail = authData?.user?.email || null;
+        if (resolvedEmail && !profile?.email) {
+          await supabase.from('profiles').update({ email: resolvedEmail }).eq('id', user.id);
+        }
+      } catch {}
+    }
     const customer = await stripe.customers.create({
-      email: user.email || undefined,
+      email: resolvedEmail || undefined,
       metadata: { userId: user.id },
     });
     customerId = customer.id;
