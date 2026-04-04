@@ -30,6 +30,7 @@ const AdminPage: NextPage = () => {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
   const [campusFilter, setCampusFilter] = useState<string>('all');
+  const [campusOptions, setCampusOptions] = useState<Array<{ key: string; label: string }>>([]);
   const [stripeHealth, setStripeHealth] = useState<any>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [refundBookingId, setRefundBookingId] = useState('');
@@ -38,6 +39,7 @@ const AdminPage: NextPage = () => {
   const [featuredLoading, setFeaturedLoading] = useState(false);
   const [featuredBusinessId, setFeaturedBusinessId] = useState('');
   const [featuredSlot, setFeaturedSlot] = useState('1');
+  const [featuredCampusKey, setFeaturedCampusKey] = useState<string>('all');
   const [featuredEndsAt, setFeaturedEndsAt] = useState('');
   const [featuredNote, setFeaturedNote] = useState('');
 
@@ -94,10 +96,28 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
+  const loadCampusOptions = useCallback(async (s: string) => {
+    try {
+      const res = await fetch('/api/admin-businesses', { headers: { 'x-notify-secret': s } });
+      if (!res.ok) return;
+      const data = await res.json();
+      const all = data.businesses ?? [];
+      const campusLabelMap = new Map<string, string>();
+      all.forEach((b: any) => {
+        if (b.campus_key && !campusLabelMap.has(b.campus_key)) {
+          campusLabelMap.set(b.campus_key, b.campus_school_name || b.campus_key);
+        }
+      });
+      const options = Array.from(campusLabelMap.entries()).map(([key, label]) => ({ key, label }));
+      setCampusOptions(options);
+    } catch {}
+  }, []);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     await loadBusinesses(secret);
     await loadFeatured(secret);
+    await loadCampusOptions(secret);
   }
 
   async function approveBusiness(id: string) {
@@ -142,7 +162,12 @@ const AdminPage: NextPage = () => {
   async function addFeatured() {
     if (!featuredBusinessId) return;
     const business = businesses.find(b => b.id === featuredBusinessId);
-    const campusKey = normalizeCampusKey(business?.campus_key || business?.campus_school_name || campusFilter);
+    const campusKey = normalizeCampusKey(
+      (featuredCampusKey !== 'all' ? featuredCampusKey : null)
+        || business?.campus_key
+        || business?.campus_school_name
+        || campusFilter
+    );
     if (!campusKey) {
       showToast('Missing campus key for this business', false);
       return;
@@ -196,13 +221,6 @@ const AdminPage: NextPage = () => {
     return true;
   });
   const pendingCount = businesses.filter(b => !b.is_onboarded).length;
-  const campusLabelMap = new Map<string, string>();
-  businesses.forEach(b => {
-    if (b.campus_key && !campusLabelMap.has(b.campus_key)) {
-      campusLabelMap.set(b.campus_key, b.campus_school_name || b.campus_key);
-    }
-  });
-  const campusOptions = Array.from(campusLabelMap.entries()).map(([key, label]) => ({ key, label }));
 
   if (!authed) {
     return (
@@ -247,7 +265,7 @@ const AdminPage: NextPage = () => {
               </span>
             )}
             <Link href="/admin/requests" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Edit requests</Link>
-            <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
+            <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); loadCampusOptions(secret); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
             <button onClick={() => setAuthed(false)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
           </div>
         </div>
@@ -270,7 +288,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Stripe Health</p>
                 <p className="text-xs text-neutral-500 mt-1">Webhook + event status</p>
               </div>
-              <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); loadCampusOptions(secret); }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -319,15 +337,28 @@ const AdminPage: NextPage = () => {
                 Refresh
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
               <select
                 value={featuredBusinessId}
                 onChange={e => setFeaturedBusinessId(e.target.value)}
                 className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
               >
                 <option value="">Select business</option>
-                {businesses.filter(b => b.campus_provider).map(b => (
+                {businesses.filter(b => b.campus_provider).filter(b => {
+                  if (featuredCampusKey === 'all') return true;
+                  return b.campus_key === featuredCampusKey;
+                }).map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <select
+                value={featuredCampusKey}
+                onChange={e => setFeaturedCampusKey(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="all">All campuses</option>
+                {campusOptions.map(opt => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
                 ))}
               </select>
               <select
