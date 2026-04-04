@@ -172,8 +172,20 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
 export default function BizPage() {
   const router = useRouter();
   const { slug } = router.query;
-  const allowEditInBiz = router.query?.from === 'dashboard';
-  const hideNav = allowEditInBiz;
+  const fromQuery = router.query?.from;
+  const fromParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('from') : null;
+  const previewQuery = router.query?.preview;
+  const previewParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('preview') : null;
+  const allowEditInBiz =
+    fromQuery === 'dashboard' ||
+    (Array.isArray(fromQuery) && fromQuery.includes('dashboard')) ||
+    fromParam === 'dashboard';
+  const isPreview =
+    allowEditInBiz ||
+    previewQuery === '1' ||
+    (Array.isArray(previewQuery) && previewQuery.includes('1')) ||
+    previewParam === '1';
+  const hideNav = isPreview;
   const [biz, setBiz] = useState(null);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -507,6 +519,7 @@ export default function BizPage() {
   }
 
   async function book() {
+    if (isPreview) { setErr('Preview mode — booking disabled.'); return; }
     if (editMode) { setErr('Exit edit mode to book'); return; }
     const { data: { session } } = await getSB().auth.getSession();
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
@@ -865,9 +878,19 @@ export default function BizPage() {
               <div className="mb-4 text-[11px] font-semibold" style={{ color: accent }}>{editNotice}</div>
             )}
             <div className="flex gap-2 flex-wrap">
-              <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
-              <button onClick={shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Share</button>
-              {biz.website && <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>}
+              {isPreview ? (
+                <span className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:0.6}}>Message</span>
+              ) : (
+                <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
+              )}
+              <button onClick={isPreview ? undefined : shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:isPreview?0.6:1}} disabled={isPreview}>Share</button>
+              {biz.website && (
+                isPreview ? (
+                  <span className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:0.6}}>Website</span>
+                ) : (
+                  <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>
+                )
+              )}
             </div>
           </div>
           {editMode && (
@@ -1114,12 +1137,17 @@ export default function BizPage() {
           </>}
         <div className="rounded-2xl p-5 mb-8" style={{background:card,border:'1px solid '+bdr}}>
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Book Appointment</h2>
+          {isPreview && (
+            <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#e5e7eb' : '#4b5563', border: '1px solid ' + bdr }}>
+              Preview mode — booking is disabled in the live preview.
+            </div>
+          )}
           {editMode && (
             <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? '#1f2937' : '#ecfeff', color: dm ? '#e5e7eb' : '#0f766e', border: '1px solid ' + bdr }}>
               Exit edit mode to book this service.
             </div>
           )}
-          <div className="space-y-4" style={{ opacity: editMode ? 0.5 : 1, pointerEvents: editMode ? 'none' : 'auto' }}>
+          <div className="space-y-4" style={{ opacity: (editMode || isPreview) ? 0.5 : 1, pointerEvents: (editMode || isPreview) ? 'none' : 'auto' }}>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Preferred date</p>
               <div className="rounded-2xl p-4" style={{ background: dm ? '#0d0d0d' : '#f9fafb', border: '1px solid '+bdr }}>
@@ -1172,9 +1200,9 @@ export default function BizPage() {
 
         </div>
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={book} disabled={!date || !slot || submitting || done || (isCustom && !note.trim())}
+          <button onClick={book} disabled={!date || !slot || submitting || done || (isCustom && !note.trim()) || isPreview}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background:(!date || !slot || submitting || done) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            style={{background:(!date || !slot || submitting || done || isPreview) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? 'Request Custom Service' : 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2)) : 'Book Appointment')}
           </button>
         </div>

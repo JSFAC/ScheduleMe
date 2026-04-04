@@ -2489,7 +2489,9 @@ const BusinessDashboard: NextPage = () => {
                 {business?.slug ? (
                   <iframe
                     title="Business preview"
-                    src={previewEditMode ? `/biz/${business.slug}?edit=1&from=dashboard&k=${previewKey}` : `/biz/${business.slug}?k=${previewKey}`}
+                    src={previewEditMode
+                      ? `/biz/${business.slug}?edit=1&from=dashboard&preview=1&k=${previewKey}`
+                      : `/biz/${business.slug}?from=dashboard&preview=1&k=${previewKey}`}
                     className="w-full"
                     style={{ height: '80vh', border: 'none' }}
                   />

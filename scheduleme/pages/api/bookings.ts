@@ -215,6 +215,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(403).json({ error: 'This business has blocked new bookings from your account.' });
         }
       }
+      if (email) {
+        const { data: owner } = await supabase
+          .from('businesses')
+          .select('owner_email')
+          .eq('id', business_id)
+          .maybeSingle();
+        if (owner?.owner_email && owner.owner_email.toLowerCase() === email.toLowerCase()) {
+          return res.status(403).json({ error: 'You cannot book your own business.' });
+        }
+      }
       // Block paid bookings if business hasn't connected Stripe
       if (typeof service_price_cents === 'number') {
         const { data: biz } = await supabase
