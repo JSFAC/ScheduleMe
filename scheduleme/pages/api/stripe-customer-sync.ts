@@ -28,10 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('id', user.id)
     .maybeSingle();
 
-  if (profile?.stripe_customer_id) {
+  const force = req.query.force === '1' || req.query.force === 'true';
+  if (profile?.stripe_customer_id && !force) {
     try {
       await stripe.customers.retrieve(profile.stripe_customer_id);
-      return res.status(200).json({ customerId: profile.stripe_customer_id, updated: false });
+      const methods = await stripe.paymentMethods.list({ customer: profile.stripe_customer_id, type: 'card' });
+      if (methods.data.length > 0) {
+        return res.status(200).json({ customerId: profile.stripe_customer_id, updated: false });
+      }
     } catch {
       // Fall through and attempt to re-sync by email.
     }
