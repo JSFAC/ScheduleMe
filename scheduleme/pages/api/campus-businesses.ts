@@ -5,7 +5,6 @@ import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 import { computeFounder50Status } from '../../lib/founder50';
-import { sendFeaturedOnEmail, sendFeaturedOffEmail } from '../../lib/email';
 
 const FEATURED_LIMIT = 3;
 
@@ -50,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const nowIso = new Date().toISOString();
 
-    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email';
+    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at';
     const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
 
     let query = sb
@@ -164,7 +163,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (manualActiveIds.length > 0) {
       const { data: manualBiz } = await sb
         .from('businesses')
-        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email')
+        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at')
         .in('id', manualActiveIds);
       const manualMap = new Map((manualBiz || []).map((b: any) => [b.id, b]));
       manualActive.forEach((row: any) => {
@@ -173,51 +172,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    if (process.env.RESEND_API_KEY) {
-      const notifyOn = (manualRows || []).filter((row: any) => !row.notified_on_at).filter((row: any) => {
-        const start = row.starts_at ? new Date(row.starts_at) : null;
-        const end = row.ends_at ? new Date(row.ends_at) : null;
-        const now = new Date();
-        if (start && now < start) return false;
-        if (end && now > end) return false;
-        return true;
-      });
-      const notifyOff = (manualRows || []).filter((row: any) => !row.notified_off_at).filter((row: any) => {
-        const end = row.ends_at ? new Date(row.ends_at) : null;
-        return end && new Date() > end;
-      });
-
-      const notifyIds = Array.from(new Set([...notifyOn, ...notifyOff].map((r: any) => r.business_id).filter(Boolean)));
-      if (notifyIds.length > 0) {
-        const { data: notifyBiz } = await sb
-          .from('businesses')
-          .select('id, name, owner_email')
-          .in('id', notifyIds);
-        const notifyMap = new Map((notifyBiz || []).map((b: any) => [b.id, b]));
-
-        for (const row of notifyOn) {
-          const biz = notifyMap.get(row.business_id);
-          if (biz?.owner_email) {
-            await sendFeaturedOnEmail({ to: biz.owner_email, businessName: biz.name || 'Your business', durationDays: 7 }).catch(() => {});
-            await sb.from('campus_featured').update({ notified_on_at: new Date().toISOString() }).eq('id', row.id);
-          }
-        }
-
-        for (const row of notifyOff) {
-          const biz = notifyMap.get(row.business_id);
-          if (biz?.owner_email) {
-            await sendFeaturedOffEmail({ to: biz.owner_email, businessName: biz.name || 'Your business' }).catch(() => {});
-            await sb.from('campus_featured').update({ notified_off_at: new Date().toISOString() }).eq('id', row.id);
-          }
-        }
-      }
-    }
+    // Featured email notifications are handled by a secured admin job.
   }
 
   if (!legacyMode) {
   const autoFeaturedQuery = sb
     .from('businesses')
-    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email')
+    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at')
     .eq('is_onboarded', true)
     .eq('campus_provider', true)
     .gt('featured_until', nowIso);
@@ -243,40 +204,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { data: autoFeaturedRows } = await autoFeaturedQuery;
   (autoFeaturedRows || []).forEach((b: any) => featuredAuto.push(b));
 
-  if (process.env.RESEND_API_KEY) {
-    const autoNotifyOn = (autoFeaturedRows || []).filter((b: any) => !b.featured_on_notified_at);
-    for (const biz of autoNotifyOn) {
-      if (biz.owner_email) {
-        await sendFeaturedOnEmail({ to: biz.owner_email, businessName: biz.name || 'Your business', durationDays: 7 }).catch(() => {});
-        await sb.from('businesses').update({ featured_on_notified_at: new Date().toISOString() }).eq('id', biz.id);
-      }
-    }
-
-    const autoExpiredQuery = sb
-      .from('businesses')
-      .select('id, name, owner_email, featured_until, featured_off_notified_at')
-      .eq('campus_provider', true)
-      .lt('featured_until', nowIso)
-      .is('featured_off_notified_at', null);
-    if (campusKey) {
-      const orParts: string[] = [`campus_key.eq.${campusKey}`];
-      if (campusSchoolName) {
-        const pattern = `%${campusSchoolName.replace('%','')}%`;
-        orParts.push(`campus_school_name.ilike.${pattern}`);
-      }
-      if (schoolDomain) {
-        orParts.push(`school_domain.eq.${schoolDomain}`);
-      }
-      autoExpiredQuery.or(orParts.join(','));
-    }
-    const { data: autoExpiredRows } = await autoExpiredQuery;
-    for (const biz of autoExpiredRows || []) {
-      if (biz.owner_email) {
-        await sendFeaturedOffEmail({ to: biz.owner_email, businessName: biz.name || 'Your business' }).catch(() => {});
-        await sb.from('businesses').update({ featured_off_notified_at: new Date().toISOString() }).eq('id', biz.id);
-      }
-    }
-  }
+  // Featured email notifications are handled by a secured admin job.
   }
 
   const businessIds = (rows as any[]).map((b) => b.id).filter(Boolean);
@@ -301,14 +229,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const reviewCount = b.review_count ?? 0;
     const rating = reviewCount > 0 ? b.rating : null;
     const status = computeFounder50Status(b);
-    if (!legacyMode && b.founder50 && status && b.founder50_status !== status && b.founder50_status !== 'revoked') {
-      (async () => {
-        try {
-          await sb.from('businesses').update({ founder50_status: status }).eq('id', b.id);
-        } catch {}
-      })();
-      b.founder50_status = status;
-    }
     return { ...b, price_tier: priceTier, rating, founder50_status: b.founder50_status ?? status };
   });
 

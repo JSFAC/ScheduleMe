@@ -1,7 +1,7 @@
 // pages/api/profile.ts — update profile with service role
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { requireAuth, rateLimit } from '../../lib/apiSecurity';
+import { requireAuth, rateLimit, setSecurityHeaders } from '../../lib/apiSecurity';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -11,6 +11,7 @@ function getSupabase() {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  setSecurityHeaders(res);
   if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'profile' })) return;
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
