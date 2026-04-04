@@ -30,34 +30,35 @@ function campusAcronym(name?: string | null): string | null {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  setSecurityHeaders(res);
-  res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'campus' })) return;
+  try {
+    setSecurityHeaders(res);
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'campus' })) return;
 
-  const { limit, school_domain, campus_school_name, campus_key } = req.query;
-  const limitNum = Math.min(Number(limit ?? 40), 200);
-  const schoolDomain = typeof school_domain === 'string' && school_domain.trim() ? school_domain.trim() : null;
-  const campusSchoolName = typeof campus_school_name === 'string' && campus_school_name.trim() ? campus_school_name.trim() : null;
-  const explicitCampusKey = typeof campus_key === 'string' && campus_key.trim() ? campus_key.trim() : null;
-  const campusKey = explicitCampusKey || normalizeCampusKey(campusSchoolName) || campusKeyFromDomain(schoolDomain);
+    const { limit, school_domain, campus_school_name, campus_key } = req.query;
+    const limitNum = Math.min(Number(limit ?? 40), 200);
+    const schoolDomain = typeof school_domain === 'string' && school_domain.trim() ? school_domain.trim() : null;
+    const campusSchoolName = typeof campus_school_name === 'string' && campus_school_name.trim() ? campus_school_name.trim() : null;
+    const explicitCampusKey = typeof campus_key === 'string' && campus_key.trim() ? campus_key.trim() : null;
+    const campusKey = explicitCampusKey || normalizeCampusKey(campusSchoolName) || campusKeyFromDomain(schoolDomain);
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) return res.status(200).json({ featured: [], businesses: [], error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
 
-  const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
 
-  const nowIso = new Date().toISOString();
+    const nowIso = new Date().toISOString();
 
-  const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email';
-  const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
+    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email';
+    const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
 
-  let query = sb
-    .from('businesses')
-    .select(baseSelect)
-    .eq('is_onboarded', true)
-    .eq('campus_provider', true)
-    .order('rating', { ascending: false });
+    let query = sb
+      .from('businesses')
+      .select(baseSelect)
+      .eq('is_onboarded', true)
+      .eq('campus_provider', true)
+      .order('rating', { ascending: false });
 
   if (campusKey) {
     const orParts: string[] = [`campus_key.eq.${campusKey}`];
@@ -111,7 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     rows = legacyRes.data; error = legacyRes.error;
   }
 
-  if (error || !rows) return res.status(200).json({ featured: [], businesses: [] });
+    if (error || !rows) return res.status(200).json({ featured: [], businesses: [], error: error?.message || String(error || '') });
 
   // If campusKey is short (e.g., UCSC) and no matches, fallback to acronym match
   if (campusKey && rows.length === 0) {
@@ -322,8 +323,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return rest;
   };
 
-  return res.status(200).json({
-    featured: mergedFeatured.map(sanitize),
-    businesses: filteredBusinesses.map(sanitize),
-  });
+    return res.status(200).json({
+      featured: mergedFeatured.map(sanitize),
+      businesses: filteredBusinesses.map(sanitize),
+    });
+  } catch (err: any) {
+    console.error('[campus-businesses] error', err);
+    return res.status(200).json({ featured: [], businesses: [], error: err?.message || 'Internal error' });
+  }
 }
