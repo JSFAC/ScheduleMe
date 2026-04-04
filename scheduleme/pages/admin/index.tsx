@@ -125,11 +125,11 @@ const AdminPage: NextPage = () => {
       const res = await fetch('/api/admin-rls-status', {
         headers: { 'x-notify-secret': s },
       });
-      if (!res.ok) throw new Error('Failed to load RLS status');
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to load RLS status');
       setRlsStatus(data.tables || []);
-    } catch {
-      showToast('Failed to load RLS status', false);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to load RLS status', false);
     } finally {
       setRlsLoading(false);
     }

@@ -13,9 +13,10 @@ create or replace function public.get_rls_status(p_tables text[])
 returns table (tablename text, rowsecurity boolean)
 language sql
 security definer
+set search_path = public, pg_catalog
 as $$
   select tablename, rowsecurity
-  from pg_tables
+  from pg_catalog.pg_tables
   where schemaname = 'public'
     and tablename = any(p_tables)
   order by tablename;

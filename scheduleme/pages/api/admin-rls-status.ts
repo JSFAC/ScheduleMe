@@ -35,6 +35,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     p_tables: TABLES,
   });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return res.status(500).json({ error: error.message || 'RLS status function not found. Re-run supabase/rls_policies.sql.' });
   return res.status(200).json({ tables: data || [] });
 }
