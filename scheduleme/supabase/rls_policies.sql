@@ -8,15 +8,18 @@ alter table public.bookings enable row level security;
 alter table public.messages enable row level security;
 alter table public.profiles enable row level security;
 
--- Cron runs table (admin-only via service role)
-create table if not exists public.cron_runs (
-  id uuid primary key default gen_random_uuid(),
-  job text not null,
-  status text not null,
-  details jsonb,
-  ran_at timestamptz default now()
-);
-alter table public.cron_runs enable row level security;
+-- RLS status helper (used by admin panel)
+create or replace function public.get_rls_status(p_tables text[])
+returns table (tablename text, rowsecurity boolean)
+language sql
+security definer
+as $$
+  select tablename, rowsecurity
+  from pg_tables
+  where schemaname = 'public'
+    and tablename = any(p_tables)
+  order by tablename;
+$$;
 
 -- Businesses: public read (discovery)
 drop policy if exists "Public can read businesses" on public.businesses;

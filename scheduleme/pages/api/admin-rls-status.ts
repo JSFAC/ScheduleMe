@@ -31,11 +31,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin-rls-status' }))) return;
 
   const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from('pg_tables')
-    .select('tablename, rowsecurity')
-    .eq('schemaname', 'public')
-    .in('tablename', TABLES);
+  const { data, error } = await supabase.rpc('get_rls_status', {
+    p_tables: TABLES,
+  });
 
   if (error) return res.status(500).json({ error: error.message });
   return res.status(200).json({ tables: data || [] });
