@@ -40,12 +40,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user.email) return res.status(200).json({ customerId: null, updated: false });
 
   try {
-    const customers = await stripe.customers.list({ email: user.email, limit: 3 });
-    const latest = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
-    if (!latest?.id) return res.status(200).json({ customerId: null, updated: false });
+    const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+    if (!customers.data.length) return res.status(200).json({ customerId: null, updated: false });
 
-    await supabase.from('profiles').update({ stripe_customer_id: latest.id }).eq('id', user.id);
-    return res.status(200).json({ customerId: latest.id, updated: true });
+    let best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+    for (const candidate of customers.data) {
+      try {
+        const methods = await stripe.paymentMethods.list({ customer: candidate.id, type: 'card' });
+        if (methods.data.length > 0) {
+          best = candidate;
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (!best?.id) return res.status(200).json({ customerId: null, updated: false });
+
+    await supabase.from('profiles').update({ stripe_customer_id: best.id }).eq('id', user.id);
+    return res.status(200).json({ customerId: best.id, updated: true });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Stripe sync failed' });
   }
