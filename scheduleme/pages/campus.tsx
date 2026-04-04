@@ -313,8 +313,9 @@ const CampusPage: NextPage = () => {
   });
 
   const canView = eduVerified === true;
-  const campusCategories = businesses.length > 0
-    ? ['All', 'Pinned', ...Array.from(new Set(businesses.map(b => b.category).filter(Boolean))).sort()]
+  const categorySource = [...businesses, ...featuredBusinesses];
+  const campusCategories = categorySource.length > 0
+    ? ['All', 'Pinned', ...Array.from(new Set(categorySource.map(b => b.category).filter(Boolean))).sort()]
     : ['All', 'Pinned'];
 
   useEffect(() => {
@@ -411,7 +412,21 @@ const CampusPage: NextPage = () => {
               </div>
             </div>
 
-            {featuredBusinesses.length > 0 && (
+            {campusCategories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
+                {campusCategories.map(cat => (
+                  <button key={cat} onClick={() => setActiveCategory(cat)}
+                    className="shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold border transition-all"
+                    style={activeCategory === cat
+                      ? { background: '#007e6d', borderColor: '#007e6d', color: 'white' }
+                      : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)', color: dm ? '#6ee7b7' : '#007e6d' }}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {featuredBusinesses.length > 0 && activeCategory === 'All' && (
               <section className="mb-8">
                 <div className="flex items-center justify-between mb-3">
                   <div>
@@ -435,21 +450,6 @@ const CampusPage: NextPage = () => {
                   </div>
                 )}
               </section>
-            )}
-
-            {/* Category pills */}
-            {campusCategories.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
-                {campusCategories.map(cat => (
-                  <button key={cat} onClick={() => setActiveCategory(cat)}
-                    className="shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold border transition-all"
-                    style={activeCategory === cat
-                      ? { background: '#007e6d', borderColor: '#007e6d', color: 'white' }
-                      : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)', color: dm ? '#6ee7b7' : '#007e6d' }}>
-                    {cat}
-                  </button>
-                ))}
-              </div>
             )}
 
             {sorted.length === 0 ? (
