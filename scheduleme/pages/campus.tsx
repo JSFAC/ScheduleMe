@@ -297,8 +297,19 @@ const CampusPage: NextPage = () => {
   }, [router, loadCampusBusinesses, eduCache]);
 
 
+  const allBusinesses = (() => {
+    const seen = new Set<string>();
+    const merged: Business[] = [];
+    [...featuredBusinesses, ...businesses].forEach((b) => {
+      if (!b?.id || seen.has(b.id)) return;
+      seen.add(b.id);
+      merged.push(b);
+    });
+    return merged;
+  })();
+  const featuredIds = new Set(featuredBusinesses.map(b => b.id));
   const search = searchTerm.trim().toLowerCase();
-  const filtered = businesses.filter(b => {
+  const filtered = allBusinesses.filter(b => {
     if (activeCategory === 'Pinned') return pinnedIds.has(b.id);
     if (activeCategory !== 'All' && b.category !== activeCategory) return false;
     if (!search) return true;
@@ -426,7 +437,7 @@ const CampusPage: NextPage = () => {
               </div>
             )}
 
-            {featuredBusinesses.length > 0 && activeCategory === 'All' && (
+            {featuredBusinesses.length > 0 && activeCategory === 'All' && !search && (
               <section className="mb-8">
                 <div className="flex items-center justify-between mb-3">
                   <div>
@@ -467,7 +478,10 @@ const CampusPage: NextPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
-                {sorted.map((biz, i) => (
+                {sorted.filter((biz) => {
+                  if (activeCategory === 'All' && !search) return !featuredIds.has(biz.id);
+                  return true;
+                }).map((biz, i) => (
                   <BizCard key={biz.id} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
                 ))}
               </div>

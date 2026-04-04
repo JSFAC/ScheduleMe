@@ -786,8 +786,8 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative" style={{ height: 470, background: bg }}>
-          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 0 }}>
+        <div className="relative" style={{ height: 450, background: bg }}>
+          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 6 }}>
             <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 800 }}>
               {imgs[galleryIdx] && (
                 <img
@@ -843,7 +843,7 @@ export default function BizPage() {
         </div>
         <div className="mx-auto max-w-2xl px-4">
           {!editMode && imgs.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto py-1" style={{ marginTop: -8 }}>
+            <div className="flex gap-2 overflow-x-auto py-1" style={{ marginTop: -16 }}>
               {imgs.map((url, i) => (
                 <button
                   key={url}

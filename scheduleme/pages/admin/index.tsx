@@ -379,6 +379,21 @@ const AdminPage: NextPage = () => {
     }
   }
 
+  async function normalizeCategories() {
+    try {
+      const res = await fetch('/api/admin-normalize-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to normalize categories');
+      showToast(`Categories normalized (${data.updated || 0})`, true);
+      await loadBusinesses(secret, campusFilter);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to normalize categories', false);
+    }
+  }
+
   const filtered = businesses.filter(b => {
     if (campusFilter !== 'all') {
       const key = getBusinessCampusKey(b);
@@ -684,6 +699,11 @@ const AdminPage: NextPage = () => {
                   onClick={normalizeCampuses}
                   className="text-[11px] px-2.5 py-2 rounded-lg border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors">
                   Normalize names
+                </button>
+                <button
+                  onClick={normalizeCategories}
+                  className="text-[11px] px-2.5 py-2 rounded-lg border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors">
+                  Normalize categories
                 </button>
               </div>
             )}
