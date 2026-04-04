@@ -50,6 +50,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!resolvedEmail) return res.status(200).json({ customerId: null, updated: false });
 
   try {
+    const { data: sibling } = await supabase
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('email', resolvedEmail)
+      .not('stripe_customer_id', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sibling?.stripe_customer_id) {
+      await supabase.from('profiles').update({ stripe_customer_id: sibling.stripe_customer_id }).eq('id', user.id);
+      return res.status(200).json({ customerId: sibling.stripe_customer_id, updated: true });
+    }
+
     const customers = await stripe.customers.list({ email: resolvedEmail, limit: 5 });
     if (!customers.data.length) return res.status(200).json({ customerId: null, updated: false });
 

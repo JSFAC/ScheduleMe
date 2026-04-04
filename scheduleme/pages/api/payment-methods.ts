@@ -39,6 +39,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch {}
   }
   if (!customerId && resolvedEmail) {
+    const { data: sibling } = await supabase
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('email', resolvedEmail)
+      .not('stripe_customer_id', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sibling?.stripe_customer_id) {
+      customerId = sibling.stripe_customer_id;
+      await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
+    }
+  }
+  if (!customerId && resolvedEmail) {
     const customers = await stripe.customers.list({ email: resolvedEmail, limit: 5 });
     const best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
     if (best?.id) {
