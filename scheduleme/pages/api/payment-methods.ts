@@ -62,10 +62,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!customerId) return res.status(200).json({ methods: [], defaultId: null });
 
+  const debug = req.query.debug === '1' || req.query.debug === 'true';
   let methodsData;
+  let debugInfo: any = debug
+    ? {
+        resolvedEmail,
+        customerId,
+        fromProfile: profile?.stripe_customer_id ?? null,
+      }
+    : null;
   try {
     const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
     methodsData = methods.data;
+    if (debugInfo) debugInfo.primaryCount = methodsData.length;
   } catch (err) {
     // If stored customer id is invalid, try to re-sync by email.
     if (user.email) {
@@ -93,6 +102,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         customerId = best.id;
         await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
       }
+      if (debugInfo) {
+        debugInfo.fallbackEmail = user.email;
+        debugInfo.fallbackCustomer = best?.id ?? null;
+        debugInfo.fallbackCount = methodsData?.length ?? 0;
+      }
     }
   }
 
@@ -115,10 +129,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       customerId = best.id;
       await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
     }
+    if (debugInfo) {
+      debugInfo.secondPassEmail = resolvedEmail;
+      debugInfo.secondPassCustomer = best?.id ?? null;
+      debugInfo.secondPassCount = methodsData?.length ?? 0;
+    }
   }
 
   if (!methodsData) {
-    return res.status(200).json({ methods: [], defaultId: null });
+    return res.status(200).json({ methods: [], defaultId: null, debug: debugInfo });
   }
 
   return res.status(200).json({
@@ -130,5 +149,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       exp_year: m.card?.exp_year,
     })),
     defaultId: profile?.stripe_payment_method_id || null,
+    ...(debugInfo ? { debug: debugInfo } : {}),
   });
 }
