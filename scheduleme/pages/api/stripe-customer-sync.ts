@@ -29,7 +29,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .maybeSingle();
 
   if (profile?.stripe_customer_id) {
-    return res.status(200).json({ customerId: profile.stripe_customer_id, updated: false });
+    try {
+      await stripe.customers.retrieve(profile.stripe_customer_id);
+      return res.status(200).json({ customerId: profile.stripe_customer_id, updated: false });
+    } catch {
+      // Fall through and attempt to re-sync by email.
+    }
   }
 
   if (!user.email) return res.status(200).json({ customerId: null, updated: false });

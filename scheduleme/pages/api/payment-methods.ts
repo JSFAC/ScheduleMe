@@ -27,12 +27,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('id', user.id)
     .maybeSingle();
 
-  const customerId = profile?.stripe_customer_id;
+  let customerId = profile?.stripe_customer_id;
   if (!customerId) return res.status(200).json({ methods: [], defaultId: null });
 
-  const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
+  let methodsData;
+  try {
+    const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
+    methodsData = methods.data;
+  } catch (err) {
+    // If stored customer id is invalid, try to re-sync by email.
+    if (user.email) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 3 });
+      const latest = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+      if (latest?.id) {
+        customerId = latest.id;
+        await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
+        const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
+        methodsData = methods.data;
+      }
+    }
+  }
+
+  if (!methodsData) {
+    return res.status(200).json({ methods: [], defaultId: null });
+  }
+
   return res.status(200).json({
-    methods: methods.data.map((m) => ({
+    methods: methodsData.map((m) => ({
       id: m.id,
       brand: m.card?.brand,
       last4: m.card?.last4,
