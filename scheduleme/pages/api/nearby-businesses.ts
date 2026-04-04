@@ -112,7 +112,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const rating = reviewCount > 0 ? b.rating : null;
       const status = computeFounder50Status(b);
       if (b.founder50 && status && b.founder50_status !== status && b.founder50_status !== 'revoked') {
-        sb.from('businesses').update({ founder50_status: status }).eq('id', b.id).catch(() => {});
+        (async () => {
+          try {
+            await sb.from('businesses').update({ founder50_status: status }).eq('id', b.id);
+          } catch {}
+        })();
         b.founder50_status = status;
       }
       return { ...b, distance_miles: d, price_tier: priceTier, rating, founder50_status: b.founder50_status ?? status };
