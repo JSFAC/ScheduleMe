@@ -3,7 +3,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface Business {
   id: string; name: string; owner_name: string; owner_email: string;
@@ -88,6 +88,32 @@ const AdminPage: NextPage = () => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 4000);
   }
+
+  useEffect(() => {
+    // Force re-auth whenever the page is left or restored from bfcache
+    const resetAuth = () => {
+      setAuthed(false);
+      setSecret('');
+      setRequests([]);
+      setBusinesses([]);
+      setFeaturedRows([]);
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) resetAuth();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) resetAuth();
+    };
+    const onPageHide = () => resetAuth();
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, []);
 
   const loadBusinesses = useCallback(async (s: string, campusKey = campusFilter) => {
     setLoading(true);
