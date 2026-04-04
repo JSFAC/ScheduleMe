@@ -655,6 +655,7 @@ const BusinessDashboard: NextPage = () => {
   const [svcDesc, setSvcDesc] = useState('');
   const [svcPrice, setSvcPrice] = useState('');
   const [svcDuration, setSvcDuration] = useState('60');
+  const [svcRequiresTime, setSvcRequiresTime] = useState(true);
   const [svcError, setSvcError] = useState('');
   const [svcSaving, setSvcSaving] = useState(false);
   const [editingSvc, setEditingSvc] = useState(null);
@@ -1262,12 +1263,12 @@ const BusinessDashboard: NextPage = () => {
     setSvcSaving(true); setSvcError('');
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/services', { method: 'POST', headers, body: JSON.stringify({ business_id: business.id, name: svcName.trim(), description: svcDesc.trim() || null, price_cents: priceCents, duration_min: parseInt(svcDuration) || 60 }) });
+      const res = await fetch('/api/services', { method: 'POST', headers, body: JSON.stringify({ business_id: business.id, name: svcName.trim(), description: svcDesc.trim() || null, price_cents: priceCents, duration_min: parseInt(svcDuration) || 60, requires_time: svcRequiresTime }) });
       let data: any = null;
       try { data = await res.json(); } catch { data = null; }
       if (!res.ok) { setSvcError(data?.error || 'Failed to add service'); return; }
       setServices(s => [...s, data.service]);
-      setSvcName(''); setSvcDesc(''); setSvcPrice(''); setSvcDuration('60');
+      setSvcName(''); setSvcDesc(''); setSvcPrice(''); setSvcDuration('60'); setSvcRequiresTime(true);
     } catch {
       setSvcError('Network error. Please try again.');
     } finally {
@@ -1288,6 +1289,18 @@ const BusinessDashboard: NextPage = () => {
     const res = await fetch('/api/services', { method: 'PATCH', headers, body: JSON.stringify({ id, business_id: business.id, ...updates }) });
     const data = await res.json();
     if (res.ok) { setServices(s => s.map(sv => sv.id === id ? data.service : sv)); setEditingSvc(null); }
+  }
+
+  async function handleCustomRequiresTime(next: boolean) {
+    if (!business) return;
+    try {
+      const { error } = await getSupabase().from('businesses').update({ custom_requires_time: next }).eq('id', business.id);
+      if (error) throw new Error(error.message);
+      setBusiness(b => b ? { ...b, custom_requires_time: next } : b);
+      showToast('Custom request scheduling updated', true);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to update custom request settings', false);
+    }
   }
 
   async function handleSetPrice(bookingId: string, amountCents: number) {
@@ -2400,7 +2413,7 @@ const BusinessDashboard: NextPage = () => {
             {/* SETTINGS */}
             {tab === 'services' && (
             <div className="flex flex-col gap-5 max-w-xl">
-              <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
                 <div className="flex flex-col gap-3">
                   <div className="relative">
@@ -2421,9 +2434,21 @@ const BusinessDashboard: NextPage = () => {
                       <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
                     </div>
                   </div>
+                  <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
+                    Requires exact time
+                    <input type="checkbox" checked={svcRequiresTime} onChange={e => setSvcRequiresTime(e.target.checked)} />
+                  </label>
                   {svcError && <p className="text-red-500 text-sm">{svcError}</p>}
                   <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#007e6d' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
                 </div>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                <h3 className="font-bold text-base mb-2" style={{ color: dm ? '#f2f2f7' : '#111' }}>Custom Request Scheduling</h3>
+                <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
+                <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
+                  Requires exact time
+                  <input type="checkbox" checked={business?.custom_requires_time !== false} onChange={e => handleCustomRequiresTime(e.target.checked)} />
+                </label>
               </div>
               <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <div className="px-5 py-4" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
@@ -2436,10 +2461,20 @@ const BusinessDashboard: NextPage = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm" style={{ color: dm ? '#f2f2f7' : '#111' }}>{svc.name}</p>
                         {svc.description && <p className="text-xs mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{svc.description}</p>}
-                        <p className="text-xs mt-1" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{svc.duration_min} min</p>
+                        <p className="text-xs mt-1" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>
+                          {svc.duration_min} min · {svc.requires_time === false ? 'No exact time' : 'Exact time'}
+                        </p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <span className="font-bold text-[15px]" style={{ color: '#007e6d' }}>{'$'}{(svc.price_cents/100).toFixed(2)}</span>
+                        <button
+                          onClick={() => handleUpdateService(svc.id, { requires_time: svc.requires_time === false ? true : false })}
+                          className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg border"
+                          style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}
+                          title={svc.requires_time === false ? 'Enable exact time' : 'Disable exact time'}
+                        >
+                          {svc.requires_time === false ? 'Enable time' : 'No time'}
+                        </button>
                         <button onClick={() => handleDeleteService(svc.id)} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ color: '#ef4444' }}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>

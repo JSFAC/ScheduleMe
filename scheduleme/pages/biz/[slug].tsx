@@ -548,7 +548,7 @@ export default function BizPage() {
     const { data: { session } } = await getSB().auth.getSession();
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
     if (!selectedSvc) { setErr('Select a service to continue.'); return; }
-    if (!date || !slot) { setErr('Pick a date and time'); return; }
+    if (!date || (requiresTime && !slot)) { setErr(requiresTime ? 'Pick a date and time' : 'Pick a due date'); return; }
     if (isCustom && !note.trim()) { setErr('Please describe your custom request.'); return; }
 
     const isPaidService = !isCustom;
@@ -558,7 +558,9 @@ export default function BizPage() {
     }
 
     setSubmitting(true); setErr('');
-    const scheduled_start = buildScheduledStart(date, slot);
+    const scheduled_start = requiresTime
+      ? buildScheduledStart(date, slot)
+      : (() => { const due = new Date(date); due.setHours(12, 0, 0, 0); return due.toISOString(); })();
     let d: any = null;
     try {
       const res = await fetch('/api/bookings', {
@@ -626,7 +628,8 @@ export default function BizPage() {
     .filter((u) => !String(u).match(/\.(mp4|mov|webm|m4v)$/i));
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
 
-  const availableSlots = date ? (() => {
+  const requiresTime = isCustom ? (biz?.custom_requires_time !== false) : (selectedSvc?.requires_time !== false);
+  const availableSlots = date && requiresTime ? (() => {
     const dk = date.toISOString().split('T')[0];
     const dh = getHoursForDate(biz.hours, date);
     const now = new Date();
@@ -1168,6 +1171,11 @@ export default function BizPage() {
               Preview mode — booking is disabled in the live preview.
             </div>
           )}
+          {!requiresTime && (
+            <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? '#0f172a' : '#ecfeff', color: dm ? '#e5e7eb' : '#0f766e', border: '1px solid ' + bdr }}>
+              No exact time needed — just choose a due date.
+            </div>
+          )}
           {editMode && (
             <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? '#1f2937' : '#ecfeff', color: dm ? '#e5e7eb' : '#0f766e', border: '1px solid ' + bdr }}>
               Exit edit mode to book this service.
@@ -1175,12 +1183,12 @@ export default function BizPage() {
           )}
           <div className="space-y-4" style={{ opacity: (editMode || isPreview) ? 0.5 : 1, pointerEvents: (editMode || isPreview) ? 'none' : 'auto' }}>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Preferred date</p>
+              <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>{requiresTime ? 'Preferred date' : 'Due date'}</p>
               <div className="rounded-2xl p-4" style={{ background: dm ? '#0d0d0d' : '#f9fafb', border: '1px solid '+bdr }}>
                 <MiniCalendar selected={date} onSelect={d=>{setDate(d);setSlot(null);}} bookedDates={bookedDates} hours={biz.hours} dm={dm} />
               </div>
             </div>
-            {date && (
+            {date && requiresTime && (
               <div>
                 <div className="flex items-center justify-between mb-2.5">
                   <p className="text-xs font-bold uppercase tracking-wide" style={{color:dm?'rgba(255,255,255,0.4)':'#737373'}}>
@@ -1226,9 +1234,9 @@ export default function BizPage() {
 
         </div>
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={book} disabled={!date || !slot || submitting || done || (isCustom && !note.trim()) || isPreview}
+          <button onClick={book} disabled={!date || (requiresTime && !slot) || submitting || done || (isCustom && !note.trim()) || isPreview}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background:(!date || !slot || submitting || done || isPreview) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            style={{background:(!date || (requiresTime && !slot) || submitting || done || isPreview) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? 'Request Custom Service' : 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2)) : 'Book Appointment')}
           </button>
         </div>

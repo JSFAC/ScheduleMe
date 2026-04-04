@@ -43,13 +43,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    const { business_id, name, description, price_cents, duration_min, sort_order } = req.body;
+    const { business_id, name, description, price_cents, duration_min, sort_order, requires_time } = req.body;
     if (!business_id || !name || price_cents === undefined) return res.status(400).json({ error: 'business_id, name, price_cents required' });
     if (typeof name !== 'string' || name.trim().length === 0) return res.status(400).json({ error: 'Service name required' });
     if (name.length > NAME_MAX) return res.status(400).json({ error: `Service name must be ${NAME_MAX} characters or less` });
     if (typeof description === 'string' && description.length > DESC_MAX) return res.status(400).json({ error: `Service description must be ${DESC_MAX} characters or less` });
     if (!(await verifyOwner(business_id))) return res.status(403).json({ error: 'Access denied' });
-    const { data, error } = await supabase.from('services').insert({ business_id, name: name.slice(0, NAME_MAX), description: typeof description === 'string' ? description.slice(0, DESC_MAX) : null, price_cents: Math.round(price_cents), duration_min: duration_min || 60, sort_order: sort_order || 0, active: true }).select().single();
+    const { data, error } = await supabase.from('services').insert({
+      business_id,
+      name: name.slice(0, NAME_MAX),
+      description: typeof description === 'string' ? description.slice(0, DESC_MAX) : null,
+      price_cents: Math.round(price_cents),
+      duration_min: duration_min || 60,
+      sort_order: sort_order || 0,
+      requires_time: requires_time !== false,
+      active: true,
+    }).select().single();
     if (error) return res.status(500).json({ error: error.message });
     return res.status(201).json({ service: data });
   }
