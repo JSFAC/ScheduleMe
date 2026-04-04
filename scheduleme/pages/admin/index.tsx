@@ -46,7 +46,27 @@ const AdminPage: NextPage = () => {
   function normalizeCampusKey(name?: string | null): string | null {
     if (!name) return null;
     const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    return cleaned ? cleaned.replace(/\s+/g, '_') : null;
+    const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
+    if (!key) return null;
+    if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
+    return key;
+  }
+
+  function campusAcronym(name?: string | null): string | null {
+    if (!name) return null;
+    const parts = name.replace(/[^a-z0-9\s]+/gi, ' ').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return null;
+    return parts.map(p => p[0]).join('').toUpperCase();
+  }
+
+  function getBusinessCampusKey(b: Business): string | null {
+    return normalizeCampusKey(b.campus_key || b.campus_school_name || null);
+  }
+
+  function campusDisplayLabel(key: string, fallback?: string | null): string {
+    if (key === 'ucsc') return 'UCSC';
+    if (fallback) return fallback;
+    return key.toUpperCase();
   }
 
   function showToast(msg: string, ok: boolean) {
@@ -102,13 +122,21 @@ const AdminPage: NextPage = () => {
       if (!res.ok) return;
       const data = await res.json();
       const all = data.businesses ?? [];
-      const campusLabelMap = new Map<string, string>();
+      const campusLabelMap = new Map<string, { label: string; count: number }>();
       all.forEach((b: any) => {
-        if (b.campus_key && !campusLabelMap.has(b.campus_key)) {
-          campusLabelMap.set(b.campus_key, b.campus_school_name || b.campus_key);
+        const key = normalizeCampusKey(b.campus_key || b.campus_school_name || null);
+        if (!key) return;
+        const rawLabel = campusAcronym(b.campus_school_name) || b.campus_school_name || b.campus_key || key;
+        const label = campusDisplayLabel(key, rawLabel);
+        const entry = campusLabelMap.get(key);
+        if (!entry) {
+          campusLabelMap.set(key, { label, count: 1 });
+        } else {
+          entry.count += 1;
+          if (label.length < entry.label.length) entry.label = label;
         }
       });
-      const options = Array.from(campusLabelMap.entries()).map(([key, label]) => ({ key, label }));
+      const options = Array.from(campusLabelMap.entries()).map(([key, data]) => ({ key, label: data.label }));
       setCampusOptions(options);
     } catch {}
   }, []);
@@ -215,7 +243,27 @@ const AdminPage: NextPage = () => {
     }
   }
 
+  async function normalizeCampuses() {
+    try {
+      const res = await fetch('/api/admin-normalize-campus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to normalize campuses');
+      showToast(data.message || 'Campuses normalized', true);
+      await loadBusinesses(secret, campusFilter);
+      await loadCampusOptions(secret);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to normalize campuses', false);
+    }
+  }
+
   const filtered = businesses.filter(b => {
+    if (campusFilter !== 'all') {
+      const key = getBusinessCampusKey(b);
+      if (key !== campusFilter) return false;
+    }
     if (filter === 'pending') return !b.is_onboarded;
     if (filter === 'approved') return b.is_onboarded;
     return true;
@@ -346,7 +394,7 @@ const AdminPage: NextPage = () => {
                 <option value="">Select business</option>
                 {businesses.filter(b => b.campus_provider).filter(b => {
                   if (featuredCampusKey === 'all') return true;
-                  return b.campus_key === featuredCampusKey;
+                  return getBusinessCampusKey(b) === featuredCampusKey;
                 }).map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -455,6 +503,11 @@ const AdminPage: NextPage = () => {
                   <option key={opt.key} value={opt.key}>{opt.label}</option>
                 ))}
               </select>
+              <button
+                onClick={normalizeCampuses}
+                className="text-[11px] px-2.5 py-2 rounded-lg border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors">
+                Normalize names
+              </button>
             </div>
           </div>
           {loading ? (
