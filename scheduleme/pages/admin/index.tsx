@@ -392,9 +392,12 @@ const AdminPage: NextPage = () => {
                 className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
               >
                 <option value="">Select business</option>
-                {businesses.filter(b => b.campus_provider).filter(b => {
+                {businesses.filter(b => {
+                  if (!b.campus_provider) return false;
+                  if (!b.is_onboarded) return false;
+                  const key = getBusinessCampusKey(b);
                   if (featuredCampusKey === 'all') return true;
-                  return getBusinessCampusKey(b) === featuredCampusKey;
+                  return key === featuredCampusKey;
                 }).map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
