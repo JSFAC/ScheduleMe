@@ -7,14 +7,11 @@ import { useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import Nav from '../../components/Nav';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
 
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return getSupabaseClient();
 }
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');

@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { useDm } from '../lib/DarkModeContext';
 
 interface NavProps { variant?: 'light' | 'dark'; }
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return getSupabaseClient();
 }
 
 // Cache key — avoids async flash that causes the nav layout shift/shake
@@ -104,12 +104,12 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   useEffect(() => {
     if (!user?.email) return;
-    const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const sbBiz = getSupabaseClient();
     sbBiz.from('businesses').select('id, edu_verified').eq('owner_email', user.email).maybeSingle().then(({data}) => {
       if (data?.id) setIsBiz(true);
       if (typeof data?.edu_verified === 'boolean') setBizEduVerified(data.edu_verified);
     });
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const supabase = getSupabaseClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
       const userId = session?.user?.id;
       if (!userId) return;

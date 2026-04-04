@@ -3,12 +3,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../../lib/supabaseClient';
 import Nav from '../../components/Nav';
 import { useDm } from '../../lib/DarkModeContext';
 
 function getSB() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  return getSupabaseClient();
 }
 
 const DEFAULT_TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];

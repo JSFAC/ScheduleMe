@@ -12,11 +12,11 @@ import ReviewModal from '../components/ReviewModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../lib/supabaseClient';
 
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return getSupabaseClient();
 }
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';

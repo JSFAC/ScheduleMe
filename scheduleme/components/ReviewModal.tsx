@@ -1,10 +1,10 @@
 // components/ReviewModal.tsx — post-booking review popup
 import { useState, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { useDm } from '../lib/DarkModeContext';
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return getSupabaseClient();
 }
 
 interface Props {

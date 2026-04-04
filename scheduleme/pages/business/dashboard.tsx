@@ -6,13 +6,13 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
 
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return getSupabaseClient();
 }
 
 type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings' | 'preview' | 'services';

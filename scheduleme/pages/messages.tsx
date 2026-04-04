@@ -4,14 +4,14 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import Nav from '../components/Nav';
 import { SkeletonThread } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import Link from 'next/link';
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return getSupabaseClient();
 }
 
 interface Message { id: string; booking_id: string; sender_type: 'user' | 'business'; content: string; image_url?: string | null; message_type?: string; created_at: string; read: boolean; }

@@ -5,7 +5,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import Nav from '../components/Nav';
@@ -14,10 +14,7 @@ import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return getSupabaseClient();
 }
 
 type Tab = 'addresses' | 'notifications' | 'security' | 'settings' | 'payments';
@@ -321,7 +318,7 @@ const Account: NextPage = () => {
     if (!user) return;
     setAvatarUploading(true);
     try {
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+      const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       const base64 = await new Promise<string>((resolve, reject) => {

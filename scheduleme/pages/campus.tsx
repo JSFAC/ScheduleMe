@@ -5,7 +5,7 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import Link from 'next/link';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
@@ -156,7 +156,7 @@ function getOpenStatus(hours: { day: string; time: string }[], availability?: st
 }
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return getSupabaseClient();
 }
 
 function deriveCampusTag(domain?: string | null): string | null {

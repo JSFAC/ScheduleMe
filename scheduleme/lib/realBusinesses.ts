@@ -3,7 +3,7 @@
 // Geo-gated: NEVER shows businesses outside user's radius.
 // Without coordinates, returns [] — correct local-only behavior.
 
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from './supabaseClient';
 import type { Business } from './mockBusinesses';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
@@ -86,10 +86,7 @@ export async function fetchNearbyBusinesses(
   opts: { radius?: number; limit?: number; category?: string } = {}
 ): Promise<Business[]> {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = getSupabaseClient();
 
     // Prefer service-role API (bypasses RLS/RPC omissions)
     try {

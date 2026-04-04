@@ -5,14 +5,11 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../../../lib/supabaseClient';
 import BusinessNav from '../../../components/BusinessNav';
 
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return getSupabaseClient();
 }
 
 type Mode = 'login' | 'reset';
