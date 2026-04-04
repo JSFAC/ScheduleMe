@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { sendFeaturedOnEmail, sendFeaturedOffEmail } from '../../lib/email';
+import { isCronAuthorized } from '../../lib/cronAuth';
 
 function getSupabase() {
   return createClient(
@@ -13,15 +14,10 @@ function getSupabase() {
   );
 }
 
-function isAuthorized(req: NextApiRequest) {
-  const secret = req.headers['x-notify-secret'];
-  return !!process.env.NOTIFY_SECRET && secret === process.env.NOTIFY_SECRET;
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!isAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!isCronAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
   if (!(await rateLimit(req, res, { max: 10, windowMs: 60_000, keyPrefix: 'admin-featured-notify' }))) return;
 
   const sb = getSupabase();
