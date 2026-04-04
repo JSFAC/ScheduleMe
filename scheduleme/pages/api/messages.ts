@@ -56,6 +56,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
 
     const { thread_business_id, thread_customer_id } = req.query;
+    const limitNum = Math.min(Number(req.query.limit ?? 40), 200);
+    const before = typeof req.query.before === 'string' ? req.query.before : null;
+    const after = typeof req.query.after === 'string' ? req.query.after : null;
+
+    async function fetchMessages(bookingIds: string[]) {
+      if (!bookingIds.length) return { messages: [], hasMore: false };
+      let query = supabase
+        .from('messages')
+        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
+        .in('booking_id', bookingIds);
+
+      if (after) {
+        const { data, error } = await query
+          .gt('created_at', after)
+          .order('created_at', { ascending: true })
+          .limit(limitNum);
+        if (error) throw error;
+        return { messages: data || [], hasMore: false };
+      }
+
+      if (before) query = query.lt('created_at', before);
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(limitNum + 1);
+      if (error) throw error;
+      const rows = data || [];
+      const hasMore = rows.length > limitNum;
+      const trimmed = hasMore ? rows.slice(0, limitNum) : rows;
+      return { messages: trimmed.reverse(), hasMore };
+    }
 
     if (thread_business_id) {
       if (!isValidUuid(thread_business_id)) return res.status(400).json({ error: 'Invalid business_id' });
@@ -103,12 +133,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!bookings.length) return res.status(404).json({ error: 'No bookings found' });
       const bookingIds = bookings.map(b => b.id);
 
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
-        .in('booking_id', bookingIds)
-        .order('created_at', { ascending: true });
-      if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
+      let data: any[] = [];
+      let hasMore = false;
+      try {
+        const result = await fetchMessages(bookingIds);
+        data = result.messages;
+        hasMore = result.hasMore;
+      } catch {
+        return res.status(500).json({ error: 'Failed to fetch messages' });
+      }
 
       const latest = bookings[0];
       const thread = {
@@ -123,7 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         unreadCount: 0,
         booking_ids: bookingIds,
       };
-      return res.status(200).json({ messages: data || [], thread });
+      return res.status(200).json({ messages: data || [], thread, has_more: hasMore });
     }
 
     if (thread_customer_id) {
@@ -146,12 +179,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!bookings.length) return res.status(404).json({ error: 'No bookings found' });
       const bookingIds = bookings.map(b => b.id);
 
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
-        .in('booking_id', bookingIds)
-        .order('created_at', { ascending: true });
-      if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
+      let data: any[] = [];
+      let hasMore = false;
+      try {
+        const result = await fetchMessages(bookingIds);
+        data = result.messages;
+        hasMore = result.hasMore;
+      } catch {
+        return res.status(500).json({ error: 'Failed to fetch messages' });
+      }
 
       const latest = bookings[0];
       const profileCache = new Map<string, any>();
@@ -168,7 +204,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         unreadCount: 0,
         booking_ids: bookingIds,
       };
-      return res.status(200).json({ messages: data || [], thread });
+      return res.status(200).json({ messages: data || [], thread, has_more: hasMore });
     }
 
 
@@ -206,12 +242,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
-        .eq('booking_id', booking_id)
-        .order('created_at', { ascending: true });
-      if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
+      let data: any[] = [];
+      let hasMore = false;
+      try {
+        const result = await fetchMessages([booking_id]);
+        data = result.messages;
+        hasMore = result.hasMore;
+      } catch {
+        return res.status(500).json({ error: 'Failed to fetch messages' });
+      }
       const thread = booking ? {
         id: (booking.businesses as any)?.id || booking.id,
         business_id: (booking.businesses as any)?.id || null,
@@ -223,7 +262,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         lastMessage: data?.[data.length - 1] ?? null,
         unreadCount: 0,
       } : null;
-      return res.status(200).json({ messages: data, thread });
+      return res.status(200).json({ messages: data, thread, has_more: hasMore });
     }
 
     if (user_id) {
