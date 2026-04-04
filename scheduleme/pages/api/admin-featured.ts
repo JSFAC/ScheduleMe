@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'admin-featured' })) return;
+  if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'admin-featured' }))) return;
 
   const supabase = getSupabase();
 

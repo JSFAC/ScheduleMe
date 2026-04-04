@@ -12,7 +12,7 @@ function getSupabase() {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'profile' })) return;
+  if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'profile' }))) return;
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 

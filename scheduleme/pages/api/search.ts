@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Rate limit: 30 searches/min per IP
-  if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'search' })) return;
+  if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'search' }))) return;
 
   const { lat, lng, service, term, price_max, radius = 25, limit = 40 } = req.body;
 

@@ -10,7 +10,7 @@ function getSupabase() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
-  if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'delete-media' })) return;
+  if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'delete-media' }))) return;
   const user = await requireAuth(req, res);
   if (!user) return;
 

@@ -4,6 +4,8 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
 // Apply to every API response to prevent common attacks
@@ -60,13 +62,53 @@ export function getClientIp(req: NextApiRequest): string {
 }
 
 // Rate limit helper that sends the 429 response automatically
-export function rateLimit(
+const upstashLimiters = new Map<string, Ratelimit>();
+
+function getUpstashLimiter(max: number, windowMs: number): Ratelimit | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  const key = `${max}:${windowMs}`;
+  let limiter = upstashLimiters.get(key);
+  if (!limiter) {
+    const redis = new Redis({ url, token });
+    limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.fixedWindow(max, `${windowMs} ms`),
+      analytics: true,
+      prefix: 'sm',
+    });
+    upstashLimiters.set(key, limiter);
+  }
+  return limiter;
+}
+
+export async function rateLimit(
   req: NextApiRequest,
   res: NextApiResponse,
   opts: { max: number; windowMs: number; keyPrefix?: string }
-): boolean {
+): Promise<boolean> {
   const ip = getClientIp(req);
   const key = `${opts.keyPrefix ?? 'rl'}:${ip}`;
+  const upstash = getUpstashLimiter(opts.max, opts.windowMs);
+  if (upstash) {
+    try {
+      const result = await upstash.limit(key);
+      res.setHeader('X-RateLimit-Limit', String(opts.max));
+      res.setHeader('X-RateLimit-Remaining', String(result.remaining));
+      res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
+      if (!result.success) {
+        res.status(429).json({
+          error: 'Too many requests. Please slow down and try again shortly.',
+        });
+        return false;
+      }
+      return true;
+    } catch {
+      // fall back to in-memory on Upstash failure
+    }
+  }
+
   const result = checkRateLimit(key, opts.max, opts.windowMs);
 
   res.setHeader('X-RateLimit-Limit', String(opts.max));

@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
     return res.status(401).json({ error: 'Unauthorized' });
 
-  if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin-stripe' })) return;
+  if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin-stripe' }))) return;
 
   try {
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com').replace(/\/$/, '');

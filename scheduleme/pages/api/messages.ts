@@ -47,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // GET — fetch messages or threads
   if (req.method === 'GET') {
     // Rate limit: 600 reads/min per IP
-    if (!rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-get' })) return;
+    if (!(await rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-get' }))) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;
@@ -427,7 +427,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // POST — send a message
   if (req.method === 'POST') {
     // Rate limit: 600 messages/min per IP (prevents flooding)
-    if (!rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-post' })) return;
+    if (!(await rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-post' }))) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;
@@ -506,7 +506,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // PATCH — mark messages as read
   if (req.method === 'PATCH') {
-    if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'msg-patch' })) return;
+    if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'msg-patch' }))) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;

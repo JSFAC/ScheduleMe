@@ -12,7 +12,7 @@ export const config = { api: { bodyParser: { sizeLimit: '55mb' } } };
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!rateLimit(req, res, { max: 20, windowMs: 60 * 60_000, keyPrefix: 'upload-media' })) return;
+  if (!(await rateLimit(req, res, { max: 20, windowMs: 60 * 60_000, keyPrefix: 'upload-media' }))) return;
   const user = await requireAuth(req, res);
   if (!user) return;
 

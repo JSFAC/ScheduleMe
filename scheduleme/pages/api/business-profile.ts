@@ -15,7 +15,7 @@ function getSupabase() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!rateLimit(req, res, { max: 120, windowMs: 60_000, keyPrefix: 'biz-profile' })) return;
+  if (!(await rateLimit(req, res, { max: 120, windowMs: 60_000, keyPrefix: 'biz-profile' }))) return;
 
   const { business_id } = req.query;
   if (!business_id) return res.status(400).json({ error: 'business_id required' });

@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     setSecurityHeaders(res);
     res.setHeader('Cache-Control', 'no-store');
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-    if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'campus' })) return;
+    if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'campus' }))) return;
 
     const { limit, school_domain, campus_school_name, campus_key } = req.query;
     const limitNum = Math.min(Number(limit ?? 40), 200);

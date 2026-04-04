@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Very tight rate limit — account deletion is irreversible
-  if (!rateLimit(req, res, { max: 3, windowMs: 60 * 60_000, keyPrefix: 'delete-account' })) return;
+  if (!(await rateLimit(req, res, { max: 3, windowMs: 60 * 60_000, keyPrefix: 'delete-account' }))) return;
 
   const authHeader = req.headers.authorization;
   const token = authHeader?.replace('Bearer ', '').trim();

@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Rate limit tightly — 3 per IP per hour (one per signup)
-  if (!rateLimit(req, res, { max: 3, windowMs: 60 * 60_000, keyPrefix: 'send-welcome' })) return;
+  if (!(await rateLimit(req, res, { max: 3, windowMs: 60 * 60_000, keyPrefix: 'send-welcome' }))) return;
 
   const user = await requireAuth(req, res);
   if (!user) return;

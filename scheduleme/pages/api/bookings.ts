@@ -169,7 +169,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   if (req.method === 'POST') {
-    if (!rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' })) return;
+    if (!(await rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
 
     const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
     let email = user_email;
@@ -330,7 +330,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PATCH') {
     // Business confirms/cancels/completes a booking
-    if (!rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-patch' })) return;
+    if (!(await rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-patch' }))) return;
     const user = await requireAuth(req, res);
     if (!user) return;
 
@@ -593,7 +593,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    if (!rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-get' })) return;
+    if (!(await rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-get' }))) return;
 
     const { business_id, user_id } = req.query;
 

@@ -6,7 +6,7 @@ import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'feedback' })) return;
+  if (!(await rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'feedback' }))) return;
 
   const { topic, message, email } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message required' });

@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const secret = req.headers['x-notify-secret'];
   if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
     return res.status(401).json({ error: 'Unauthorized' });
-  if (!rateLimit(req, res, { max: 100, windowMs: 60_000, keyPrefix: 'notify' })) return;
+  if (!(await rateLimit(req, res, { max: 100, windowMs: 60_000, keyPrefix: 'notify' }))) return;
   const { type, to, name, ...rest } = req.body;
   if (!type || !to) return res.status(400).json({ error: 'type and to are required' });
   if (!isValidEmail(to)) return res.status(400).json({ error: 'Invalid email address' });

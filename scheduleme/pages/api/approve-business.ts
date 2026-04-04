@@ -23,7 +23,7 @@ function normalizeCampusKey(name?: string | null): string | null {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!rateLimit(req, res, { max: 20, windowMs: 60_000, keyPrefix: 'approve' })) return;
+  if (!(await rateLimit(req, res, { max: 20, windowMs: 60_000, keyPrefix: 'approve' }))) return;
 
   // Protect with your existing secret
   const secret = req.headers['x-notify-secret'];

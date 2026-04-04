@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'stripe-connect' })) return;
+  if (!(await rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'stripe-connect' }))) return;
 
   const user = await requireAuth(req, res);
   if (!user) return;

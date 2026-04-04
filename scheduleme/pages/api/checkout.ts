@@ -18,7 +18,7 @@ function getSupabase() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).end();
-  if (!rateLimit(req, res, { max: 10, windowMs: 60_000, keyPrefix: 'checkout' })) return;
+  if (!(await rateLimit(req, res, { max: 10, windowMs: 60_000, keyPrefix: 'checkout' }))) return;
 
   const user = await requireAuth(req, res);
   if (!user) return;

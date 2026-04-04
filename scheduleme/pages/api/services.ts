@@ -10,7 +10,7 @@ function getSupabase() {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  if (!rateLimit(req, res, { max: 60, windowMs: 60000 })) return;
+  if (!(await rateLimit(req, res, { max: 60, windowMs: 60000 }))) return;
   const NAME_MAX = 60;
   const DESC_MAX = 300;
 

@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
     return res.status(401).json({ error: 'Unauthorized' });
 
-  if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin' })) return;
+  if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin' }))) return;
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

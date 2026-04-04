@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
     return res.status(401).json({ error: 'Unauthorized' });
 
-  if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'admin-review' })) return;
+  if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'admin-review' }))) return;
 
   const { id, action, notes } = req.body || {};
   if (!id || !['approve', 'reject'].includes(action))

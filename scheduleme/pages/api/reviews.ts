@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // POST — submit a review
   if (req.method === 'POST') {
-    if (!rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'review-post' })) return;
+    if (!(await rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'review-post' }))) return;
     const user = await requireAuth(req, res);
     if (!user) return;
 
@@ -107,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // GET — fetch reviews for a business
   if (req.method === 'GET') {
-    if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'review-get' })) return;
+    if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'review-get' }))) return;
 
     const { business_id } = req.query;
     if (!business_id || !isValidUuid(business_id as string))

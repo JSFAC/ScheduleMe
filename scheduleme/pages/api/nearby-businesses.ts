@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     setSecurityHeaders(res);
     res.setHeader('Cache-Control', 'no-store');
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-    if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'nearby' })) return;
+    if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'nearby' }))) return;
 
     const { lat, lng, radius, limit, category, edu_only, campus_only, school_domain } = req.query;
     const latNum = Number(lat);

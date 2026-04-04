@@ -14,7 +14,7 @@ function getSupabase() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'edu-status' })) return;
+  if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'edu-status' }))) return;
 
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';

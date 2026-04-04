@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' });
 
   // Rate limit tightly — this touches auth.users
-  if (!rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'cleanup' })) return;
+  if (!(await rateLimit(req, res, { max: 5, windowMs: 60 * 60_000, keyPrefix: 'cleanup' }))) return;
 
   const { userId, email } = req.body;
   if (!userId || !email) return res.status(400).json({ error: 'userId and email required' });

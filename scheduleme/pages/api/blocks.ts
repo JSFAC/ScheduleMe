@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
 
   if (req.method === 'GET') {
-    if (!rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'blocks-get' })) return;
+    if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'blocks-get' }))) return;
     const user = await requireAuth(req, res);
     if (!user) return;
 
@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    if (!rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'blocks-post' })) return;
+    if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'blocks-post' }))) return;
     const user = await requireAuth(req, res);
     if (!user) return;
 

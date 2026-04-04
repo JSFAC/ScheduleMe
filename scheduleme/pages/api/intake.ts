@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed.' });
   }
   // Rate limit: 5 intake requests per minute per IP
-  if (!rateLimit(req, res, { max: 5, windowMs: 60_000, keyPrefix: 'intake' })) return;
+  if (!(await rateLimit(req, res, { max: 5, windowMs: 60_000, keyPrefix: 'intake' }))) return;
 
   const validation = validateBody(req.body);
   if (!validation.valid) return res.status(400).json({ error: 'Invalid request body.', details: validation.errors });
