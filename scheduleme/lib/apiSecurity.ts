@@ -200,3 +200,40 @@ export function getUnknownFields(
   if (!body || typeof body !== 'object') return [];
   return Object.keys(body as object).filter((key) => !allowed.includes(key));
 }
+
+// ─── Audit Logging ───────────────────────────────────────────────────────────
+// Writes a lightweight audit log for sensitive mutations (best-effort).
+export async function logAuditEvent(
+  req: NextApiRequest,
+  action: string,
+  details: {
+    entity_type?: string;
+    entity_id?: string | null;
+    actor_id?: string | null;
+    actor_email?: string | null;
+    actor_role?: string | null;
+    meta?: Record<string, any>;
+  } = {}
+) {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) return;
+    const sb = createClient(url, serviceKey, { auth: { persistSession: false } });
+    const ip = getClientIp(req);
+    const ua = (req.headers['user-agent'] as string) || '';
+    await sb.from('audit_logs').insert({
+      action,
+      entity_type: details.entity_type || null,
+      entity_id: details.entity_id || null,
+      actor_id: details.actor_id || null,
+      actor_email: details.actor_email || null,
+      actor_role: details.actor_role || null,
+      ip,
+      user_agent: ua.slice(0, 512),
+      meta: details.meta || null,
+    });
+  } catch {
+    // Never block the request on audit logging failures.
+  }
+}

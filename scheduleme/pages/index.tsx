@@ -37,6 +37,9 @@ const ICONS: Record<string, JSX.Element> = {
   zap: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>,
   calendar: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>,
   shield: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>,
+  clock: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" /></svg>,
+  graduation: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 10v4a7 7 0 0014 0v-4" /></svg>,
+  dollar: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m0 0a4 4 0 004-4H8a4 4 0 004 4zm0-12a4 4 0 00-4 4h8a4 4 0 00-4-4z" /></svg>,
 };
 
 const STATS = [
@@ -58,8 +61,8 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
   return (
     <>
       <Head>
-        <title>ScheduleMe — AI-Powered Local Service Booking</title>
-        <meta name="description" content="Describe your issue, get instantly triaged, and book a vetted local pro — in seconds." />
+        <title>ScheduleMe — Student-First Local Service Booking</title>
+        <meta name="description" content="Describe what you need, get matched with campus pros, and book in seconds." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -132,9 +135,9 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
             </div>
             <ul className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
               {[
-                { quote: "Described a leaking pipe, got three plumbers within 2 minutes. Booked in 45 seconds. Incredible.", name: "Maria L.", location: "Austin, TX", service: "Plumbing" },
-                { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "James T.", location: "Phoenix, AZ", service: "HVAC" },
-                { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Sandra K.", location: "Denver, CO", service: "Home Repair" },
+                { quote: "Found a student photographer for grad pics in ten minutes. Super easy and the portfolio helped me choose.", name: "Maya R.", location: "UCSC", service: "Photography" },
+                { quote: "Booked a haircut between classes. The pro was on campus and I got a confirmation right away.", name: "Eli T.", location: "UCSC", service: "Salon / Beauty" },
+                { quote: "Needed a tutor before midterms. I posted once and got matched with two options the same day.", name: "Jada K.", location: "UCSC", service: "Tutoring" },
               ].map((t) => (
                 <li key={t.name} className="js-testimonial p-7 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
                   <div className="flex gap-0.5 mb-4" aria-label="5 stars">

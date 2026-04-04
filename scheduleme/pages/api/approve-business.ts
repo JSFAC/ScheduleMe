@@ -4,7 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { sendBusinessApprovalEmail } from '../../lib/email';
-import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, logAuditEvent } from '../../lib/apiSecurity';
 
 function getSupabase() {
   return createClient(
@@ -84,6 +84,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
     await supabase.from('businesses').update(updatePayload).eq('id', businessId);
+    await logAuditEvent(req, 'admin_approve_business', {
+      entity_type: 'business',
+      entity_id: businessId,
+      actor_role: 'admin',
+      meta: { campus_key: updatePayload.campus_key || null, founder50: updatePayload.founder50 || false },
+    });
 
     // Set role=business in profiles so dashboard auth gate works
     await supabase

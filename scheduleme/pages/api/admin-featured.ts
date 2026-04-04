@@ -2,7 +2,7 @@
 // pages/api/admin-featured.ts — admin manage campus featured
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, logAuditEvent } from '../../lib/apiSecurity';
 
 function getSupabase() {
   return createClient(
@@ -55,6 +55,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
     const { data, error } = await supabase.from('campus_featured').insert(payload).select('id').single();
     if (error) return res.status(500).json({ error: error.message || 'Failed to add featured' });
+    await logAuditEvent(req, 'admin_featured_add', {
+      entity_type: 'campus_featured',
+      entity_id: data?.id || null,
+      actor_role: 'admin',
+      meta: { business_id, campus_key: campusKey, slot: payload.slot, ends_at: payload.ends_at },
+    });
     return res.status(200).json({ success: true, id: data?.id });
   }
 
@@ -63,6 +69,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!id) return res.status(400).json({ error: 'id required' });
     const { error } = await supabase.from('campus_featured').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message || 'Failed to remove featured' });
+    await logAuditEvent(req, 'admin_featured_remove', {
+      entity_type: 'campus_featured',
+      entity_id: id,
+      actor_role: 'admin',
+    });
     return res.status(200).json({ success: true });
   }
 

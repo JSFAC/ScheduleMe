@@ -4,15 +4,15 @@ import { useState } from 'react';
 const FAQS = [
   {
     q: 'Is ScheduleMe free to use?',
-    a: 'Yes — completely free for customers. You describe your issue, get AI-matched with local pros, and book. No account required.',
+    a: 'Yes — completely free for customers. Describe what you need, see matching campus pros, and book. No phone calls required.',
   },
   {
-    q: 'How does the AI matching work?',
-    a: 'Our AI reads your description, identifies the service type and urgency, then searches for verified local businesses that match. The whole process takes a few seconds.',
+    q: 'How does matching work?',
+    a: 'We match your request to providers based on keywords, category, and availability. You can filter by service type or browse directly.',
   },
   {
     q: 'Are the service providers verified?',
-    a: 'Every business goes through a license and background check before going live on the platform. You\'ll only ever see pros who\'ve been approved by our team.',
+    a: 'Every provider goes through a review process and has a profile with photos, tags, and reviews. You can see the details before booking.',
   },
   {
     q: 'What types of services are available?',
@@ -20,7 +20,7 @@ const FAQS = [
   },
   {
     q: 'What if I have an emergency?',
-    a: 'Our AI flags emergency requests and prioritizes businesses with same-day or emergency availability. You\'ll see urgent matches at the top of your results.',
+    a: 'Use keywords like “urgent” or “today” in your request and you’ll see fast-response providers first.',
   },
   {
     q: 'Can I book directly through the app?',

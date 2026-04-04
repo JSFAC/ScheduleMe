@@ -1,7 +1,7 @@
 // pages/api/review-change-request.ts — SECURED (admin only)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, getUnknownFields } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, getUnknownFields, logAuditEvent } from '../../lib/apiSecurity';
 import { sendChangeRequestDecisionEmail } from '../../lib/email';
 
 const ALLOWED_FIELDS = new Set(['name', 'address', 'description', 'cover_url', 'media_urls', 'video_url', 'service_tags', 'phone', 'website', 'hours', 'calendly_url']);
@@ -50,6 +50,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .update({ status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: 'admin', review_notes: notes || null })
       .eq('id', id);
 
+    await logAuditEvent(req, 'admin_change_request_approved', {
+      entity_type: 'business_change_request',
+      entity_id: id,
+      actor_role: 'admin',
+      meta: { business_id: reqRow.business_id },
+    });
+
     try {
       await sendChangeRequestDecisionEmail({
         to: reqRow.businesses?.owner_email,
@@ -66,6 +73,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await supabase.from('business_change_requests')
     .update({ status: 'rejected', reviewed_at: new Date().toISOString(), reviewed_by: 'admin', review_notes: notes || null })
     .eq('id', id);
+
+  await logAuditEvent(req, 'admin_change_request_rejected', {
+    entity_type: 'business_change_request',
+    entity_id: id,
+    actor_role: 'admin',
+    meta: { business_id: reqRow.business_id },
+  });
 
   try {
     await sendChangeRequestDecisionEmail({

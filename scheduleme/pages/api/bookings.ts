@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail, getUnknownFields } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail, getUnknownFields, logAuditEvent } from '../../lib/apiSecurity';
 import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
 const LIMITS = {
   service: 120,
@@ -516,6 +516,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: msg || 'Failed to update booking' });
       }
     }
+
+    await logAuditEvent(req, 'booking_status_update', {
+      entity_type: 'booking',
+      entity_id: booking_id,
+      actor_id: user.id,
+      actor_email: user.email,
+      actor_role: isBusinessOwner ? 'business' : 'consumer',
+      meta: { status },
+    });
 
     // Notify business of dispute so they can respond immediately
     if (status === 'price_disputed' && biz?.owner_email) {

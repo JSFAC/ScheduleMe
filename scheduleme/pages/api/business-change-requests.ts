@@ -1,7 +1,7 @@
 // pages/api/business-change-requests.ts — submit business listing change requests
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth, getUnknownFields } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, getUnknownFields, logAuditEvent } from '../../lib/apiSecurity';
 import { containsProfanity, containsThreat } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 import { sendChangeRequestAdminEmail, sendChangeRequestReceiptEmail } from '../../lib/email';
@@ -147,6 +147,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch {}
   }
+
+  await logAuditEvent(req, 'business_change_request', {
+    entity_type: 'business_change_request',
+    entity_id: reqRow?.id || null,
+    actor_id: user.id,
+    actor_email: user.email,
+    actor_role: 'business',
+    meta: { business_id, status, flagged },
+  });
 
   return res.status(200).json({
     id: reqRow?.id,

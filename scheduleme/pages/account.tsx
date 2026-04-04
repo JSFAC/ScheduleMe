@@ -1019,6 +1019,26 @@ const Account: NextPage = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                  <span className="sm-eyebrow mb-2 block">Legal</span>
+                  <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Data Practices</h2>
+                  <p className="text-sm mb-4" style={{ color: textMuted }}>
+                    Learn what data we collect, why we collect it, and how long we keep it.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <Link href="/privacy" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+                      style={{ borderColor: cardBorder, color: textPrimary, background: 'transparent' }}>
+                      Privacy Policy
+                      <span style={{ color: textMuted }}>→</span>
+                    </Link>
+                    <Link href="/terms" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+                      style={{ borderColor: cardBorder, color: textPrimary, background: 'transparent' }}>
+                      Terms of Service
+                      <span style={{ color: textMuted }}>→</span>
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </>

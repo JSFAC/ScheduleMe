@@ -313,7 +313,7 @@ const BusinessPricing: NextPage = () => {
             <span className="text-base font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
             <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Business</span>
           </div>
-          <p className="text-xs text-neutral-600">© 2026 ScheduleMe, Inc.</p>
+          <p className="text-xs text-neutral-600">© 2026 ScheduleMe</p>
           <Link href="/" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Back to consumer site →</Link>
         </div>
       </footer>

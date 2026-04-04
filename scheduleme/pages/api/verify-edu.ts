@@ -3,7 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidEmail } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidEmail, logAuditEvent } from '../../lib/apiSecurity';
 
 function getSupabase() {
   return createClient(
@@ -41,6 +41,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (new Date(biz.edu_code_expires_at) < new Date()) return res.status(400).json({ error: 'Code expired. Request a new one.' });
       if (biz.edu_code !== code.trim()) return res.status(400).json({ error: 'Incorrect code. Try again.' });
       await supabase.from('businesses').update({ edu_verified: true, edu_code: null, edu_code_expires_at: null }).eq('id', biz.id);
+      await logAuditEvent(req, 'edu_verify_business', {
+        entity_type: 'business',
+        entity_id: biz.id,
+        actor_id: user.id,
+        actor_email: user.email,
+        actor_role: 'business',
+        meta: { school_domain: biz.school_domain },
+      });
       return res.status(200).json({ success: true, school_domain: biz.school_domain });
     } else {
       const { data: profile } = await supabase
@@ -53,6 +61,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (profile.edu_code !== code.trim()) return res.status(400).json({ error: 'Incorrect code. Try again.' });
       const domain = extractDomain(profile.school_email);
       await supabase.from('profiles').update({ edu_verified: true, school_name: domain, edu_code: null, edu_code_expires_at: null }).eq('id', user.id);
+      await logAuditEvent(req, 'edu_verify_consumer', {
+        entity_type: 'profile',
+        entity_id: user.id,
+        actor_id: user.id,
+        actor_email: user.email,
+        actor_role: 'consumer',
+        meta: { school_domain: domain },
+      });
       return res.status(200).json({ success: true, school_domain: domain });
     }
   }
@@ -85,12 +101,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       school_email: school_email.toLowerCase(),
       campus_provider: true,
     }).eq('id', biz.id);
+    await logAuditEvent(req, 'edu_send_code_business', {
+      entity_type: 'business',
+      entity_id: biz.id,
+      actor_id: user.id,
+      actor_email: user.email,
+      actor_role: 'business',
+      meta: { school_email: school_email.toLowerCase() },
+    });
     await sendVerificationEmail(school_email, verifyCode, getResend());
     return res.status(200).json({ success: true, message: `Code sent to ${school_email}` });
   } else {
     const verifyCode = generate6DigitCode();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabase.from('profiles').update({ school_email: school_email.toLowerCase(), edu_code: verifyCode, edu_code_expires_at: expiresAt }).eq('id', user.id);
+    await logAuditEvent(req, 'edu_send_code_consumer', {
+      entity_type: 'profile',
+      entity_id: user.id,
+      actor_id: user.id,
+      actor_email: user.email,
+      actor_role: 'consumer',
+      meta: { school_email: school_email.toLowerCase() },
+    });
     await sendVerificationEmail(school_email, verifyCode, getResend());
     return res.status(200).json({ success: true, message: `Code sent to ${school_email}` });
   }

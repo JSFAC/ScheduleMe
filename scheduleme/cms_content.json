@@ -23,7 +23,7 @@
   "hero": {
     "eyebrow": "Local services, done right",
     "headline": "Book trusted students,\nin seconds.",
-    "subheadline": "From stylists to photographers to home repair \u2014 ScheduleMe connects you with vetted local professionals and student service providers on campus. Browse, book, and pay in one place.",
+    "subheadline": "From stylists to photographers to home repair — ScheduleMe connects you with vetted local professionals and student service providers on campus. Browse, book, and pay in one place.",
     "cta_primary": {
       "label": "Get Started for Free",
       "href": "/signin?mode=signup"
@@ -32,28 +32,28 @@
       "label": "See how it works",
       "href": "#how-it-works"
     },
-    "trust_line": "Free to use \u00b7 No commitment \u00b7 Cancel anytime"
+    "trust_line": "Free to use · No commitment · Cancel anytime"
   },
   "features": [
     {
       "icon": "clock",
-      "title": "No more phone tag",
-      "description": "Describe what you need and get matched instantly. No calls, no waiting, no \"I'll get back to you.\""
+      "title": "Fast requests, zero chasing",
+      "description": "Send one request and see who’s available. No cold calls, no waitlist, no “I’ll call you back.”"
     },
     {
       "icon": "shield",
       "title": "Actually vetted pros",
-      "description": "Every professional is reviewed by real customers. No random Craigslist strangers \u2014 just verified locals with track records."
+      "description": "Campus‑friendly pros with real reviews and visible work. You’ll see the person’s profile before you book."
     },
     {
       "icon": "graduation",
       "title": "Built for campus life",
-      "description": "Verified campus marketplace for students. Find photographers, barbers, tutors, and more \u2014 from people at your own school."
+      "description": "Find classmates and nearby students offering services — photo, beauty, tutoring, design, and more."
     },
     {
       "icon": "dollar",
       "title": "No hidden fees",
-      "description": "Free to use as a customer. We only charge businesses 12% when a job is completed \u2014 so pros are motivated to show up."
+      "description": "Free for students. Providers only pay when a job is completed, so they’re motivated to show up."
     }
   ],
   "demo_steps": [
@@ -64,8 +64,8 @@
     },
     {
       "step": 2,
-      "title": "AI matches you in seconds",
-      "description": "We figure out what you need, how urgent it is, and which local pros are actually available \u2014 no guessing on your end."
+      "title": "We match by keywords",
+      "description": "Your request is matched to campus pros and nearby providers that fit what you asked for."
     },
     {
       "step": 3,
@@ -74,7 +74,7 @@
     }
   ],
   "footer": {
-    "tagline": "Making local service booking effortless.",
+    "tagline": "Student‑first booking for campus services.",
     "links": [
       {
         "label": "Privacy",
@@ -86,9 +86,9 @@
       },
       {
         "label": "Contact",
-        "href": "mailto:hello@scheduleme.com"
+        "href": "mailto:usescheduleme@gmail.com"
       }
     ],
-    "copyright": "\u00a9 2025 ScheduleMe, Inc."
+    "copyright": "© 2026 ScheduleMe"
   }
 }

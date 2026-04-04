@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
-import { setSecurityHeaders, rateLimit, isValidUuid } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, isValidUuid, logAuditEvent } from '../../lib/apiSecurity';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
@@ -44,6 +44,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+  await logAuditEvent(req, 'admin_refund_booking', {
+    entity_type: 'booking',
+    entity_id: bookingId,
+    actor_role: 'admin',
+  });
   return res.status(200).json({ ok: true, message: 'Refund issued and booking cancelled' });
 }
-

@@ -4,9 +4,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Nav from '../components/Nav';
 
-const LAST_UPDATED = 'March 1, 2026';
-const COMPANY = 'ScheduleMe, Inc.';
-const EMAIL = 'privacy@usescheduleme.com';
+const LAST_UPDATED = 'April 4, 2026';
+const COMPANY = 'ScheduleMe';
+const EMAIL = 'usescheduleme@gmail.com';
 
 const sections = [
   {
@@ -14,15 +14,19 @@ const sections = [
     content: [
       {
         subtitle: 'Information you provide',
-        body: 'When you use ScheduleMe as a consumer, we collect the name, phone number, and location you submit in the service request form. When you sign up as a business, we collect your business name, owner name, email address, phone number, service category, and city. You may also optionally provide a license number, years in business, and a Calendly scheduling URL.',
+        body: 'We collect the information you choose to provide, such as name, email, phone number, school email, zip code, service requests, booking notes, messages, and profile content (photos, videos, descriptions). Businesses may also provide business details (service categories, hours, pricing, coverage area) and payout information via Stripe.',
       },
       {
         subtitle: 'Information collected automatically',
-        body: 'When you visit our website, we automatically collect certain technical information including your IP address, browser type, pages visited, and referring URLs. This information is used solely for analytics and security purposes. We do not sell or share this data with third-party advertisers.',
+        body: 'We collect basic technical data such as IP address, device type, browser, pages viewed, and approximate location from IP to keep the service secure and improve performance. We do not sell or rent personal data.',
       },
       {
         subtitle: 'Location data',
-        body: 'If you grant browser permission, we may collect your device\'s precise geolocation to improve local matching accuracy. You may decline this permission at any time — the service will still function using the city or zip code you provide manually.',
+        body: 'If you grant permission, we may collect your device’s precise geolocation to improve nearby matching. You can decline this permission and still use the service by entering a city or zip code.',
+      },
+      {
+        subtitle: 'Payments',
+        body: 'Payments are processed by Stripe. We do not store full card numbers on our servers. Stripe may store payment method details and transaction data as required to process payments and comply with law.',
       },
     ],
   },
@@ -31,11 +35,11 @@ const sections = [
     content: [
       {
         subtitle: 'To provide the service',
-        body: 'Consumer information (name, phone, location, service description) is used to perform AI triage and match you with relevant local service businesses. Your contact information may be shared with matched businesses so they can respond to your request.',
+        body: 'We use your information to match requests to providers, process bookings, enable messaging, and help businesses complete services. Contact information is shared with the provider you choose so they can fulfill your request.',
       },
       {
         subtitle: 'To operate the business platform',
-        body: 'Business information is used to create and manage your profile on our platform, verify your credentials, and deliver matched leads to your dashboard.',
+        body: 'Business information is used to create and manage profiles, verify campus status, and deliver matched requests.',
       },
       {
         subtitle: 'To communicate with you',
@@ -43,7 +47,7 @@ const sections = [
       },
       {
         subtitle: 'To improve our service',
-        body: 'Aggregate, anonymized usage data helps us improve AI matching quality, platform performance, and user experience. This data cannot be used to identify any individual.',
+        body: 'Aggregate usage data helps us improve matching quality, platform performance, and user experience. This data cannot be used to identify you.',
       },
     ],
   },
@@ -52,11 +56,11 @@ const sections = [
     content: [
       {
         subtitle: 'With matched businesses',
-        body: 'When you submit a service request, your name, phone number, location, and service description are shared with the businesses we match you with. By submitting a request, you consent to this sharing.',
+        body: 'When you request a service or book a provider, your name, contact details, location, and request details are shared with that provider.',
       },
       {
         subtitle: 'With service providers',
-        body: 'We use trusted third-party services to operate our platform, including Supabase (database and authentication), Vercel (hosting), Anthropic (AI processing), and Stripe (payments). These providers process data only as necessary to deliver services to us and are contractually bound to protect your information.',
+        body: 'We use trusted third‑party services to operate the platform, including Supabase (database/auth), Vercel (hosting), Resend (email), and Stripe (payments). These providers process data only as needed to deliver the service.',
       },
       {
         subtitle: 'Legal requirements',
@@ -73,7 +77,7 @@ const sections = [
     content: [
       {
         subtitle: '',
-        body: 'We retain consumer request data for up to 12 months to allow businesses to follow up on leads. Business account data is retained for the duration of your account and for 90 days after account closure. You may request deletion of your data at any time by contacting us at ' + EMAIL + '.',
+        body: 'We retain account and booking data while your account is active. If you delete your account, we retain essential records for compliance and fraud prevention for up to 90 days, unless a longer retention period is required by law. You can request deletion or export at any time by contacting us at ' + EMAIL + '.',
       },
     ],
   },
@@ -91,12 +95,21 @@ const sections = [
     content: [
       {
         subtitle: '',
-        body: 'Depending on your jurisdiction, you may have the right to access, correct, or delete your personal information; object to or restrict certain processing; request data portability; and withdraw consent at any time. To exercise any of these rights, contact us at ' + EMAIL + '. We will respond within 30 days.',
+        body: 'Depending on your jurisdiction (including California and the EEA), you may have the right to access, correct, delete, or export your information and to opt out of certain processing. To exercise these rights, contact us at ' + EMAIL + '. We will respond within 30 days.',
       },
     ],
   },
   {
-    title: '7. Cookies',
+    title: '7. Data We Collect (Summary)',
+    content: [
+      {
+        subtitle: '',
+        body: 'Identifiers (name, email, phone), account details (school email, campus status), request details (service name, notes, attachments), communications (messages), location (precise if enabled, otherwise zip/city), payment metadata (via Stripe), device and usage data (IP, browser, pages viewed), and support communications.',
+      },
+    ],
+  },
+  {
+    title: '8. Cookies',
     content: [
       {
         subtitle: '',
@@ -105,7 +118,7 @@ const sections = [
     ],
   },
   {
-    title: '8. Children\'s Privacy',
+    title: '9. Children\'s Privacy',
     content: [
       {
         subtitle: '',
@@ -114,7 +127,7 @@ const sections = [
     ],
   },
   {
-    title: '9. Changes to This Policy',
+    title: '10. Changes to This Policy',
     content: [
       {
         subtitle: '',
@@ -123,7 +136,7 @@ const sections = [
     ],
   },
   {
-    title: '10. Contact Us',
+    title: '11. Contact Us',
     content: [
       {
         subtitle: '',

@@ -32,19 +32,19 @@ const IconStar = () => <svg width="20" height="20" fill="none" viewBox="0 0 24 2
 const IconLock = () => <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>;
 
 const WHY_ITEMS = [
-  { icon: <IconTarget />, title: 'Pre-qualified leads only', desc: 'Every request has been triaged by AI. You only see leads that match your exact service category and location.' },
+  { icon: <IconTarget />, title: 'Student‑matched leads', desc: 'Requests are matched by service type and campus area so you only see relevant inquiries.' },
   { icon: <IconBell />, title: 'Real-time notifications', desc: 'Get SMS and email alerts the moment a matching lead comes in. First to respond wins the booking.' },
   { icon: <IconChart />, title: 'Business dashboard', desc: 'Track leads, manage your profile, see your reviews, and monitor your conversion rate — all in one place.' },
-  { icon: <IconCard />, title: 'Pay only for leads', desc: 'No monthly subscription to start. Pay a flat fee per lead received. Upgrade to Pro for unlimited access.' },
-  { icon: <IconStar />, title: 'Build your reputation', desc: 'Verified reviews from real customers on every booking. Strong ratings mean more prominent placement.' },
-  { icon: <IconLock />, title: 'Own your territory', desc: 'Category and location exclusivity on Pro. Once you claim your area, no competitors can bid on the same leads.' },
+  { icon: <IconCard />, title: 'Pay only when you earn', desc: 'No monthly subscription to start. You’re charged when a job is completed.' },
+  { icon: <IconStar />, title: 'Build your reputation', desc: 'Reviews from real customers on every booking. Strong ratings mean more prominent placement.' },
+  { icon: <IconLock />, title: 'Founder50 spotlight', desc: 'Complete early bookings to unlock campus “Featured” placement and build momentum fast.' },
 ];
 
 const HOW_STEPS = [
-  { step: 1, title: 'Create your profile', desc: 'Tell us about your business — service type, coverage area, availability, and license info. Takes about 5 minutes.' },
-  { step: 2, title: 'Get verified', desc: 'We run a quick license and background check. Most businesses are approved within 24 hours.' },
-  { step: 3, title: 'Receive matched leads', desc: 'When a customer requests your service in your area, you get an instant alert with their details and AI triage summary.' },
-  { step: 4, title: 'Win the booking', desc: 'Call the customer directly. No middleman, no commission. The booking — and the relationship — is yours.' },
+  { step: 1, title: 'Create your profile', desc: 'Add your services, pricing, coverage area, and photos. Takes about 5 minutes.' },
+  { step: 2, title: 'Get verified', desc: 'We review your profile so students can trust the listing before you go live.' },
+  { step: 3, title: 'Receive matched leads', desc: 'When a student requests your service nearby, you get an instant alert with their details.' },
+  { step: 4, title: 'Confirm and complete', desc: 'Confirm the booking, message the customer, and get paid after completion.' },
 ];
 
 const TESTIMONIALS = [
@@ -54,12 +54,12 @@ const TESTIMONIALS = [
 ];
 
 const FAQ = [
-  { q: 'How much does it cost?', a: 'You start free — no setup fees. On the Starter plan, you pay $8 per lead received. Pro plan ($79/mo) gives you unlimited leads, priority placement, and territory exclusivity.' },
-  { q: 'What service categories do you support?', a: 'Plumbing, HVAC, electrical, automotive, home repair, cleaning, salon/beauty, landscaping, pest control, and more. We add new categories every quarter.' },
-  { q: 'How are leads matched to my business?', a: 'Our AI triages each customer request and scores it against your service category, location radius, and availability. You only see leads that are genuinely relevant.' },
+  { q: 'How much does it cost?', a: 'You start free — no setup fees. You’re only charged when a job is completed.' },
+  { q: 'What service categories do you support?', a: 'Photography, tutoring, design, salon/beauty, cleaning, repairs, and more. We add new campus categories regularly.' },
+  { q: 'How are leads matched to my business?', a: 'Requests are matched by service category, campus area, and availability so you only see relevant inquiries.' },
   { q: 'Can I set my own service area?', a: 'Yes. During onboarding you set your coverage radius. You can adjust this anytime from your dashboard.' },
-  { q: 'What if a lead is bad quality?', a: 'If a lead does not match your profile or the contact info is invalid, report it within 48 hours for a full credit — no questions asked.' },
-  { q: 'How quickly will I be approved?', a: 'Most businesses are reviewed and approved within 24 hours. We verify your license number and run a background check on the primary contact.' },
+  { q: 'What if a lead is bad quality?', a: 'If a request does not match your profile or looks incorrect, report it and we’ll review it quickly.' },
+  { q: 'How quickly will I be approved?', a: 'Most businesses are reviewed and approved within 24 hours.' },
 ];
 
 const StarRating = () => (
@@ -83,7 +83,7 @@ const Business: NextPage = () => {
     <>
       <Head>
         <title>ScheduleMe for Business — Get More Customers, Zero Ad Spend</title>
-        <meta name="description" content="Join 2,400+ local service businesses on ScheduleMe. Get pre-qualified, AI-triaged leads matched to your exact service and location." />
+        <meta name="description" content="Join ScheduleMe to get campus‑matched leads and manage bookings in one dashboard." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -110,7 +110,7 @@ const Business: NextPage = () => {
               More customers.<br />Zero ad spend.
             </h1>
             <p className="text-xl text-neutral-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-              ScheduleMe delivers pre-qualified, AI-triaged leads that match your exact service and location. You pay only for leads you receive — no setup fees, no lock-in.
+              ScheduleMe delivers campus‑matched leads that fit your service and availability. You pay only when jobs are completed — no setup fees, no lock‑in.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link href="/business/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
@@ -284,7 +284,7 @@ const Business: NextPage = () => {
             <span className="text-base font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
             <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Business</span>
           </div>
-          <p className="text-xs text-neutral-600">© 2025 ScheduleMe, Inc.</p>
+          <p className="text-xs text-neutral-600">© 2026 ScheduleMe</p>
           <Link href="/" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Back to consumer site →</Link>
         </div>
       </footer>

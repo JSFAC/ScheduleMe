@@ -68,35 +68,79 @@ for delete
 to authenticated
 using (auth.uid()::text = user_id::text);
 
--- Messages: participants read, sender write
+-- Messages: participants read/write (via booking + business owner email)
 
 drop policy if exists "Messages read by participants" on public.messages;
 create policy "Messages read by participants"
 on public.messages
 for select
 to authenticated
-using (auth.uid()::text = sender_id::text or auth.uid()::text = receiver_id::text);
+using (
+  exists (
+    select 1
+    from public.bookings b
+    join public.businesses biz on biz.id = b.business_id
+    where b.id = messages.booking_id
+      and (
+        b.user_id::text = auth.uid()::text
+        or biz.owner_email = (auth.jwt() ->> 'email')
+      )
+  )
+);
 
 drop policy if exists "Messages insert by sender" on public.messages;
 create policy "Messages insert by sender"
 on public.messages
 for insert
 to authenticated
-with check (auth.uid()::text = sender_id::text);
+with check (
+  exists (
+    select 1
+    from public.bookings b
+    join public.businesses biz on biz.id = b.business_id
+    where b.id = messages.booking_id
+      and (
+        b.user_id::text = auth.uid()::text
+        or biz.owner_email = (auth.jwt() ->> 'email')
+      )
+  )
+);
 
 drop policy if exists "Messages update by sender" on public.messages;
 create policy "Messages update by sender"
 on public.messages
 for update
 to authenticated
-using (auth.uid()::text = sender_id::text);
+using (
+  exists (
+    select 1
+    from public.bookings b
+    join public.businesses biz on biz.id = b.business_id
+    where b.id = messages.booking_id
+      and (
+        b.user_id::text = auth.uid()::text
+        or biz.owner_email = (auth.jwt() ->> 'email')
+      )
+  )
+);
 
 drop policy if exists "Messages delete by sender" on public.messages;
 create policy "Messages delete by sender"
 on public.messages
 for delete
 to authenticated
-using (auth.uid()::text = sender_id::text);
+using (
+  exists (
+    select 1
+    from public.bookings b
+    join public.businesses biz on biz.id = b.business_id
+    where b.id = messages.booking_id
+      and (
+        b.user_id::text = auth.uid()::text
+        or biz.owner_email = (auth.jwt() ->> 'email')
+      )
+  )
+);
 
 -- Storage buckets (example policies)
 -- Adjust bucket_id names to match your project

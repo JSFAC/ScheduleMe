@@ -4,9 +4,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Nav from '../components/Nav';
 
-const LAST_UPDATED = 'March 1, 2026';
-const COMPANY = 'ScheduleMe, Inc.';
-const EMAIL = 'legal@usescheduleme.com';
+const LAST_UPDATED = 'April 4, 2026';
+const COMPANY = 'ScheduleMe';
+const EMAIL = 'usescheduleme@gmail.com';
 
 const sections = [
   {
@@ -15,7 +15,7 @@ const sections = [
   },
   {
     title: '2. Description of Service',
-    body: 'ScheduleMe is an AI-powered platform that connects consumers seeking local services with vetted service businesses. Consumers describe their service needs and are matched with relevant local providers. Businesses create profiles and receive matched leads. ScheduleMe is not itself a service provider and does not perform any services directly.',
+    body: 'ScheduleMe connects consumers seeking local services with service providers, including campus and nearby businesses. Consumers submit requests, browse providers, and book services. ScheduleMe is not itself a service provider and does not perform any services directly.',
   },
   {
     title: '3. Consumer Terms',
@@ -27,7 +27,7 @@ const sections = [
   },
   {
     title: '5. Payments and Billing',
-    body: 'Consumer use of ScheduleMe is free. Business accounts are subject to the pricing plan selected at signup. Subscription fees are billed monthly in advance. Per-lead fees (on the Starter plan) are billed at the end of each billing cycle. All fees are non-refundable except as expressly stated in our Bad-Lead Credit Guarantee for Pro and Agency plans. ScheduleMe uses Stripe for payment processing. You authorize us to charge your payment method on file for all fees incurred.',
+    body: 'Consumer use of ScheduleMe is free. Business accounts may be subject to platform fees or pricing as disclosed at signup or in the dashboard. All payments are processed by Stripe. You authorize us to charge your payment method on file for fees incurred.',
   },
   {
     title: '6. Prohibited Conduct',
@@ -35,7 +35,7 @@ const sections = [
   },
   {
     title: '7. Intellectual Property',
-    body: 'All content, trademarks, logos, and software on the ScheduleMe platform are the exclusive property of ScheduleMe, Inc. or its licensors. You may not copy, modify, distribute, sell, or lease any part of our Service without prior written consent. Business users retain ownership of their submitted content (photos, descriptions) but grant ScheduleMe a non-exclusive, royalty-free license to display that content on the platform.',
+    body: 'All content, trademarks, logos, and software on the ScheduleMe platform are the exclusive property of ScheduleMe or its licensors. You may not copy, modify, distribute, sell, or lease any part of our Service without prior written consent. Business users retain ownership of their submitted content (photos, descriptions) but grant ScheduleMe a non-exclusive, royalty-free license to display that content on the platform.',
   },
   {
     title: '8. Disclaimers',
@@ -47,15 +47,15 @@ const sections = [
   },
   {
     title: '10. Indemnification',
-    body: 'You agree to indemnify and hold harmless ScheduleMe, Inc. and its affiliates, officers, agents, and employees from any claim, liability, damage, or expense (including attorneys\' fees) arising from your use of the Service, your violation of these Terms, or your violation of any rights of a third party.',
+    body: 'You agree to indemnify and hold harmless ScheduleMe and its affiliates, officers, agents, and employees from any claim, liability, damage, or expense (including attorneys\' fees) arising from your use of the Service, your violation of these Terms, or your violation of any rights of a third party.',
   },
   {
     title: '11. Dispute Resolution',
-    body: 'Any dispute arising from these Terms or your use of the Service shall be resolved by binding arbitration under the rules of the American Arbitration Association, conducted in English in the state of Texas. You waive the right to participate in a class action lawsuit or class-wide arbitration. Nothing in this section prevents either party from seeking injunctive or other equitable relief in court.',
+    body: 'Any dispute arising from these Terms or your use of the Service shall be resolved by binding arbitration under the rules of the American Arbitration Association, conducted in English in the State of California, unless prohibited by law. You waive the right to participate in a class action lawsuit or class‑wide arbitration. Nothing in this section prevents either party from seeking injunctive or other equitable relief in court.',
   },
   {
     title: '12. Governing Law',
-    body: 'These Terms are governed by the laws of the State of Texas, without regard to conflict of law principles.',
+    body: 'These Terms are governed by the laws of the State of California, without regard to conflict of law principles.',
   },
   {
     title: '13. Termination',

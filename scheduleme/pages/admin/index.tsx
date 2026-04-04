@@ -53,6 +53,8 @@ const AdminPage: NextPage = () => {
   const [featuredNote, setFeaturedNote] = useState('');
   const [rlsStatus, setRlsStatus] = useState<any[]>([]);
   const [rlsLoading, setRlsLoading] = useState(false);
+  const [securityStatus, setSecurityStatus] = useState<any[]>([]);
+  const [securityLoading, setSecurityLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'businesses' | 'requests'>('businesses');
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
@@ -200,6 +202,22 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
+  const loadSecurityStatus = useCallback(async (s: string) => {
+    setSecurityLoading(true);
+    try {
+      const res = await fetch('/api/admin-security-status', {
+        headers: { 'x-notify-secret': s },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to load security status');
+      setSecurityStatus(data.guards || []);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to load security status', false);
+    } finally {
+      setSecurityLoading(false);
+    }
+  }, []);
+
   const loadRequests = useCallback(async (s: string) => {
     setRequestsLoading(true);
     try {
@@ -249,6 +267,7 @@ const AdminPage: NextPage = () => {
     await loadFeatured(secret);
     await loadCampusOptions(secret);
     await loadRlsStatus(secret);
+    await loadSecurityStatus(secret);
     await loadRequests(secret);
   }
 
@@ -649,6 +668,33 @@ const AdminPage: NextPage = () => {
                     <div className="text-sm text-white">{row.tablename}</div>
                     <div className={`text-xs font-semibold ${row.rowsecurity ? 'text-emerald-400' : 'text-red-400'}`}>
                       {row.rowsecurity ? 'RLS ON' : 'RLS OFF'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-bold text-white">Security Status</p>
+                <p className="text-xs text-neutral-500 mt-1">Column guard triggers (mutation allowlists)</p>
+              </div>
+              <button onClick={() => loadSecurityStatus(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                Refresh
+              </button>
+            </div>
+            {securityLoading ? (
+              <div className="text-xs text-neutral-500">Loading security status…</div>
+            ) : securityStatus.length === 0 ? (
+              <div className="text-xs text-neutral-500">No security data available.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {securityStatus.map((row: any) => (
+                  <div key={row.tablename} className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3">
+                    <div className="text-sm text-white">{row.tablename}</div>
+                    <div className={`text-xs font-semibold ${row.has_guard ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {row.has_guard ? 'GUARD ON' : 'GUARD OFF'}
                     </div>
                   </div>
                 ))}
