@@ -13,6 +13,7 @@ interface Business {
   edu_verified?: boolean; school_domain?: string | null;
   campus_key?: string | null;
   founder50?: boolean | null;
+  founder50_status?: string | null;
 }
 
 function formatDate(iso: string) {
@@ -33,6 +34,18 @@ const AdminPage: NextPage = () => {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [refundBookingId, setRefundBookingId] = useState('');
   const [refunding, setRefunding] = useState(false);
+  const [featuredRows, setFeaturedRows] = useState<any[]>([]);
+  const [featuredLoading, setFeaturedLoading] = useState(false);
+  const [featuredBusinessId, setFeaturedBusinessId] = useState('');
+  const [featuredSlot, setFeaturedSlot] = useState('1');
+  const [featuredEndsAt, setFeaturedEndsAt] = useState('');
+  const [featuredNote, setFeaturedNote] = useState('');
+
+  function normalizeCampusKey(name?: string | null): string | null {
+    if (!name) return null;
+    const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return cleaned ? cleaned.replace(/\s+/g, '_') : null;
+  }
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
@@ -64,9 +77,27 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
+  const loadFeatured = useCallback(async (s: string, campusKey = campusFilter) => {
+    setFeaturedLoading(true);
+    try {
+      const qs = campusKey && campusKey !== 'all' ? `?campus=${encodeURIComponent(campusKey)}` : '';
+      const res = await fetch(`/api/admin-featured${qs}`, {
+        headers: { 'x-notify-secret': s },
+      });
+      if (!res.ok) throw new Error('Failed to load featured');
+      const data = await res.json();
+      setFeaturedRows(data.featured || []);
+    } catch {
+      showToast('Failed to load featured list', false);
+    } finally {
+      setFeaturedLoading(false);
+    }
+  }, []);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     await loadBusinesses(secret);
+    await loadFeatured(secret);
   }
 
   async function approveBusiness(id: string) {
@@ -105,6 +136,57 @@ const AdminPage: NextPage = () => {
       showToast(err?.message || 'Refund failed', false);
     } finally {
       setRefunding(false);
+    }
+  }
+
+  async function addFeatured() {
+    if (!featuredBusinessId) return;
+    const business = businesses.find(b => b.id === featuredBusinessId);
+    const campusKey = normalizeCampusKey(business?.campus_key || business?.campus_school_name || campusFilter);
+    if (!campusKey) {
+      showToast('Missing campus key for this business', false);
+      return;
+    }
+    const endsAtIso = featuredEndsAt
+      ? new Date(`${featuredEndsAt}T23:59:59`).toISOString()
+      : null;
+    try {
+      const res = await fetch('/api/admin-featured', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        body: JSON.stringify({
+          business_id: featuredBusinessId,
+          campus_key: campusKey,
+          slot: Number(featuredSlot) || 1,
+          starts_at: new Date().toISOString(),
+          ends_at: endsAtIso,
+          note: featuredNote || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add featured');
+      showToast('Featured slot added', true);
+      setFeaturedBusinessId('');
+      setFeaturedEndsAt('');
+      setFeaturedNote('');
+      await loadFeatured(secret);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to add featured', false);
+    }
+  }
+
+  async function removeFeatured(id: string) {
+    try {
+      const res = await fetch(`/api/admin-featured?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'x-notify-secret': secret },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to remove featured');
+      showToast('Featured removed', true);
+      await loadFeatured(secret);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to remove featured', false);
     }
   }
 
@@ -165,7 +247,7 @@ const AdminPage: NextPage = () => {
               </span>
             )}
             <Link href="/admin/requests" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Edit requests</Link>
-            <button onClick={() => loadBusinesses(secret)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
+            <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
             <button onClick={() => setAuthed(false)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
           </div>
         </div>
@@ -188,7 +270,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Stripe Health</p>
                 <p className="text-xs text-neutral-500 mt-1">Webhook + event status</p>
               </div>
-              <button onClick={() => loadBusinesses(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -230,6 +312,78 @@ const AdminPage: NextPage = () => {
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
+                <p className="text-sm font-bold text-white">Campus Featured Manager</p>
+                <p className="text-xs text-neutral-500 mt-1">Manually feature providers by campus</p>
+              </div>
+              <button onClick={() => loadFeatured(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                Refresh
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+              <select
+                value={featuredBusinessId}
+                onChange={e => setFeaturedBusinessId(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="">Select business</option>
+                {businesses.filter(b => b.campus_provider).map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <select
+                value={featuredSlot}
+                onChange={e => setFeaturedSlot(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                {[1,2,3].map(n => (<option key={n} value={String(n)}>Slot {n}</option>))}
+              </select>
+              <input
+                type="date"
+                value={featuredEndsAt}
+                onChange={e => setFeaturedEndsAt(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              />
+              <input
+                type="text"
+                placeholder="Note (optional)"
+                value={featuredNote}
+                onChange={e => setFeaturedNote(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              />
+            </div>
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={addFeatured}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600">
+                Add Featured
+              </button>
+              <p className="text-[11px] text-neutral-500">If no end date is set, it stays featured until removed.</p>
+            </div>
+            {featuredLoading ? (
+              <div className="text-xs text-neutral-500">Loading featured…</div>
+            ) : featuredRows.length === 0 ? (
+              <div className="text-xs text-neutral-500">No featured providers yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {featuredRows.map(row => (
+                  <div key={row.id} className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3">
+                    <div>
+                      <p className="text-sm text-white font-semibold">{row.businesses?.name || row.business_id}</p>
+                      <p className="text-[11px] text-neutral-500">Campus: {row.campus_key} • Slot {row.slot} • Ends {row.ends_at ? formatDate(row.ends_at) : 'Never'}</p>
+                    </div>
+                    <button
+                      onClick={() => removeFeatured(row.id)}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30">
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
                 <p className="text-sm font-bold text-white">Refund Booking</p>
                 <p className="text-xs text-neutral-500 mt-1">Issue a full refund (reverses transfer + fee)</p>
               </div>
@@ -263,7 +417,7 @@ const AdminPage: NextPage = () => {
               <span>Campus</span>
               <select
                 value={campusFilter}
-                onChange={e => { const next = e.target.value; setCampusFilter(next); loadBusinesses(secret, next); }}
+                onChange={e => { const next = e.target.value; setCampusFilter(next); loadBusinesses(secret, next); loadFeatured(secret, next); }}
                 className="bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200">
                 <option value="all">All campuses</option>
                 {campusOptions.map(opt => (
