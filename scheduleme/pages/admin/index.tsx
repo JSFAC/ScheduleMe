@@ -45,6 +45,8 @@ const AdminPage: NextPage = () => {
   const [featuredNote, setFeaturedNote] = useState('');
   const [cronRuns, setCronRuns] = useState<any[]>([]);
   const [cronLoading, setCronLoading] = useState(false);
+  const [rlsStatus, setRlsStatus] = useState<any[]>([]);
+  const [rlsLoading, setRlsLoading] = useState(false);
 
   function normalizeCampusKey(name?: string | null): string | null {
     if (!name) return null;
@@ -135,6 +137,22 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
+  const loadRlsStatus = useCallback(async (s: string) => {
+    setRlsLoading(true);
+    try {
+      const res = await fetch('/api/admin-rls-status', {
+        headers: { 'x-notify-secret': s },
+      });
+      if (!res.ok) throw new Error('Failed to load RLS status');
+      const data = await res.json();
+      setRlsStatus(data.tables || []);
+    } catch {
+      showToast('Failed to load RLS status', false);
+    } finally {
+      setRlsLoading(false);
+    }
+  }, []);
+
   const loadCampusOptions = useCallback(async (s: string) => {
     try {
       const res = await fetch('/api/admin-businesses', { headers: { 'x-notify-secret': s } });
@@ -167,6 +185,7 @@ const AdminPage: NextPage = () => {
     await loadFeatured(secret);
     await loadCampusOptions(secret);
     await loadCronRuns(secret);
+    await loadRlsStatus(secret);
   }
 
   async function approveBusiness(id: string) {
@@ -530,6 +549,33 @@ const AdminPage: NextPage = () => {
                       <p className="text-[11px] text-neutral-500">{run.ran_at ? formatDate(run.ran_at) : 'Unknown time'}</p>
                     </div>
                     <div className={`text-xs font-semibold ${run.status === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{run.status || 'unknown'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-bold text-white">RLS Status</p>
+                <p className="text-xs text-neutral-500 mt-1">Row Level Security for core tables</p>
+              </div>
+              <button onClick={() => loadRlsStatus(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                Refresh
+              </button>
+            </div>
+            {rlsLoading ? (
+              <div className="text-xs text-neutral-500">Loading RLS status…</div>
+            ) : rlsStatus.length === 0 ? (
+              <div className="text-xs text-neutral-500">No RLS data available.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {rlsStatus.map((row: any) => (
+                  <div key={row.tablename} className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3">
+                    <div className="text-sm text-white">{row.tablename}</div>
+                    <div className={`text-xs font-semibold ${row.rowsecurity ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {row.rowsecurity ? 'RLS ON' : 'RLS OFF'}
+                    </div>
                   </div>
                 ))}
               </div>
