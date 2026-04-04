@@ -24,6 +24,7 @@ const AdminPage: NextPage = () => {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [schoolDomains, setSchoolDomains] = useState<Record<string, string>>({});
@@ -122,6 +123,7 @@ const AdminPage: NextPage = () => {
       if (!res.ok) return;
       const data = await res.json();
       const all = data.businesses ?? [];
+      setAllBusinesses(all);
       const campusLabelMap = new Map<string, { label: string; count: number }>();
       all.forEach((b: any) => {
         const key = normalizeCampusKey(b.campus_key || b.campus_school_name || null);
@@ -392,7 +394,7 @@ const AdminPage: NextPage = () => {
                 className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
               >
                 <option value="">Select business</option>
-                {businesses.filter(b => {
+                {allBusinesses.filter(b => {
                   if (!b.campus_provider) return false;
                   if (!b.is_onboarded) return false;
                   const key = getBusinessCampusKey(b);
