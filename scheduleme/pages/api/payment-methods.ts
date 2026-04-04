@@ -28,6 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .maybeSingle();
 
   let customerId = profile?.stripe_customer_id;
+  if (!customerId && user.email) {
+    const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+    const best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+    if (best?.id) {
+      customerId = best.id;
+      await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
+    }
+  }
   if (!customerId) return res.status(200).json({ methods: [], defaultId: null });
 
   let methodsData;
