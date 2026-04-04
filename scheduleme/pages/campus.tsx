@@ -419,11 +419,21 @@ const CampusPage: NextPage = () => {
                     <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Top campus providers this week</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {featuredBusinesses.map((biz, i) => (
-                    <BizCard key={`featured-${biz.id}`} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
-                  ))}
-                </div>
+                {featuredBusinesses.length >= 3 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {featuredBusinesses.map((biz, i) => (
+                      <BizCard key={`featured-${biz.id}`} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col md:flex-row md:justify-center gap-4">
+                    {featuredBusinesses.map((biz, i) => (
+                      <div key={`featured-${biz.id}`} className="w-full md:w-[300px]">
+                        <BizCard biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             )}
 
