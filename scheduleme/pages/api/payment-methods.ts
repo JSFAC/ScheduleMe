@@ -28,7 +28,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .maybeSingle();
 
   let customerId = profile?.stripe_customer_id;
-  const resolvedEmail = user.email || profile?.email || null;
+  let resolvedEmail = user.email || profile?.email || null;
+  if (!resolvedEmail) {
+    try {
+      const { data: authData } = await supabase.auth.admin.getUserById(user.id);
+      resolvedEmail = authData?.user?.email || null;
+      if (resolvedEmail && !profile?.email) {
+        await supabase.from('profiles').update({ email: resolvedEmail }).eq('id', user.id);
+      }
+    } catch {}
+  }
   if (!customerId && resolvedEmail) {
     const customers = await stripe.customers.list({ email: resolvedEmail, limit: 5 });
     const best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];

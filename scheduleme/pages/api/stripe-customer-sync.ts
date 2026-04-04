@@ -37,7 +37,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  const resolvedEmail = user.email || profile?.email || null;
+  let resolvedEmail = user.email || profile?.email || null;
+  if (!resolvedEmail) {
+    try {
+      const { data: authData } = await supabase.auth.admin.getUserById(user.id);
+      resolvedEmail = authData?.user?.email || null;
+      if (resolvedEmail && !profile?.email) {
+        await supabase.from('profiles').update({ email: resolvedEmail }).eq('id', user.id);
+      }
+    } catch {}
+  }
   if (!resolvedEmail) return res.status(200).json({ customerId: null, updated: false });
 
   try {
