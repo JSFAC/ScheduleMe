@@ -42,15 +42,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const nowIso = new Date().toISOString();
 
+  const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email';
+  const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
+
   let query = sb
     .from('businesses')
-    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email')
+    .select(baseSelect)
     .eq('is_onboarded', true)
     .eq('campus_provider', true)
     .order('rating', { ascending: false });
 
   if (campusKey) {
-    query = query.eq('campus_key', campusKey);
+    const orParts: string[] = [`campus_key.eq.${campusKey}`];
+    if (campusSchoolName) {
+      const pattern = `%${campusSchoolName.replace('%','')}%`;
+      orParts.push(`campus_school_name.ilike.${pattern}`);
+    }
+    if (schoolDomain) {
+      orParts.push(`school_domain.eq.${schoolDomain}`);
+    }
+    query = query.or(orParts.join(','));
   } else if (campusSchoolName && schoolDomain) {
     const pattern = `%${campusSchoolName.replace('%','')}%`;
     query = query.or(`campus_school_name.ilike.${pattern},school_domain.eq.${schoolDomain}`);
@@ -61,13 +72,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     query = query.eq('school_domain', schoolDomain);
   }
 
-  const { data: rows, error } = await query.limit(limitNum);
-  if (error || !rows) return res.status(200).json({ businesses: [] });
+  let rows: any[] | null = null;
+  let error: any = null;
+  let legacyMode = false;
+  try {
+    const resq = await query.limit(limitNum);
+    rows = resq.data; error = resq.error;
+  } catch (err) {
+    error = err;
+  }
+
+  if (error) {
+    legacyMode = true;
+    // Fallback for older schemas missing newer columns
+    let legacyQuery = sb
+      .from('businesses')
+      .select(legacySelect)
+      .eq('is_onboarded', true)
+      .eq('campus_provider', true)
+      .order('rating', { ascending: false });
+    if (campusSchoolName && schoolDomain) {
+      const pattern = `%${campusSchoolName.replace('%','')}%`;
+      legacyQuery = legacyQuery.or(`campus_school_name.ilike.${pattern},school_domain.eq.${schoolDomain}`);
+    } else if (campusSchoolName) {
+      const pattern = `%${campusSchoolName.replace('%','')}%`;
+      legacyQuery = legacyQuery.ilike('campus_school_name', pattern);
+    } else if (schoolDomain) {
+      legacyQuery = legacyQuery.eq('school_domain', schoolDomain);
+    }
+    const legacyRes = await legacyQuery.limit(limitNum);
+    rows = legacyRes.data; error = legacyRes.error;
+  }
+
+  if (error || !rows) return res.status(200).json({ featured: [], businesses: [] });
 
   const featuredManual: any[] = [];
   const featuredAuto: any[] = [];
 
-  if (campusKey) {
+  if (campusKey && !legacyMode) {
     let manualRows: any[] = [];
     try {
       const { data } = await sb
@@ -144,6 +186,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  if (!legacyMode) {
   const autoFeaturedQuery = sb
     .from('businesses')
     .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, owner_email')
@@ -151,7 +194,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('campus_provider', true)
     .gt('featured_until', nowIso);
   if (campusKey) {
-    autoFeaturedQuery.eq('campus_key', campusKey);
+    const orParts: string[] = [`campus_key.eq.${campusKey}`];
+    if (campusSchoolName) {
+      const pattern = `%${campusSchoolName.replace('%','')}%`;
+      orParts.push(`campus_school_name.ilike.${pattern}`);
+    }
+    if (schoolDomain) {
+      orParts.push(`school_domain.eq.${schoolDomain}`);
+    }
+    autoFeaturedQuery.or(orParts.join(','));
   } else if (campusSchoolName && schoolDomain) {
     const pattern = `%${campusSchoolName.replace('%','')}%`;
     autoFeaturedQuery.or(`campus_school_name.ilike.${pattern},school_domain.eq.${schoolDomain}`);
@@ -180,7 +231,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .lt('featured_until', nowIso)
       .is('featured_off_notified_at', null);
     if (campusKey) {
-      autoExpiredQuery.eq('campus_key', campusKey);
+      const orParts: string[] = [`campus_key.eq.${campusKey}`];
+      if (campusSchoolName) {
+        const pattern = `%${campusSchoolName.replace('%','')}%`;
+        orParts.push(`campus_school_name.ilike.${pattern}`);
+      }
+      if (schoolDomain) {
+        orParts.push(`school_domain.eq.${schoolDomain}`);
+      }
+      autoExpiredQuery.or(orParts.join(','));
     }
     const { data: autoExpiredRows } = await autoExpiredQuery;
     for (const biz of autoExpiredRows || []) {
@@ -189,6 +248,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await sb.from('businesses').update({ featured_off_notified_at: new Date().toISOString() }).eq('id', biz.id);
       }
     }
+  }
   }
 
   const businessIds = (rows as any[]).map((b) => b.id).filter(Boolean);
@@ -213,7 +273,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const reviewCount = b.review_count ?? 0;
     const rating = reviewCount > 0 ? b.rating : null;
     const status = computeFounder50Status(b);
-    if (b.founder50 && status && b.founder50_status !== status && b.founder50_status !== 'revoked') {
+    if (!legacyMode && b.founder50 && status && b.founder50_status !== status && b.founder50_status !== 'revoked') {
       sb.from('businesses').update({ founder50_status: status }).eq('id', b.id).catch(() => {});
       b.founder50_status = status;
     }

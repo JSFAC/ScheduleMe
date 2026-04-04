@@ -38,9 +38,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
 
+  const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end';
+  const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
+
   let query = sb
     .from('businesses')
-    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end')
+    .select(baseSelect)
     .eq('is_onboarded', true)
     .not('lat', 'is', null)
     .not('lng', 'is', null);
@@ -56,7 +59,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (schoolDomain) query = query.eq('school_domain', schoolDomain);
 
-  const { data: rows, error } = await query.limit(limitNum);
+  let rows: any[] | null = null;
+  let error: any = null;
+  try {
+    const resq = await query.limit(limitNum);
+    rows = resq.data; error = resq.error;
+  } catch (err) {
+    error = err;
+  }
+
+  if (error) {
+    // Fallback for older schemas missing founder50_* columns
+    let legacyQuery = sb
+      .from('businesses')
+      .select(legacySelect)
+      .eq('is_onboarded', true)
+      .not('lat', 'is', null)
+      .not('lng', 'is', null);
+    if (eduOnly) legacyQuery = legacyQuery.eq('edu_verified', true);
+    if (campusOnly) legacyQuery = legacyQuery.or('campus_provider.eq.true,campus_provider.is.null');
+    if (schoolDomain) legacyQuery = legacyQuery.eq('school_domain', schoolDomain);
+    const legacyRes = await legacyQuery.limit(limitNum);
+    rows = legacyRes.data; error = legacyRes.error;
+  }
 
   if (error || !rows) return res.status(200).json({ businesses: [] });
 
