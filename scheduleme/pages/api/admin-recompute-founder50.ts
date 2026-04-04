@@ -49,5 +49,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     from += pageSize;
   }
 
+  try {
+    await sb.from('cron_runs').insert({
+      job: 'admin-recompute-founder50',
+      status: 'ok',
+      details: { scanned, updated },
+      ran_at: new Date().toISOString(),
+    });
+  } catch {}
+
   return res.status(200).json({ ok: true, scanned, updated });
 }

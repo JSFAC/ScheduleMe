@@ -43,6 +43,8 @@ const AdminPage: NextPage = () => {
   const [featuredCampusKey, setFeaturedCampusKey] = useState<string>('all');
   const [featuredEndsAt, setFeaturedEndsAt] = useState('');
   const [featuredNote, setFeaturedNote] = useState('');
+  const [cronRuns, setCronRuns] = useState<any[]>([]);
+  const [cronLoading, setCronLoading] = useState(false);
 
   function normalizeCampusKey(name?: string | null): string | null {
     if (!name) return null;
@@ -117,6 +119,22 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
+  const loadCronRuns = useCallback(async (s: string) => {
+    setCronLoading(true);
+    try {
+      const res = await fetch('/api/admin-cron-runs', {
+        headers: { 'x-notify-secret': s },
+      });
+      if (!res.ok) throw new Error('Failed to load cron runs');
+      const data = await res.json();
+      setCronRuns(data.runs || []);
+    } catch {
+      showToast('Failed to load cron runs', false);
+    } finally {
+      setCronLoading(false);
+    }
+  }, []);
+
   const loadCampusOptions = useCallback(async (s: string) => {
     try {
       const res = await fetch('/api/admin-businesses', { headers: { 'x-notify-secret': s } });
@@ -148,6 +166,7 @@ const AdminPage: NextPage = () => {
     await loadBusinesses(secret);
     await loadFeatured(secret);
     await loadCampusOptions(secret);
+    await loadCronRuns(secret);
   }
 
   async function approveBusiness(id: string) {
@@ -487,6 +506,34 @@ const AdminPage: NextPage = () => {
               </button>
             </div>
             <p className="text-[11px] text-neutral-500 mt-2">Only works for paid bookings with a Stripe payment intent.</p>
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-bold text-white">Cron Runs</p>
+                <p className="text-xs text-neutral-500 mt-1">Recent background jobs</p>
+              </div>
+              <button onClick={() => loadCronRuns(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                Refresh
+              </button>
+            </div>
+            {cronLoading ? (
+              <div className="text-xs text-neutral-500">Loading cron runs…</div>
+            ) : cronRuns.length === 0 ? (
+              <div className="text-xs text-neutral-500">No cron runs yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {cronRuns.map((run: any) => (
+                  <div key={run.id} className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3">
+                    <div>
+                      <p className="text-sm text-white font-semibold">{run.job}</p>
+                      <p className="text-[11px] text-neutral-500">{run.ran_at ? formatDate(run.ran_at) : 'Unknown time'}</p>
+                    </div>
+                    <div className={`text-xs font-semibold ${run.status === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{run.status || 'unknown'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <div className="flex gap-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1 w-fit">

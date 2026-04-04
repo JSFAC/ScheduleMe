@@ -115,5 +115,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  try {
+    await sb.from('cron_runs').insert({
+      job: 'admin-featured-notify',
+      status: 'ok',
+      details: { sentOn, sentOff, manualActive: manualActive.length },
+      ran_at: nowIso,
+    });
+  } catch {}
+
   return res.status(200).json({ ok: true, sentOn, sentOff, manualActive: manualActive.length });
 }
