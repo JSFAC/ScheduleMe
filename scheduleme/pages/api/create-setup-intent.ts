@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, status, user_id, amount_cents, businesses(id, stripe_account_id, stripe_onboarded, name, founder50)')
+    .select('id, status, user_id, amount_cents, businesses(id, stripe_account_id, stripe_onboarded, name, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
     .eq('id', booking_id)
     .maybeSingle();
 

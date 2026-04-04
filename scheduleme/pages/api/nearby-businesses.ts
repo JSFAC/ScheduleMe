@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
+import { computeFounder50Status } from '../../lib/founder50';
 
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
@@ -39,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let query = sb
     .from('businesses')
-    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50')
+    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end')
     .eq('is_onboarded', true)
     .not('lat', 'is', null)
     .not('lng', 'is', null);
@@ -83,7 +84,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const priceTier = computePriceTier(avgCents, primaryTag);
     const reviewCount = b.review_count ?? 0;
     const rating = reviewCount > 0 ? b.rating : null;
-    return { ...b, distance_miles: d, price_tier: priceTier, rating };
+    const status = computeFounder50Status(b);
+    if (b.founder50 && status && b.founder50_status !== status && b.founder50_status !== 'revoked') {
+      sb.from('businesses').update({ founder50_status: status }).eq('id', b.id).catch(() => {});
+      b.founder50_status = status;
+    }
+    return { ...b, distance_miles: d, price_tier: priceTier, rating, founder50_status: b.founder50_status ?? status };
   }).filter((b) => {
     if (b.distance_miles > radiusNum) return false;
     if (!cat) return true;

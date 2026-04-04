@@ -1,5 +1,5 @@
 // @ts-nocheck
-// pages/api/feedback.ts — receive user feedback and email it to hello@usescheduleme.com
+// pages/api/feedback.ts — receive user feedback and email it to usescheduleme@gmail.com
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 

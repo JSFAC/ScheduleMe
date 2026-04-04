@@ -1,12 +1,20 @@
+import { isFounder50Active } from './founder50';
+
 type HasFounder50 = {
   founder50?: boolean | null;
+  founder50_status?: string | null;
+  last_completed_booking_at?: string | null;
+  away_start?: string | null;
+  away_end?: string | null;
+  availability_status?: string | null;
+  break_until?: string | null;
 };
 
 const DEFAULT_PLATFORM_FEE_PERCENT = 12;
 const FOUNDER50_PLATFORM_FEE_PERCENT = 6;
 
 export function getPlatformFeePercent(business?: HasFounder50 | null): number {
-  if (business?.founder50) return FOUNDER50_PLATFORM_FEE_PERCENT;
+  if (isFounder50Active(business)) return FOUNDER50_PLATFORM_FEE_PERCENT;
   return DEFAULT_PLATFORM_FEE_PERCENT;
 }
 

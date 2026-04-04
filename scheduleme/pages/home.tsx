@@ -367,7 +367,7 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
             <path d="M9 15l-5 5" />
           </svg>
         </button>
-        {(biz as any).founder50 && (
+        {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
           <div
             className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
             style={{

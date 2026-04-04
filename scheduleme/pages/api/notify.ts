@@ -8,6 +8,7 @@ import {
   sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail,
   sendStripeAlertEmail,
   sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
+  sendFeaturedOnEmail, sendFeaturedOffEmail,
 } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
 
@@ -64,6 +65,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       case 'payment_request_customer':
         result = await sendPaymentRequestCustomer({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
+        break;
+      case 'featured_on':
+        result = await sendFeaturedOnEmail({ to, businessName: rest.businessName || rest.name || 'Your business', durationDays: rest.durationDays });
+        break;
+      case 'featured_off':
+        result = await sendFeaturedOffEmail({ to, businessName: rest.businessName || rest.name || 'Your business' });
         break;
       default:
         return res.status(400).json({ error: 'Unknown type: ' + type });

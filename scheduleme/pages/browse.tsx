@@ -214,7 +214,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           onLoad: () => setImgLoaded(true),
           onError: () => setImgLoaded(true),
         })}
-        {(biz as any).founder50 && (
+        {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
           <div
             className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
             style={{
@@ -637,7 +637,7 @@ function writeCoords(lat: number, lng: number) {
                           <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
                           <span className="text-[9px] font-bold text-white">{listStatus.label}</span>
                         </div>
-                        {(biz as any).founder50 && (
+                        {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
                           <div
                             className="absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
                             style={{

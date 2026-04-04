@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Load booking with business details
   const { data: booking } = await supabase
     .from('bookings')
-    .select('*, businesses(id, name, stripe_account_id, stripe_onboarded, founder50), profiles(name, email)')
+    .select('*, businesses(id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until), profiles(name, email)')
     .eq('id', booking_id)
     .maybeSingle();
 

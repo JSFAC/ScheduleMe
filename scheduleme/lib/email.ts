@@ -474,6 +474,7 @@ export function businessApplicationReceivedHtml(opts: {
             <li>We verify your business details (up to 24 hours).</li>
             <li>You receive an approval email with your dashboard login.</li>
             <li>Connect Stripe to get paid once your profile is live.</li>
+            <li><strong>Get featured:</strong> complete 3 bookings or be selected for a campus spotlight.</li>
           </ol>
         </td></tr>
       </table>
@@ -481,6 +482,53 @@ export function businessApplicationReceivedHtml(opts: {
     </td></tr>
   `;
   return layout(`We received your application`, body, `Thanks for applying to ScheduleMe, ${opts.ownerName}`);
+}
+
+// ─── Template: featured on ──────────────────────────────────────────────────
+export function featuredOnHtml(opts: { businessName: string; durationDays: number }) {
+  const body = `
+    <tr><td bgcolor="#0f766e" style="background:#0f766e;padding:36px 32px;text-align:center;">
+      <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:16px;margin:0 auto 16px;text-align:center;line-height:52px;">
+        <span style="font-size:22px;color:#ffffff;">★</span>
+      </div>
+      <h1 style="margin:0 0 8px;font-size:21px;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">You&apos;re featured</h1>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.8);">${opts.businessName} is now featured on your campus feed.</p>
+    </td></tr>
+    <tr><td style="padding:30px 32px;">
+      <p style="margin:0 0 12px;font-size:15px;color:#475569;line-height:1.7;">
+        Your profile is highlighted at the top of the campus marketplace for the next ${opts.durationDays} days. Keep the momentum going.
+      </p>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px;">
+        <p style="margin:0;font-size:13px;color:#64748b;">
+          Tip: Refresh your photos and service list to keep your profile cinematic.
+        </p>
+      </div>
+      <div style="margin-top:22px;text-align:center;">
+        <a href="${SITE_URL}/business/dashboard" style="display:inline-block;padding:14px 34px;background:#0f766e;color:#ffffff;border-radius:999px;font-weight:700;text-decoration:none;">View Dashboard</a>
+      </div>
+    </td></tr>`;
+  return layout(`You&apos;re featured on ScheduleMe`, body, `${opts.businessName} is now featured.`);
+}
+
+// ─── Template: featured off ─────────────────────────────────────────────────
+export function featuredOffHtml(opts: { businessName: string }) {
+  const body = `
+    <tr><td bgcolor="#111827" style="background:#111827;padding:36px 32px;text-align:center;">
+      <div style="width:52px;height:52px;background:rgba(255,255,255,0.12);border-radius:16px;margin:0 auto 16px;text-align:center;line-height:52px;">
+        <span style="font-size:20px;color:#ffffff;">✦</span>
+      </div>
+      <h1 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">Featured window ended</h1>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.75);">${opts.businessName} is no longer featured on the campus feed.</p>
+    </td></tr>
+    <tr><td style="padding:30px 32px;">
+      <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.7;">
+        Want to get featured again? Keep the momentum going — complete bookings and stay active.
+      </p>
+      <div style="margin-top:20px;text-align:center;">
+        <a href="${SITE_URL}/business/dashboard" style="display:inline-block;padding:14px 34px;background:#111827;color:#ffffff;border-radius:999px;font-weight:700;text-decoration:none;">Stay Active</a>
+      </div>
+    </td></tr>`;
+  return layout(`Featured window ended`, body, `${opts.businessName} is no longer featured.`);
 }
 
 // ─── Send helpers ─────────────────────────────────────────────────────────────
@@ -614,6 +662,26 @@ export async function sendBusinessApplicationReceivedEmail(opts: {
       category: opts.category,
       city: opts.city,
     }),
+  });
+}
+
+export async function sendFeaturedOnEmail(opts: { to: string; businessName: string; durationDays?: number }) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `You're featured on ScheduleMe`,
+    html: featuredOnHtml({ businessName: opts.businessName, durationDays: opts.durationDays ?? 7 }),
+  });
+}
+
+export async function sendFeaturedOffEmail(opts: { to: string; businessName: string }) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Featured window ended`,
+    html: featuredOffHtml({ businessName: opts.businessName }),
   });
 }
 

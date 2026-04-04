@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let query = supabase
     .from('businesses')
-    .select('id, name, owner_name, owner_email, phone, address, service_tags, is_onboarded, stripe_onboarded, created_at, campus_school_name, campus_key, founder50')
+    .select('id, name, owner_name, owner_email, phone, address, service_tags, is_onboarded, stripe_onboarded, created_at, campus_school_name, campus_key, founder50, founder50_status')
     .order('created_at', { ascending: false });
 
   if (campus) {

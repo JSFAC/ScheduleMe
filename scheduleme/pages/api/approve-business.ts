@@ -71,6 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const currentCount = founderRow?.founder_count ?? 0;
             if (currentCount < 50) {
               updatePayload.founder50 = true;
+              updatePayload.founder50_status = 'active';
               await supabase.from('campus_founder50').upsert({
                 campus_key: campusKey,
                 founder_count: currentCount + 1,

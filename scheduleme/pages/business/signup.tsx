@@ -317,7 +317,7 @@ const SignupPage: NextPage = () => {
                   <label className="flex items-center justify-between gap-4 cursor-pointer p-4 rounded-xl border border-neutral-800 hover:border-neutral-700 transition-colors">
                     <div>
                       <p className="text-sm font-semibold text-neutral-200">I serve college students</p>
-                      <p className="text-xs text-neutral-500 mt-0.5">List your services on the ScheduleMe campus feed</p>
+                      <p className="text-xs text-neutral-500 mt-0.5">List your services on the ScheduleMe campus feed and become eligible for Featured.</p>
                     </div>
                     <div className="relative shrink-0">
                       <input type="checkbox" className="sr-only" checked={form.campusProvider} onChange={e => set('campusProvider', e.target.checked)} />
@@ -355,6 +355,9 @@ const SignupPage: NextPage = () => {
                     <p className="text-xs text-neutral-500 mt-2">
                       <strong className="text-accent">Founder50:</strong> Standard platform fee is 12%, but Founder50 members are locked into 6% forever.
                       Founder50 is assigned after approval to the first 50 providers per campus.
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-2">
+                      <strong className="text-accent">Featured reward:</strong> Complete 3 bookings (or get selected) and you can be featured at the top of your campus feed for 7 days.
                     </p>
                   </div>
                 </div>

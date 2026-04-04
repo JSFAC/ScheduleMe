@@ -117,6 +117,53 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
   } catch { /* non-fatal */ }
 }
 
+async function handleCompletionBusinessUpdate(
+  supabase: ReturnType<typeof getSupabase>,
+  businessId: string
+) {
+  const { data: biz } = await supabase
+    .from('businesses')
+    .select('id, name, owner_email, founder50, founder50_status, bookings_completed, last_completed_booking_at, away_start, away_end, availability_status, break_until, featured_until, featured_on_notified_at')
+    .eq('id', businessId)
+    .maybeSingle();
+  if (!biz) return;
+
+  const now = new Date();
+  const updates: any = {};
+  const currentCompleted = Number(biz.bookings_completed || 0);
+  updates.bookings_completed = currentCompleted + 1;
+  updates.last_completed_booking_at = now.toISOString();
+
+  if (biz.founder50 && biz.founder50_status !== 'revoked') {
+    updates.founder50_status = 'active';
+  }
+
+  const featuredUntil = biz.featured_until ? new Date(biz.featured_until) : null;
+  const shouldFeature = updates.bookings_completed >= 3 && (!featuredUntil || Number.isNaN(featuredUntil.getTime()) || featuredUntil.getTime() < now.getTime());
+  if (shouldFeature) {
+    const nextUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    updates.featured_until = nextUntil.toISOString();
+    updates.featured_reason = 'milestone';
+    updates.featured_on_notified_at = now.toISOString();
+  }
+
+  await supabase.from('businesses').update(updates).eq('id', businessId);
+
+  if (shouldFeature && biz.owner_email && process.env.RESEND_API_KEY) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+    fetch(`${siteUrl}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+      body: JSON.stringify({
+        type: 'featured_on',
+        to: biz.owner_email,
+        name: biz.name || 'there',
+        businessName: biz.name || 'Your business',
+      }),
+    }).catch(() => {});
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -297,7 +344,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50)')
+      .select('id, status, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -307,7 +354,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!biz && booking.business_id) {
       const { data: fallbackBiz } = await supabase
         .from('businesses')
-        .select('id, owner_email, name, stripe_account_id, stripe_onboarded, founder50')
+      .select('id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
         .eq('id', booking.business_id)
         .maybeSingle();
       biz = fallbackBiz || null;
@@ -469,6 +516,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           businessName: biz?.name,
         }),
       }).catch(() => {});
+    }
+
+    if (status === 'completed' && booking.status !== 'completed' && booking.business_id) {
+      await handleCompletionBusinessUpdate(supabase, booking.business_id);
     }
 
     // Notify consumer of status change

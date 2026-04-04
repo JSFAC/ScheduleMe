@@ -755,7 +755,7 @@ export default function BizPage() {
                   onClick={() => imgs.length > 0 && setGalleryOpen(true)}
                 />
               )}
-              {(biz as any).founder50 && (
+              {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
                 <div
                   className="absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
                   style={{

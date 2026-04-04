@@ -115,6 +115,21 @@ alter table businesses add column if not exists edu_code text;
 alter table businesses add column if not exists edu_code_expires_at timestamptz;
 alter table businesses add column if not exists campus_provider boolean default false;
 alter table businesses add column if not exists campus_school_name text;
+alter table businesses add column if not exists campus_key text;
+alter table businesses add column if not exists founder50 boolean default false;
+alter table businesses add column if not exists founder50_status text default 'active';
+alter table businesses add column if not exists bookings_completed integer default 0;
+alter table businesses add column if not exists last_completed_booking_at timestamptz;
+alter table businesses add column if not exists away_start timestamptz;
+alter table businesses add column if not exists away_end timestamptz;
+alter table businesses add column if not exists featured_until timestamptz;
+alter table businesses add column if not exists featured_reason text;
+alter table businesses add column if not exists featured_on_notified_at timestamptz;
+alter table businesses add column if not exists featured_off_notified_at timestamptz;
+
+create index if not exists businesses_campus_key_idx on businesses (campus_key);
+create index if not exists businesses_founder50_status_idx on businesses (founder50_status);
+create index if not exists businesses_featured_until_idx on businesses (featured_until);
 
 
 -- ============================================================
@@ -157,6 +172,27 @@ drop trigger if exists bookings_updated_at on bookings;
 create trigger bookings_updated_at
   before update on bookings
   for each row execute function set_updated_at();
+
+
+-- ============================================================
+-- 3b. CAMPUS FEATURED (MANUAL SPOTLIGHT)
+-- ============================================================
+create table if not exists campus_featured (
+  id                uuid primary key default gen_random_uuid(),
+  business_id       uuid references businesses(id) on delete cascade,
+  campus_key        text not null,
+  slot              smallint default 1,
+  starts_at         timestamptz default now(),
+  ends_at           timestamptz default (now() + interval '7 days'),
+  note              text,
+  created_at        timestamptz default now(),
+  created_by        text,
+  notified_on_at    timestamptz,
+  notified_off_at   timestamptz
+);
+
+create index if not exists campus_featured_campus_idx on campus_featured (campus_key);
+create index if not exists campus_featured_dates_idx on campus_featured (starts_at, ends_at);
 
 
 -- ============================================================

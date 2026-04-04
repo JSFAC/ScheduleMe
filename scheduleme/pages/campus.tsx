@@ -83,6 +83,8 @@ function mapCampusBusiness(b: any): Business {
     services: [],
     about: b.description || '',
     badges: [],
+    founder50: b.founder50 ?? null,
+    founder50_status: b.founder50_status ?? null,
   } as Business;
 }
 
@@ -164,6 +166,12 @@ function deriveCampusTag(domain?: string | null): string | null {
   return base.toUpperCase();
 }
 
+function normalizeCampusKey(name?: string | null): string | null {
+  if (!name) return null;
+  const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return cleaned ? cleaned.replace(/\s+/g, '_') : null;
+}
+
 const CampusPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
@@ -173,27 +181,33 @@ const CampusPage: NextPage = () => {
   const [schoolDomain, setSchoolDomain] = useState<string | null>(null);
   const [campusTag, setCampusTag] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [featuredBusinesses, setFeaturedBusinesses] = useState<Business[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('recommended');
   
   const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
-    if (!tag && !domain) { setBusinesses([]); return; }
+    if (!tag && !domain) { setBusinesses([]); setFeaturedBusinesses([]); return; }
     try {
       const params = new URLSearchParams({ limit: '40' });
       if (tag) params.set('campus_school_name', tag);
       if (domain) params.set('school_domain', domain);
+      const campusKey = normalizeCampusKey(tag) || (domain ? normalizeCampusKey(domain.split('.')[0]) : null);
+      if (campusKey) params.set('campus_key', campusKey);
       const res = await fetch(`/api/campus-businesses?${params.toString()}`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-store' },
       });
-      if (!res.ok) { setBusinesses([]); return; }
+      if (!res.ok) { setBusinesses([]); setFeaturedBusinesses([]); return; }
       const json = await res.json();
       const rows = json?.businesses || [];
+      const featured = json?.featured || [];
+      setFeaturedBusinesses(featured.map((b: any) => mapCampusBusiness(b)));
       setBusinesses(rows.map((b: any) => mapCampusBusiness(b)));
     } catch {
       setBusinesses([]);
+      setFeaturedBusinesses([]);
     }
   }, []);
 
@@ -393,6 +407,22 @@ const CampusPage: NextPage = () => {
               </div>
             </div>
 
+            {featuredBusinesses.length > 0 && (
+              <section className="mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>Featured</p>
+                    <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Top campus providers this week</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {featuredBusinesses.map((biz, i) => (
+                    <BizCard key={`featured-${biz.id}`} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Category pills */}
             {campusCategories.length > 0 && (
               <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
@@ -464,7 +494,7 @@ const CampusPage: NextPage = () => {
               <path d="M9 15l-5 5" />
             </svg>
           </button>
-          {(biz as any).founder50 && (
+          {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
             <div
               className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
               style={{
