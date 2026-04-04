@@ -57,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: sibling } = await supabase
       .from('profiles')
       .select('stripe_customer_id')
-      .eq('email', resolvedEmail)
+      .ilike('email', resolvedEmail)
       .not('stripe_customer_id', 'is', null)
       .order('updated_at', { ascending: false })
       .limit(1)
