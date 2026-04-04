@@ -115,6 +115,33 @@ const AdminPage: NextPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!authed) return;
+    const IDLE_MS = 3 * 60 * 1000;
+    let timer: number | null = null;
+
+    const resetTimer = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        setAuthed(false);
+        setSecret('');
+        setRequests([]);
+        setBusinesses([]);
+        setFeaturedRows([]);
+        showToast('Logged out due to inactivity', false);
+      }, IDLE_MS);
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      events.forEach((evt) => window.removeEventListener(evt, resetTimer));
+    };
+  }, [authed]);
+
   const loadBusinesses = useCallback(async (s: string, campusKey = campusFilter) => {
     setLoading(true);
     try {

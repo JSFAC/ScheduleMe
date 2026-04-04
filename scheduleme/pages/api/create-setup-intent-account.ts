@@ -20,6 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireAuth(req, res);
   if (!user) return;
+  const apiVersion = typeof req.body?.api_version === 'string' ? req.body.api_version : undefined;
 
   const supabase = getSupabase();
   const { data: profile } = await supabase
@@ -51,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const ephemeralKey = await stripe.ephemeralKeys.create(
       { customer: customerId },
-      { apiVersion: '2025-02-24.acacia' }
+      { apiVersion: apiVersion || '2025-02-24.acacia' }
     );
     const setupIntent = await stripe.setupIntents.create({
       customer: customerId,
