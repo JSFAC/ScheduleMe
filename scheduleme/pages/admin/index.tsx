@@ -387,7 +387,6 @@ const AdminPage: NextPage = () => {
                 {pendingCount} pending
               </span>
             )}
-            <Link href="/admin/requests" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Edit requests</Link>
             <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); loadCampusOptions(secret); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
             <button onClick={() => setAuthed(false)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
           </div>
