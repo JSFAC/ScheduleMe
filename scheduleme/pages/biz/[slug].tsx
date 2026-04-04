@@ -173,6 +173,7 @@ export default function BizPage() {
   const router = useRouter();
   const { slug } = router.query;
   const allowEditInBiz = router.query?.from === 'dashboard';
+  const hideNav = allowEditInBiz;
   const [biz, setBiz] = useState(null);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -579,7 +580,7 @@ export default function BizPage() {
     if (galleryIdx >= activeImgs.length) setGalleryIdx(0);
   }, [biz, editMode, editImages, galleryIdx]);
 
-  if (loading) return <><Head><title>Loading — ScheduleMe</title></Head><div style={{background:bg,minHeight:'100vh'}}><Nav /></div></>;
+  if (loading) return <><Head><title>Loading — ScheduleMe</title></Head><div style={{background:bg,minHeight:'100vh'}}>{!hideNav && <Nav />}</div></>;
   if (!biz) return null;
 
   const tags = biz.service_tags || [];
@@ -691,7 +692,7 @@ export default function BizPage() {
     <>
       <Head><title>{biz.name} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
       <div style={{background:bg,minHeight:'100vh',paddingBottom:100}}>
-        <Nav />
+        {!hideNav && <Nav />}
         {shareOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={() => setShareOpen(false)}>
             <div className="w-full max-w-md rounded-2xl p-5" style={{ background: card, border: '1px solid '+bdr }} onClick={e => e.stopPropagation()}>
