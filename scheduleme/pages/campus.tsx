@@ -314,8 +314,12 @@ const CampusPage: NextPage = () => {
 
   const canView = eduVerified === true;
   const campusCategories = businesses.length > 0
-    ? ['All', ...Array.from(new Set(businesses.map(b => b.category).filter(Boolean))).sort()]
-    : [];
+    ? ['All', 'Pinned', ...Array.from(new Set(businesses.map(b => b.category).filter(Boolean))).sort()]
+    : ['All', 'Pinned'];
+
+  useEffect(() => {
+    if (!campusCategories.includes(activeCategory)) setActiveCategory('All');
+  }, [campusCategories.join('|')]);
 
   const campusName = (eduVerified && (schoolDomain || campusTag))
     ? (schoolDomain ? schoolDomain.replace('.edu', '').toUpperCase() : campusTag!)
