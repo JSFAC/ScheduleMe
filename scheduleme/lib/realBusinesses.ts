@@ -111,6 +111,7 @@ export async function fetchNearbyBusinesses(
         if (rows.length > 0) {
           return rows.map((b: any) => mapBusiness(b, b.distance_miles));
         }
+        // If API returns empty (or error payload), fall back to RPC
       }
 
     } catch { /* non-fatal */ }
