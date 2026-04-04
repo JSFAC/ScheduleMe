@@ -195,6 +195,7 @@ export default function BizPage() {
   const [note, setNote] = useState('');
   const [date, setDate] = useState<Date | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
+  const [customServiceName, setCustomServiceName] = useState('');
   const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set());
   const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -549,6 +550,7 @@ export default function BizPage() {
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
     if (!selectedSvc) { setErr('Select a service to continue.'); return; }
     if (!date || (requiresTime && !slot)) { setErr(requiresTime ? 'Pick a date and time' : 'Pick a due date'); return; }
+    if (isCustom && !customServiceName.trim()) { setErr('Name the service you need.'); return; }
     if (isCustom && !note.trim()) { setErr('Please describe your custom request.'); return; }
 
     const isPaidService = !isCustom;
@@ -568,11 +570,11 @@ export default function BizPage() {
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
         body: JSON.stringify({
           business_id: biz.id,
-          service: selectedSvc?.name || 'Custom Request',
+          service: isCustom ? customServiceName.trim() : (selectedSvc?.name || 'Service'),
           service_price_cents: isPaidService ? selectedSvc?.price_cents : null,
           note,
           scheduled_start,
-          scheduled_slot: slot,
+          scheduled_slot: requiresTime ? slot : null,
           user_id: session.user.id,
           user_email: session.user.email,
           user_name: session.user.user_metadata?.full_name,
@@ -1115,7 +1117,7 @@ export default function BizPage() {
             ) : (
               <button onClick={()=>{setSelectedSvc({ id: '__custom__', name: 'Custom Request' });}} className="w-full text-left rounded-2xl p-4" style={{background:isCustom?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px dashed '+(isCustom?'#007e6d':bdr)}}>
                 <p className="font-semibold text-sm" style={{color:tx}}>Custom Request</p>
-                <p className="text-xs mt-0.5" style={{color:mu}}>Describe what you need in the notes below</p>
+                <p className="text-xs mt-0.5" style={{color:mu}}>Name the service you need — it will show up in bookings and messages.</p>
               </button>
             )}
           </div>
@@ -1222,6 +1224,15 @@ export default function BizPage() {
               </div>
             )}
             <div>
+              {isCustom && (
+                <div className="mb-4">
+                  <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Name the service you need</label>
+                  <div className="relative">
+                    <input value={customServiceName} maxLength={40} onChange={e => setCustomServiceName(e.target.value)} placeholder="e.g. 3D printed dragon model" className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
+                    <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{customServiceName.length}/40</span>
+                  </div>
+                </div>
+              )}
               <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Note (required for custom)</label>
               <div className="relative">
                 <textarea value={note} maxLength={500} onChange={e=>setNote(e.target.value)} rows={3} placeholder={isCustom ? 'Describe your custom request...' : 'Describe what you need...'} className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
@@ -1234,10 +1245,10 @@ export default function BizPage() {
 
         </div>
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={book} disabled={!date || (requiresTime && !slot) || submitting || done || (isCustom && !note.trim()) || isPreview}
+          <button onClick={book} disabled={!date || (requiresTime && !slot) || submitting || done || (isCustom && (!customServiceName.trim() || !note.trim())) || isPreview}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background:(!date || (requiresTime && !slot) || submitting || done || isPreview) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
-            {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? 'Request Custom Service' : 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2)) : 'Book Appointment')}
+            {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment')}
           </button>
         </div>
         {showConfirm && (

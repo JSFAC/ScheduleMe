@@ -672,7 +672,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const idList = Array.from(ids).filter(Boolean);
       let query = supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, scheduled_slot, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -690,7 +690,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, scheduled_slot, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {
@@ -717,6 +717,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const bookings = (data || []).map((b: any) => ({
         ...b,
         scheduled_at: b.scheduled_start ?? null,
+        scheduled_slot: b.scheduled_slot ?? null,
         business_name: b.business_name ?? b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
         business_phone: b.businesses?.phone ?? bizMap[b.business_id || b.businesses?.id]?.phone ?? null,
         business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,

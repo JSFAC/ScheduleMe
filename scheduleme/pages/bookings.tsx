@@ -56,6 +56,7 @@ interface Booking {
   status: string;
   created_at: string;
   scheduled_at?: string;
+  scheduled_slot?: string | null;
   address?: string;
   note?: string; notes?: string;
   business_name?: string;
@@ -462,13 +463,13 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Scheduled</p>
+                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{booking.scheduled_slot ? 'Scheduled' : 'Due by'}</p>
                   <p className="text-sm text-neutral-800 mt-0.5">{formatDateLong(booking.scheduled_at)}</p>
                 </div>
               </div>
             )}
 
-            {booking.scheduled_at && (
+            {booking.scheduled_at && booking.scheduled_slot && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
                   <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -1510,7 +1511,7 @@ function writeCoords(lat: number, lng: number) {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
                           const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
                           const primaryTime = b.scheduled_at ? formatTimeUntil(b.scheduled_at) : formatDate(b.created_at);
-                          const scheduledLabel = b.scheduled_at ? formatShortDateTime(b.scheduled_at) : null;
+                          const scheduledLabel = b.scheduled_at && b.scheduled_slot ? formatShortDateTime(b.scheduled_at) : (b.scheduled_at ? `Due by ${formatDate(b.scheduled_at)}` : null);
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left booking-card group overflow-hidden transition-all hover:-translate-y-0.5"
