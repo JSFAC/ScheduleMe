@@ -22,6 +22,13 @@ function campusKeyFromDomain(domain?: string | null): string | null {
   return normalizeCampusKey(base);
 }
 
+function campusAcronym(name?: string | null): string | null {
+  if (!name) return null;
+  const words = name.replace(/[^a-z0-9\s]+/gi, ' ').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return null;
+  return words.map(w => w[0]).join('').toLowerCase();
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   res.setHeader('Cache-Control', 'no-store');
@@ -105,6 +112,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (error || !rows) return res.status(200).json({ featured: [], businesses: [] });
+
+  // If campusKey is short (e.g., UCSC) and no matches, fallback to acronym match
+  if (campusKey && rows.length === 0) {
+    const fallbackRes = await sb
+      .from('businesses')
+      .select(legacyMode ? legacySelect : baseSelect)
+      .eq('is_onboarded', true)
+      .eq('campus_provider', true)
+      .order('rating', { ascending: false })
+      .limit(limitNum);
+    const allRows = fallbackRes.data || [];
+    const keyPlain = campusKey.replace(/[^a-z0-9]+/g, '');
+    rows = allRows.filter((b: any) => {
+      if (b.school_domain && b.school_domain === schoolDomain) return true;
+      const acronym = campusAcronym(b.campus_school_name || b.campus_key || '');
+      if (acronym && acronym === keyPlain) return true;
+      const normalizedName = normalizeCampusKey(b.campus_school_name || '') || '';
+      return normalizedName.replace(/_/g, '') === keyPlain;
+    });
+  }
 
   const featuredManual: any[] = [];
   const featuredAuto: any[] = [];
