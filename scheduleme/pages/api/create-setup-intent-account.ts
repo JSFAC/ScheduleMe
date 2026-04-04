@@ -49,13 +49,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const ephemeralKey = await stripe.ephemeralKeys.create(
+      { customer: customerId },
+      { apiVersion: '2025-02-24.acacia' }
+    );
     const setupIntent = await stripe.setupIntents.create({
       customer: customerId,
       usage: 'off_session',
       metadata: { userId: user.id },
     });
     await supabase.from('profiles').update({ stripe_setup_intent_id: setupIntent.id }).eq('id', user.id);
-    return res.status(200).json({ client_secret: setupIntent.client_secret });
+    return res.status(200).json({
+      client_secret: setupIntent.client_secret,
+      customer_id: customerId,
+      ephemeral_key: ephemeralKey.secret,
+    });
   } catch (e: any) {
     console.error('[create-setup-intent-account] stripe error', e);
     return res.status(500).json({ error: e?.message || 'Stripe setup failed' });
