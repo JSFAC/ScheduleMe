@@ -234,7 +234,8 @@ export default function BizPage() {
         if (!data) { router.replace('/browse'); return; }
         setBiz(data);
         setEditDesc(data.description || '');
-        setEditImages([data.cover_url, ...(data.media_urls || [])].filter(Boolean));
+        const initialImages = [data.cover_url, ...(data.media_urls || [])].filter(Boolean) as string[];
+        setEditImages(normalizeImageList(initialImages));
         setEditVideo(data.video_url || null);
         (async () => {
           try {
@@ -334,11 +335,33 @@ export default function BizPage() {
     return data;
   }
 
+  function normalizeImageList(images: string[]) {
+    const next: string[] = [];
+    for (const url of images) {
+      if (!url || next.includes(url)) continue;
+      next.push(url);
+    }
+    return next;
+  }
+
   async function uploadMedia(file: File, type: 'image' | 'video') {
     if (!biz) return;
     setMediaErr('');
     setMediaUploading(true);
     try {
+      if (type === 'image' && !file.type.startsWith('image/')) {
+        setMediaErr('Please upload an image file.');
+        return;
+      }
+      if (type === 'video' && !file.type.startsWith('video/')) {
+        setMediaErr('Please upload a video file.');
+        return;
+      }
+      const maxBytes = type === 'video' ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        setMediaErr(type === 'video' ? 'Video must be 50MB or less.' : 'Image must be 8MB or less.');
+        return;
+      }
       if (type === 'image' && editImages.length >= 8) {
         setMediaErr('Limit reached: 8 photos max.');
         return;
@@ -373,9 +396,9 @@ export default function BizPage() {
         await submitChangeRequest({ video_url: data.url }, 'media');
         setEditNotice('Video submitted for review.');
       } else if (data.url) {
-        const next = Array.from(new Set([...editImages, data.url]));
+        const next = normalizeImageList([...editImages, data.url]);
         setEditImages(next);
-        await submitChangeRequest({ media_urls: next, cover_url: next[0] || null }, 'media');
+        await submitChangeRequest({ cover_url: next[0] || null, media_urls: next.slice(1) }, 'media');
         setEditNotice('Photos submitted for review.');
       }
     } catch (e: any) {
@@ -387,9 +410,10 @@ export default function BizPage() {
 
   async function persistImages(next: string[]) {
     if (!biz) return;
-    setEditImages(next);
+    const normalized = normalizeImageList(next);
+    setEditImages(normalized);
     try {
-      await submitChangeRequest({ media_urls: next, cover_url: next[0] || null }, 'media');
+      await submitChangeRequest({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) }, 'media');
       setEditNotice('Photos submitted for review.');
     } catch (e: any) {
       setMediaErr(e?.message || 'Failed to update photos');
@@ -806,9 +830,11 @@ export default function BizPage() {
               )}
             </div>
           </div>
-          <button onClick={()=>router.back()} className="absolute top-4 left-4 flex items-center justify-center rounded-full" style={{width:36,height:36,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(8px)'}}>
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
-          </button>
+          {!isPreview && (
+            <button onClick={()=>router.back()} className="absolute top-4 left-4 flex items-center justify-center rounded-full" style={{width:36,height:36,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(8px)'}}>
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
+            </button>
+          )}
         </div>
         <div className="mx-auto max-w-2xl px-4">
           {!editMode && imgs.length > 1 && (
