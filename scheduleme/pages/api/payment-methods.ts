@@ -15,7 +15,6 @@ function getSupabase() {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'payment-methods' }))) return;
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -61,6 +60,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
   if (!customerId) return res.status(200).json({ methods: [], defaultId: null });
+
+  if (req.method === 'DELETE') {
+    const paymentMethodId = req.body?.payment_method_id as string | undefined;
+    if (!paymentMethodId) return res.status(400).json({ error: 'Missing payment_method_id' });
+    try {
+      await stripe.paymentMethods.detach(paymentMethodId);
+      const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
+      const nextDefault = methods.data[0]?.id ?? null;
+      await stripe.customers.update(customerId, {
+        invoice_settings: { default_payment_method: nextDefault },
+      });
+      await supabase
+        .from('profiles')
+        .update({ stripe_payment_method_id: nextDefault })
+        .eq('id', user.id);
+      return res.status(200).json({ success: true });
+    } catch (e: any) {
+      return res.status(500).json({ error: e?.message || 'Failed to remove payment method' });
+    }
+  }
+
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const debug = req.query.debug === '1' || req.query.debug === 'true';
   let methodsData;
