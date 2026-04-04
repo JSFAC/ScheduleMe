@@ -23,13 +23,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: profile } = await supabase
     .from('profiles')
-    .select('stripe_customer_id, stripe_payment_method_id')
+    .select('stripe_customer_id, stripe_payment_method_id, email')
     .eq('id', user.id)
     .maybeSingle();
 
   let customerId = profile?.stripe_customer_id;
-  if (!customerId && user.email) {
-    const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+  const resolvedEmail = user.email || profile?.email || null;
+  if (!customerId && resolvedEmail) {
+    const customers = await stripe.customers.list({ email: resolvedEmail, limit: 5 });
     const best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
     if (best?.id) {
       customerId = best.id;

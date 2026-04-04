@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: profile } = await supabase
     .from('profiles')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, email')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -37,10 +37,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  if (!user.email) return res.status(200).json({ customerId: null, updated: false });
+  const resolvedEmail = user.email || profile?.email || null;
+  if (!resolvedEmail) return res.status(200).json({ customerId: null, updated: false });
 
   try {
-    const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+    const customers = await stripe.customers.list({ email: resolvedEmail, limit: 5 });
     if (!customers.data.length) return res.status(200).json({ customerId: null, updated: false });
 
     let best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
