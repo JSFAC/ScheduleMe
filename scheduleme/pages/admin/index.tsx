@@ -1,6 +1,7 @@
 // @ts-nocheck
 // pages/admin/index.tsx — ScheduleMe admin panel
 import type { NextPage } from 'next';
+import dynamic from 'next/dynamic';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useCallback, useEffect } from 'react';
@@ -70,7 +71,7 @@ const AdminPage: NextPage = () => {
     const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
     if (!key) return null;
     if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc.edu';
-    if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu') return 'asu.edu';
+    if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu' || key === 'a') return 'asu.edu';
     return key;
   }
 
@@ -901,8 +902,4 @@ const AdminPage: NextPage = () => {
   );
 };
 
-export default AdminPage;
-
-export async function getServerSideProps() {
-  return { props: {} };
-}
+export default dynamic(async () => AdminPage, { ssr: false });

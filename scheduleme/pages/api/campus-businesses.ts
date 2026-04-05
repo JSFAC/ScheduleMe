@@ -143,12 +143,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const featuredAuto: any[] = [];
 
   if (campusKey && !legacyMode) {
+    const campusKeys = [campusKey];
+    if (campusKey.includes('.')) {
+      const legacyKey = campusKey.split('.')[0];
+      if (legacyKey && legacyKey !== campusKey) campusKeys.push(legacyKey);
+    }
     let manualRows: any[] = [];
     try {
       const { data } = await sb
         .from('campus_featured')
         .select('id, business_id, slot, starts_at, ends_at, notified_on_at, notified_off_at')
-        .eq('campus_key', campusKey)
+        .in('campus_key', campusKeys)
         .order('slot', { ascending: true });
       manualRows = data || [];
     } catch {
@@ -190,6 +195,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .gt('featured_until', nowIso);
   if (campusKey) {
     const orParts: string[] = [`campus_key.eq.${campusKey}`];
+    if (campusKey.includes('.')) {
+      const legacyKey = campusKey.split('.')[0];
+      if (legacyKey && legacyKey !== campusKey) {
+        orParts.push(`campus_key.eq.${legacyKey}`);
+      }
+    }
     if (campusSchoolName) {
       const pattern = `%${campusSchoolName.replace('%','')}%`;
       orParts.push(`campus_school_name.ilike.${pattern}`);
