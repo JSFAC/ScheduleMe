@@ -213,6 +213,7 @@ export default function BizPage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [viewerEduVerified, setViewerEduVerified] = useState(false);
+  const [viewerSchoolDomain, setViewerSchoolDomain] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -230,8 +231,11 @@ export default function BizPage() {
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
 
+  const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
+  const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
+  const sameCampus = !!(viewerSchoolDomain && (viewerSchoolDomain === bizSchoolDomain || viewerSchoolDomain === bizCampusKey));
   const displayName = biz
-    ? (viewerEduVerified
+    ? (viewerEduVerified && sameCampus
         ? (biz.campus_show_name ? biz.name : '')
         : (biz.public_visibility && biz.public_show_name ? biz.name : 'Student Provider'))
     : '';
@@ -253,10 +257,11 @@ export default function BizPage() {
             if (!session) return;
             const { data: profile } = await getSB()
               .from('profiles')
-              .select('edu_verified')
+              .select('edu_verified, school_domain')
               .eq('id', session.user.id)
               .maybeSingle();
             setViewerEduVerified(profile?.edu_verified === true);
+            setViewerSchoolDomain(profile?.school_domain ? String(profile.school_domain).toLowerCase() : null);
             const { data: fav } = await getSB()
               .from('favorites')
               .select('id')
