@@ -65,14 +65,16 @@ const AdminPage: NextPage = () => {
     const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
     if (!key) return null;
-    if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
-    if (key === 'arizona_state_university' || key === 'asu') return 'asu';
+    if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc';
+    if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu') return 'asu';
     return key;
   }
 
   function campusAcronym(name?: string | null): string | null {
     if (!name) return null;
-    const parts = name.replace(/[^a-z0-9\s]+/gi, ' ').trim().split(/\s+/).filter(Boolean);
+    const trimmed = name.trim();
+    if (/^[A-Z0-9]{2,6}$/.test(trimmed)) return trimmed;
+    const parts = trimmed.replace(/[^a-z0-9\s]+/gi, ' ').trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return null;
     return parts.map(p => p[0]).join('').toUpperCase();
   }
@@ -83,6 +85,7 @@ const AdminPage: NextPage = () => {
 
   function campusDisplayLabel(key: string, fallback?: string | null): string {
     if (key === 'ucsc') return 'UCSC';
+    if (key === 'asu') return 'ASU';
     if (fallback) return fallback;
     return key.toUpperCase();
   }
@@ -117,6 +120,11 @@ const AdminPage: NextPage = () => {
       window.removeEventListener('pagehide', onPageHide);
     };
   }, []);
+
+  useEffect(() => {
+    if (!authed || !secret) return;
+    loadFeatured(secret, featuredCampusKey);
+  }, [authed, secret, featuredCampusKey, loadFeatured]);
 
   useEffect(() => {
     if (!authed) return;
@@ -170,7 +178,7 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
-  const loadFeatured = useCallback(async (s: string, campusKey = campusFilter) => {
+  const loadFeatured = useCallback(async (s: string, campusKey: string) => {
     setFeaturedLoading(true);
     try {
       const qs = campusKey && campusKey !== 'all' ? `?campus=${encodeURIComponent(campusKey)}` : '';
@@ -265,7 +273,7 @@ const AdminPage: NextPage = () => {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     await loadBusinesses(secret);
-    await loadFeatured(secret);
+    await loadFeatured(secret, featuredCampusKey);
     await loadCampusOptions(secret);
     await loadRlsStatus(secret);
     await loadSecurityStatus(secret);
@@ -362,7 +370,7 @@ const AdminPage: NextPage = () => {
       setFeaturedBusinessId('');
       setFeaturedEndsAt('');
       setFeaturedNote('');
-      await loadFeatured(secret);
+      await loadFeatured(secret, featuredCampusKey);
     } catch (err: any) {
       showToast(err?.message || 'Failed to add featured', false);
     }
@@ -377,7 +385,7 @@ const AdminPage: NextPage = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to remove featured');
       showToast('Featured removed', true);
-      await loadFeatured(secret);
+      await loadFeatured(secret, featuredCampusKey);
     } catch (err: any) {
       showToast(err?.message || 'Failed to remove featured', false);
     }
@@ -394,6 +402,7 @@ const AdminPage: NextPage = () => {
       showToast(data.message || 'Campuses normalized', true);
       await loadBusinesses(secret, campusFilter);
       await loadCampusOptions(secret);
+      await loadFeatured(secret, featuredCampusKey);
     } catch (err: any) {
       showToast(err?.message || 'Failed to normalize campuses', false);
     }
@@ -423,6 +432,9 @@ const AdminPage: NextPage = () => {
     if (filter === 'approved') return b.is_onboarded;
     return true;
   });
+  const visibleFeaturedRows = featuredCampusKey === 'all'
+    ? featuredRows
+    : featuredRows.filter(row => normalizeCampusKey(row.campus_key) === featuredCampusKey);
   const pendingCount = businesses.filter(b => !b.is_onboarded).length;
   const pendingRequests = requests.filter(r => r.status === 'pending').length;
 
@@ -475,7 +487,7 @@ const AdminPage: NextPage = () => {
                 {pendingCount} pending
               </span>
             )}
-            <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); loadCampusOptions(secret); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
+            <button onClick={() => { loadBusinesses(secret); loadFeatured(secret, featuredCampusKey); loadCampusOptions(secret); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
             <button onClick={() => setAuthed(false)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
           </div>
         </div>
@@ -498,7 +510,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Stripe Health</p>
                 <p className="text-xs text-neutral-500 mt-1">Webhook + event status</p>
               </div>
-              <button onClick={() => { loadBusinesses(secret); loadFeatured(secret); loadCampusOptions(secret); }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => { loadBusinesses(secret); loadFeatured(secret, featuredCampusKey); loadCampusOptions(secret); }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -543,7 +555,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Campus Featured Manager</p>
                 <p className="text-xs text-neutral-500 mt-1">Manually feature providers by campus</p>
               </div>
-              <button onClick={() => loadFeatured(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => loadFeatured(secret, featuredCampusKey)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -605,11 +617,11 @@ const AdminPage: NextPage = () => {
             </div>
             {featuredLoading ? (
               <div className="text-xs text-neutral-500">Loading featured…</div>
-            ) : featuredRows.length === 0 ? (
+            ) : visibleFeaturedRows.length === 0 ? (
               <div className="text-xs text-neutral-500">No featured providers yet.</div>
             ) : (
               <div className="space-y-2">
-                {featuredRows.map(row => (
+                {visibleFeaturedRows.map(row => (
                   <div key={row.id} className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3">
                     <div>
                       <p className="text-sm text-white font-semibold">{row.businesses?.name || row.business_id}</p>
@@ -735,7 +747,7 @@ const AdminPage: NextPage = () => {
                 <span>Campus</span>
                 <select
                   value={campusFilter}
-                  onChange={e => { const next = e.target.value; setCampusFilter(next); loadBusinesses(secret, next); loadFeatured(secret, next); }}
+                  onChange={e => { const next = e.target.value; setCampusFilter(next); loadBusinesses(secret, next); }}
                   className="bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200">
                   <option value="all">All campuses</option>
                   {campusOptions.map(opt => (

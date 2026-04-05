@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { error: err1 } = await supabase
     .from('businesses')
     .update({ campus_key: 'ucsc', campus_school_name: 'UCSC' })
-    .or('campus_key.eq.uc_santa_cruz,campus_key.eq.ucsc,campus_school_name.ilike.%uc% santa% cruz%');
+    .or('campus_key.eq.uc_santa_cruz,campus_key.eq.ucsc,campus_school_name.ilike.%uc% santa% cruz%,school_domain.ilike.%ucsc.edu%');
 
   if (err1) return res.status(500).json({ error: err1.message || 'Failed to normalize UCSC' });
 
@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { error: err2 } = await supabase
     .from('businesses')
     .update({ campus_key: 'asu', campus_school_name: 'ASU' })
-    .or('campus_key.eq.arizona_state_university,campus_key.eq.asu,campus_school_name.ilike.%arizona% state% university%');
+    .or('campus_key.eq.arizona_state_university,campus_key.eq.asu,campus_school_name.ilike.%arizona% state% university%,school_domain.ilike.%asu.edu%,campus_school_name.ilike.%asu%');
 
   if (err2) return res.status(500).json({ error: err2.message || 'Failed to normalize ASU' });
 
