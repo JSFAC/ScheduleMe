@@ -2619,6 +2619,22 @@ const BusinessDashboard: NextPage = () => {
                       <input
                         type="checkbox"
                         className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d' }}
+                        checked={publicShowName}
+                        onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos)}
+                        disabled={!publicVisibility || visibilitySaving}
+                      />
+                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
+                        <p className="font-semibold text-neutral-900">Show my name to students</p>
+                        <p className="text-xs text-neutral-500">If off, we display “Student Provider”.</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d' }}
                         checked={publicVisibility}
                         onChange={e => {
                           const nextVis = e.target.checked;
@@ -2638,20 +2654,7 @@ const BusinessDashboard: NextPage = () => {
                       <input
                         type="checkbox"
                         className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
-                        checked={publicShowName}
-                        onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos)}
-                        disabled={!publicVisibility || visibilitySaving}
-                      />
-                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my name publicly</p>
-                        <p className="text-xs text-neutral-500">If off, we display “Student Provider”.</p>
-                      </div>
-                    </label>
-
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d' }}
                         checked={publicShowPhotos}
                         onChange={e => persistVisibility(publicVisibility, publicShowName, e.target.checked)}
                         disabled={!publicVisibility || visibilitySaving}
