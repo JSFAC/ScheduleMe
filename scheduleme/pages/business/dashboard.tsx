@@ -36,6 +36,7 @@ interface Business {
   availability_status?: string | null; break_until?: string | null;
   is_onboarded: boolean; website?: string; instagram?: string;
   school_domain?: string | null; edu_verified?: boolean;
+  public_visibility?: boolean; public_show_name?: boolean; public_show_photos?: boolean;
 }
 
 const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text: string; border: string }> = {
@@ -760,6 +761,9 @@ const BusinessDashboard: NextPage = () => {
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [settingsNotice, setSettingsNotice] = useState('');
+  const [publicVisibility, setPublicVisibility] = useState(false);
+  const [publicShowName, setPublicShowName] = useState(false);
+  const [publicShowPhotos, setPublicShowPhotos] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
@@ -815,6 +819,9 @@ const BusinessDashboard: NextPage = () => {
     setEditHours(hoursToMap(biz.hours));
     setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
     setMediaVideo(biz.video_url || null);
+    setPublicVisibility(Boolean(biz.public_visibility));
+    setPublicShowName(Boolean(biz.public_show_name));
+    setPublicShowPhotos(Boolean(biz.public_show_photos));
     const authHeaders = await getAuthHeaders();
     const [bkgRes, msgsRes, balRes] = await Promise.all([
       fetch('/api/bookings?business_id=' + biz.id, { headers: authHeaders }),
@@ -1352,7 +1359,17 @@ const BusinessDashboard: NextPage = () => {
 
     // Auto-approve low-risk fields
     const breakUntilIso = editBreakUntil ? new Date(editBreakUntil + 'T23:59:59').toISOString() : null;
-    const { error } = await getSupabase().from('businesses').update({ phone: editPhone, website: editWebsite, service_tags: tags, hours: mapToHoursArray(editHours), availability_status: editAvailability, break_until: breakUntilIso }).eq('id', business.id);
+    const { error } = await getSupabase().from('businesses').update({
+      phone: editPhone,
+      website: editWebsite,
+      service_tags: tags,
+      hours: mapToHoursArray(editHours),
+      availability_status: editAvailability,
+      break_until: breakUntilIso,
+      public_visibility: publicVisibility,
+      public_show_name: publicShowName,
+      public_show_photos: publicShowPhotos,
+    }).eq('id', business.id);
     if (error) { setSettingsSaving(false); setSettingsError(error.message); return; }
 
     // Queue high-risk fields for approval
@@ -1377,7 +1394,18 @@ const BusinessDashboard: NextPage = () => {
     }
 
     setSettingsSaving(false);
-    setBusiness(b => b ? { ...b, phone: editPhone, website: editWebsite, service_tags: tags, hours: mapToHoursArray(editHours), availability_status: editAvailability, break_until: breakUntilIso } : b);
+    setBusiness(b => b ? {
+      ...b,
+      phone: editPhone,
+      website: editWebsite,
+      service_tags: tags,
+      hours: mapToHoursArray(editHours),
+      availability_status: editAvailability,
+      break_until: breakUntilIso,
+      public_visibility: publicVisibility,
+      public_show_name: publicShowName,
+      public_show_photos: publicShowPhotos,
+    } : b);
     setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
   }
 
@@ -1449,6 +1477,7 @@ const BusinessDashboard: NextPage = () => {
     { title: 'Bookings & calendar', body: 'Confirm or complete bookings here. The calendar tab helps you see upcoming work at a glance.' },
     { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
     { title: 'Settings & payouts', body: 'Update your listing, hours, and connect Stripe to get paid.' },
+    { title: 'Visibility controls', body: 'In Settings, you can choose whether your business appears on public browse/search and what details are shown.' },
     { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Business landing page link.' },
   ];
   const tour = TOUR_STEPS[tourStep];
@@ -2541,6 +2570,63 @@ const BusinessDashboard: NextPage = () => {
 
             {tab === 'settings' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6 lg:col-span-2">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
+                      <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
+                        Public visibility increases discovery but may expose your identity to non-students.
+                      </p>
+                    </div>
+                    <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                      style={{ background: publicVisibility ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: publicVisibility ? '#059669' : '#b91c1c' }}>
+                      {publicVisibility ? 'Public listing ON' : 'Public listing OFF'}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <label className="flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={publicVisibility}
+                        onChange={e => setPublicVisibility(e.target.checked)}
+                      />
+                      <div>
+                        <p className="font-semibold text-neutral-900">Show my business publicly</p>
+                        <p className="text-xs text-neutral-500">Listed on public browse and search pages.</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={publicShowName}
+                        onChange={e => setPublicShowName(e.target.checked)}
+                        disabled={!publicVisibility}
+                      />
+                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
+                        <p className="font-semibold text-neutral-900">Show my name publicly</p>
+                        <p className="text-xs text-neutral-500">If off, we display “Student Provider”.</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={publicShowPhotos}
+                        onChange={e => setPublicShowPhotos(e.target.checked)}
+                        disabled={!publicVisibility}
+                      />
+                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
+                        <p className="font-semibold text-neutral-900">Show my photos publicly</p>
+                        <p className="text-xs text-neutral-500">If off, your listing will use a placeholder.</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
                 <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                   <h2 className="text-sm font-bold text-neutral-900 mb-5">Edit Business Profile</h2>
                   <form onSubmit={handleSaveSettings} className="space-y-4">

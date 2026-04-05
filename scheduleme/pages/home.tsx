@@ -979,7 +979,8 @@ async function togglePinned(bizId: string) {
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: dm ? '#d5e1de' : '#0f3f36' }}>Are you a student?</p>
-                  <p className="text-xs truncate" style={{ color: dm ? '#9ca3af' : '#1e554c' }}>Verify your .edu email to unlock your campus marketplace</p>
+                  <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#1e554c' }}>Verify your .edu email to unlock your campus marketplace.</p>
+                  <p className="text-[11px]" style={{ color: dm ? '#6b7280' : '#2f6b60' }}>Some student providers only show themselves to verified students on campus.</p>
                 </div>
               </div>
 

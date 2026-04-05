@@ -39,13 +39,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
 
-    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end';
-    const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
+    const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos';
+    const legacySelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
 
     let query = sb
       .from('businesses')
       .select(baseSelect)
       .eq('is_onboarded', true)
+      .eq('public_visibility', true)
       .not('lat', 'is', null)
       .not('lng', 'is', null);
 
@@ -111,7 +112,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const reviewCount = b.review_count ?? 0;
       const rating = reviewCount > 0 ? b.rating : null;
       const status = computeFounder50Status(b);
-      return { ...b, distance_miles: d, price_tier: priceTier, rating, founder50_status: b.founder50_status ?? status };
+      const showName = b.public_show_name === true;
+      const showPhotos = b.public_show_photos === true;
+      return {
+        ...b,
+        name: showName ? b.name : 'Student Provider',
+        phone: showName ? b.phone : null,
+        website: showName ? b.website : null,
+        address: showName ? b.address : (b.zip || b.address || null),
+        cover_url: showPhotos ? b.cover_url : null,
+        media_urls: showPhotos ? b.media_urls : [],
+        distance_miles: d,
+        price_tier: priceTier,
+        rating,
+        founder50_status: b.founder50_status ?? status,
+      };
     }).filter((b) => {
       if (b.distance_miles > radiusNum) return false;
       if (!cat) return true;

@@ -47,7 +47,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json({ data: data as BusinessResult[] });
+
+    const rows = (data as BusinessResult[]) || [];
+    if (rows.length === 0) return res.status(200).json({ data: [] });
+
+    const ids = rows.map(r => r.id).filter(Boolean);
+    const { data: visRows } = await supabase
+      .from('businesses')
+      .select('id, public_visibility, public_show_name, public_show_photos, zip, address')
+      .in('id', ids);
+    const visMap = new Map((visRows || []).map((r: any) => [r.id, r]));
+
+    const filtered = rows.filter(r => visMap.get(r.id)?.public_visibility === true);
+    const mapped = filtered.map(r => {
+      const vis = visMap.get(r.id);
+      const showName = vis?.public_show_name === true;
+      const address = showName ? r.address : (vis?.zip || vis?.address || r.address);
+      return { ...r, name: showName ? r.name : 'Student Provider', address };
+    });
+
+    return res.status(200).json({ data: mapped });
   } catch (err) {
     console.error('[search]', err);
     return res.status(500).json({ error: 'Internal server error' });
