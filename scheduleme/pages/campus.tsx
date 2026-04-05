@@ -445,7 +445,7 @@ const CampusPage: NextPage = () => {
     </>
   );
 
-  if (eduVerified === false) return null;
+  if (eduVerified === false && !debugEnabled) return null;
 
   return (
     <>
