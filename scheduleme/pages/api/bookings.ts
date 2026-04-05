@@ -534,8 +534,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (updErr) {
       const msg = updErr.message || '';
       const isDisputeFieldMissing = status === 'price_disputed' && (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at'));
-      if (isDisputeFieldMissing) {
-        const { error: fallbackErr } = await supabase.from('bookings').update({ status }).eq('id', booking_id);
+      const isPriceAcceptMissing = status === 'price_disputed' && (msg.includes('price_accepted_at') || msg.includes('price_accepted_by_customer'));
+      if (isDisputeFieldMissing || isPriceAcceptMissing) {
+        const fallbackPayload: any = { status };
+        if (!isDisputeFieldMissing) {
+          // If dispute columns exist but price-accepted columns don't, keep dispute fields
+          fallbackPayload.dispute_amount_cents = updatePayload.dispute_amount_cents;
+          fallbackPayload.dispute_note = updatePayload.dispute_note;
+          fallbackPayload.dispute_at = updatePayload.dispute_at;
+        }
+        const { error: fallbackErr } = await supabase.from('bookings').update(fallbackPayload).eq('id', booking_id);
         if (fallbackErr) return res.status(500).json({ error: fallbackErr.message || 'Failed to update booking' });
       } else {
         return res.status(500).json({ error: msg || 'Failed to update booking' });

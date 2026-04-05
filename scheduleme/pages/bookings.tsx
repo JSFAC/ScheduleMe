@@ -507,6 +507,23 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                 </div>
               </div>
             )}
+            {isCustom && booking.amount_cents && !booking.paid_at && (
+              <div className="rounded-2xl border px-3 py-2 flex items-center justify-between" style={{ borderColor: '#e5e7eb', background: '#f8fafc' }}>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Provider set price</p>
+                  <p className="text-sm font-semibold text-neutral-800">${(booking.amount_cents / 100).toFixed(2)}</p>
+                </div>
+                {booking.provider_proposed_price_cents && booking.price_accepted_by_customer && (
+                  <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ background: '#dcfce7', color: '#166534' }}>Price accepted</span>
+                )}
+              </div>
+            )}
+            {isCustom && booking.customer_proposed_price_cents && !booking.price_accepted_by_provider && (
+              <div className="rounded-2xl border px-3 py-2" style={{ borderColor: '#e0e7ff', background: '#eef2ff' }}>
+                <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#4338ca' }}>Your proposed price</p>
+                <p className="text-sm font-semibold" style={{ color: '#3730a3' }}>${(booking.customer_proposed_price_cents / 100).toFixed(2)}</p>
+              </div>
+            )}
 
             {booking.scheduled_at && booking.scheduled_exact && (
               <div className="flex items-start gap-3">

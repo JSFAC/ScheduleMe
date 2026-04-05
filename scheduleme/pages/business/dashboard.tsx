@@ -1947,6 +1947,11 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>{b.scheduled_exact ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
+                          {b.amount_cents && (
+                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#e5e7eb', background: '#f8fafc', color: '#374151' }}>
+                              Provider set price {fmt(b.amount_cents)}
+                            </div>
+                          )}
                           {b.customer_proposed_price_cents && !b.price_accepted_by_provider && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#a5b4fc', background: '#eef2ff', color: '#3730a3' }}>
                               Customer proposed {fmt(b.customer_proposed_price_cents)}

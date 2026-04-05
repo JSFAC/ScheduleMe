@@ -898,10 +898,10 @@ export default function BizPage() {
                 <button
                   key={url}
                   onClick={() => { setGalleryIdx(i); }}
-                  className="h-16 w-16 rounded-xl overflow-hidden flex-shrink-0 border"
-                  style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb') }}
+                  className="h-16 w-16 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 border p-1"
+                  style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb'), background: dm ? '#121212' : '#f8fafc' }}
                 >
-                  <img src={url} alt="" className="h-full w-full object-contain" />
+                  <img src={url} alt="" className="max-h-full max-w-full object-contain" />
                 </button>
               ))}
             </div>
