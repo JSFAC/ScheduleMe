@@ -37,6 +37,8 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
   try {
     const { data: booking } = await supabase
@@ -81,8 +83,6 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
       }).catch(() => {});
     }
   } catch {}
-}
-
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

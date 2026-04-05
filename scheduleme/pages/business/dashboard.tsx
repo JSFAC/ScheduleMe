@@ -764,6 +764,7 @@ const BusinessDashboard: NextPage = () => {
   const [publicVisibility, setPublicVisibility] = useState(false);
   const [publicShowName, setPublicShowName] = useState(false);
   const [publicShowPhotos, setPublicShowPhotos] = useState(false);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
@@ -1407,6 +1408,35 @@ const BusinessDashboard: NextPage = () => {
       public_show_photos: publicShowPhotos,
     } : b);
     setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
+  }
+
+  async function persistVisibility(nextVisibility: boolean, nextShowName: boolean, nextShowPhotos: boolean) {
+    if (!business) return;
+    const prev = { publicVisibility, publicShowName, publicShowPhotos };
+    setPublicVisibility(nextVisibility);
+    setPublicShowName(nextShowName);
+    setPublicShowPhotos(nextShowPhotos);
+    setVisibilitySaving(true);
+    const { error } = await getSupabase().from('businesses').update({
+      public_visibility: nextVisibility,
+      public_show_name: nextShowName,
+      public_show_photos: nextShowPhotos,
+    }).eq('id', business.id);
+    setVisibilitySaving(false);
+    if (error) {
+      setPublicVisibility(prev.publicVisibility);
+      setPublicShowName(prev.publicShowName);
+      setPublicShowPhotos(prev.publicShowPhotos);
+      showToast(error.message || 'Failed to save visibility settings', false);
+      return;
+    }
+    setBusiness(b => b ? {
+      ...b,
+      public_visibility: nextVisibility,
+      public_show_name: nextShowName,
+      public_show_photos: nextShowPhotos,
+    } : b);
+    showToast('Visibility settings saved', true);
   }
 
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
@@ -2590,7 +2620,13 @@ const BusinessDashboard: NextPage = () => {
                         type="checkbox"
                         className="mt-1"
                         checked={publicVisibility}
-                        onChange={e => setPublicVisibility(e.target.checked)}
+                        onChange={e => {
+                          const nextVis = e.target.checked;
+                          const nextShowName = nextVis ? publicShowName : false;
+                          const nextShowPhotos = nextVis ? publicShowPhotos : false;
+                          persistVisibility(nextVis, nextShowName, nextShowPhotos);
+                        }}
+                        disabled={visibilitySaving}
                       />
                       <div>
                         <p className="font-semibold text-neutral-900">Show my provider profile publicly</p>
@@ -2603,8 +2639,8 @@ const BusinessDashboard: NextPage = () => {
                         type="checkbox"
                         className="mt-1"
                         checked={publicShowName}
-                        onChange={e => setPublicShowName(e.target.checked)}
-                        disabled={!publicVisibility}
+                        onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos)}
+                        disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
                         <p className="font-semibold text-neutral-900">Show my name publicly</p>
@@ -2617,8 +2653,8 @@ const BusinessDashboard: NextPage = () => {
                         type="checkbox"
                         className="mt-1"
                         checked={publicShowPhotos}
-                        onChange={e => setPublicShowPhotos(e.target.checked)}
-                        disabled={!publicVisibility}
+                        onChange={e => persistVisibility(publicVisibility, publicShowName, e.target.checked)}
+                        disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
                         <p className="font-semibold text-neutral-900">Show my photos publicly</p>
