@@ -198,21 +198,43 @@ const CampusPage: NextPage = () => {
   const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
     if (!tag && !domain) { setBusinesses([]); setFeaturedBusinesses([]); return; }
     try {
-      const params = new URLSearchParams({ limit: '40' });
-      if (tag) params.set('campus_school_name', tag);
-      if (domain) params.set('school_domain', domain);
-      const campusKey = normalizeCampusKey(tag) || (domain ? normalizeCampusKey(domain.split('.')[0]) : null);
-      if (campusKey) params.set('campus_key', campusKey);
-      const res = await fetch(`/api/campus-businesses?${params.toString()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-store' },
-      });
-      if (!res.ok) { setBusinesses([]); setFeaturedBusinesses([]); return; }
-      const json = await res.json();
-      const rows = json?.businesses || [];
-      const featured = json?.featured || [];
-      setFeaturedBusinesses(featured.map((b: any) => mapCampusBusiness(b)));
-      setBusinesses(rows.map((b: any) => mapCampusBusiness(b)));
+      const fetchCampus = async (params: URLSearchParams) => {
+        const res = await fetch(`/api/campus-businesses?${params.toString()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-store' },
+        });
+        if (!res.ok) return { businesses: [], featured: [] };
+        return res.json().catch(() => ({ businesses: [], featured: [] }));
+      };
+
+      const buildParams = (opts: { tag?: string | null; domain?: string | null; includeKey?: boolean }) => {
+        const params = new URLSearchParams({ limit: '40' });
+        if (opts.tag) params.set('campus_school_name', opts.tag);
+        if (opts.domain) params.set('school_domain', opts.domain);
+        if (opts.includeKey) {
+          const campusKey = normalizeCampusKey(opts.tag || null) || (opts.domain ? normalizeCampusKey(opts.domain.split('.')[0]) : null);
+          if (campusKey) params.set('campus_key', campusKey);
+        }
+        return params;
+      };
+
+      const primary = await fetchCampus(buildParams({ tag, domain, includeKey: true }));
+      let rows = primary?.businesses || [];
+      let featured = primary?.featured || [];
+
+      if (rows.length === 0 && featured.length === 0 && domain) {
+        const retryDomain = await fetchCampus(buildParams({ domain, includeKey: false }));
+        rows = retryDomain?.businesses || rows;
+        featured = retryDomain?.featured || featured;
+      }
+      if (rows.length === 0 && featured.length === 0 && tag) {
+        const retryTag = await fetchCampus(buildParams({ tag, includeKey: false }));
+        rows = retryTag?.businesses || rows;
+        featured = retryTag?.featured || featured;
+      }
+
+      setFeaturedBusinesses((featured || []).map((b: any) => mapCampusBusiness(b)));
+      setBusinesses((rows || []).map((b: any) => mapCampusBusiness(b)));
     } catch {
       setBusinesses([]);
       setFeaturedBusinesses([]);
