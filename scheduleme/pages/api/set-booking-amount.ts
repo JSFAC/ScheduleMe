@@ -19,7 +19,8 @@ export default async function handler(req, res) {
   if (!user) return;
 
   const { booking_id, amount_cents } = req.body;
-  if (!booking_id || !isValidUuid(booking_id)) return res.status(400).json({ error: 'Valid booking_id required' });
+  const bookingId = typeof booking_id === 'string' ? booking_id.trim() : booking_id;
+  if (!bookingId || !isValidUuid(bookingId)) return res.status(400).json({ error: 'Valid booking_id required' });
   const cents = Number(amount_cents);
   if (!Number.isFinite(cents) || cents < 100 || cents > 500000) return res.status(400).json({ error: 'Invalid amount' });
 
@@ -29,18 +30,17 @@ export default async function handler(req, res) {
   let { data: booking, error: bErr } = await sb
     .from('bookings')
     .select('id, status, user_id, business_id, customer_proposed_price_cents, businesses(owner_email, stripe_onboarded, stripe_account_id, name)')
-    .eq('id', booking_id)
-    .in('status', ['pending', 'confirmed', 'payment_pending', 'price_disputed'])
+    .eq('id', bookingId)
     .maybeSingle();
 
   if (bErr || !booking) {
     const { data: fallback, error: fbErr } = await sb
       .from('bookings')
       .select('id, status, user_id, business_id, customer_proposed_price_cents')
-      .eq('id', booking_id)
+      .eq('id', bookingId)
       .maybeSingle();
     if (fbErr || !fallback) return res.status(404).json({ error: 'Booking not found' });
-    if (!['pending', 'confirmed', 'payment_pending', 'price_disputed'].includes(fallback.status)) {
+    if (!['pending', 'confirmed', 'payment_pending', 'price_disputed', 'disputed'].includes(fallback.status)) {
       return res.status(400).json({ error: 'Booking status not eligible for pricing' });
     }
     const { data: bizRow, error: bizErr } = await sb
@@ -50,6 +50,10 @@ export default async function handler(req, res) {
       .maybeSingle();
     if (bizErr || !bizRow) return res.status(404).json({ error: 'Business not found' });
     booking = { ...fallback, businesses: bizRow };
+  }
+
+  if (!['pending', 'confirmed', 'payment_pending', 'price_disputed', 'disputed'].includes(booking.status)) {
+    return res.status(400).json({ error: 'Booking status not eligible for pricing' });
   }
 
   const biz = booking.businesses;
@@ -77,7 +81,7 @@ export default async function handler(req, res) {
       price_accepted_by_customer: false,
       price_accepted_at: acceptsCustomerPrice ? new Date().toISOString() : null,
     })
-    .eq('id', booking_id);
+    .eq('id', bookingId);
 
   if (uErr) {
     const msg = uErr.message || '';
@@ -85,7 +89,7 @@ export default async function handler(req, res) {
       const { error: fbErr } = await sb
         .from('bookings')
         .update({ amount_cents: cents, status: 'payment_pending' })
-        .eq('id', booking_id);
+        .eq('id', bookingId);
       if (fbErr) return res.status(500).json({ error: fbErr.message || 'Failed to update booking' });
     } else {
       return res.status(500).json({ error: msg });
