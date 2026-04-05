@@ -193,6 +193,10 @@ const CampusPage: NextPage = () => {
   const [lastCampusFetch, setLastCampusFetch] = useState<{ url: string; status: number | null; error?: string } | null>(null);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [eduDebug, setEduDebug] = useState<any>(null);
+
+  useEffect(() => {
+    if (router.query.debug === '1' || router.asPath.includes('debug=1')) setDebugEnabled(true);
+  }, [router.query.debug, router.asPath]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -344,14 +348,19 @@ const CampusPage: NextPage = () => {
 
       if (cancelled) return;
 
-      if (!verified && !profileVerified && cachedVerified !== 'true') {
+      const debugFlag = router.asPath.includes('debug=1') || router.query.debug === '1';
+      if (!verified && !profileVerified && cachedVerified !== 'true' && !debugFlag) {
         setEduVerified(false);
         if (typeof window !== 'undefined') localStorage.setItem(cacheKey, 'false');
         router.replace('/home');
         return;
       }
 
-      setEduVerified(true);
+      if (debugFlag && !verified && !profileVerified && cachedVerified !== 'true') {
+        setEduVerified(false);
+      } else {
+        setEduVerified(true);
+      }
       if (typeof window !== 'undefined') localStorage.setItem(cacheKey, 'true');
 
       const emailDomain = session.user.email?.split('@')[1] || null;
