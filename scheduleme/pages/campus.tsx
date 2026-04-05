@@ -42,6 +42,7 @@ function initials(name: string): string {
 }
 
 function mapCampusBusiness(b: any): Business {
+  const showName = b?.public_show_name === true;
   const rawTags = Array.isArray(b.service_tags)
     ? b.service_tags
     : (b.service_tags ? [String(b.service_tags)] : []);
@@ -58,7 +59,7 @@ function mapCampusBusiness(b: any): Business {
   return {
     id: b.id,
     realId: b.id,
-    name: b.name || 'Local Business',
+    name: showName ? (b.name || 'Student Provider') : 'Student Provider',
     slug: b.slug || b.id,
     description: b.description || '',
     tagline: b.description ? b.description.split('.')[0] : '',
