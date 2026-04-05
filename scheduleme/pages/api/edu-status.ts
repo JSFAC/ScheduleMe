@@ -39,6 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   if (!token) return res.status(401).json({ error: 'Missing auth token' });
+  const debug = req.query.debug === '1';
 
   try {
     const supabase = getSupabase();
@@ -105,6 +106,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       schoolEmail: resolvedProfile?.school_email || null,
       schoolName: resolvedProfile?.school_name || null,
       campusTag,
+      ...(debug ? {
+        authUserId: userId,
+        authEmail: email,
+        profileIdById: profileById ? 'found' : null,
+        profileIdByEmail: profileByEmail ? 'found' : null,
+        profileCombined: profileCombined ? 'found' : null,
+      } : {}),
     });
   } catch (err) {
     console.error('[edu-status] error', err);

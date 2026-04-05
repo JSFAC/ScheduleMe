@@ -192,6 +192,7 @@ const CampusPage: NextPage = () => {
   const [featuredBusinesses, setFeaturedBusinesses] = useState<Business[]>([]);
   const [lastCampusFetch, setLastCampusFetch] = useState<{ url: string; status: number | null; error?: string } | null>(null);
   const [debugEnabled, setDebugEnabled] = useState(false);
+  const [eduDebug, setEduDebug] = useState<any>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -289,7 +290,10 @@ const CampusPage: NextPage = () => {
       if (!session) { router.replace('/signin'); return; }
       await loadPinned(session.user.id);
 
-      if (eduCache === 'true') setEduVerified(true);
+      const cacheKey = `sm_edu_verified_${session.user.id}`;
+      const cacheTagKey = `sm_campus_tag_${session.user.id}`;
+      const cachedVerified = typeof window !== 'undefined' ? localStorage.getItem(cacheKey) : null;
+      if (cachedVerified === 'true') setEduVerified(true);
 
       // Check EDU verification via API (service role to avoid RLS)
       let verified = false;
@@ -297,7 +301,7 @@ const CampusPage: NextPage = () => {
       let schoolEmail: string | null = null;
       let campusTagFromApi: string | null = null;
       try {
-        const res = await fetch(`/api/edu-status?t=${Date.now()}`, {
+        const res = await fetch(`/api/edu-status?t=${Date.now()}${debugEnabled ? '&debug=1' : ''}`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (res.ok) {
@@ -307,6 +311,7 @@ const CampusPage: NextPage = () => {
           schoolEmail = json?.schoolEmail || null;
           if (!schoolName && json?.schoolName) schoolName = json.schoolName;
           campusTagFromApi = json?.campusTag || null;
+          if (debugEnabled) setEduDebug(json);
         }
       } catch {}
 
@@ -339,15 +344,15 @@ const CampusPage: NextPage = () => {
 
       if (cancelled) return;
 
-      if (!verified && !profileVerified && eduCache !== 'true') {
+      if (!verified && !profileVerified && cachedVerified !== 'true') {
         setEduVerified(false);
-        if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'false');
+        if (typeof window !== 'undefined') localStorage.setItem(cacheKey, 'false');
         router.replace('/home');
         return;
       }
 
       setEduVerified(true);
-      if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'true');
+      if (typeof window !== 'undefined') localStorage.setItem(cacheKey, 'true');
 
       const emailDomain = session.user.email?.split('@')[1] || null;
       const schoolEmailDomain = schoolEmail?.split('@')[1] || null;
@@ -361,7 +366,7 @@ const CampusPage: NextPage = () => {
         || (schoolName ? schoolName.toUpperCase() : null);
       setSchoolDomain(resolvedSchool);
       setCampusTag(resolvedTag);
-      if (typeof window !== 'undefined' && resolvedTag) localStorage.setItem('sm_campus_tag', resolvedTag);
+      if (typeof window !== 'undefined' && resolvedTag) localStorage.setItem(cacheTagKey, resolvedTag);
       if (resolvedTag || resolvedSchool) loadCampusBusinesses(resolvedTag, resolvedSchool);
 
       setLoading(false);
@@ -564,6 +569,11 @@ const CampusPage: NextPage = () => {
                     {lastCampusFetch?.error && <p>lastFetchError: {lastCampusFetch.error}</p>}
                     <p>businesses: {businesses.length}</p>
                     <p>featured: {featuredBusinesses.length}</p>
+                    {eduDebug && (
+                      <div className="mt-2 pt-2 border-t" style={{ borderColor: dm ? '#1f2937' : '#e5e7eb' }}>
+                        <p>eduDebug: {JSON.stringify(eduDebug)}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
