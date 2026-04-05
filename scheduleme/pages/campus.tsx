@@ -191,6 +191,7 @@ const CampusPage: NextPage = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [featuredBusinesses, setFeaturedBusinesses] = useState<Business[]>([]);
   const [lastCampusFetch, setLastCampusFetch] = useState<{ url: string; status: number | null; error?: string } | null>(null);
+  const [debugEnabled, setDebugEnabled] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -368,6 +369,10 @@ const CampusPage: NextPage = () => {
 
     return () => { cancelled = true; };
   }, [router, loadCampusBusinesses, eduCache]);
+
+  useEffect(() => {
+    if (router.query.debug === '1') setDebugEnabled(true);
+  }, [router.query.debug]);
 
 
   const allBusinesses = (() => {
@@ -548,7 +553,7 @@ const CampusPage: NextPage = () => {
                 <Link href="/business/signup" className="btn-primary text-sm px-6 py-2.5">
                   Apply as a campus provider →
                 </Link>
-                {typeof window !== 'undefined' && window.location.search.includes('debug=1') && (
+                {debugEnabled && (
                   <div className="mt-6 mx-auto max-w-xl text-left text-xs rounded-xl p-4 border" style={{ background: dm ? '#0f172a' : '#f8fafc', borderColor: dm ? '#1f2937' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151' }}>
                     <p className="font-bold mb-2">Campus Debug</p>
                     <p>eduVerified: {String(eduVerified)}</p>
