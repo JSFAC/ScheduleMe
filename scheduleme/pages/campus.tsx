@@ -172,6 +172,14 @@ function normalizeCampusKey(name?: string | null): string | null {
   return cleaned ? cleaned.replace(/\s+/g, '_') : null;
 }
 
+function normalizeSchoolDomain(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (trimmed.includes('.edu')) return trimmed;
+  return null;
+}
+
 const CampusPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
@@ -270,9 +278,36 @@ const CampusPage: NextPage = () => {
         }
       } catch {}
 
+      // Fallback: read profile directly to resolve school domain/email
+      let profileDomain: string | null = null;
+      let profileTag: string | null = null;
+      let profileVerified: boolean | null = null;
+      try {
+        const { data: profileById } = await supabase
+          .from('profiles')
+          .select('edu_verified, school_name, school_domain, school_email')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        const profile = profileById?.edu_verified !== undefined
+          ? profileById
+          : (await supabase
+            .from('profiles')
+            .select('edu_verified, school_name, school_domain, school_email')
+            .eq('email', session.user.email || '')
+            .maybeSingle()).data;
+        if (profile) {
+          profileVerified = profile.edu_verified === true;
+          const emailDomain = profile.school_email?.split('@')[1] || null;
+          profileDomain = normalizeSchoolDomain(profile.school_domain)
+            || normalizeSchoolDomain(emailDomain)
+            || normalizeSchoolDomain(profile.school_name);
+          profileTag = profile.school_name ? profile.school_name.toUpperCase() : null;
+        }
+      } catch {}
+
       if (cancelled) return;
 
-      if (!verified && eduCache !== 'true') {
+      if (!verified && !profileVerified && eduCache !== 'true') {
         setEduVerified(false);
         if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'false');
         router.replace('/home');
@@ -283,8 +318,12 @@ const CampusPage: NextPage = () => {
       if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'true');
 
       const emailDomain = session.user.email?.split('@')[1] || null;
-      const resolvedSchool = schoolName || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
-      const resolvedTag = deriveCampusTag(resolvedSchool) || (schoolName ? schoolName.toUpperCase() : null);
+      const resolvedSchool = schoolName
+        || profileDomain
+        || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
+      const resolvedTag = deriveCampusTag(resolvedSchool)
+        || profileTag
+        || (schoolName ? schoolName.toUpperCase() : null);
       setSchoolDomain(resolvedSchool);
       setCampusTag(resolvedTag);
       if (typeof window !== 'undefined' && resolvedTag) localStorage.setItem('sm_campus_tag', resolvedTag);
