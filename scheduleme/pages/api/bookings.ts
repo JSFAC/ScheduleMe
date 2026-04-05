@@ -719,9 +719,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const idList = Array.from(ids).filter(Boolean);
+      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)';
+      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)';
       let query = supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)')
+        .select(selectWithPrice)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -737,6 +739,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (error) {
         // Retry without relational selects if FK isn't present in this environment
+        const msg = error?.message || '';
+        if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at')) {
+          // Retry without new price fields for older schemas
+          let retryQuery = supabase
+            .from('bookings')
+            .select(selectBase)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          if (idList.length > 1) {
+            const retry = await retryQuery.in('user_id', idList);
+            data = retry.data; error = retry.error;
+          } else {
+            const retry = await retryQuery.eq('user_id', idList[0]);
+            data = retry.data; error = retry.error;
+          }
+        }
+      }
+
+      if (error) {
+        // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
           .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at')
@@ -748,6 +770,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         } else {
           const retry = await plainQuery.eq('user_id', idList[0]);
           data = retry.data; error = retry.error;
+        }
+      }
+
+      if (error) {
+        const msg = error?.message || '';
+        if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at')) {
+          let plainLegacy = supabase
+            .from('bookings')
+            .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id')
+            .order('created_at', { ascending: false })
+            .limit(100);
+          if (idList.length > 1) {
+            const retry = await plainLegacy.in('user_id', idList);
+            data = retry.data; error = retry.error;
+          } else {
+            const retry = await plainLegacy.eq('user_id', idList[0]);
+            data = retry.data; error = retry.error;
+          }
         }
       }
 
