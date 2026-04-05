@@ -215,6 +215,7 @@ export default function BizPage() {
   const [canEdit, setCanEdit] = useState(false);
   const [viewerEduVerified, setViewerEduVerified] = useState(false);
   const [viewerSchoolDomain, setViewerSchoolDomain] = useState<string | null>(null);
+  const [viewerEmail, setViewerEmail] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -234,11 +235,18 @@ export default function BizPage() {
 
   const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
   const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
-  const sameCampus = !!(viewerSchoolDomain && (viewerSchoolDomain === bizSchoolDomain || viewerSchoolDomain === bizCampusKey));
+  const normalizeDomain = (v?: string | null) => v ? String(v).toLowerCase().trim() : null;
+  const viewerDomain = normalizeDomain(viewerSchoolDomain);
+  const normalizedBizKey = bizCampusKey ? bizCampusKey.replace(/[^a-z0-9.]/g, '') : null;
+  const normalizedViewer = viewerDomain ? viewerDomain.replace(/[^a-z0-9.]/g, '') : null;
+  const sameCampus = !!(viewerDomain && (viewerDomain === bizSchoolDomain || viewerDomain === bizCampusKey || (normalizedBizKey && normalizedViewer && (normalizedViewer === normalizedBizKey || normalizedViewer.replace('.edu','') === normalizedBizKey))));
+  const isOwnerViewing = !!(biz?.owner_email && viewerEmail && biz.owner_email === viewerEmail);
   const ownerDisplayName = biz
-    ? (viewerEduVerified && sameCampus
-        ? (biz.campus_show_name ? biz.owner_name : '')
-        : (biz.public_visibility && biz.public_show_name ? biz.owner_name : ''))
+    ? (isOwnerViewing
+        ? biz.owner_name
+        : (viewerEduVerified && sameCampus
+            ? (biz.campus_show_name ? biz.owner_name : '')
+            : (biz.public_visibility && biz.public_show_name ? biz.owner_name : '')))
     : '';
   const titleName = biz?.name || 'ScheduleMe Provider';
 
@@ -258,11 +266,13 @@ export default function BizPage() {
             if (!session) return;
             const { data: profile } = await getSB()
               .from('profiles')
-              .select('edu_verified, school_domain')
+              .select('edu_verified, school_domain, school_email')
               .eq('id', session.user.id)
               .maybeSingle();
+            setViewerEmail(session.user.email || null);
             setViewerEduVerified(profile?.edu_verified === true);
-            setViewerSchoolDomain(profile?.school_domain ? String(profile.school_domain).toLowerCase() : null);
+            const emailDomain = profile?.school_email?.includes('@') ? profile.school_email.split('@').pop() : null;
+            setViewerSchoolDomain(profile?.school_domain ? String(profile.school_domain).toLowerCase() : (emailDomain ? String(emailDomain).toLowerCase() : null));
             const { data: fav } = await getSB()
               .from('favorites')
               .select('id')
