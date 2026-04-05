@@ -49,6 +49,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const userId = user.id;
     const email = user.email || '';
 
+    const emailSafe = email.replace(/'/g, "''");
+    const { data: profileCombined } = await supabase
+      .from('profiles')
+      .select('edu_verified, school_name, school_domain, school_email, email, id')
+      .or(`id.eq.${userId},email.ilike.${emailSafe}`)
+      .limit(1)
+      .maybeSingle();
+
     const { data: profileById } = await supabase
       .from('profiles')
       .select('edu_verified, school_name, school_domain, school_email')
@@ -58,14 +66,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: profileByEmail } = await supabase
       .from('profiles')
       .select('edu_verified, school_name, school_domain, school_email')
-      .eq('email', email)
+      .ilike('email', email)
       .maybeSingle();
 
     const resolvedProfile = (() => {
+      if (profileCombined?.school_email || profileCombined?.school_domain || profileCombined?.school_name) {
+        return profileCombined;
+      }
       if (profileByEmail?.school_email || profileByEmail?.school_domain || profileByEmail?.school_name) {
         return profileByEmail;
       }
-      return profileById || profileByEmail || null;
+      return profileById || profileByEmail || profileCombined || null;
     })();
 
     const { data: biz } = await supabase
