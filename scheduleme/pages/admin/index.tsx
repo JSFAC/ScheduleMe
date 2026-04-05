@@ -902,4 +902,5 @@ const AdminPage: NextPage = () => {
   );
 };
 
-export default dynamic(async () => AdminPage, { ssr: false });
+const AdminPageNoSSR = dynamic(() => Promise.resolve(AdminPage), { ssr: false });
+export default AdminPageNoSSR;
