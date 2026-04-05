@@ -190,6 +190,7 @@ const CampusPage: NextPage = () => {
   const [campusTag, setCampusTag] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [featuredBusinesses, setFeaturedBusinesses] = useState<Business[]>([]);
+  const [lastCampusFetch, setLastCampusFetch] = useState<{ url: string; status: number | null; error?: string } | null>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -199,10 +200,12 @@ const CampusPage: NextPage = () => {
     if (!tag && !domain) { setBusinesses([]); setFeaturedBusinesses([]); return; }
     try {
       const fetchCampus = async (params: URLSearchParams) => {
+        const url = `/api/campus-businesses?${params.toString()}`;
         const res = await fetch(`/api/campus-businesses?${params.toString()}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-store' },
         });
+        setLastCampusFetch({ url, status: res.status });
         if (!res.ok) return { businesses: [], featured: [] };
         return res.json().catch(() => ({ businesses: [], featured: [] }));
       };
@@ -235,7 +238,8 @@ const CampusPage: NextPage = () => {
 
       setFeaturedBusinesses((featured || []).map((b: any) => mapCampusBusiness(b)));
       setBusinesses((rows || []).map((b: any) => mapCampusBusiness(b)));
-    } catch {
+    } catch (err: any) {
+      setLastCampusFetch((prev) => prev ? { ...prev, error: err?.message || 'Fetch failed' } : { url: '', status: null, error: err?.message || 'Fetch failed' });
       setBusinesses([]);
       setFeaturedBusinesses([]);
     }
@@ -544,6 +548,19 @@ const CampusPage: NextPage = () => {
                 <Link href="/business/signup" className="btn-primary text-sm px-6 py-2.5">
                   Apply as a campus provider →
                 </Link>
+                {typeof window !== 'undefined' && window.location.search.includes('debug=1') && (
+                  <div className="mt-6 mx-auto max-w-xl text-left text-xs rounded-xl p-4 border" style={{ background: dm ? '#0f172a' : '#f8fafc', borderColor: dm ? '#1f2937' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151' }}>
+                    <p className="font-bold mb-2">Campus Debug</p>
+                    <p>eduVerified: {String(eduVerified)}</p>
+                    <p>schoolDomain: {String(schoolDomain)}</p>
+                    <p>campusTag: {String(campusTag)}</p>
+                    <p>lastFetchUrl: {lastCampusFetch?.url || 'n/a'}</p>
+                    <p>lastFetchStatus: {lastCampusFetch?.status ?? 'n/a'}</p>
+                    {lastCampusFetch?.error && <p>lastFetchError: {lastCampusFetch.error}</p>}
+                    <p>businesses: {businesses.length}</p>
+                    <p>featured: {featuredBusinesses.length}</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
