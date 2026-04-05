@@ -2,7 +2,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import BusinessNav from '../../components/BusinessNav';
 
 type Step = 'form' | 'submitting' | 'success';
@@ -23,6 +23,34 @@ const RADIUS_OPTIONS = ['5 miles','10 miles','15 miles','25 miles','50 miles','1
 const SignupPage: NextPage = () => {
   const [step, setStep] = useState<Step>('form');
   const [apiError, setApiError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
+  const captchaRef = useRef<HTMLDivElement | null>(null);
+  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+
+  useEffect(() => {
+    if (!siteKey) return;
+    const renderCaptcha = () => {
+      const hcaptcha = (window as any).hcaptcha;
+      if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return;
+      const id = hcaptcha.render(captchaRef.current, {
+        sitekey: siteKey,
+        callback: (token: string) => setCaptchaToken(token),
+        'expired-callback': () => setCaptchaToken(''),
+      });
+      setCaptchaWidgetId(id);
+    };
+    if ((window as any).hcaptcha) {
+      renderCaptcha();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://hcaptcha.com/1/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.onload = renderCaptcha;
+    document.body.appendChild(script);
+  }, [siteKey, captchaWidgetId]);
   const [form, setForm] = useState<FormData>({
     businessName:'', ownerName:'', email:'', phone:'', serviceCategory:'', otherCategory:'',
     city:'', zip:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', agree:false,
@@ -47,6 +75,7 @@ const SignupPage: NextPage = () => {
     if (!form.zip.trim()) e.zip = 'Enter your ZIP code.';
     if (form.zip && !/^\d{5}(-\d{4})?$/.test(form.zip.trim())) e.zip = 'Enter a valid ZIP code.';
     if (!form.agree) e.agree = 'You must agree to the terms.';
+    if (siteKey && !captchaToken) e.captcha = 'Please complete the captcha.';
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -60,7 +89,7 @@ const SignupPage: NextPage = () => {
       const res = await fetch('/api/business-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, plan: 'commission' }),
+        body: JSON.stringify({ ...form, plan: 'commission', captchaToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed');
@@ -370,6 +399,13 @@ const SignupPage: NextPage = () => {
                 {errors.agree && <p className="mt-2 text-xs text-red-400 ml-7">{errors.agree}</p>}
               </div>
             </div>
+
+            {siteKey && (
+              <div className="mt-6">
+                <div ref={captchaRef} />
+                {errors.captcha && <p className="mt-2 text-xs text-red-400">{errors.captcha}</p>}
+              </div>
+            )}
 
             <button type="submit" className="btn-primary w-full text-base py-4 mt-6 shadow-xl shadow-accent/20">
               Submit Application →

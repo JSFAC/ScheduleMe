@@ -3,7 +3,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
 import BusinessNav from '../../../components/BusinessNav';
@@ -22,6 +22,12 @@ const BusinessLoginPage: NextPage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failedCount, setFailedCount] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
+  const captchaRef = useRef<HTMLDivElement | null>(null);
+  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+  const captchaRequired = !!siteKey && failedCount >= 3;
 
   // Read error from query string (set by /auth/callback)
   useEffect(() => {
@@ -31,6 +37,30 @@ const BusinessLoginPage: NextPage = () => {
     }
   }, [router.query.error, router]);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!siteKey || !captchaRequired) return;
+    const renderCaptcha = () => {
+      const hcaptcha = (window as any).hcaptcha;
+      if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return;
+      const id = hcaptcha.render(captchaRef.current, {
+        sitekey: siteKey,
+        callback: (token: string) => setCaptchaToken(token),
+        'expired-callback': () => setCaptchaToken(''),
+      });
+      setCaptchaWidgetId(id);
+    };
+    if ((window as any).hcaptcha) {
+      renderCaptcha();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://hcaptcha.com/1/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.onload = renderCaptcha;
+    document.body.appendChild(script);
+  }, [siteKey, captchaRequired, captchaWidgetId]);
 
   // On mount: if someone returned from Google OAuth,
   // check if they're a real business — if not, delete the orphaned auth account and show error
@@ -76,6 +106,11 @@ const BusinessLoginPage: NextPage = () => {
     setLoading(true); setError(null); setSuccess(null);
     const supabase = getSupabase();
     try {
+      if (captchaRequired && !captchaToken) {
+        setError('Please complete the captcha.');
+        setLoading(false);
+        return;
+      }
       if (mode === 'reset') {
         // Only send reset if they actually have a business account
         const { data: biz } = await supabase
@@ -114,10 +149,12 @@ const BusinessLoginPage: NextPage = () => {
           return;
         }
 
+        setFailedCount(0);
         router.push('/business/dashboard');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
+      setFailedCount(c => c + 1);
     } finally {
       setLoading(false);
     }
@@ -238,6 +275,11 @@ const BusinessLoginPage: NextPage = () => {
                     className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                     placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
+                {captchaRequired && (
+                  <div className="pt-1">
+                    <div ref={captchaRef} />
+                  </div>
+                )}
                 <button type="submit" disabled={loading} className="btn-primary w-full py-3">
                   {loading ? 'Please wait…' : 'Log In'}
                 </button>

@@ -3,7 +3,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
-import { setSecurityHeaders, rateLimit, isValidEmail, isValidPhone, getUnknownFields } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, isValidEmail, isValidPhone, getUnknownFields, getClientIp } from '../../lib/apiSecurity';
+import { requireCaptcha } from '../../lib/captcha';
 import { sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail } from '../../lib/email';
 
 function getSupabase() {
@@ -55,13 +56,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Rate limit: 3 signups per IP per hour (prevents signup spam)
   if (!(await rateLimit(req, res, { max: 3, windowMs: 60 * 60_000, keyPrefix: 'biz-signup' }))) return;
 
-  const allowed = ['businessName','ownerName','email','phone','serviceCategory','otherCategory','city','zip','website','instagram','campusProvider','schoolName'];
+  const allowed = ['businessName','ownerName','email','phone','serviceCategory','otherCategory','city','zip','website','instagram','campusProvider','schoolName','captchaToken'];
   const unknown = getUnknownFields(req.body, allowed);
   if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
   const {
     businessName, ownerName, email, phone, serviceCategory, otherCategory,
-    city, zip, website, instagram, campusProvider, schoolName,
+    city, zip, website, instagram, campusProvider, schoolName, captchaToken,
   } = req.body;
+
+  if (!(await requireCaptcha(req, res, captchaToken, getClientIp(req)))) return;
 
   // Required fields
   if (!businessName || !email || !city || !zip || !serviceCategory)

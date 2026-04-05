@@ -171,7 +171,17 @@ export async function requireAdmin(
     .split(',')
     .map(v => v.trim().toLowerCase())
     .filter(Boolean);
-  if (allowlist.includes(user.email.toLowerCase())) return user;
+  if (allowlist.includes(user.email.toLowerCase())) {
+    await logAuditEvent(req, 'admin_access', {
+      entity_type: 'admin',
+      entity_id: null,
+      actor_id: user.id,
+      actor_email: user.email,
+      actor_role: 'admin',
+      meta: { method: req.method, path: req.url },
+    });
+    return user;
+  }
 
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -186,7 +196,17 @@ export async function requireAdmin(
       .select('role')
       .eq('id', user.id)
       .maybeSingle();
-    if (profile?.role === 'admin') return user;
+    if (profile?.role === 'admin') {
+      await logAuditEvent(req, 'admin_access', {
+        entity_type: 'admin',
+        entity_id: null,
+        actor_id: user.id,
+        actor_email: user.email,
+        actor_role: 'admin',
+        meta: { method: req.method, path: req.url },
+      });
+      return user;
+    }
   } catch {}
 
   res.status(403).json({ error: 'Admin access required.' });

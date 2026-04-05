@@ -4,9 +4,10 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import Nav from '../components/Nav';
+import { safeRedirect } from '../lib/safeRedirect';
 
 function getSupabase() {
   return getSupabaseClient();
@@ -30,6 +31,36 @@ const SignIn: NextPage = () => {
   const [sent, setSent] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
   const [businessRedirecting, setBusinessRedirecting] = useState(false);
+  const [failedCount, setFailedCount] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
+  const captchaRef = useRef<HTMLDivElement | null>(null);
+  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+  const captchaRequired = !!siteKey && (tab === 'signup' || failedCount >= 3);
+
+  useEffect(() => {
+    if (!siteKey || !captchaRequired) return;
+    const renderCaptcha = () => {
+      const hcaptcha = (window as any).hcaptcha;
+      if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return;
+      const id = hcaptcha.render(captchaRef.current, {
+        sitekey: siteKey,
+        callback: (token: string) => setCaptchaToken(token),
+        'expired-callback': () => setCaptchaToken(''),
+      });
+      setCaptchaWidgetId(id);
+    };
+    if ((window as any).hcaptcha) {
+      renderCaptcha();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://hcaptcha.com/1/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.onload = renderCaptcha;
+    document.body.appendChild(script);
+  }, [siteKey, captchaRequired, captchaWidgetId]);
 
   async function handleGoogle() {
     const supabase = getSupabase();
@@ -45,6 +76,11 @@ const SignIn: NextPage = () => {
     setLoading(true); setError(null);
     const supabase = getSupabase();
     try {
+      if (captchaRequired && !captchaToken) {
+        setError('Please complete the captcha.');
+        setLoading(false);
+        return;
+      }
       if (showReset) {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/reset`,
@@ -63,10 +99,12 @@ const SignIn: NextPage = () => {
           }
           throw error;
         }
-        router.push((next as string) || '/home');
+        setFailedCount(0);
+        router.push(safeRedirect(next, '/home'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
+      setFailedCount(c => c + 1);
     } finally {
       setLoading(false);
     }
@@ -203,6 +241,11 @@ const SignIn: NextPage = () => {
                       <input type="password" required className="form-input" placeholder="••••••••"
                         value={password} onChange={e => setPassword(e.target.value)} />
                     </div>
+                    {captchaRequired && (
+                      <div className="pt-1">
+                        <div ref={captchaRef} />
+                      </div>
+                    )}
                     <button type="submit" disabled={loading} className="btn-primary w-full py-3">
                       {loading ? 'Please wait…' : tab === 'login' ? 'Log In' : 'Create Account'}
                     </button>
