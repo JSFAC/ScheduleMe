@@ -1999,7 +1999,7 @@ const BusinessDashboard: NextPage = () => {
                                       }}
                                       disabled={!bookingPrices[b.id] && !b.amount_cents}
                                       className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white disabled:opacity-40">
-                                      Confirm & Set Price
+                                      {b.status === 'price_disputed' ? 'Send Price' : 'Confirm & Set Price'}
                                     </button>
                                   </div>
                                   <p className="text-[10px] mt-1" style={{ color: dm ? '#636366' : '#9ca3af' }}>Set the price — customer will be prompted to pay after confirmation</p>
@@ -2992,11 +2992,15 @@ const BusinessDashboard: NextPage = () => {
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>
-                    {confirmAction.action === 'confirm' ? 'Confirm booking?' : 'Cancel booking?'}
+                    {confirmAction.action === 'confirm'
+                      ? (confirmAction.booking.status === 'price_disputed' ? 'Send price to customer?' : 'Confirm booking?')
+                      : 'Cancel booking?'}
                   </p>
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                     {confirmAction.action === 'confirm'
-                      ? 'This will move the request into confirmed.'
+                      ? (confirmAction.booking.status === 'price_disputed'
+                        ? 'This will keep the booking disputed and send your price to the customer to confirm.'
+                        : 'This will move the request into confirmed.')
                       : 'This will notify the customer and mark it cancelled.'}
                   </p>
                 </div>
@@ -3024,7 +3028,9 @@ const BusinessDashboard: NextPage = () => {
                         const ok = await handleSetPrice(booking.id, priceCents);
                         if (!ok) { setConfirmSubmitting(false); return; }
                       }
-                      await handleUpdateBooking(booking.id, 'confirmed');
+                      if (booking.status !== 'price_disputed') {
+                        await handleUpdateBooking(booking.id, 'confirmed');
+                      }
                     } else {
                       await handleUpdateBooking(booking.id, 'cancelled');
                     }
