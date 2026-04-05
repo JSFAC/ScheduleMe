@@ -326,21 +326,20 @@ const CampusPage: NextPage = () => {
       try {
         const { data: profileById } = await supabase
           .from('profiles')
-          .select('edu_verified, school_name, school_domain, school_email')
+          .select('edu_verified, school_name, school_email')
           .eq('id', session.user.id)
           .maybeSingle();
         const profile = profileById?.edu_verified !== undefined
           ? profileById
           : (await supabase
             .from('profiles')
-            .select('edu_verified, school_name, school_domain, school_email')
+            .select('edu_verified, school_name, school_email')
             .eq('email', session.user.email || '')
             .maybeSingle()).data;
         if (profile) {
           profileVerified = profile.edu_verified === true;
           const emailDomain = profile.school_email?.split('@')[1] || null;
-          profileDomain = normalizeSchoolDomain(profile.school_domain)
-            || normalizeSchoolDomain(emailDomain)
+          profileDomain = normalizeSchoolDomain(emailDomain)
             || normalizeSchoolDomain(profile.school_name);
           profileTag = profile.school_name ? profile.school_name.toUpperCase() : null;
         }

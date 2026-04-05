@@ -53,20 +53,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const emailSafe = email.replace(/'/g, "''");
     const { data: profileCombined } = await supabase
       .from('profiles')
-      .select('edu_verified, school_name, school_domain, school_email, email, id')
+      .select('edu_verified, school_name, school_email, email, id')
       .or(`id.eq.${userId},email.ilike.${emailSafe}`)
       .limit(1)
       .maybeSingle();
 
     const { data: profileById } = await supabase
       .from('profiles')
-      .select('edu_verified, school_name, school_domain, school_email')
+      .select('edu_verified, school_name, school_email')
       .eq('id', userId)
       .maybeSingle();
 
     const { data: profileByEmail } = await supabase
       .from('profiles')
-      .select('edu_verified, school_name, school_domain, school_email')
+      .select('edu_verified, school_name, school_email')
       .ilike('email', email)
       .maybeSingle();
 
@@ -91,7 +91,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const inferredDomain = emailDomain.endsWith('.edu') ? emailDomain : null;
     const schoolEmailDomain = resolvedProfile?.school_email?.split('@')[1] || null;
     const schoolDomain =
-      resolvedProfile?.school_domain ||
       schoolEmailDomain ||
       resolvedProfile?.school_name ||
       biz?.school_domain ||
