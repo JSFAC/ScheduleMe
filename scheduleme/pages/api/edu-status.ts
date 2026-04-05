@@ -31,9 +31,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('edu_verified, school_name, school_domain')
+      .select('edu_verified, school_name, school_domain, school_email')
       .eq('id', userId)
       .maybeSingle();
+
+    const resolvedProfile = profile?.edu_verified !== undefined
+      ? profile
+      : (await supabase
+        .from('profiles')
+        .select('edu_verified, school_name, school_domain, school_email')
+        .eq('email', email)
+        .maybeSingle()).data;
 
     const { data: biz } = await supabase
       .from('businesses')
@@ -41,10 +49,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('owner_email', email)
       .maybeSingle();
 
-    const verified = profile?.edu_verified === true || biz?.edu_verified === true;
+    const verified = resolvedProfile?.edu_verified === true || biz?.edu_verified === true;
     const emailDomain = email.split('@')[1] || '';
     const inferredDomain = emailDomain.endsWith('.edu') ? emailDomain : null;
-    const schoolDomain = profile?.school_name || profile?.school_domain || biz?.school_domain || inferredDomain || null;
+    const schoolEmailDomain = resolvedProfile?.school_email?.split('@')[1] || null;
+    const schoolDomain =
+      resolvedProfile?.school_domain ||
+      schoolEmailDomain ||
+      resolvedProfile?.school_name ||
+      biz?.school_domain ||
+      inferredDomain ||
+      null;
 
     return res.status(200).json({ verified, schoolDomain });
   } catch (err) {
