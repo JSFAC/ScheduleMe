@@ -210,6 +210,10 @@ const Account: NextPage = () => {
   const [eduStep, setEduStep] = useState<'email'|'code'|'done'>('email');
   const [eduLoading, setEduLoading] = useState(false);
   const [eduError, setEduError] = useState('');
+  const [showDisconnectEdu, setShowDisconnectEdu] = useState(false);
+  const [disconnectText, setDisconnectText] = useState('');
+  const [disconnectLoading, setDisconnectLoading] = useState(false);
+  const [disconnectError, setDisconnectError] = useState('');
   const [showEduModal, setShowEduModal] = useState(false);
   const [addressDraft, setAddressDraft] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState(false);
@@ -265,6 +269,12 @@ const Account: NextPage = () => {
       setPaymentError(e?.message || 'Failed to remove card');
     }
   }
+
+  useEffect(() => {
+    if (router.query.edu === '1') {
+      setShowEduModal(true);
+    }
+  }, [router.query.edu]);
 
   useEffect(() => {
     if (tab === 'payments') fetchPaymentMethods();
@@ -953,10 +963,17 @@ const Account: NextPage = () => {
                   <button type="submit" disabled={saving} className="btn-primary w-full py-2.5 text-sm">
                     {saved ? '✓ Saved!' : saving ? 'Saving…' : 'Save Changes'}
                   </button>
-                  <button type="button" onClick={() => setShowEduModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                    style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
-                    {eduVerified ? 'View EDU Verification' : 'Verify .edu Email'}
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setShowEduModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                      style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
+                      {eduVerified ? 'View EDU Verification' : 'Verify .edu Email'}
+                    </button>
+                    <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                      style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
+                      Disconnect .edu Email
+                    </button>
+                  </div>
                 </form>
               </div>
 
@@ -1079,6 +1096,63 @@ const Account: NextPage = () => {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {showDisconnectEdu && (
+          <div className="fixed inset-0 z-[310] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+            <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+              <button onClick={() => setShowDisconnectEdu(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+              <span className="sm-eyebrow mb-2 block">Campus</span>
+              <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Disconnect .edu Email</h2>
+              <p className="text-xs mt-2" style={{ color: textMuted }}>
+                This removes your campus verification so you can re-verify with a new school. Type <strong>confirm</strong> to continue.
+              </p>
+              <div className="mt-4 space-y-3">
+                <input type="text" value={disconnectText} onChange={(e) => setDisconnectText(e.target.value)} placeholder="confirm" className="form-input"
+                  style={{ background: inputBg, color: textPrimary, borderColor: inputBorder }} />
+                {disconnectError && <p className="text-xs text-red-500">{disconnectError}</p>}
+                <button
+                  disabled={disconnectText.trim().toLowerCase() !== 'confirm' || disconnectLoading}
+                  onClick={async () => {
+                    if (disconnectText.trim().toLowerCase() !== 'confirm') return;
+                    setDisconnectLoading(true);
+                    setDisconnectError('');
+                    try {
+                      const sb = getSupabase();
+                      const { data: { session } } = await sb.auth.getSession();
+                      const res = await fetch('/api/disconnect-edu', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer ' + session?.access_token,
+                        },
+                      });
+                      const d = await res.json();
+                      if (!res.ok) {
+                        setDisconnectError(d.error || 'Failed to disconnect.');
+                      } else {
+                        setEduVerified(false);
+                        setEduEmail('');
+                        setEduCode('');
+                        setEduStep('email');
+                        setShowDisconnectEdu(false);
+                      }
+                    } catch (e) {
+                      setDisconnectError('Network error.');
+                    } finally {
+                      setDisconnectLoading(false);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold text-white"
+                  style={{ background: disconnectText.trim().toLowerCase() === 'confirm' ? '#ef4444' : (dm ? '#2c2c2e' : '#e5e7eb'), color: disconnectText.trim().toLowerCase() === 'confirm' ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}
+                >
+                  {disconnectLoading ? 'Disconnecting…' : 'Disconnect'}
+                </button>
+                <button onClick={() => setShowDisconnectEdu(false)} className="w-full text-xs text-center" style={{ color: textMuted }}>
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
