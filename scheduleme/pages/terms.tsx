@@ -11,58 +11,74 @@ const EMAIL = 'usescheduleme@gmail.com';
 const sections = [
   {
     title: '1. Acceptance of Terms',
-    body: `By accessing or using the ScheduleMe platform (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the Service. These Terms apply to all visitors, consumers, and registered business users. ${COMPANY} reserves the right to update these Terms at any time. Continued use of the Service after changes constitutes acceptance.`,
+    body: `By accessing or using the ScheduleMe platform (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the Service. These Terms apply to all visitors, consumers, and registered provider users. ${COMPANY} reserves the right to update these Terms at any time. Continued use of the Service after changes constitutes acceptance.`,
   },
   {
     title: '2. Description of Service',
-    body: 'ScheduleMe connects consumers seeking local services with service providers, including campus and nearby businesses. Consumers submit requests, browse providers, and book services. ScheduleMe is not itself a service provider and does not perform any services directly.',
+    body: 'ScheduleMe connects consumers seeking local services with service providers, including campus and nearby providers. Consumers submit requests, browse providers, and book services. ScheduleMe is not itself a service provider and does not perform any services directly.',
   },
   {
-    title: '3. Consumer Terms',
-    body: 'As a consumer, you may submit service requests without creating an account. By submitting a request, you authorize ScheduleMe to share your contact information and service description with matched businesses. You agree to provide accurate information. ScheduleMe does not guarantee the quality, safety, legality, or completion of any services performed by businesses found through the platform. Any contract for services is solely between you and the service provider.',
+    title: '3. Eligibility and Accounts',
+    body: 'You must be at least 13 years old to use the Service. If you are under 18, you may use the Service only with the involvement of a parent or legal guardian. You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account. You agree to provide accurate, current, and complete information and to keep it updated.',
   },
   {
-    title: '4. Business Account Terms',
-    body: 'To list a business on ScheduleMe, you must create an account, complete the onboarding process, and pass our verification review. You represent that all information you provide is accurate and that you hold all required licenses, permits, and insurance required by applicable law. You are solely responsible for the services you provide to customers. ScheduleMe may suspend or terminate your account at any time if we determine you have violated these Terms or engaged in fraudulent or misleading conduct.',
+    title: '4. Marketplace Role (No Agency)',
+    body: 'ScheduleMe is a marketplace and is not a party to any agreement between consumers and providers. We do not control, direct, or guarantee the work performed by providers, and providers are not our employees, partners, or agents. Any contract for services is solely between you and the provider. Providers are responsible for their own taxes, licensing, insurance, and legal compliance.',
   },
   {
-    title: '5. Payments and Billing',
-    body: 'Consumer use of ScheduleMe is free. Business accounts may be subject to platform fees or pricing as disclosed at signup or in the dashboard. All payments are processed by Stripe. You authorize us to charge your payment method on file for fees incurred.',
+    title: '5. Consumer Terms',
+    body: 'As a consumer, you may submit service requests without creating an account. By submitting a request, you authorize ScheduleMe to share your contact information and service description with matched providers. You agree to provide accurate information. ScheduleMe does not guarantee the quality, safety, legality, or completion of any services performed by providers found through the platform.',
   },
   {
-    title: '6. Prohibited Conduct',
-    body: 'You agree not to: (a) use the Service for any unlawful purpose; (b) submit false or misleading information; (c) impersonate any person or entity; (d) scrape, crawl, or data-mine any portion of the Service; (e) attempt to gain unauthorized access to any part of the platform; (f) interfere with or disrupt the integrity or performance of the Service; (g) use the Service to send spam or unsolicited communications; or (h) circumvent ScheduleMe by contacting leads found through the platform outside of our system to avoid fees.',
+    title: '6. Provider Account Terms',
+    body: 'To list a provider profile on ScheduleMe, you must create an account, complete onboarding, and pass verification. You represent that all information you provide is accurate and that you hold all required licenses, permits, and insurance required by applicable law. You are solely responsible for the services you provide to customers. ScheduleMe may suspend or terminate your account if we determine you have violated these Terms or engaged in fraudulent or misleading conduct.',
   },
   {
-    title: '7. Intellectual Property',
-    body: 'All content, trademarks, logos, and software on the ScheduleMe platform are the exclusive property of ScheduleMe or its licensors. You may not copy, modify, distribute, sell, or lease any part of our Service without prior written consent. Business users retain ownership of their submitted content (photos, descriptions) but grant ScheduleMe a non-exclusive, royalty-free license to display that content on the platform.',
+    title: '7. Payments and Fees',
+    body: 'Consumer use of ScheduleMe is free. Provider accounts may be subject to platform fees or pricing as disclosed at signup or in the dashboard. All payments are processed by Stripe. You authorize Stripe and ScheduleMe to charge your payment method for fees incurred. Providers are responsible for issuing refunds or resolving disputes with customers; ScheduleMe may facilitate refunds but does not guarantee any refund outcome. Chargebacks and disputes may result in account limitations.',
   },
   {
-    title: '8. Disclaimers',
-    body: 'THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. SCHEDULEME DOES NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR FREE OF HARMFUL COMPONENTS. WE DO NOT ENDORSE, GUARANTEE, OR ASSUME RESPONSIBILITY FOR ANY BUSINESS LISTED ON THE PLATFORM OR ANY SERVICES THEY PROVIDE.',
+    title: '8. Disputes Between Users',
+    body: 'Disputes between consumers and providers are solely between those parties. ScheduleMe is not responsible for, and does not control, disputes, claims, or damages arising from a service transaction. We may, but are not required to, assist with dispute resolution or facilitate communication.',
   },
   {
-    title: '9. Limitation of Liability',
-    body: 'TO THE FULLEST EXTENT PERMITTED BY LAW, SCHEDULEME, INC. AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING OUT OF OR RELATED TO YOUR USE OF THE SERVICE. OUR TOTAL LIABILITY TO YOU FOR ANY CLAIM SHALL NOT EXCEED THE GREATER OF $100 OR THE AMOUNT YOU PAID TO SCHEDULEME IN THE 12 MONTHS PRECEDING THE CLAIM.',
+    title: '9. User Content and Reviews',
+    body: 'You are responsible for any content you submit, including messages, reviews, photos, and descriptions. You grant ScheduleMe a non-exclusive, royalty-free, worldwide license to display, host, and distribute your content to operate the Service. We may remove content that violates these Terms or applicable law. You represent that you have the rights to the content you submit and that it does not infringe any third-party rights.',
   },
   {
-    title: '10. Indemnification',
+    title: '10. Prohibited Conduct',
+    body: 'You agree not to: (a) use the Service for any unlawful purpose; (b) submit false or misleading information; (c) impersonate any person or entity; (d) scrape, crawl, or data-mine any portion of the Service; (e) attempt to gain unauthorized access to any part of the platform; (f) interfere with or disrupt the integrity or performance of the Service; (g) use the Service to send spam or unsolicited communications; (h) circumvent ScheduleMe by contacting leads found through the platform outside of our system to avoid fees; or (i) post content that is defamatory, harassing, or abusive.',
+  },
+  {
+    title: '11. Intellectual Property',
+    body: 'All content, trademarks, logos, and software on the ScheduleMe platform are the exclusive property of ScheduleMe or its licensors. You may not copy, modify, distribute, sell, or lease any part of our Service without prior written consent. Provider users retain ownership of their submitted content but grant ScheduleMe a license to display that content on the platform.',
+  },
+  {
+    title: '12. Disclaimers',
+    body: 'THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. SCHEDULEME DOES NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR FREE OF HARMFUL COMPONENTS. WE DO NOT ENDORSE, GUARANTEE, OR ASSUME RESPONSIBILITY FOR ANY PROVIDER LISTED ON THE PLATFORM OR ANY SERVICES THEY PROVIDE.',
+  },
+  {
+    title: '13. Limitation of Liability',
+    body: 'TO THE FULLEST EXTENT PERMITTED BY LAW, SCHEDULEME AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING OUT OF OR RELATED TO YOUR USE OF THE SERVICE. OUR TOTAL LIABILITY TO YOU FOR ANY CLAIM SHALL NOT EXCEED THE GREATER OF $100 OR THE AMOUNT YOU PAID TO SCHEDULEME IN THE 12 MONTHS PRECEDING THE CLAIM.',
+  },
+  {
+    title: '14. Indemnification',
     body: 'You agree to indemnify and hold harmless ScheduleMe and its affiliates, officers, agents, and employees from any claim, liability, damage, or expense (including attorneys\' fees) arising from your use of the Service, your violation of these Terms, or your violation of any rights of a third party.',
   },
   {
-    title: '11. Dispute Resolution',
+    title: '15. Dispute Resolution',
     body: 'Any dispute arising from these Terms or your use of the Service shall be resolved by binding arbitration under the rules of the American Arbitration Association, conducted in English in the State of California, unless prohibited by law. You waive the right to participate in a class action lawsuit or class‑wide arbitration. Nothing in this section prevents either party from seeking injunctive or other equitable relief in court.',
   },
   {
-    title: '12. Governing Law',
+    title: '16. Governing Law',
     body: 'These Terms are governed by the laws of the State of California, without regard to conflict of law principles.',
   },
   {
-    title: '13. Termination',
+    title: '17. Termination',
     body: 'ScheduleMe may terminate or suspend your access to the Service at any time, with or without cause, with or without notice. Upon termination, your right to use the Service ceases immediately. Provisions of these Terms that by their nature should survive termination will survive, including ownership provisions, warranty disclaimers, indemnity, and limitations of liability.',
   },
   {
-    title: '14. Contact',
+    title: '18. Contact',
     body: `For questions about these Terms, contact us at ${EMAIL} or write to ${COMPANY}, Legal Team.`,
   },
 ];

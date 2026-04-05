@@ -471,7 +471,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
           {editingCard ? (
             <div className="relative mb-3">
               <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
-                placeholder="Tell customers about your business…" rows={3}
+                placeholder="Tell customers about your services…" rows={3}
                 className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
                 style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
               <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{editDesc.length}/1000</span>
@@ -541,7 +541,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
             <p className="text-xs font-bold mb-1.5" style={{ color: muted }}>Description</p>
             <div className="relative">
               <textarea value={editDesc} maxLength={1000} onChange={e => { setEditDesc(e.target.value); setUnsaved(true); }} onBlur={saveDesc}
-                placeholder="Tell customers about your business…" rows={3}
+              placeholder="Tell customers about your services…" rows={3}
                 className="w-full px-3 py-2 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
                 style={{ background: subtle, borderColor: border, color: dm ? '#f2f2f7' : '#1c1c1e' }} />
               <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{editDesc.length}/1000</span>
@@ -2593,7 +2593,7 @@ const BusinessDashboard: NextPage = () => {
                         onChange={e => setPublicVisibility(e.target.checked)}
                       />
                       <div>
-                        <p className="font-semibold text-neutral-900">Show my business publicly</p>
+                        <p className="font-semibold text-neutral-900">Show my provider profile publicly</p>
                         <p className="text-xs text-neutral-500">Listed on public browse and search pages.</p>
                       </div>
                     </label>

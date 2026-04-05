@@ -452,13 +452,13 @@ export function businessApplicationReceivedHtml(opts: {
       </div>
       <p style="margin:0;font-size:12px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:0.18em;text-transform:uppercase;">Application Received</p>
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Thanks for applying, ${opts.ownerName}</h1>
-      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.75);">We are reviewing your business and will get back to you within 24 hours.</p>
+      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.75);">We are reviewing your provider profile and will get back to you within 24 hours.</p>
     </td></tr>
     <tr><td style="padding:28px 32px;">
       <p style="margin:0 0 16px;font-size:14px;color:#64748b;">Here is what we have on file:</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:22px;overflow:hidden;">
         ${[
-          ['Business', opts.businessName],
+          ['Provider', opts.businessName],
           ['Category', opts.category],
           ['City', opts.city],
         ].map(([label, value], i, arr) => `
@@ -471,7 +471,7 @@ export function businessApplicationReceivedHtml(opts: {
         <tr><td style="padding:18px 20px;">
           <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">What happens next</p>
           <ol style="margin:0;padding-left:18px;color:#0f172a;font-size:14px;line-height:1.7;">
-            <li>We verify your business details (up to 24 hours).</li>
+            <li>We verify your provider details (up to 24 hours).</li>
             <li>You receive an approval email with your dashboard login.</li>
             <li>Connect Stripe to get paid once your profile is live.</li>
             <li><strong>Get featured:</strong> complete 3 bookings or be selected for a campus spotlight.</li>
@@ -608,7 +608,7 @@ export async function sendNewBusinessApplicationEmail(opts: {
   phone: string; category: string; city: string; campusProvider: boolean; schoolName?: string;
 }) {
   const resend = getResend();
-  return resend.emails.send({ from: FROM, to: opts.to, subject: `New business application: ${opts.name}`, html: newBusinessApplicationHtml(opts) });
+  return resend.emails.send({ from: FROM, to: opts.to, subject: `New provider application: ${opts.name}`, html: newBusinessApplicationHtml(opts) });
 }
 
 export async function sendChangeRequestAdminEmail(opts: {
@@ -736,7 +736,7 @@ export function paymentReceiptCustomerHtml(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
         ${[
           ['Service', opts.service],
-          ['Business', opts.businessName],
+          ['Provider', opts.businessName],
           ...(opts.scheduledAt ? [['Scheduled', opts.scheduledAt]] : []),
           ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
         ].map(([label, value]) => `
@@ -817,7 +817,7 @@ export function paymentRequestCustomerHtml(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
         ${[
           ['Service', opts.service],
-          ['Business', opts.businessName],
+          ['Provider', opts.businessName],
           ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
         ].map(([label, value]) => `
         <tr>

@@ -14,7 +14,7 @@ const sections = [
     content: [
       {
         subtitle: 'Information you provide',
-        body: 'We collect the information you choose to provide, such as name, email, phone number, school email, zip code, service requests, booking notes, messages, and profile content (photos, videos, descriptions). Businesses may also provide business details (service categories, hours, pricing, coverage area) and payout information via Stripe.',
+        body: 'We collect the information you choose to provide, such as name, email, phone number, school email, zip code, service requests, booking notes, messages, and profile content (photos, videos, descriptions). Providers may also provide provider details (service categories, hours, pricing, coverage area) and payout information via Stripe.',
       },
       {
         subtitle: 'Information collected automatically',
@@ -35,11 +35,11 @@ const sections = [
     content: [
       {
         subtitle: 'To provide the service',
-        body: 'We use your information to match requests to providers, process bookings, enable messaging, and help businesses complete services. Contact information is shared with the provider you choose so they can fulfill your request.',
+        body: 'We use your information to match requests to providers, process bookings, enable messaging, and help providers complete services. Contact information is shared with the provider you choose so they can fulfill your request.',
       },
       {
-        subtitle: 'To operate the business platform',
-        body: 'Business information is used to create and manage profiles, verify campus status, and deliver matched requests.',
+        subtitle: 'To operate the provider platform',
+        body: 'Provider information is used to create and manage profiles, verify campus status, and deliver matched requests.',
       },
       {
         subtitle: 'To communicate with you',
@@ -55,7 +55,7 @@ const sections = [
     title: '3. Information Sharing',
     content: [
       {
-        subtitle: 'With matched businesses',
+        subtitle: 'With matched providers',
         body: 'When you request a service or book a provider, your name, contact details, location, and request details are shared with that provider.',
       },
       {
@@ -100,7 +100,16 @@ const sections = [
     ],
   },
   {
-    title: '7. Data We Collect (Summary)',
+    title: '7. California & EEA Disclosures',
+    content: [
+      {
+        subtitle: '',
+        body: 'California residents may request access, deletion, and a copy of their personal information, and may opt out of the sale or sharing of personal information for cross‑context behavioral advertising (which we do not do). EEA/UK users have similar rights and may request access, correction, deletion, restriction, or data portability. We process data under the following legal bases: to perform a contract (providing the Service), to comply with legal obligations, and our legitimate interests (security, fraud prevention, and improving the Service).',
+      },
+    ],
+  },
+  {
+    title: '8. Data We Collect (Summary)',
     content: [
       {
         subtitle: '',
@@ -109,7 +118,7 @@ const sections = [
     ],
   },
   {
-    title: '8. Cookies',
+    title: '9. Cookies',
     content: [
       {
         subtitle: '',
@@ -118,7 +127,7 @@ const sections = [
     ],
   },
   {
-    title: '9. Children\'s Privacy',
+    title: '10. Children\'s Privacy',
     content: [
       {
         subtitle: '',
@@ -127,7 +136,7 @@ const sections = [
     ],
   },
   {
-    title: '10. Changes to This Policy',
+    title: '11. Changes to This Policy',
     content: [
       {
         subtitle: '',
@@ -136,7 +145,7 @@ const sections = [
     ],
   },
   {
-    title: '11. Contact Us',
+    title: '12. Contact Us',
     content: [
       {
         subtitle: '',
