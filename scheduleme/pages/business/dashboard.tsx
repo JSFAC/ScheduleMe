@@ -25,6 +25,11 @@ interface Booking {
   dispute_amount_cents?: number | null;
   dispute_note?: string | null;
   dispute_at?: string | null;
+  customer_proposed_price_cents?: number | null;
+  provider_proposed_price_cents?: number | null;
+  price_accepted_by_customer?: boolean | null;
+  price_accepted_by_provider?: boolean | null;
+  price_accepted_at?: string | null;
   profiles: { id?: string; name: string; phone: string; email: string; avatar_url?: string } | null;
 }
 interface Business {
@@ -1330,7 +1335,14 @@ const BusinessDashboard: NextPage = () => {
       const nextAmount = data?.amount_cents ?? amountCents;
       const nextStatus = data?.status || 'payment_pending';
       setBookings(bs => bs.map(b => b.id === bookingId
-        ? { ...b, amount_cents: nextAmount, status: nextStatus }
+        ? {
+          ...b,
+          amount_cents: nextAmount,
+          status: nextStatus,
+          price_accepted_by_provider: data?.price_accepted_by_provider ?? b.price_accepted_by_provider,
+          provider_proposed_price_cents: data?.provider_proposed_price_cents ?? b.provider_proposed_price_cents,
+          price_accepted_at: data?.price_accepted_at ?? b.price_accepted_at,
+        }
         : b
       ));
       return true;
@@ -1935,6 +1947,21 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>{b.scheduled_exact ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
+                          {b.customer_proposed_price_cents && !b.price_accepted_by_provider && (
+                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#a5b4fc', background: '#eef2ff', color: '#3730a3' }}>
+                              Customer proposed {fmt(b.customer_proposed_price_cents)}
+                            </div>
+                          )}
+                          {b.price_accepted_by_provider && b.customer_proposed_price_cents && (
+                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
+                              Set price accepted
+                            </div>
+                          )}
+                          {b.price_accepted_by_customer && b.provider_proposed_price_cents && (
+                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
+                              Customer accepted your price {fmt(b.provider_proposed_price_cents)}
+                            </div>
+                          )}
                           {b.status === 'price_disputed' && b.dispute_amount_cents && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
                               Customer proposed {fmt(b.dispute_amount_cents)}{b.dispute_note ? ` — ${b.dispute_note}` : ''}
@@ -1952,7 +1979,7 @@ const BusinessDashboard: NextPage = () => {
                                         type="number" min="1" step="0.01" placeholder="Set price"
                                         className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
                                         style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
-                                        value={bookingPrices[b.id] ?? (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : ''))}
+                                        value={bookingPrices[b.id] ?? (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
                                         onChange={e => setBookingPrices(p => ({ ...p, [b.id]: e.target.value }))}
                                       />
                                     </div>
@@ -1960,7 +1987,7 @@ const BusinessDashboard: NextPage = () => {
                                       onClick={() => {
                                         const raw = bookingPrices[b.id];
                                         const dollars = parseFloat(raw || '0');
-                                        const fallbackCents = b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                        const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
                                         if (!(dollars > 0) && fallbackCents <= 0) return;
                                         const cents = dollars > 0 ? Math.round(dollars * 100) : fallbackCents;
                                         setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });

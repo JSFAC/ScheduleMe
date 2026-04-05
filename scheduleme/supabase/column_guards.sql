@@ -21,7 +21,7 @@ begin
     when 'profiles' then array['name','phone','avatar_url','preferred_contact','service_radius','notifications']
     when 'businesses' then array['phone','website','service_tags','hours','availability_status','break_until','address','description','cover_url','media_urls','video_url','calendly_url','custom_requires_time']
     when 'services' then array['name','description','price_cents','duration_min','sort_order','active','requires_time']
-    when 'bookings' then array['status','dispute_amount_cents','dispute_note','amount_cents','scheduled_start','scheduled_end','scheduled_slot','reviewed','paid_at']
+    when 'bookings' then array['status','dispute_amount_cents','dispute_note','amount_cents','scheduled_start','scheduled_end','scheduled_slot','reviewed','paid_at','customer_proposed_price_cents','provider_proposed_price_cents','price_accepted_by_customer','price_accepted_by_provider','price_accepted_at']
     when 'messages' then array['read']
     when 'reviews' then array['__none__']
     when 'blocks' then array['__none__']

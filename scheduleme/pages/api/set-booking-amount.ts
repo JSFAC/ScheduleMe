@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   // Get booking (two-step to avoid FK join issues)
   const { data: booking, error: bErr } = await sb
     .from('bookings')
-    .select('id, status, user_id, business_id, businesses(owner_email, stripe_onboarded, stripe_account_id, name)')
+    .select('id, status, user_id, business_id, customer_proposed_price_cents, businesses(owner_email, stripe_onboarded, stripe_account_id, name)')
     .eq('id', booking_id)
     .in('status', ['pending', 'confirmed', 'payment_pending', 'price_disputed'])
     .maybeSingle();
@@ -44,6 +44,9 @@ export default async function handler(req, res) {
   }
 
   // Update the amount
+  const acceptsCustomerPrice = Number.isFinite(booking.customer_proposed_price_cents)
+    && booking.customer_proposed_price_cents > 0
+    && cents === booking.customer_proposed_price_cents;
   const { error: uErr } = await sb
     .from('bookings')
     .update({
@@ -52,12 +55,16 @@ export default async function handler(req, res) {
       dispute_amount_cents: null,
       dispute_note: null,
       dispute_at: null,
+      provider_proposed_price_cents: acceptsCustomerPrice ? null : cents,
+      price_accepted_by_provider: !!acceptsCustomerPrice,
+      price_accepted_by_customer: false,
+      price_accepted_at: acceptsCustomerPrice ? new Date().toISOString() : null,
     })
     .eq('id', booking_id);
 
   if (uErr) {
     const msg = uErr.message || '';
-    if (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at')) {
+    if (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_at')) {
       const { error: fbErr } = await sb
         .from('bookings')
         .update({ amount_cents: cents, status: 'payment_pending' })
@@ -74,6 +81,21 @@ export default async function handler(req, res) {
     const secret = process.env.NOTIFY_SECRET || '';
     const { data: profile } = await sb.from('profiles').select('email, name').eq('id', booking.user_id).maybeSingle();
     if (profile?.email) {
+      if (acceptsCustomerPrice) {
+        await fetch(siteUrl + '/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+          body: JSON.stringify({
+            type: 'provider_accepted_customer_price',
+            to: profile.email,
+            name: profile.name || 'there',
+            service: 'Custom Request',
+            businessName: biz?.name || 'Your provider',
+            amountDollars: (cents / 100).toFixed(2),
+            bookingId: booking.id,
+          }),
+        }).catch(() => {});
+      }
       await fetch(siteUrl + '/api/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
@@ -92,5 +114,12 @@ export default async function handler(req, res) {
     // Non-fatal
   }
 
-  return res.status(200).json({ ok: true, status: 'payment_pending', amount_cents: cents });
+  return res.status(200).json({
+    ok: true,
+    status: 'payment_pending',
+    amount_cents: cents,
+    price_accepted_by_provider: !!acceptsCustomerPrice,
+    provider_proposed_price_cents: acceptsCustomerPrice ? null : cents,
+    price_accepted_at: acceptsCustomerPrice ? new Date().toISOString() : null,
+  });
 }

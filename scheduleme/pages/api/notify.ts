@@ -8,6 +8,7 @@ import {
   sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail,
   sendStripeAlertEmail,
   sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
+  sendCustomerProposedPriceBusiness, sendProviderAcceptedCustomerPrice, sendCustomerAcceptedProviderPrice,
   sendFeaturedOnEmail, sendFeaturedOffEmail,
 } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
@@ -65,6 +66,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       case 'payment_request_customer':
         result = await sendPaymentRequestCustomer({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
+        break;
+      case 'customer_proposed_price':
+        result = await sendCustomerProposedPriceBusiness({ to, businessName: rest.businessName || rest.name || 'Your business', customerName: rest.customerName || 'A customer', service: rest.service || 'Service', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
+        break;
+      case 'provider_accepted_customer_price':
+        result = await sendProviderAcceptedCustomerPrice({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
+        break;
+      case 'customer_accepted_provider_price':
+        result = await sendCustomerAcceptedProviderPrice({ to, businessName: rest.businessName || rest.name || 'Your business', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
         break;
       case 'featured_on':
         result = await sendFeaturedOnEmail({ to, businessName: rest.businessName || rest.name || 'Your business', durationDays: rest.durationDays });

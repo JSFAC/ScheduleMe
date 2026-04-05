@@ -53,7 +53,7 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
   try {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, status, created_at, businesses(name, owner_email, phone), profiles(name, email, phone, avatar_url)')
+      .select('id, service, status, created_at, customer_proposed_price_cents, businesses(name, owner_email, phone), profiles(name, email, phone, avatar_url)')
       .eq('id', bookingId)
       .single();
     if (!booking) return;
@@ -90,6 +90,23 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
           service: booking.service,
           customerName: user?.name || 'A customer',
           customerPhone: user?.phone || '',
+          bookingId,
+        }),
+      }).catch(() => {});
+    }
+
+    // Email business owner about customer price proposal (custom request)
+    if (biz?.owner_email && booking.customer_proposed_price_cents) {
+      await fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        body: JSON.stringify({
+          type: 'customer_proposed_price',
+          to: biz.owner_email,
+          businessName: biz.name || 'Your business',
+          customerName: user?.name || 'A customer',
+          service: booking.service,
+          amountDollars: (booking.customer_proposed_price_cents / 100).toFixed(2),
           bookingId,
         }),
       }).catch(() => {});
@@ -171,10 +188,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     if (!(await rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
 
-    const allowed = ['business_id','user_id','service','user_name','user_phone','user_email','scheduled_start','scheduled_end','timezone','note','service_price_cents'];
+    const allowed = ['business_id','user_id','service','user_name','user_phone','user_email','scheduled_start','scheduled_end','timezone','note','service_price_cents','customer_proposed_price_cents'];
     const unknown = getUnknownFields(req.body, allowed);
     if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
-    const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
+    const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents, customer_proposed_price_cents } = req.body;
     let email = user_email;
 
     let authUser: { id: string; email: string } | null = null;
@@ -191,6 +208,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (email && !isValidEmail(email)) return res.status(400).json({ error: 'Invalid email' });
 
     if (service_price_cents && typeof service_price_cents !== 'number') return res.status(400).json({ error: 'Invalid service_price_cents' });
+    if (customer_proposed_price_cents != null) {
+      const proposed = Number(customer_proposed_price_cents);
+      if (!Number.isFinite(proposed) || proposed <= 0) return res.status(400).json({ error: 'Invalid customer_proposed_price_cents' });
+      if (typeof service_price_cents === 'number') return res.status(400).json({ error: 'customer_proposed_price_cents only allowed for custom requests' });
+    }
 
     if (service) {
       const svcCheck = validateAndFilter(service, { maxLength: LIMITS.service, fieldName: 'Service description' });
@@ -302,6 +324,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_id: resolvedUserId ?? null,
         service: (service?.slice(0, LIMITS.service) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
         amount_cents: typeof service_price_cents === 'number' ? service_price_cents : undefined,
+        customer_proposed_price_cents: typeof customer_proposed_price_cents === 'number' ? Math.round(customer_proposed_price_cents) : undefined,
         note: typeof note === 'string' ? note.slice(0, LIMITS.note) : null,
         scheduled_start: scheduledStart ?? null,
         scheduled_end: scheduledEnd ?? null,
@@ -434,6 +457,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatePayload.dispute_amount_cents = Math.round(dispute_amount_cents);
       updatePayload.dispute_note = dispute_note || null;
       updatePayload.dispute_at = new Date().toISOString();
+      updatePayload.price_accepted_by_customer = false;
+      updatePayload.price_accepted_at = null;
     }
 
     // If cancelling a paid booking, issue a full refund and reverse transfer + app fee
@@ -696,7 +721,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const idList = Array.from(ids).filter(Boolean);
       let query = supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -714,7 +739,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {

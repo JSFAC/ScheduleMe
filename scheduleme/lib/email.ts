@@ -836,6 +836,109 @@ export function paymentRequestCustomerHtml(opts: {
   return layout('Payment requested', body, `$${opts.amountDollars} payment requested for ${opts.service}`);
 }
 
+// ─── Customer Proposed Price — Business ──────────────────────────────────────
+export function customerProposedPriceBusinessHtml(opts: {
+  businessName: string; customerName: string; service: string; amountDollars: string; bookingId: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:36px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 6px;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Customer proposed a price</h1>
+      <p style="margin:0 0 18px;font-size:15px;color:#64748b;">${opts.customerName} suggested a price for ${opts.service}.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ecfdf3;border-radius:12px;margin-bottom:20px;border:1px solid #bbf7d0;">
+        <tr><td style="padding:20px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:0.08em;">Proposed amount</p>
+          <p style="margin:0;font-size:30px;font-weight:800;color:#065f46;">$${opts.amountDollars}</p>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        ${[
+          ['Service', opts.service],
+          ['Customer', opts.customerName],
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;width:100%;max-width:320px;">
+        <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/business/dashboard" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">Review booking →</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  `;
+  return layout('Customer proposed a price', body, `$${opts.amountDollars} proposed for ${opts.service}`);
+}
+
+// ─── Provider Accepted Customer Price — Customer ─────────────────────────────
+export function providerAcceptedCustomerPriceHtml(opts: {
+  name: string; service: string; businessName: string; amountDollars: string; bookingId: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:36px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 6px;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Your price was accepted</h1>
+      <p style="margin:0 0 18px;font-size:15px;color:#64748b;">${opts.businessName} accepted your proposed price.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ecfdf3;border-radius:12px;margin-bottom:20px;border:1px solid #bbf7d0;">
+        <tr><td style="padding:20px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:0.08em;">Accepted amount</p>
+          <p style="margin:0;font-size:30px;font-weight:800;color:#065f46;">$${opts.amountDollars}</p>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        ${[
+          ['Service', opts.service],
+          ['Provider', opts.businessName],
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;width:100%;max-width:320px;">
+        <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/bookings" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">View booking →</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  `;
+  return layout('Price accepted', body, `$${opts.amountDollars} accepted for ${opts.service}`);
+}
+
+// ─── Customer Accepted Provider Price — Business ─────────────────────────────
+export function customerAcceptedProviderPriceHtml(opts: {
+  businessName: string; amountDollars: string; bookingId: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:36px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 6px;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Customer accepted your price</h1>
+      <p style="margin:0 0 18px;font-size:15px;color:#64748b;">The customer accepted your proposed price.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ecfdf3;border-radius:12px;margin-bottom:20px;border:1px solid #bbf7d0;">
+        <tr><td style="padding:20px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:0.08em;">Accepted amount</p>
+          <p style="margin:0;font-size:30px;font-weight:800;color:#065f46;">$${opts.amountDollars}</p>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        ${[
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;width:100%;max-width:320px;">
+        <tr><td bgcolor="#0A84FF" style="background:#0A84FF;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/business/dashboard" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">View booking →</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  `;
+  return layout('Price accepted by customer', body, `$${opts.amountDollars} accepted by customer`);
+}
+
 export async function sendPaymentReceiptCustomer(opts: {
   to: string; name: string; service: string; businessName: string;
   amountDollars: string; scheduledAt?: string; bookingId: string;
@@ -858,4 +961,25 @@ export async function sendPaymentRequestCustomer(opts: {
 }) {
   const resend = getResend();
   return resend.emails.send({ from: FROM, to: opts.to, subject: `Payment requested — $${opts.amountDollars} due for ${opts.service}`, html: paymentRequestCustomerHtml(opts) });
+}
+
+export async function sendCustomerProposedPriceBusiness(opts: {
+  to: string; businessName: string; customerName: string; service: string; amountDollars: string; bookingId: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({ from: FROM, to: opts.to, subject: `Customer proposed $${opts.amountDollars} for ${opts.service}`, html: customerProposedPriceBusinessHtml(opts) });
+}
+
+export async function sendProviderAcceptedCustomerPrice(opts: {
+  to: string; name: string; service: string; businessName: string; amountDollars: string; bookingId: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({ from: FROM, to: opts.to, subject: `Your price was accepted — $${opts.amountDollars} for ${opts.service}`, html: providerAcceptedCustomerPriceHtml(opts) });
+}
+
+export async function sendCustomerAcceptedProviderPrice(opts: {
+  to: string; businessName: string; amountDollars: string; bookingId: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({ from: FROM, to: opts.to, subject: `Customer accepted your price — $${opts.amountDollars}`, html: customerAcceptedProviderPriceHtml(opts) });
 }

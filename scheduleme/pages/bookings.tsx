@@ -69,6 +69,11 @@ interface Booking {
   stripe_customer_id?: string;
   stripe_setup_intent_id?: string;
   reviewed?: boolean;
+  customer_proposed_price_cents?: number | null;
+  provider_proposed_price_cents?: number | null;
+  price_accepted_by_customer?: boolean | null;
+  price_accepted_by_provider?: boolean | null;
+  price_accepted_at?: string | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string; badgeBg: string; badgeText: string }> = {
@@ -310,12 +315,13 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, onPriceAccepted, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string) => void;
   onRequestReview: (booking: Booking) => void;
+  onPriceAccepted: (id: string, updates: Partial<Booking>) => void;
   dm: boolean;
   paymentMethods: any[];
   paymentDefaultId: string | null;
@@ -337,12 +343,18 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
   const [disputeNote, setDisputeNote] = useState('');
   const [disputeSending, setDisputeSending] = useState(false);
   const [disputeSent, setDisputeSent] = useState(false);
+  const [acceptingPrice, setAcceptingPrice] = useState(false);
+  const [priceAccepted, setPriceAccepted] = useState(false);
 
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  useEffect(() => {
+    setPriceAccepted(false);
+  }, [booking.id]);
 
   function close() { setClosing(true); setTimeout(onClose, 220); }
 
@@ -357,6 +369,31 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
     await new Promise(r => setTimeout(r, 600));
     onCancel(booking.id);
     close();
+  }
+
+  async function handleAcceptPrice() {
+    setErr('');
+    setAcceptingPrice(true);
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) { setErr('Please sign in to accept the price.'); setAcceptingPrice(false); return; }
+      const res = await fetch('/api/accept-provider-price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ booking_id: booking.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(data.error || 'Failed to accept price'); setAcceptingPrice(false); return; }
+      onPriceAccepted(booking.id, {
+        price_accepted_by_customer: true,
+        price_accepted_at: data.price_accepted_at || new Date().toISOString(),
+      });
+      setPriceAccepted(true);
+    } catch (e) {
+      setErr('Failed to accept price. Please try again.');
+    } finally {
+      setAcceptingPrice(false);
+    }
   }
 
   const ready = mounted && !closing;
@@ -673,18 +710,51 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             </div>
           )}
 
-          {isCustom && booking.amount_cents && !booking.paid_at && (
-            <div className="mt-6 pt-5 border-t border-neutral-100">
-              <button
-                onClick={() => setDisputeOpen(true)}
-                className="w-full py-3 rounded-xl border-2 border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-50 hover:border-amber-300 transition-colors">
-                Dispute price / propose a new amount
-              </button>
-              {disputeSent && (
-                <p className="text-[11px] text-emerald-600 mt-2">Proposal sent to the business. They can adjust the price or reply.</p>
-              )}
-            </div>
-          )}
+          {isCustom && booking.amount_cents && !booking.paid_at && (() => {
+            const providerAccepted = !!booking.price_accepted_by_provider && !!booking.customer_proposed_price_cents;
+            const customerAccepted = !!booking.price_accepted_by_customer && !!booking.provider_proposed_price_cents;
+            const showConfirm = !!booking.provider_proposed_price_cents && !booking.price_accepted_by_customer;
+            if (providerAccepted) {
+              return (
+                <div className="mt-6 pt-5 border-t border-neutral-100">
+                  <div className="rounded-xl border px-3 py-2 text-[11px] font-semibold" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
+                    Set price accepted
+                  </div>
+                </div>
+              );
+            }
+            if (customerAccepted || priceAccepted) {
+              return (
+                <div className="mt-6 pt-5 border-t border-neutral-100">
+                  <div className="rounded-xl border px-3 py-2 text-[11px] font-semibold" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
+                    Price accepted
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="mt-6 pt-5 border-t border-neutral-100">
+                <div className="flex flex-col gap-2">
+                  {showConfirm && (
+                    <button
+                      onClick={handleAcceptPrice}
+                      disabled={acceptingPrice}
+                      className="w-full py-3 rounded-xl border-2 border-emerald-200 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-colors disabled:opacity-50">
+                      {acceptingPrice ? 'Confirming…' : `Confirm price $${(booking.provider_proposed_price_cents! / 100).toFixed(2)}`}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDisputeOpen(true)}
+                    className="w-full py-3 rounded-xl border-2 border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-50 hover:border-amber-300 transition-colors">
+                    Dispute price / propose a new amount
+                  </button>
+                </div>
+                {disputeSent && (
+                  <p className="text-[11px] text-emerald-600 mt-2">Proposal sent to the business. They can adjust the price or reply.</p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Paid confirmation */}
           {booking.paid_at && (
@@ -1064,6 +1134,11 @@ const BookingsPage: NextPage = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
   const [reviewBanner, setReviewBanner] = useState<Booking | null>(null);
+
+  function updateBookingLocal(id: string, updates: Partial<Booking>) {
+    setBookings((bs) => bs.map((b) => (b.id === id ? { ...b, ...updates } : b)));
+    setSelectedBooking((b) => (b && b.id === id ? { ...b, ...updates } : b));
+  }
 
 const COORDS_KEY = 'sm_last_coords';
 function readCoords(): { lat: number; lng: number } | null {
@@ -1514,6 +1589,12 @@ function writeCoords(lat: number, lng: number) {
                           const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
                           const primaryTime = b.scheduled_at ? formatTimeUntil(b.scheduled_at) : formatDate(b.created_at);
                           const scheduledLabel = b.scheduled_at && b.scheduled_exact ? formatShortDateTime(b.scheduled_at) : (b.scheduled_at ? `Due by ${formatDate(b.scheduled_at)}` : null);
+                          const priceAcceptedLabel =
+                            (b.price_accepted_by_provider && b.customer_proposed_price_cents)
+                              ? 'Set price accepted'
+                              : (b.price_accepted_by_customer && b.provider_proposed_price_cents)
+                                ? 'Price accepted'
+                                : null;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
                               className="w-full text-left booking-card group overflow-hidden transition-all hover:-translate-y-0.5"
@@ -1550,6 +1631,11 @@ function writeCoords(lat: number, lng: number) {
                                     {b.amount_cents != null && (
                                       <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#e5e7eb' : '#111827' }}>
                                         {'$'}{(b.amount_cents / 100).toFixed(2)}
+                                      </span>
+                                    )}
+                                    {priceAcceptedLabel && (
+                                      <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(16,185,129,0.2)' : '#dcfce7', color: dm ? '#86efac' : '#166534' }}>
+                                        {priceAcceptedLabel}
                                       </span>
                                     )}
                                     <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: cfg.badgeBg, color: cfg.badgeText }}>{cfg.label}</span>
@@ -1601,6 +1687,12 @@ function writeCoords(lat: number, lng: number) {
                       <div className="space-y-4">
                         {pastSlice.map(b => {
                           const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
+                          const priceAcceptedLabel =
+                            (b.price_accepted_by_provider && b.customer_proposed_price_cents)
+                              ? 'Set price accepted'
+                              : (b.price_accepted_by_customer && b.provider_proposed_price_cents)
+                                ? 'Price accepted'
+                                : null;
                           return (
                           <button key={b.id} onClick={e => openBooking(b, e)}
                             className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
@@ -1627,6 +1719,11 @@ function writeCoords(lat: number, lng: number) {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
+                                {priceAcceptedLabel && (
+                                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(16,185,129,0.2)' : '#dcfce7', color: dm ? '#86efac' : '#166534' }}>
+                                    {priceAcceptedLabel}
+                                  </span>
+                                )}
                                 <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>{b.status}</span>
                                 <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -1726,6 +1823,7 @@ function writeCoords(lat: number, lng: number) {
             });
             setTimeout(() => setSelectedBooking(null), 120);
           }}
+          onPriceAccepted={(id, updates) => updateBookingLocal(id, updates)}
           dm={dm}
           paymentMethods={paymentMethods}
           paymentDefaultId={paymentDefaultId}

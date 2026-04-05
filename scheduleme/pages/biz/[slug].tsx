@@ -197,6 +197,7 @@ export default function BizPage() {
   const [date, setDate] = useState<Date | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
   const [customServiceName, setCustomServiceName] = useState('');
+  const [customProposedPrice, setCustomProposedPrice] = useState('');
   const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set());
   const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -582,6 +583,13 @@ export default function BizPage() {
     if (!date || (requiresTime && !slot)) { setErr(requiresTime ? 'Pick a date and time' : 'Pick a due date'); return; }
     if (isCustom && !customServiceName.trim()) { setErr('Name the service you need.'); return; }
     if (isCustom && !note.trim()) { setErr('Please describe your custom request.'); return; }
+    const proposedRaw = customProposedPrice.trim();
+    let proposedPriceCents: number | null = null;
+    if (isCustom && proposedRaw.length > 0) {
+      const parsed = Number.parseFloat(proposedRaw);
+      if (!Number.isFinite(parsed) || parsed <= 0) { setErr('Enter a valid proposed price or leave blank.'); return; }
+      proposedPriceCents = Math.round(parsed * 100);
+    }
 
     const isPaidService = !isCustom;
     if (isPaidService) {
@@ -603,6 +611,7 @@ export default function BizPage() {
           business_id: biz.id,
           service: isCustom ? customServiceName.trim() : (selectedSvc?.name || 'Service'),
           service_price_cents: isPaidService ? selectedSvc?.price_cents : null,
+          customer_proposed_price_cents: isCustom ? proposedPriceCents : null,
           note,
           scheduled_start,
           scheduled_end,
@@ -1164,6 +1173,22 @@ export default function BizPage() {
                     <div className="relative">
                       <input value={customServiceName} maxLength={40} onChange={e => setCustomServiceName(e.target.value)} placeholder="e.g. 3D printed dragon model" className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
                       <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{customServiceName.length}/40</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <div className="flex items-center rounded-xl border overflow-hidden" style={{ borderColor: bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
+                        <span className="px-3 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+                        <input
+                          value={customProposedPrice}
+                          onChange={(e) => setCustomProposedPrice(e.target.value)}
+                          placeholder="Proposed price (optional)"
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          className="py-2 pr-3 text-sm outline-none bg-transparent"
+                          style={{ color: tx }}
+                        />
+                      </div>
+                      <span className="text-[11px]" style={{ color: mu }}>Leave blank to let the provider set the price.</span>
                     </div>
                     <p className="text-[11px] mt-2" style={{color:mu}}>This name appears in your messages and bookings.</p>
                   </div>

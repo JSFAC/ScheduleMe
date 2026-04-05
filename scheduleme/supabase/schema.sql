@@ -173,6 +173,13 @@ create trigger bookings_updated_at
   before update on bookings
   for each row execute function set_updated_at();
 
+-- Optional pricing workflow fields (safe to re-run)
+alter table bookings add column if not exists customer_proposed_price_cents integer;
+alter table bookings add column if not exists provider_proposed_price_cents integer;
+alter table bookings add column if not exists price_accepted_by_customer boolean default false;
+alter table bookings add column if not exists price_accepted_by_provider boolean default false;
+alter table bookings add column if not exists price_accepted_at timestamptz;
+
 
 -- ============================================================
 -- 3b. CAMPUS FEATURED (MANUAL SPOTLIGHT)
