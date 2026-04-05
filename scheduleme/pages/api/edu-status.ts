@@ -66,7 +66,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       inferredDomain ||
       null;
 
-    return res.status(200).json({ verified, schoolDomain });
+    return res.status(200).json({
+      verified,
+      schoolDomain,
+      schoolEmail: resolvedProfile?.school_email || null,
+      schoolName: resolvedProfile?.school_name || null,
+    });
   } catch (err) {
     console.error('[edu-status] error', err);
     return res.status(500).json({ error: 'Internal server error' });

@@ -267,6 +267,7 @@ const CampusPage: NextPage = () => {
       // Check EDU verification via API (service role to avoid RLS)
       let verified = false;
       let schoolName: string | null = null;
+      let schoolEmail: string | null = null;
       try {
         const res = await fetch('/api/edu-status', {
           headers: { Authorization: `Bearer ${session.access_token}` },
@@ -275,6 +276,8 @@ const CampusPage: NextPage = () => {
           const json = await res.json();
           verified = json?.verified === true;
           schoolName = json?.schoolDomain || null;
+          schoolEmail = json?.schoolEmail || null;
+          if (!schoolName && json?.schoolName) schoolName = json.schoolName;
         }
       } catch {}
 
@@ -318,8 +321,10 @@ const CampusPage: NextPage = () => {
       if (typeof window !== 'undefined') localStorage.setItem('sm_edu_verified', 'true');
 
       const emailDomain = session.user.email?.split('@')[1] || null;
+      const schoolEmailDomain = schoolEmail?.split('@')[1] || null;
       const resolvedSchool = schoolName
         || profileDomain
+        || schoolEmailDomain
         || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
       const resolvedTag = deriveCampusTag(resolvedSchool)
         || profileTag
