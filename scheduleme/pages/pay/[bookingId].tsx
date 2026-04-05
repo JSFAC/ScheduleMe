@@ -301,13 +301,17 @@ const PayPage: NextPage = () => {
         </div>
       </div>
       {showConfirm && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center px-4"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+          onClick={() => router.replace('/bookings')}
+        >
           <div className="w-full max-w-md rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
             <h3 className="text-lg font-bold" style={{ color: textPrimary }}>Payment accepted</h3>
             <p className="text-sm mt-2" style={{ color: textMuted }}>Your payment method has been accepted for this booking. We’ll email you updates as it moves forward.</p>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Close</button>
-              <button onClick={() => router.push('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>Go to bookings</button>
+              <button onClick={() => router.replace('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Go to bookings</button>
+              <button onClick={() => router.replace('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>Go to bookings</button>
             </div>
           </div>
         </div>
