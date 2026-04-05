@@ -14,11 +14,15 @@ function getSupabase() {
 
 function normalizeCampusKey(name?: string | null): string | null {
   if (!name) return null;
-  const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const trimmed = name.toLowerCase().trim();
+  if (trimmed.includes('.')) {
+    return trimmed.replace(/[^a-z0-9.]+/g, '');
+  }
+  const cleaned = trimmed.replace(/[^a-z0-9]+/g, ' ').trim();
   const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
   if (!key) return null;
-  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
-  if (key === 'arizona_state_university' || key === 'asu') return 'asu';
+  if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc.edu';
+  if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu' || key === 'a') return 'asu.edu';
   return key;
 }
 
@@ -33,12 +37,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
 
   if (req.method === 'GET') {
-    const campusKey = typeof req.query.campus === 'string' ? req.query.campus : '';
+    const campusKeyRaw = typeof req.query.campus === 'string' ? req.query.campus : '';
+    const campusKey = campusKeyRaw ? normalizeCampusKey(campusKeyRaw) || campusKeyRaw : '';
     let query = supabase
       .from('campus_featured')
       .select('id, business_id, campus_key, slot, starts_at, ends_at, note, created_at, businesses(name)')
       .order('slot', { ascending: true });
-    if (campusKey) query = query.eq('campus_key', campusKey);
+    if (campusKey) {
+      if (campusKey.includes('.')) {
+        const legacyKey = campusKey.split('.')[0];
+        const keys = legacyKey && legacyKey !== campusKey ? [campusKey, legacyKey] : [campusKey];
+        if (campusKey === 'asu.edu' && !keys.includes('a')) keys.push('a');
+        query = query.in('campus_key', keys);
+      } else {
+        query = query.eq('campus_key', campusKey);
+      }
+    }
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message || 'Failed to load featured' });
     return res.status(200).json({ featured: data || [] });

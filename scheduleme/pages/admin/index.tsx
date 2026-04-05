@@ -89,7 +89,8 @@ const AdminPage: NextPage = () => {
   }
 
   function campusDisplayLabel(key: string, fallback?: string | null): string {
-    if (key.includes('.')) return key;
+    if (key === 'a') return 'ASU';
+    if (key.includes('.')) return key.replace('.edu', '').toUpperCase();
     if (fallback) return fallback;
     return key.toUpperCase();
   }

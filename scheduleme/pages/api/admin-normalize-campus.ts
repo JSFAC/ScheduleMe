@@ -47,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from('businesses')
     .update({ campus_key: 'ucsc.edu', campus_school_name: 'UCSC' })
     .is('school_domain', null)
-    .or('campus_key.eq.uc_santa_cruz,campus_key.eq.ucsc,campus_school_name.ilike.%uc% santa% cruz%');
+    .or('campus_key.eq.uc_santa_cruz,campus_key.eq.ucsc,campus_key.eq.ucsc.edu,campus_school_name.ilike.%uc% santa% cruz%');
 
   if (err1) return res.status(500).json({ error: err1.message || 'Failed to normalize UCSC' });
 
@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from('businesses')
     .update({ campus_key: 'asu.edu', campus_school_name: 'ASU' })
     .is('school_domain', null)
-    .or('campus_key.eq.arizona_state_university,campus_key.eq.asu,campus_school_name.ilike.%arizona% state% university%,campus_school_name.ilike.%asu%');
+    .or('campus_key.eq.arizona_state_university,campus_key.eq.asu,campus_key.eq.asu.edu,campus_key.eq.a,campus_school_name.ilike.%arizona% state% university%,campus_school_name.ilike.%asu%');
 
   if (err2) return res.status(500).json({ error: err2.message || 'Failed to normalize ASU' });
 

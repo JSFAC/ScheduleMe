@@ -62,22 +62,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('profiles')
       .select('edu_verified, school_name, school_email')
       .eq('id', userId)
+      .limit(1)
       .maybeSingle();
 
-    const { data: profileByEmail } = await supabase
+    const { data: profileByEmailPrimary } = await supabase
       .from('profiles')
       .select('edu_verified, school_name, school_email')
       .ilike('email', email)
+      .not('school_email', 'is', null)
+      .limit(1)
+      .maybeSingle();
+
+    const { data: profileByEmailFallback } = await supabase
+      .from('profiles')
+      .select('edu_verified, school_name, school_email')
+      .ilike('email', email)
+      .limit(1)
       .maybeSingle();
 
     const resolvedProfile = (() => {
-      if (profileCombined?.school_email || profileCombined?.school_domain || profileCombined?.school_name) {
-        return profileCombined;
-      }
-      if (profileByEmail?.school_email || profileByEmail?.school_domain || profileByEmail?.school_name) {
-        return profileByEmail;
-      }
-      return profileById || profileByEmail || profileCombined || null;
+      if (profileById?.school_email || profileById?.school_name || profileById?.edu_verified) return profileById;
+      if (profileCombined?.school_email || profileCombined?.school_name || profileCombined?.edu_verified) return profileCombined;
+      if (profileByEmailPrimary?.school_email || profileByEmailPrimary?.school_name || profileByEmailPrimary?.edu_verified) return profileByEmailPrimary;
+      if (profileByEmailFallback?.school_email || profileByEmailFallback?.school_name || profileByEmailFallback?.edu_verified) return profileByEmailFallback;
+      return profileById || profileCombined || profileByEmailPrimary || profileByEmailFallback || null;
     })();
 
     const { data: biz } = await supabase
@@ -86,13 +94,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('owner_email', email)
       .maybeSingle();
 
-    const verified = resolvedProfile?.edu_verified === true || profileById?.edu_verified === true || profileByEmail?.edu_verified === true || biz?.edu_verified === true;
+    const verified = resolvedProfile?.edu_verified === true || profileById?.edu_verified === true || profileByEmailPrimary?.edu_verified === true || profileByEmailFallback?.edu_verified === true || biz?.edu_verified === true;
     const emailDomain = email.split('@')[1] || '';
     const inferredDomain = emailDomain.endsWith('.edu') ? emailDomain : null;
     const schoolEmailDomain = resolvedProfile?.school_email?.split('@')[1] || null;
+    const schoolNameValue = resolvedProfile?.school_name || null;
     const schoolDomain =
       schoolEmailDomain ||
-      resolvedProfile?.school_name ||
+      (schoolNameValue && schoolNameValue.includes('.edu') ? schoolNameValue.toLowerCase() : null) ||
       biz?.school_domain ||
       inferredDomain ||
       null;
@@ -109,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         authUserId: userId,
         authEmail: email,
         profileIdById: profileById ? 'found' : null,
-        profileIdByEmail: profileByEmail ? 'found' : null,
+        profileIdByEmail: profileByEmailPrimary || profileByEmailFallback ? 'found' : null,
         profileCombined: profileCombined ? 'found' : null,
       } : {}),
     });

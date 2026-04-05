@@ -175,8 +175,8 @@ function normalizeCampusKey(name?: string | null): string | null {
   const cleaned = trimmed.replace(/[^a-z0-9]+/g, ' ').trim();
   const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
   if (!key) return null;
-  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc.edu';
-  if (key === 'arizona_state_university' || key === 'asu') return 'asu.edu';
+  if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc.edu';
+  if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu' || key === 'a') return 'asu.edu';
   return key;
 }
 
