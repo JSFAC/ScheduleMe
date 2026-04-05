@@ -6,6 +6,7 @@ import Head from 'next/head';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import Nav from '../../components/Nav';
 import { useDm } from '../../lib/DarkModeContext';
+import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
 
 function getSB() {
   return getSupabaseClient();
@@ -216,6 +217,7 @@ export default function BizPage() {
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editVideo, setEditVideo] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [computedPriceTier, setComputedPriceTier] = useState<number | null>(null);
   const [editNotice, setEditNotice] = useState<string | null>(null);
   const [mediaUploading, setMediaUploading] = useState(false);
   const [mediaErr, setMediaErr] = useState('');
@@ -264,7 +266,17 @@ export default function BizPage() {
             }
           } catch {}
         })();
-        fetch('/api/services?business_id=' + data.id).then(r => r.json()).then(d => setServices(d.services || [])).catch(() => {});
+        fetch('/api/services?business_id=' + data.id)
+          .then(r => r.json())
+          .then(d => {
+            const svc = d.services || [];
+            setServices(svc);
+            const prices = svc.map((s: any) => Number(s.price_cents || s.price || 0));
+            const avg = averagePriceCents(prices);
+            const primaryTag = Array.isArray(data.service_tags) ? data.service_tags[0] : null;
+            setComputedPriceTier(computePriceTier(avg, primaryTag));
+          })
+          .catch(() => {});
         setLoading(false);
       });
   }, [slug]);
@@ -871,8 +883,10 @@ export default function BizPage() {
             <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
             <div className="flex gap-2 flex-wrap mb-3">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
-              {biz.price_tier ? (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{'$'.repeat(biz.price_tier)}</span>
+              {(computedPriceTier ?? biz.price_tier) ? (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>
+                  {'$'.repeat(computedPriceTier ?? biz.price_tier)}
+                </span>
               ) : null}
               {(biz.review_count ?? 0) === 0 && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>

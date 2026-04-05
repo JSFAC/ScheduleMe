@@ -193,6 +193,7 @@ const CampusPage: NextPage = () => {
   const [lastCampusFetch, setLastCampusFetch] = useState<{ url: string; status: number | null; error?: string } | null>(null);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [eduDebug, setEduDebug] = useState<any>(null);
+  const [campusLoaded, setCampusLoaded] = useState(false);
 
   useEffect(() => {
     if (router.query.debug === '1' || router.asPath.includes('debug=1')) setDebugEnabled(true);
@@ -204,6 +205,7 @@ const CampusPage: NextPage = () => {
   
   const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
     if (!tag && !domain) { setBusinesses([]); setFeaturedBusinesses([]); return; }
+    setCampusLoaded(false);
     try {
       const fetchCampus = async (params: URLSearchParams) => {
         const url = `/api/campus-businesses?${params.toString()}`;
@@ -248,6 +250,8 @@ const CampusPage: NextPage = () => {
       setLastCampusFetch((prev) => prev ? { ...prev, error: err?.message || 'Fetch failed' } : { url: '', status: null, error: err?.message || 'Fetch failed' });
       setBusinesses([]);
       setFeaturedBusinesses([]);
+    } finally {
+      setCampusLoaded(true);
     }
   }, []);
 
@@ -375,7 +379,11 @@ const CampusPage: NextPage = () => {
       setSchoolDomain(resolvedSchool);
       setCampusTag(resolvedTag);
       if (typeof window !== 'undefined' && resolvedTag) localStorage.setItem(cacheTagKey, resolvedTag);
-      if (resolvedTag || resolvedSchool) loadCampusBusinesses(resolvedTag, resolvedSchool);
+      if (resolvedTag || resolvedSchool) {
+        await loadCampusBusinesses(resolvedTag, resolvedSchool);
+      } else {
+        setCampusLoaded(true);
+      }
 
       setLoading(false);
     })();
@@ -554,7 +562,7 @@ const CampusPage: NextPage = () => {
               </section>
             )}
 
-            {sorted.length === 0 ? (
+            {sorted.length === 0 && campusLoaded ? (
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">🎓</p>
                 <p className="font-semibold mb-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
