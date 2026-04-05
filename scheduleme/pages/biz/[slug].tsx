@@ -901,7 +901,7 @@ export default function BizPage() {
                   className="h-16 w-16 rounded-xl overflow-hidden flex-shrink-0 border"
                   style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb') }}
                 >
-                  <img src={url} alt="" className="h-full w-full object-cover" />
+                  <img src={url} alt="" className="h-full w-full object-contain" />
                 </button>
               ))}
             </div>
