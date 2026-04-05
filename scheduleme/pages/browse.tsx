@@ -200,13 +200,14 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
   const cardLabel = biz.category || 'Provider';
+  const cardName = biz.name || '';
   return (
     <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {renderCover({
           src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-          name: cardLabel,
+          name: cardName || cardLabel,
           className: 'absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]',
           style: { objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 },
           fallbackClassName: 'absolute inset-0 flex flex-col items-center justify-center gap-1',
@@ -230,6 +231,11 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
         )}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
+        {cardName && (
+          <p className="text-sm font-semibold leading-tight line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#111827' }}>
+            {cardName}
+          </p>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
           {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
@@ -626,7 +632,7 @@ function writeCoords(lat: number, lng: number) {
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
                         {renderCover({
                           src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                          name: biz.category || 'Provider',
+                          name: biz.name || biz.category || 'Provider',
                           className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]',
                           style: { objectPosition: 'center 25%' },
                           fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
@@ -654,7 +660,7 @@ function writeCoords(lat: number, lng: number) {
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.category || 'Provider'}</h3>
+                            <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || 'Provider'}</h3>
                             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" data-pill style={PILL_STYLE}>{biz.category}</span>
                           </div>
                           {(biz.reviews ?? 0) === 0 && (
@@ -726,14 +732,14 @@ function writeCoords(lat: number, lng: number) {
                   <div className="flex items-center gap-3 p-3">
                     {renderCover({
                       src: selectedMapBizData.coverUrl || (selectedMapBizData as any).allImages?.[0] || (selectedMapBizData as any).cover_url || (selectedMapBizData as any).media_urls?.[0],
-                      name: selectedMapBizData.category || 'Provider',
+                      name: selectedMapBizData.name || selectedMapBizData.category || 'Provider',
                       className: 'h-14 w-14 rounded-xl object-cover flex-shrink-0',
                       fallbackClassName: 'h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0',
                       fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                       showLabel: false,
                     })}
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.category || 'Provider'}</p>
+                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name || 'Provider'}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                     </div>
                     <button onClick={() => window.location.href='/biz/'+(selectedMapBizData.slug||selectedMapBizData.realId||selectedMapBizData.id)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
@@ -752,7 +758,7 @@ function writeCoords(lat: number, lng: number) {
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
                       {renderCover({
                         src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                        name: biz.category || 'Provider',
+                        name: biz.name || biz.category || 'Provider',
                         className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]',
                         style: { objectPosition: 'center 25%' },
                         fallbackClassName: 'w-full h-full flex items-center justify-center',
@@ -760,7 +766,7 @@ function writeCoords(lat: number, lng: number) {
                       })}
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' }} />
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-                        <p className="text-white text-[11px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.category || 'Provider'}</p>
+                        <p className="text-white text-[11px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.name || 'Provider'}</p>
                       </div>
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
@@ -783,7 +789,7 @@ function writeCoords(lat: number, lng: number) {
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
                         {renderCover({
                           src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                          name: biz.category || 'Provider',
+                          name: biz.name || biz.category || 'Provider',
                           className: 'w-full h-full object-cover',
                           fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
                           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
@@ -791,7 +797,7 @@ function writeCoords(lat: number, lng: number) {
                         })}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.category || 'Provider'}</p>
+                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || 'Provider'}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</p>
                       </div>
@@ -806,15 +812,15 @@ function writeCoords(lat: number, lng: number) {
                     <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
                       {renderCover({
                         src: selectedMapBizData.coverUrl,
-                        name: selectedMapBizData.category || 'Provider',
+                        name: selectedMapBizData.name || selectedMapBizData.category || 'Provider',
                         className: 'h-12 w-12 rounded-xl object-cover flex-shrink-0',
                         fallbackClassName: 'h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0',
                         fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                         showLabel: false,
                       })}
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.category || 'Provider'}</p>
-                        <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
+                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name || 'Provider'}</p>
+                      <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                       </div>
                       <button onClick={() => window.location.href='/biz/'+(selectedMapBizData.slug||selectedMapBizData.realId||selectedMapBizData.id)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
                       <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5' }}>

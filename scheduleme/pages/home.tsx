@@ -342,6 +342,7 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
   const cardLabel = biz.category || 'Provider';
+  const cardName = biz.name || '';
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(180px, 22vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
@@ -353,7 +354,7 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
             style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
-            <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(cardLabel)}</span>
+            <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(cardName || cardLabel)}</span>
             <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos yet</span>
           </div>
         )}
@@ -383,6 +384,11 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
         )}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
+        {cardName && (
+          <p className="text-sm font-semibold leading-tight line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#111827' }}>
+            {cardName}
+          </p>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
           {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}

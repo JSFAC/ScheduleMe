@@ -626,8 +626,8 @@ const CampusPage: NextPage = () => {
     const cardBg = dm ? '#1c1c1e' : 'white';
     const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
     const cardLabel = biz.category || 'Provider';
-    const cardName = '';
-    const cardInitials = initials(cardLabel);
+    const cardName = biz.name || '';
+    const cardInitials = initials(cardName || cardLabel);
     return (
       <button onClick={onClick} className="biz-card group w-full text-left flex flex-col"
         style={{ borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
@@ -670,6 +670,11 @@ const CampusPage: NextPage = () => {
           )}
         </div>
         <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
+          {cardName && (
+            <p className="text-sm font-semibold leading-tight line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#111827' }}>
+              {cardName}
+            </p>
+          )}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
             {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
