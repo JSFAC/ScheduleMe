@@ -168,11 +168,15 @@ function deriveCampusTag(domain?: string | null): string | null {
 
 function normalizeCampusKey(name?: string | null): string | null {
   if (!name) return null;
-  const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const trimmed = name.toLowerCase().trim();
+  if (trimmed.includes('.')) {
+    return trimmed.replace(/[^a-z0-9.]+/g, '');
+  }
+  const cleaned = trimmed.replace(/[^a-z0-9]+/g, ' ').trim();
   const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
   if (!key) return null;
-  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
-  if (key === 'arizona_state_university' || key === 'asu') return 'asu';
+  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc.edu';
+  if (key === 'arizona_state_university' || key === 'asu') return 'asu.edu';
   return key;
 }
 
@@ -227,7 +231,7 @@ const CampusPage: NextPage = () => {
         if (opts.tag) params.set('campus_school_name', opts.tag);
         if (opts.domain) params.set('school_domain', opts.domain);
         if (opts.includeKey) {
-          const campusKey = normalizeCampusKey(opts.tag || null) || (opts.domain ? normalizeCampusKey(opts.domain.split('.')[0]) : null);
+          const campusKey = normalizeCampusKey(opts.tag || null) || (opts.domain ? normalizeCampusKey(opts.domain) : null);
           if (campusKey) params.set('campus_key', campusKey);
         }
         return params;

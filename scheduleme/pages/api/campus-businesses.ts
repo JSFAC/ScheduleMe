@@ -10,19 +10,21 @@ const FEATURED_LIMIT = 3;
 
 function normalizeCampusKey(name?: string | null): string | null {
   if (!name) return null;
-  const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const trimmed = name.toLowerCase().trim();
+  if (trimmed.includes('.')) {
+    return trimmed.replace(/[^a-z0-9.]+/g, '');
+  }
+  const cleaned = trimmed.replace(/[^a-z0-9]+/g, ' ').trim();
   const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
   if (!key) return null;
-  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
-  if (key === 'arizona_state_university' || key === 'asu') return 'asu';
+  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc.edu';
+  if (key === 'arizona_state_university' || key === 'asu') return 'asu.edu';
   return key;
 }
 
 function campusKeyFromDomain(domain?: string | null): string | null {
   if (!domain) return null;
-  const base = domain.split('.')[0]?.trim();
-  if (!base) return null;
-  return normalizeCampusKey(base);
+  return normalizeCampusKey(domain);
 }
 
 function campusAcronym(name?: string | null): string | null {

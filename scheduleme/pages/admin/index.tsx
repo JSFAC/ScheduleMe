@@ -62,11 +62,15 @@ const AdminPage: NextPage = () => {
 
   function normalizeCampusKey(name?: string | null): string | null {
     if (!name) return null;
-    const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const trimmed = name.toLowerCase().trim();
+    if (trimmed.includes('.')) {
+      return trimmed.replace(/[^a-z0-9.]+/g, '');
+    }
+    const cleaned = trimmed.replace(/[^a-z0-9]+/g, ' ').trim();
     const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
     if (!key) return null;
-    if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc';
-    if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu') return 'asu';
+    if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc.edu';
+    if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu') return 'asu.edu';
     return key;
   }
 
@@ -84,8 +88,7 @@ const AdminPage: NextPage = () => {
   }
 
   function campusDisplayLabel(key: string, fallback?: string | null): string {
-    if (key === 'ucsc') return 'UCSC';
-    if (key === 'asu') return 'ASU';
+    if (key.includes('.')) return key;
     if (fallback) return fallback;
     return key.toUpperCase();
   }
@@ -253,9 +256,9 @@ const AdminPage: NextPage = () => {
       setAllBusinesses(all);
       const campusLabelMap = new Map<string, { label: string; count: number }>();
       all.forEach((b: any) => {
-        const key = normalizeCampusKey(b.campus_key || b.campus_school_name || null);
+        const key = normalizeCampusKey(b.campus_key || b.school_domain || b.campus_school_name || null);
         if (!key) return;
-        const rawLabel = campusAcronym(b.campus_school_name) || b.campus_school_name || b.campus_key || key;
+        const rawLabel = b.school_domain || campusAcronym(b.campus_school_name) || b.campus_school_name || b.campus_key || key;
         const label = campusDisplayLabel(key, rawLabel);
         const entry = campusLabelMap.get(key);
         if (!entry) {
