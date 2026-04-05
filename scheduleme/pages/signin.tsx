@@ -233,7 +233,7 @@ const SignIn: NextPage = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-accent" />
                 </span>
-                Loading business portal…
+                Loading provider portal…
               </span>
             ) : (
               <button
@@ -242,7 +242,7 @@ const SignIn: NextPage = () => {
                   setTimeout(() => { window.location.href = '/business/auth/login'; }, 1200);
                 }}
                 className="text-xs text-neutral-500 hover:text-accent transition-colors">
-                Are you a business? Log in here →
+                Are you a provider? Log in here →
               </button>
             )}
           </p>

@@ -27,7 +27,7 @@ const HOW_IT_WORKS = [
   {
     step: '01',
     title: 'Join for free',
-    desc: 'Create your business profile, set your service area and categories. No credit card required.',
+    desc: 'Create your provider profile, set your service area and categories. No credit card required.',
   },
   {
     step: '02',
@@ -88,7 +88,7 @@ const FAQ = [
   },
   {
     q: 'Is there a limit to how many jobs I can take?',
-    a: 'No limits. The more jobs you complete, the more you earn. High-performing businesses get priority placement in matches.',
+    a: 'No limits. The more jobs you complete, the more you earn. High-performing providers get priority placement in matches.',
   },
   {
     q: 'How do I get started?',
@@ -116,7 +116,7 @@ const BusinessPricing: NextPage = () => {
   return (
     <>
       <Head>
-        <title>Pricing — ScheduleMe for Business</title>
+        <title>Pricing — ScheduleMe for Providers</title>
         <meta name="description" content="No subscriptions. No lead fees. Join free and only pay 12% when you get paid (Founder50 members lock in 6%)." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -244,7 +244,7 @@ const BusinessPricing: NextPage = () => {
           <div className="mx-auto max-w-3xl">
             <div className="js-reveal text-center mb-12">
               <span className="section-eyebrow mb-4 block">vs. The Competition</span>
-              <h2 className="text-3xl font-bold text-white">Why businesses choose ScheduleMe</h2>
+              <h2 className="text-3xl font-bold text-white">Why providers choose ScheduleMe</h2>
             </div>
             <div className="js-reveal rounded-2xl border border-neutral-800 overflow-hidden">
               <div className="grid grid-cols-3 bg-neutral-900 border-b border-neutral-800">
@@ -311,7 +311,7 @@ const BusinessPricing: NextPage = () => {
         <div className="mx-auto max-w-6xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col leading-none">
             <span className="text-base font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
-            <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Business</span>
+            <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Providers</span>
           </div>
           <p className="text-xs text-neutral-600">© 2026 ScheduleMe</p>
           <Link href="/" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Back to consumer site →</Link>

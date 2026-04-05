@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-// pages/business/dashboard.tsx — ScheduleMe Business Dashboard
+// pages/business/dashboard.tsx — ScheduleMe Provider Dashboard
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -1473,12 +1473,12 @@ const BusinessDashboard: NextPage = () => {
   const activeCustomerId = activeMsgThread?.profiles?.id || activeMsgThread?.customer_id;
   const isCustomerBlocked = activeCustomerId ? !!blockedCustomers[activeCustomerId] : false;
   const TOUR_STEPS = [
-    { title: 'Welcome to your dashboard', body: 'This is your business HQ. Use the sidebar to switch between Overview, Bookings, Messages, and Settings.' },
+    { title: 'Welcome to your dashboard', body: 'This is your provider HQ. Use the sidebar to switch between Overview, Bookings, Messages, and Settings.' },
     { title: 'Bookings & calendar', body: 'Confirm or complete bookings here. The calendar tab helps you see upcoming work at a glance.' },
     { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
     { title: 'Settings & payouts', body: 'Update your listing, hours, and connect Stripe to get paid.' },
-    { title: 'Visibility controls', body: 'In Settings, you can choose whether your business appears on public browse/search and what details are shown.' },
-    { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Business landing page link.' },
+    { title: 'Visibility controls', body: 'In Settings, you can choose whether your provider profile appears on public browse/search and what details are shown.' },
+    { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Provider landing page link.' },
   ];
   const tour = TOUR_STEPS[tourStep];
   function finishTour() {
@@ -1538,7 +1538,7 @@ const BusinessDashboard: NextPage = () => {
           </div>
         </div>
       )}
-      <Head><title>{business?.name || 'Dashboard'} — ScheduleMe for Business</title></Head>
+      <Head><title>{business?.name || 'Dashboard'} — ScheduleMe for Providers</title></Head>
       <div className="min-h-screen flex" style={{ background: 'var(--section-bg, #f8fafc)' }}>
 
         {/* Sidebar */}
@@ -1546,7 +1546,7 @@ const BusinessDashboard: NextPage = () => {
           <div className="px-5 py-5 border-b border-neutral-100">
             <Link href="/business">
               <span className="text-[17px] font-black text-neutral-900" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
-              <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-accent mt-0.5">for Business</span>
+              <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-accent mt-0.5">for Providers</span>
             </Link>
           </div>
           <div className="px-4 py-4 border-b border-neutral-100">
@@ -1605,7 +1605,7 @@ const BusinessDashboard: NextPage = () => {
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
               Consumer site
             </Link>
-            <Link href="/business" scroll={false} target="_blank" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"><svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>Business landing page</Link>
+            <Link href="/business" scroll={false} target="_blank" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"><svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>Provider landing page</Link>
             <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
               Sign out
@@ -2521,7 +2521,7 @@ const BusinessDashboard: NextPage = () => {
                 <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-neutral-500">Live Preview</p>
-                    <p className="text-[11px] text-neutral-400">This renders the same layout as the public business page.</p>
+                    <p className="text-[11px] text-neutral-400">This renders the same layout as the public provider page.</p>
                   </div>
                   {!previewEditMode ? (
                     <button
@@ -2555,7 +2555,7 @@ const BusinessDashboard: NextPage = () => {
                 </div>
                 {business?.slug ? (
                   <iframe
-                    title="Business preview"
+                    title="Provider preview"
                     src={previewEditMode
                       ? `/biz/${business.slug}?edit=1&from=dashboard&preview=1&k=${previewKey}`
                       : `/biz/${business.slug}?from=dashboard&preview=1&k=${previewKey}`}
@@ -2563,7 +2563,7 @@ const BusinessDashboard: NextPage = () => {
                     style={{ height: '80vh', border: 'none' }}
                   />
                 ) : (
-                  <div className="p-6 text-sm text-neutral-500">Preview unavailable — missing business slug.</div>
+                  <div className="p-6 text-sm text-neutral-500">Preview unavailable — missing provider slug.</div>
                 )}
               </div>
             )}
@@ -2628,12 +2628,12 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-                  <h2 className="text-sm font-bold text-neutral-900 mb-5">Edit Business Profile</h2>
+                  <h2 className="text-sm font-bold text-neutral-900 mb-5">Edit Provider Profile</h2>
                   <form onSubmit={handleSaveSettings} className="space-y-4">
                     {settingsError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{settingsError}</div>}
                     {settingsNotice && <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700">{settingsNotice}</div>}
                     {([
-                      { label: 'Business Name', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true, requestChange: true, max: 60 },
+                      { label: 'Provider Name', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true, requestChange: true, max: 60 },
                       { label: 'Phone', v: editPhone, s: setEditPhone, ph: '(415) 555-0192', t: 'tel', max: 20 },
                       { label: 'Address / City', v: editAddress, s: setEditAddress, ph: 'San Francisco, CA', t: 'text', max: 120 },
                       { label: 'Website', v: editWebsite, s: setEditWebsite, ph: 'https://...', t: 'url', max: 200 },
@@ -2647,7 +2647,7 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                       {(f as any).requestChange && (
                         <button type="button" onClick={async () => {
-                          const newName = prompt('Enter requested new business name:');
+                          const newName = prompt('Enter requested new provider name:');
                           if (newName?.trim()) {
                             const trimmed = newName.trim().slice(0, 60);
                             fetch('/api/business-change-requests', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify({ business_id: business?.id, changes: { name: trimmed }, request_type: 'profile' }) }).catch(() => {});
@@ -2662,7 +2662,7 @@ const BusinessDashboard: NextPage = () => {
                     <div>
                       <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Description</label>
                       <div className="relative">
-                        <textarea className="form-input resize-none" rows={3} value={editDesc} maxLength={1000} placeholder="Tell customers about your business…" onChange={e => setEditDesc(e.target.value)} />
+                        <textarea className="form-input resize-none" rows={3} value={editDesc} maxLength={1000} placeholder="Tell customers about your services…" onChange={e => setEditDesc(e.target.value)} />
                         <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{editDesc.length}/1000</span>
                       </div>
                     </div>
@@ -2694,7 +2694,7 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                     {/* Business hours */}
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Business Hours <span className="normal-case font-normal">(optional — leave blank if you come to the client)</span></label>
+                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Provider Hours <span className="normal-case font-normal">(optional — leave blank if you come to the client)</span></label>
                       <datalist id="hours-options">
                         <option value="By appointment" />
                         <option value="7:00 AM – 3:00 PM" />
@@ -2906,7 +2906,7 @@ const BusinessDashboard: NextPage = () => {
         <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
           <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
             <button onClick={() => setShowCampusModal(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
-            <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Student Business</p>
+            <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Student Provider</p>
             <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Link your .edu email to appear on the campus marketplace.</p>
             {business?.edu_verified && (
               <div className="mt-3 flex items-center gap-2 text-emerald-600 text-sm font-semibold">

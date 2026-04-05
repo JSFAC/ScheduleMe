@@ -109,7 +109,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 Everything you need,<br className="hidden md:block" /> nothing you don&apos;t.
               </h2>
               <p className="mt-5 text-lg max-w-xl mx-auto leading-relaxed" style={{ color: dm ? '#737373' : '#737373' }}>
-                Built for the moment you need help fast — and for the businesses that show up.
+                Built for the moment you need help fast — and for the providers that show up.
               </p>
             </div>
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
@@ -186,12 +186,12 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           </div>
         </section>
 
-        {/* Business teaser */}
+        {/* Provider teaser */}
         <section className="py-24 bg-neutral-950" aria-labelledby="biz-teaser-heading">
           <div className="mx-auto max-w-5xl px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-12">
               <div className="max-w-lg js-section">
-                <span className="section-eyebrow mb-4 block">For Service Businesses</span>
+                <span className="section-eyebrow mb-4 block">For Service Providers</span>
                 <h2 id="biz-teaser-heading" className="text-3xl md:text-4xl font-bold text-white mb-5">
                   Get pre-qualified leads delivered directly to you.
                 </h2>
@@ -201,14 +201,14 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 <div className="flex flex-wrap gap-3">
                   <Link href="/business" className="btn-primary px-7 py-3">Learn More</Link>
                   <Link href="/business/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Join for Free</Link>
-                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Business Dashboard →</Link>
+                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Provider Dashboard →</Link>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-4 w-full md:w-auto md:flex-shrink-0" role="list">
                 {[
                   { label: 'Instant lead alerts' },
                   { label: 'Pre-qualified matches' },
-                  { label: 'Business dashboard' },
+                  { label: 'Provider dashboard' },
                   { label: 'Pay per lead' },
                 ].map((item) => (
                   <li key={item.label} className="js-biz-item bg-neutral-900 border border-neutral-800 rounded-2xl px-5 py-4 flex items-center justify-center text-center gap-3">
@@ -264,7 +264,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 </ul>
               </div>
               <div>
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Business</p>
+                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Providers</p>
                 <ul className="space-y-2" role="list">
                   {[{ label: 'Join as a Pro', href: '/business' }, { label: 'Sign Up', href: '/business/signup' }, { label: 'Dashboard', href: '/dashboard' }].map((l) => (
                     <li key={l.href}><Link href={l.href} className="text-sm text-neutral-500 hover:text-neutral-200 transition-colors">{l.label}</Link></li>

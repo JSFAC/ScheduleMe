@@ -4,13 +4,13 @@ import Link from 'next/link';
 export default function BusinessNav() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800">
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Business navigation">
-        <Link href="/business" className="group flex flex-col leading-none" aria-label="ScheduleMe for Business">
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Provider navigation">
+        <Link href="/business" className="group flex flex-col leading-none" aria-label="ScheduleMe for Providers">
           <span className="text-xl font-black text-white transition-opacity group-hover:opacity-70" style={{ letterSpacing: '-0.03em' }}>
             ScheduleMe
           </span>
           <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">
-            for Business
+            for Providers
           </span>
         </Link>
 

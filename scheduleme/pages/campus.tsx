@@ -252,8 +252,10 @@ const CampusPage: NextPage = () => {
         featured = retryTag?.featured || featured;
       }
 
-      setFeaturedBusinesses((featured || []).map((b: any) => mapCampusBusiness(b)));
-      setBusinesses((rows || []).map((b: any) => mapCampusBusiness(b)));
+      const verifiedFeatured = (featured || []).filter((b: any) => b?.edu_verified);
+      const verifiedRows = (rows || []).filter((b: any) => b?.edu_verified);
+      setFeaturedBusinesses(verifiedFeatured.map((b: any) => mapCampusBusiness(b)));
+      setBusinesses(verifiedRows.map((b: any) => mapCampusBusiness(b)));
     } catch (err: any) {
       setLastCampusFetch((prev) => prev ? { ...prev, error: err?.message || 'Fetch failed' } : { url: '', status: null, error: err?.message || 'Fetch failed' });
       setBusinesses([]);

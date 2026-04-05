@@ -85,7 +85,7 @@ const BusinessLoginPage: NextPage = () => {
           .maybeSingle();
 
         if (!biz) {
-          setError('No business account found for this email.');
+          setError('No provider account found for this email.');
           setLoading(false);
           return;
         }
@@ -109,7 +109,7 @@ const BusinessLoginPage: NextPage = () => {
         if (!biz) {
           // Sign them back out — not a business account
           await supabase.auth.signOut();
-          setError('No business account found for this email. If you applied, please wait for your approval email.');
+          setError('No provider account found for this email. If you applied, please wait for your approval email.');
           setLoading(false);
           return;
         }
@@ -125,7 +125,7 @@ const BusinessLoginPage: NextPage = () => {
 
   return (
     <>
-      <Head><title>Business Login — ScheduleMe for Business</title></Head>
+      <Head><title>Provider Login — ScheduleMe for Providers</title></Head>
       <BusinessNav />
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-20 pb-16">
         <div className="w-full max-w-sm">
@@ -133,29 +133,29 @@ const BusinessLoginPage: NextPage = () => {
           <div className="text-center mb-8">
             <div className="flex flex-col leading-none items-center mb-4">
               <span className="text-2xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
-              <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Business</span>
+              <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Providers</span>
             </div>
             <h1 className="text-xl font-bold text-white mb-1">
               {mode === 'reset' ? 'Reset your password' : 'Welcome back'}
             </h1>
             <p className="text-neutral-500 text-sm">
-              {mode === 'reset' ? "We'll email you a reset link" : 'Sign in to your business dashboard'}
+              {mode === 'reset' ? "We'll email you a reset link" : 'Sign in to your provider dashboard'}
             </p>
           </div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8">
             {error && (
               <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 mb-5">
-                <p className="font-semibold mb-1 text-red-300">No business account found</p>
+                <p className="font-semibold mb-1 text-red-300">No provider account found</p>
                 <p className="text-red-400 leading-relaxed">
                   {error === 'not_a_business'
-                    ? 'This email is not registered as a ScheduleMe business. If you applied, wait for your approval email. Otherwise choose an option below.'
+                    ? 'This email is not registered as a ScheduleMe provider. If you applied, wait for your approval email. Otherwise choose an option below.'
                     : error}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <Link href="/business/signup"
                     className="flex items-center justify-center px-3 py-2 rounded-lg bg-accent/20 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/30 transition-colors text-center">
-                    Apply as a Business
+                    Apply as a Provider
                   </Link>
                   <Link href="/signin"
                     className="flex items-center justify-center px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs font-semibold hover:bg-neutral-700 transition-colors text-center">
@@ -171,7 +171,7 @@ const BusinessLoginPage: NextPage = () => {
             {mode === 'reset' ? (
               <form onSubmit={handleEmail} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business email</label>
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Provider email</label>
                   <input type="email" required
                     className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                     placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
@@ -196,7 +196,7 @@ const BusinessLoginPage: NextPage = () => {
                   </svg>
                   Continue with Google
                 </button>
-                <p className="text-xs text-neutral-600 text-center -mt-1">For approved businesses only</p>
+                <p className="text-xs text-neutral-600 text-center -mt-1">For approved providers only</p>
 
                 <div className="flex items-center gap-3 my-1">
                   <div className="flex-1 h-px bg-neutral-800" />
@@ -213,7 +213,7 @@ const BusinessLoginPage: NextPage = () => {
                 </button>
 
                 <p className="text-center text-xs text-neutral-600 pt-1">
-                  New business?{' '}
+                  New provider?{' '}
                   <Link href="/business/signup" className="text-accent hover:underline">Apply to join →</Link>
                 </p>
               </div>

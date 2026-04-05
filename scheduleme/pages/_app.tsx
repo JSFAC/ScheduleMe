@@ -179,7 +179,7 @@ export default function App({ Component, pageProps }: AppProps) {
               ScheduleMe
             </p>
             <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#007e6d', marginBottom: 20 }}>
-              {toBusiness ? 'for Business' : 'for Everyone'}
+              {toBusiness ? 'for Providers' : 'for Everyone'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <div

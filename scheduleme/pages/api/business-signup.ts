@@ -55,12 +55,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Rate limit: 3 signups per IP per hour (prevents signup spam)
   if (!(await rateLimit(req, res, { max: 3, windowMs: 60 * 60_000, keyPrefix: 'biz-signup' }))) return;
 
-  const allowed = ['businessName','ownerName','email','phone','serviceCategory','otherCategory','city','zip','calendlyUrl','website','instagram','campusProvider','schoolName'];
+  const allowed = ['businessName','ownerName','email','phone','serviceCategory','otherCategory','city','zip','website','instagram','campusProvider','schoolName'];
   const unknown = getUnknownFields(req.body, allowed);
   if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
   const {
     businessName, ownerName, email, phone, serviceCategory, otherCategory,
-    city, zip, calendlyUrl, website, instagram, campusProvider, schoolName,
+    city, zip, website, instagram, campusProvider, schoolName,
   } = req.body;
 
   // Required fields
@@ -110,8 +110,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const urlRegex = /^https?:\/\/.+/;
   if (website && (typeof website !== 'string' || website.length > 200 || !urlRegex.test(website)))
     return res.status(400).json({ error: 'Invalid website URL' });
-  if (calendlyUrl && (typeof calendlyUrl !== 'string' || calendlyUrl.length > 200 || !urlRegex.test(calendlyUrl)))
-    return res.status(400).json({ error: 'Invalid Calendly URL' });
   if (instagram && typeof instagram === 'string' && instagram.length > 200)
     return res.status(400).json({ error: 'Invalid Instagram handle' });
   if (otherCategory && typeof otherCategory === 'string' && otherCategory.length > 60)
@@ -146,7 +144,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       service_tags: [category.toLowerCase().replace(/\s+/g, '_')],
       keywords: [category.toLowerCase(), cleanOwner.toLowerCase()].filter(Boolean),
       rating: 0,
-      calendly_url: calendlyUrl || null,
       website: website || null,
       instagram: typeof instagram === 'string' ? instagram.slice(0, 200) : null,
       phone: phone || null,

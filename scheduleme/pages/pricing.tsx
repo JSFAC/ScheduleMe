@@ -62,7 +62,7 @@ const Pricing: NextPage = () => {
               Simple, honest pricing.
             </h1>
             <p style={{ fontSize: 18, color: textSecondary, maxWidth: 480, margin: '0 auto', lineHeight: 1.6 }}>
-              Free for the people who need help. Businesses pay only for results.
+              Free for the people who need help. Providers pay only for results.
             </p>
           </div>
         </section>
@@ -103,7 +103,7 @@ const Pricing: NextPage = () => {
           </div>
         </section>
 
-        {/* Business CTA banner */}
+        {/* Provider CTA banner */}
         <section style={{ padding: '0 24px', marginBottom: 64 }}>
           <div className="mx-auto" style={{ maxWidth: 720 }}>
             <div style={{ borderRadius: 20, background: darkBannerBg, border: `1px solid ${darkBannerBorder}`, padding: '32px 40px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
@@ -112,7 +112,7 @@ const Pricing: NextPage = () => {
                 <p style={{ color: dm ? '#8e8e93' : '#94a3b8', fontSize: 14 }}>See plans, pricing, and how leads work on our business page.</p>
               </div>
               <Link href="/business/pricing" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                View Business Pricing →
+                View Provider Pricing →
               </Link>
             </div>
           </div>

@@ -40,7 +40,7 @@ export default function BusinessPending() {
           <h1 className="text-2xl font-bold text-neutral-900 mb-2">Application Under Review</h1>
           <p className="text-neutral-500 text-sm leading-relaxed mb-6">
             Thank you for applying to ScheduleMe! Our team is reviewing your application.
-            You'll receive an email once you've been approved and can access your business dashboard.
+            You'll receive an email once you've been approved and can access your provider dashboard.
           </p>
           <div className="bg-blue-50 rounded-xl p-4 mb-6 text-left">
             <p className="text-blue-800 text-sm font-semibold mb-1">What happens next?</p>

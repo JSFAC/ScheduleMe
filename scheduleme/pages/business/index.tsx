@@ -34,7 +34,7 @@ const IconLock = () => <svg width="20" height="20" fill="none" viewBox="0 0 24 2
 const WHY_ITEMS = [
   { icon: <IconTarget />, title: 'Student‑matched leads', desc: 'Requests are matched by service type and campus area so you only see relevant inquiries.' },
   { icon: <IconBell />, title: 'Real-time notifications', desc: 'Get SMS and email alerts the moment a matching lead comes in. First to respond wins the booking.' },
-  { icon: <IconChart />, title: 'Business dashboard', desc: 'Track leads, manage your profile, see your reviews, and monitor your conversion rate — all in one place.' },
+  { icon: <IconChart />, title: 'Provider dashboard', desc: 'Track leads, manage your profile, see your reviews, and monitor your conversion rate — all in one place.' },
   { icon: <IconCard />, title: 'Pay only when you earn', desc: 'No monthly subscription to start. You’re charged when a job is completed.' },
   { icon: <IconStar />, title: 'Build your reputation', desc: 'Reviews from real customers on every booking. Strong ratings mean more prominent placement.' },
   { icon: <IconLock />, title: 'Founder50 spotlight', desc: 'Complete early bookings to unlock campus “Featured” placement and build momentum fast.' },
@@ -56,10 +56,10 @@ const TESTIMONIALS = [
 const FAQ = [
   { q: 'How much does it cost?', a: 'You start free — no setup fees. You’re only charged when a job is completed.' },
   { q: 'What service categories do you support?', a: 'Photography, tutoring, design, salon/beauty, cleaning, repairs, and more. We add new campus categories regularly.' },
-  { q: 'How are leads matched to my business?', a: 'Requests are matched by service category, campus area, and availability so you only see relevant inquiries.' },
+  { q: 'How are leads matched to my profile?', a: 'Requests are matched by service category, campus area, and availability so you only see relevant inquiries.' },
   { q: 'Can I set my own service area?', a: 'Yes. During onboarding you set your coverage radius. You can adjust this anytime from your dashboard.' },
   { q: 'What if a lead is bad quality?', a: 'If a request does not match your profile or looks incorrect, report it and we’ll review it quickly.' },
-  { q: 'How quickly will I be approved?', a: 'Most businesses are reviewed and approved within 24 hours.' },
+  { q: 'How quickly will I be approved?', a: 'Most providers are reviewed and approved within 24 hours.' },
 ];
 
 const StarRating = () => (
@@ -82,7 +82,7 @@ const Business: NextPage = () => {
   return (
     <>
       <Head>
-        <title>ScheduleMe for Business — Get More Customers, Zero Ad Spend</title>
+        <title>ScheduleMe for Providers — Get More Customers, Zero Ad Spend</title>
         <meta name="description" content="Join ScheduleMe to get campus‑matched leads and manage bookings in one dashboard." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -104,7 +104,7 @@ const Business: NextPage = () => {
           <div className="relative mx-auto max-w-4xl text-center">
             <div className="inline-flex items-center gap-2 mb-8 px-4 py-1.5 rounded-full border border-accent/25 bg-accent/5">
               <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-dot" aria-hidden="true" />
-              <span className="text-xs font-semibold tracking-widest uppercase text-accent">For Service Businesses</span>
+              <span className="text-xs font-semibold tracking-widest uppercase text-accent">For Service Providers</span>
             </div>
             <h1 id="biz-hero-heading" className="text-5xl md:text-7xl font-black text-white mb-7" style={{ letterSpacing: '-0.03em', lineHeight: 1.0 }}>
               More customers.<br />Zero ad spend.
@@ -129,7 +129,7 @@ const Business: NextPage = () => {
           <div className="mx-auto max-w-5xl px-6">
             <ul className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4" role="list">
               {[
-                { value: '2,400+', label: 'businesses joined' },
+                { value: '2,400+', label: 'providers joined' },
                 { value: '14', label: 'service categories' },
                 { value: '$0', label: 'to get started' },
                 { value: '24 hr', label: 'approval time' },
@@ -150,7 +150,7 @@ const Business: NextPage = () => {
             <div className="js-sec text-center mb-20">
               <span className="section-eyebrow mb-4 block">Why Join</span>
               <h2 id="why-heading" className="text-4xl md:text-5xl font-bold text-white">
-                Built for businesses<br className="hidden md:block" /> that want to grow.
+                Built for providers<br className="hidden md:block" /> that want to grow.
               </h2>
               <p className="mt-5 text-lg text-neutral-400 max-w-xl mx-auto leading-relaxed">
                 We handle the marketing. You handle the work.
@@ -206,7 +206,7 @@ const Business: NextPage = () => {
           <div className="mx-auto max-w-6xl">
             <div className="js-sec text-center mb-16">
               <span className="section-eyebrow mb-4 block">From our pros</span>
-              <h2 id="biz-testimonials-heading" className="text-4xl font-bold text-white">Businesses that made the switch</h2>
+              <h2 id="biz-testimonials-heading" className="text-4xl font-bold text-white">Providers that made the switch</h2>
             </div>
             <ul className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
               {TESTIMONIALS.map((t) => (
@@ -266,13 +266,13 @@ const Business: NextPage = () => {
         <section className="py-24 px-6 border-t border-neutral-900" aria-labelledby="biz-final-cta">
           <div className="mx-auto max-w-3xl text-center js-sec">
             <h2 id="biz-final-cta" className="text-3xl md:text-4xl font-bold text-white mb-5">
-              Ready to grow your business?
+              Ready to grow your provider profile?
             </h2>
             <p className="text-neutral-400 mb-10 text-lg leading-relaxed">
               Join free in 5 minutes. No credit card, no commitment.<br className="hidden md:block" /> Start receiving leads within 24 hours of approval.
             </p>
             <Link href="/business/signup" className="btn-primary text-base px-12 py-4 shadow-xl shadow-accent/20">
-              Create Your Business Profile →
+              Create Your Provider Profile →
             </Link>
           </div>
         </section>
@@ -282,7 +282,7 @@ const Business: NextPage = () => {
         <div className="mx-auto max-w-6xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col leading-none">
             <span className="text-base font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
-            <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Business</span>
+            <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Providers</span>
           </div>
           <p className="text-xs text-neutral-600">© 2026 ScheduleMe</p>
           <Link href="/" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Back to consumer site →</Link>

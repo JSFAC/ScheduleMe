@@ -24,11 +24,11 @@ const FAQS = [
   },
   {
     q: 'Can I book directly through the app?',
-    a: 'Yes — many providers offer instant online booking through their Calendly calendar. For others, you can request a booking and they\'ll confirm within a few hours.',
+    a: 'Yes — many providers offer instant online booking through their ScheduleMe calendar. For others, you can request a booking and they\'ll confirm within a few hours.',
   },
   {
     q: 'How do I list my business?',
-    a: 'Head to the For Businesses page and fill out the signup form. After a quick verification, your profile goes live and you start receiving matched leads.',
+    a: 'Head to the For Providers page and fill out the signup form. After a quick verification, your profile goes live and you start receiving matched leads.',
   },
 ];
 

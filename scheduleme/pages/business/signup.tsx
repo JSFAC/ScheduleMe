@@ -9,7 +9,7 @@ type Step = 'form' | 'submitting' | 'success';
 interface FormData {
   businessName: string; ownerName: string; email: string; phone: string;
   serviceCategory: string; otherCategory: string; city: string; zip: string; radiusMiles: string;
-  licenseNumber: string; yearsInBusiness: string; calendlyUrl: string; agree: boolean;
+  licenseNumber: string; yearsInBusiness: string; agree: boolean;
   campusProvider: boolean; schoolName: string;
 }
 
@@ -25,7 +25,7 @@ const SignupPage: NextPage = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>({
     businessName:'', ownerName:'', email:'', phone:'', serviceCategory:'', otherCategory:'',
-    city:'', zip:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', calendlyUrl:'', agree:false,
+    city:'', zip:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', agree:false,
     campusProvider:false, schoolName:'',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -37,7 +37,7 @@ const SignupPage: NextPage = () => {
 
   function validate(): boolean {
     const e: Partial<Record<keyof FormData, string>> = {};
-    if (!form.businessName.trim()) e.businessName = 'Business name is required.';
+    if (!form.businessName.trim()) e.businessName = 'Provider name is required.';
     if (!form.ownerName.trim()) e.ownerName = 'Your name is required.';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address.';
     if (!/^[\d\s\-().+]{7,20}$/.test(form.phone)) e.phone = 'Enter a valid phone number.';
@@ -86,7 +86,7 @@ const SignupPage: NextPage = () => {
 
   if (step === 'success') return (
     <>
-      <Head><title>Application Submitted — ScheduleMe for Business</title></Head>
+      <Head><title>Application Submitted — ScheduleMe for Providers</title></Head>
       <BusinessNav />
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-24">
         <div className="max-w-md w-full text-center">
@@ -104,7 +104,7 @@ const SignupPage: NextPage = () => {
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 text-left space-y-4 mb-8">
             <p className="text-xs font-semibold text-neutral-500 uppercase tracking-widest">What happens next</p>
             {[
-              'We verify your license and business details (up to 24 hrs)',
+              'We verify your license and provider details (up to 24 hrs)',
               'You receive a welcome email with your dashboard login',
               'Connect your bank account via Stripe to receive payments',
               'First job requests start arriving once your profile is live',
@@ -118,7 +118,7 @@ const SignupPage: NextPage = () => {
           <div className="flex flex-col gap-3">
             <Link href="/business/auth/login" className="btn-primary w-full justify-center">Log In to Dashboard</Link>
             <Link href="/business" className="inline-flex items-center justify-center w-full px-6 py-3 rounded-xl border border-neutral-700 text-neutral-300 text-sm font-semibold hover:bg-neutral-800 transition-colors">
-              Back to Business Home
+              Back to Provider Home
             </Link>
           </div>
         </div>
@@ -129,7 +129,7 @@ const SignupPage: NextPage = () => {
   return (
     <>
       <Head>
-        <title>Join ScheduleMe — Create Your Business Profile</title>
+        <title>Join ScheduleMe — Create Your Provider Profile</title>
         <meta name="description" content="Join ScheduleMe as a service professional. Free to join, 12% only on completed jobs." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -137,15 +137,27 @@ const SignupPage: NextPage = () => {
       <div className="min-h-screen bg-neutral-950 pt-20 pb-20 px-4 md:px-6">
         <div className="mx-auto max-w-2xl">
           <div className="text-center mb-8">
-            <span className="section-eyebrow mb-3 block">Business Application</span>
+            <span className="section-eyebrow mb-3 block">Provider Application</span>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ letterSpacing: '-0.02em' }}>
-              Create your business profile
+              Create your provider profile
             </h1>
             <p className="text-neutral-400 mb-6">Takes about 5 minutes. Free to join — we only take 12% when you get paid.</p>
             <div className="flex flex-wrap items-center justify-center gap-3">
-              {[{icon:'🔒',label:'SSL Encrypted'},{icon:'✓',label:'Verified Platform'},{icon:'$0',label:'Free to Join'},{icon:'12%',label:'Only on Earnings'}].map(b => (
+              {[
+                {
+                  icon: (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  ),
+                  label: 'SSL Encrypted',
+                },
+                { icon: '✓', label: 'Verified Platform' },
+                { icon: '$0', label: 'Free to Join' },
+                { icon: '12%', label: 'Only on Earnings' },
+              ].map((b) => (
                 <div key={b.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-400">
-                  <span className="text-accent font-bold">{b.icon}</span>{b.label}
+                  <span className="text-accent font-bold flex items-center">{b.icon}</span>{b.label}
                 </div>
               ))}
             </div>
@@ -156,15 +168,15 @@ const SignupPage: NextPage = () => {
           <form onSubmit={handleSubmit} noValidate>
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 space-y-8">
 
-              {/* Step 1: Business Info */}
+              {/* Step 1: Provider Info */}
               <fieldset>
                 <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
                   <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">1</span>
-                  Business Information
+                  Provider Information
                 </legend>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business name *</label>
+                    <label className="block text-sm font-medium text-neutral-400 mb-1.5">Provider name *</label>
                     <div className="relative">
                       <input type="text" maxLength={60} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.businessName ? 'ring-2 ring-red-400' : ''}`}
                         placeholder="Mike R. Plumbing" value={form.businessName} onChange={e => set('businessName', e.target.value)} />
@@ -183,7 +195,7 @@ const SignupPage: NextPage = () => {
                       {errors.ownerName && <p className="mt-1 text-xs text-red-400">{errors.ownerName}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Years in business</label>
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Years in business <span className="text-xs text-neutral-600">(optional)</span></label>
                       <input type="number" min="0" max="100" className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                         placeholder="5" value={form.yearsInBusiness} onChange={e => set('yearsInBusiness', e.target.value)} />
                     </div>
@@ -199,6 +211,7 @@ const SignupPage: NextPage = () => {
                   <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">2</span>
                   Contact Details
                 </legend>
+                <p className="text-xs text-neutral-600 -mt-2 mb-4">(not publicly available for consumers)</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-400 mb-1.5">Email *</label>
@@ -286,30 +299,10 @@ const SignupPage: NextPage = () => {
 
               <div className="h-px bg-neutral-800" />
 
-              {/* Step 4: Calendly */}
-              <fieldset>
-                <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
-                  <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">4</span>
-                  Online Booking <span className="text-neutral-600 font-normal text-xs ml-1">(optional)</span>
-                </legend>
-                <div className="relative">
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Calendly URL</label>
-                  <input type="url" className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                    maxLength={200} placeholder="https://calendly.com/your-name" value={form.calendlyUrl} onChange={e => set('calendlyUrl', e.target.value)} />
-                  <span className="absolute bottom-2 right-3 text-[10px] text-neutral-500">{form.calendlyUrl.length}/200</span>
-                  <p className="text-xs text-neutral-600 mt-1.5">If provided, customers can book directly from their match results.</p>
-                </div>
-              </fieldset>
-
-              <div className="h-px bg-neutral-800" />
-
-
-              <div className="h-px bg-neutral-800" />
-
               {/* Campus Provider (optional) */}
               <fieldset>
                 <legend className="text-sm font-semibold text-neutral-200 mb-5 flex items-center gap-2">
-                  <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">5</span>
+                  <span className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold">4</span>
                   Campus Marketplace <span className="text-neutral-600 font-normal text-xs ml-1">(optional)</span>
                 </legend>
                 <div className="space-y-4">
