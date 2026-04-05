@@ -2618,7 +2618,7 @@ const BusinessDashboard: NextPage = () => {
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
-                        className="mt-1"
+                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
                         checked={publicVisibility}
                         onChange={e => {
                           const nextVis = e.target.checked;
@@ -2637,7 +2637,7 @@ const BusinessDashboard: NextPage = () => {
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
-                        className="mt-1"
+                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
                         checked={publicShowName}
                         onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos)}
                         disabled={!publicVisibility || visibilitySaving}
@@ -2651,7 +2651,7 @@ const BusinessDashboard: NextPage = () => {
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
-                        className="mt-1"
+                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
                         checked={publicShowPhotos}
                         onChange={e => persistVisibility(publicVisibility, publicShowName, e.target.checked)}
                         disabled={!publicVisibility || visibilitySaving}
