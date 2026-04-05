@@ -984,11 +984,13 @@ async function togglePinned(bizId: string) {
               </div>
 
               <div className="flex items-center gap-2 ml-auto">
-                <Link href="/campus" scroll={false}
+                <button
+                  type="button"
+                  onClick={() => router.push('/account?edu=1')}
                   className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-90"
                   style={{ background: '#007e6d', color: 'white', boxShadow: '0 4px 12px rgba(0,126,109,0.25)' }}>
                   Verify Now →
-                </Link>
+                </button>
                 <button
                   onClick={() => setEduVerified(true)}
                   className="shrink-0 h-8 w-8 flex items-center justify-center rounded-xl"
