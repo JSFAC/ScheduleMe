@@ -38,11 +38,11 @@ function normalizeHours(hours: any): { day: string; time: string }[] {
 }
 
 function initials(name: string): string {
+  if (!name) return '';
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
 function mapCampusBusiness(b: any): Business {
-  const showName = b?.public_show_name === true;
   const rawTags = Array.isArray(b.service_tags)
     ? b.service_tags
     : (b.service_tags ? [String(b.service_tags)] : []);
@@ -59,7 +59,7 @@ function mapCampusBusiness(b: any): Business {
   return {
     id: b.id,
     realId: b.id,
-    name: showName ? (b.name || 'Student Provider') : 'Student Provider',
+    name: b.name || '',
     slug: b.slug || b.id,
     description: b.description || '',
     tagline: b.description ? b.description.split('.')[0] : '',
@@ -625,17 +625,21 @@ const CampusPage: NextPage = () => {
     const [imgLoaded, setImgLoaded] = useState(false);
     const cardBg = dm ? '#1c1c1e' : 'white';
     const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
+    const cardName = biz.name || '';
+    const cardInitials = initials(cardName);
     return (
       <button onClick={onClick} className="biz-card group w-full text-left flex flex-col"
         style={{ borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
           {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
-            <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
+            <img src={biz.coverUrl} alt={cardName || 'Provider'} onLoad={() => setImgLoaded(true)}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
               style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
-              <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+              {cardInitials ? (
+                <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{cardInitials}</span>
+              ) : null}
               <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos yet</span>
             </div>
           )}
@@ -665,7 +669,9 @@ const CampusPage: NextPage = () => {
           )}
         </div>
         <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
-          <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
+          {cardName ? (
+            <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{cardName}</p>
+          ) : null}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
             {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}

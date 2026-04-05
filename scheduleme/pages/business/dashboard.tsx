@@ -36,7 +36,7 @@ interface Business {
   availability_status?: string | null; break_until?: string | null;
   is_onboarded: boolean; website?: string; instagram?: string;
   school_domain?: string | null; edu_verified?: boolean;
-  public_visibility?: boolean; public_show_name?: boolean; public_show_photos?: boolean;
+  public_visibility?: boolean; public_show_name?: boolean; public_show_photos?: boolean; campus_show_name?: boolean;
 }
 
 const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text: string; border: string }> = {
@@ -764,6 +764,7 @@ const BusinessDashboard: NextPage = () => {
   const [publicVisibility, setPublicVisibility] = useState(false);
   const [publicShowName, setPublicShowName] = useState(false);
   const [publicShowPhotos, setPublicShowPhotos] = useState(false);
+  const [campusShowName, setCampusShowName] = useState(false);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
@@ -823,6 +824,7 @@ const BusinessDashboard: NextPage = () => {
     setPublicVisibility(Boolean(biz.public_visibility));
     setPublicShowName(Boolean(biz.public_show_name));
     setPublicShowPhotos(Boolean(biz.public_show_photos));
+    setCampusShowName(Boolean(biz.campus_show_name));
     const authHeaders = await getAuthHeaders();
     const [bkgRes, msgsRes, balRes] = await Promise.all([
       fetch('/api/bookings?business_id=' + biz.id, { headers: authHeaders }),
@@ -1410,23 +1412,26 @@ const BusinessDashboard: NextPage = () => {
     setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
   }
 
-  async function persistVisibility(nextVisibility: boolean, nextShowName: boolean, nextShowPhotos: boolean) {
+  async function persistVisibility(nextVisibility: boolean, nextShowName: boolean, nextShowPhotos: boolean, nextCampusShowName: boolean) {
     if (!business) return;
-    const prev = { publicVisibility, publicShowName, publicShowPhotos };
+    const prev = { publicVisibility, publicShowName, publicShowPhotos, campusShowName };
     setPublicVisibility(nextVisibility);
     setPublicShowName(nextShowName);
     setPublicShowPhotos(nextShowPhotos);
+    setCampusShowName(nextCampusShowName);
     setVisibilitySaving(true);
     const { error } = await getSupabase().from('businesses').update({
       public_visibility: nextVisibility,
       public_show_name: nextShowName,
       public_show_photos: nextShowPhotos,
+      campus_show_name: nextCampusShowName,
     }).eq('id', business.id);
     setVisibilitySaving(false);
     if (error) {
       setPublicVisibility(prev.publicVisibility);
       setPublicShowName(prev.publicShowName);
       setPublicShowPhotos(prev.publicShowPhotos);
+      setCampusShowName(prev.campusShowName);
       showToast(error.message || 'Failed to save visibility settings', false);
       return;
     }
@@ -1435,6 +1440,7 @@ const BusinessDashboard: NextPage = () => {
       public_visibility: nextVisibility,
       public_show_name: nextShowName,
       public_show_photos: nextShowPhotos,
+      campus_show_name: nextCampusShowName,
     } : b);
     showToast('Visibility settings saved', true);
   }
@@ -2620,13 +2626,13 @@ const BusinessDashboard: NextPage = () => {
                         type="checkbox"
                         className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
                         style={{ accentColor: '#007e6d' }}
-                        checked={publicShowName}
-                        onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos)}
-                        disabled={!publicVisibility || visibilitySaving}
+                        checked={campusShowName}
+                        onChange={e => persistVisibility(publicVisibility, publicShowName, publicShowPhotos, e.target.checked)}
+                        disabled={visibilitySaving}
                       />
-                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
+                      <div>
                         <p className="font-semibold text-neutral-900">Show my name to students</p>
-                        <p className="text-xs text-neutral-500">If off, we display “Student Provider”.</p>
+                        <p className="text-xs text-neutral-500">If off, your name is hidden from students.</p>
                       </div>
                     </label>
 
@@ -2638,9 +2644,7 @@ const BusinessDashboard: NextPage = () => {
                         checked={publicVisibility}
                         onChange={e => {
                           const nextVis = e.target.checked;
-                          const nextShowName = nextVis ? publicShowName : false;
-                          const nextShowPhotos = nextVis ? publicShowPhotos : false;
-                          persistVisibility(nextVis, nextShowName, nextShowPhotos);
+                          persistVisibility(nextVis, publicShowName, publicShowPhotos, campusShowName);
                         }}
                         disabled={visibilitySaving}
                       />
@@ -2655,8 +2659,23 @@ const BusinessDashboard: NextPage = () => {
                         type="checkbox"
                         className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
                         style={{ accentColor: '#007e6d' }}
+                        checked={publicShowName}
+                        onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos, campusShowName)}
+                        disabled={!publicVisibility || visibilitySaving}
+                      />
+                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
+                        <p className="font-semibold text-neutral-900">Show my name publicly</p>
+                        <p className="text-xs text-neutral-500">If off, we display “Student Provider”.</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d' }}
                         checked={publicShowPhotos}
-                        onChange={e => persistVisibility(publicVisibility, publicShowName, e.target.checked)}
+                        onChange={e => persistVisibility(publicVisibility, publicShowName, e.target.checked, campusShowName)}
                         disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
