@@ -255,8 +255,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const reviewCount = b.review_count ?? 0;
     const rating = reviewCount > 0 ? b.rating : null;
     const status = computeFounder50Status(b);
-    const showName = b.campus_show_name === true;
-    return { ...b, price_tier: priceTier, rating, founder50_status: b.founder50_status ?? status, name: showName ? b.name : '' };
+    return { ...b, price_tier: priceTier, rating, founder50_status: b.founder50_status ?? status };
   });
 
   const featuredIds = new Set<string>();

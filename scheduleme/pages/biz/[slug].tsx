@@ -212,6 +212,7 @@ export default function BizPage() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [viewerEduVerified, setViewerEduVerified] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -229,6 +230,12 @@ export default function BizPage() {
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
 
+  const displayName = biz
+    ? (viewerEduVerified
+        ? (biz.campus_show_name ? biz.name : '')
+        : (biz.public_visibility && biz.public_show_name ? biz.name : 'Student Provider'))
+    : '';
+  const titleName = displayName || 'ScheduleMe Provider';
 
   useEffect(() => {
     if (!slug) return;
@@ -244,6 +251,12 @@ export default function BizPage() {
           try {
             const { data: { session } } = await getSB().auth.getSession();
             if (!session) return;
+            const { data: profile } = await getSB()
+              .from('profiles')
+              .select('edu_verified')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            setViewerEduVerified(profile?.edu_verified === true);
             const { data: fav } = await getSB()
               .from('favorites')
               .select('id')
@@ -664,10 +677,10 @@ export default function BizPage() {
     const url = window.location.href;
     setShareUrl(url);
     setShareCopied(false);
-    const title = biz?.name || 'ScheduleMe business';
+    const title = titleName;
     try {
       if (navigator.share) {
-        await navigator.share({ title, text: `${biz?.name || 'ScheduleMe business'} on ScheduleMe`, url });
+        await navigator.share({ title, text: `${titleName} on ScheduleMe`, url });
         return;
       }
     } catch {}
@@ -745,7 +758,7 @@ export default function BizPage() {
 
   return (
     <>
-      <Head><title>{biz.name} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
+      <Head><title>{titleName} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
       <div style={{background:bg,minHeight:'100vh',paddingBottom:100}}>
         {!hideNav && <Nav />}
         {shareOpen && (
@@ -805,7 +818,7 @@ export default function BizPage() {
               {imgs[galleryIdx] && (
                 <img
                   src={imgs[galleryIdx]}
-                  alt={biz.name}
+                  alt={displayName || 'Provider'}
                   className="object-contain rounded-2xl"
                   style={{ maxHeight: 320, maxWidth: '100%' }}
                   onClick={() => imgs.length > 0 && setGalleryOpen(true)}
@@ -881,7 +894,9 @@ export default function BizPage() {
                 <path d="M9 15l-5 5" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
+            {displayName ? (
+              <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{displayName}</h1>
+            ) : null}
             <div className="flex gap-2 flex-wrap mb-3">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
               {(computedPriceTier ?? biz.price_tier) ? (

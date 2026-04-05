@@ -341,18 +341,19 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
+  const cardLabel = biz.category || 'Provider';
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(180px, 22vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
-          <img src={biz.coverUrl} alt={biz.name}
+          <img src={biz.coverUrl} alt={cardLabel}
             onLoad={() => setImgLoaded(true)}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
-            <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+            <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(cardLabel)}</span>
             <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos yet</span>
           </div>
         )}
@@ -382,7 +383,6 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
         )}
       </div>
       <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
-        <p className="font-bold text-[14px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
           {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
@@ -830,15 +830,15 @@ async function togglePinned(bizId: string) {
                               <div className="flex items-center gap-3">
                                 <div className="h-14 w-14 rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
                                   {biz.coverUrl ? (
-                                    <img src={biz.coverUrl} alt={biz.name} className="h-full w-full object-cover" />
+                                    <img src={biz.coverUrl} alt={biz.category || 'Provider'} className="h-full w-full object-cover" />
                                   ) : (
                                     <div className="h-full w-full flex items-center justify-center">
-                                      <span className="text-xs font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.name)}</span>
+                                      <span className="text-xs font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.category || 'Provider')}</span>
                                     </div>
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
+                                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.category || 'Provider'}</p>
                                   <p className="text-[11px] mt-0.5 truncate" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.category}{biz.distance ? ` · ${biz.distance}` : ''}</p>
                                   {biz.tagline && (
                                     <p className="text-[11px] mt-1 line-clamp-2" style={{ color: dm ? '#8e8e93' : '#94a3b8' }}>{biz.tagline}</p>
