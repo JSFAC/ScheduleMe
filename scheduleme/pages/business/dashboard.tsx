@@ -698,6 +698,10 @@ const BusinessDashboard: NextPage = () => {
   const [campusVerifyError, setCampusVerifyError] = useState('');
   const [campusVerifySuccess, setCampusVerifySuccess] = useState('');
   const [showCampusModal, setShowCampusModal] = useState(false);
+  const [showDisconnectEdu, setShowDisconnectEdu] = useState(false);
+  const [disconnectText, setDisconnectText] = useState('');
+  const [disconnectLoading, setDisconnectLoading] = useState(false);
+  const [disconnectError, setDisconnectError] = useState('');
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'disputed'|'active'|'completed'|'cancelled'>('pending');
   const [bkFilterTouched, setBkFilterTouched] = useState(false);
   const [calendarDay, setCalendarDay] = useState<number | null>(null);
@@ -2807,10 +2811,17 @@ const BusinessDashboard: NextPage = () => {
                       ))}
                     </div>
                     <p className="text-xs font-semibold text-neutral-500 mt-4">Want to affiliate with your campus?</p>
-                    <button type="button" onClick={() => setShowCampusModal(true)} className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold border"
-                      style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
-                      {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
-                    </button>
+                    <div className="mt-4 grid grid-cols-1 gap-2">
+                      <button type="button" onClick={() => setShowCampusModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                        style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
+                        {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
+                      </button>
+                      <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                        style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
+                        Disconnect .edu Email
+                      </button>
+                    </div>
                   </div>
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
@@ -2826,7 +2837,7 @@ const BusinessDashboard: NextPage = () => {
                           onClick={() => handleStripeConnect('update')}
                           disabled={stripeLoading}
                           className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
-                          Enable instant payouts
+                          Configure Stripe settings
                         </button>
                         <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts. New Stripe accounts may take up to 7 days for the first payout to arrive.</p>
                         {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
@@ -2849,6 +2860,65 @@ const BusinessDashboard: NextPage = () => {
       {toast && (
         <div className={`fixed top-6 right-6 z-[600] px-5 py-3 rounded-xl text-sm font-semibold shadow-xl ${toast.ok ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
           {toast.msg}
+        </div>
+      )}
+      {showDisconnectEdu && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="relative w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <button onClick={() => setShowDisconnectEdu(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+            <span className="sm-eyebrow mb-2 block">Campus</span>
+            <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#111' }}>Disconnect .edu Email</h2>
+            <p className="text-xs mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              This removes your campus verification so you can re-verify with a new school. Type <strong>confirm</strong> to continue.
+            </p>
+            <div className="mt-4 space-y-3">
+              <input type="text" value={disconnectText} onChange={(e) => setDisconnectText(e.target.value)} placeholder="confirm"
+                className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+              {disconnectError && <p className="text-xs text-red-500">{disconnectError}</p>}
+              <button
+                type="button"
+                disabled={disconnectText.trim().toLowerCase() !== 'confirm' || disconnectLoading}
+                onClick={async () => {
+                  if (disconnectText.trim().toLowerCase() !== 'confirm') return;
+                  setDisconnectLoading(true);
+                  setDisconnectError('');
+                  try {
+                    const sb = getSupabaseClient();
+                    const { data: { session } } = await sb.auth.getSession();
+                    const res = await fetch('/api/disconnect-edu', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + session?.access_token,
+                      },
+                    });
+                    const d = await res.json();
+                    if (!res.ok) {
+                      setDisconnectError(d.error || 'Failed to disconnect.');
+                    } else {
+                      setBusiness((b) => b ? { ...b, edu_verified: false } : b);
+                      setCampusCodeSent(false);
+                      setCampusEduEmail('');
+                      setCampusCode('');
+                      setShowDisconnectEdu(false);
+                    }
+                  } catch (e) {
+                    setDisconnectError('Network error.');
+                  } finally {
+                    setDisconnectLoading(false);
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white"
+                style={{ background: disconnectText.trim().toLowerCase() === 'confirm' ? '#ef4444' : (dm ? '#2c2c2e' : '#e5e7eb'), color: disconnectText.trim().toLowerCase() === 'confirm' ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}
+              >
+                {disconnectLoading ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+              <button type="button" onClick={() => setShowDisconnectEdu(false)} className="w-full text-xs text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {blockConfirm && (
