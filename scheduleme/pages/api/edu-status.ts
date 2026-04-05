@@ -11,6 +11,25 @@ function getSupabase() {
   );
 }
 
+function deriveCampusTag(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes('@')) {
+    const domain = trimmed.split('@')[1] || '';
+    const base = domain.split('.')[0] || '';
+    return base ? base.toUpperCase() : null;
+  }
+  if (trimmed.includes('.edu')) {
+    const base = trimmed.split('.')[0] || '';
+    return base ? base.toUpperCase() : null;
+  }
+  if (trimmed.length <= 8) return trimmed.toUpperCase();
+  const words = trimmed.replace(/[^a-z0-9]+/gi, ' ').trim().split(/\s+/);
+  const acronym = words.map(w => w[0]).join('').toUpperCase();
+  return acronym || trimmed.toUpperCase();
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -66,11 +85,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       inferredDomain ||
       null;
 
+    const campusTag = deriveCampusTag(schoolDomain || resolvedProfile?.school_email || resolvedProfile?.school_name || null);
+
     return res.status(200).json({
       verified,
       schoolDomain,
       schoolEmail: resolvedProfile?.school_email || null,
       schoolName: resolvedProfile?.school_name || null,
+      campusTag,
     });
   } catch (err) {
     console.error('[edu-status] error', err);
