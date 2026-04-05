@@ -1947,22 +1947,22 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>{b.scheduled_exact ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
-                          {b.amount_cents && (
+                          {isCustom && b.amount_cents && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#e5e7eb', background: '#f8fafc', color: '#374151' }}>
                               Provider set price {fmt(b.amount_cents)}
                             </div>
                           )}
-                          {b.customer_proposed_price_cents && !b.price_accepted_by_provider && (
+                          {b.status === 'price_disputed' && b.customer_proposed_price_cents && !b.price_accepted_by_provider && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#a5b4fc', background: '#eef2ff', color: '#3730a3' }}>
                               Customer proposed {fmt(b.customer_proposed_price_cents)}
                             </div>
                           )}
-                          {b.price_accepted_by_provider && b.customer_proposed_price_cents && (
+                          {b.status === 'price_disputed' && b.price_accepted_by_provider && b.customer_proposed_price_cents && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
                               Set price accepted
                             </div>
                           )}
-                          {b.price_accepted_by_customer && b.provider_proposed_price_cents && (
+                          {b.status === 'price_disputed' && b.price_accepted_by_customer && b.provider_proposed_price_cents && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
                               Customer accepted your price {fmt(b.provider_proposed_price_cents)}
                             </div>
@@ -2556,7 +2556,7 @@ const BusinessDashboard: NextPage = () => {
               </div>
               <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <div className="px-5 py-4" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
-                  <h3 className="font-bold text-base" style={{ color: dm ? '#f2f2f7' : '#111' }}>Your Menu ({services.length})</h3>
+                  <h3 className="font-bold text-base" style={{ color: dm ? '#f2f2f7' : '#111' }}>Your Services ({services.length})</h3>
                 </div>
                 {svcLoading ? <div className="p-6 text-center text-sm" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Loading...</div>
                 : services.length === 0 ? <div className="p-6 text-center text-sm" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>No services yet — add your first one above</div>

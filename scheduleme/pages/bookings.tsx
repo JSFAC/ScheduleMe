@@ -507,17 +507,6 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                 </div>
               </div>
             )}
-            {isCustom && booking.amount_cents && !booking.paid_at && (
-              <div className="rounded-2xl border px-3 py-2 flex items-center justify-between" style={{ borderColor: '#e5e7eb', background: '#f8fafc' }}>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Provider set price</p>
-                  <p className="text-sm font-semibold text-neutral-800">${(booking.amount_cents / 100).toFixed(2)}</p>
-                </div>
-                {booking.provider_proposed_price_cents && booking.price_accepted_by_customer && (
-                  <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ background: '#dcfce7', color: '#166534' }}>Price accepted</span>
-                )}
-              </div>
-            )}
             {isCustom && booking.customer_proposed_price_cents && !booking.price_accepted_by_provider && (
               <div className="rounded-2xl border px-3 py-2" style={{ borderColor: '#e0e7ff', background: '#eef2ff' }}>
                 <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#4338ca' }}>Your proposed price</p>
@@ -731,6 +720,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             const providerAccepted = !!booking.price_accepted_by_provider && !!booking.customer_proposed_price_cents;
             const customerAccepted = !!booking.price_accepted_by_customer && !!booking.provider_proposed_price_cents;
             const showConfirm = !!booking.provider_proposed_price_cents && !booking.price_accepted_by_customer;
+            const disputeDisabled = disputeSent || booking.status === 'price_disputed';
             if (providerAccepted) {
               return (
                 <div className="mt-6 pt-5 border-t border-neutral-100">
@@ -751,6 +741,14 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             }
             return (
               <div className="mt-6 pt-5 border-t border-neutral-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#374151' }}>
+                    Provider set price ${booking.amount_cents ? (booking.amount_cents / 100).toFixed(2) : '—'}
+                  </div>
+                  {booking.provider_proposed_price_cents && booking.price_accepted_by_customer && (
+                    <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ background: '#dcfce7', color: '#166534' }}>Price accepted</span>
+                  )}
+                </div>
                 <div className="flex flex-col gap-2">
                   {showConfirm && (
                     <button
@@ -762,12 +760,14 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                   )}
                   <button
                     onClick={() => setDisputeOpen(true)}
-                    className="w-full py-3 rounded-xl border-2 border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-50 hover:border-amber-300 transition-colors">
-                    Dispute price / propose a new amount
+                    disabled={disputeDisabled}
+                    className="w-full py-3 rounded-xl border-2 text-sm font-semibold transition-colors disabled:opacity-60"
+                    style={disputeDisabled ? { borderColor: '#e5e7eb', color: '#9ca3af', background: '#f9fafb' } : { borderColor: '#f59e0b', color: '#b45309' }}>
+                    {disputeDisabled ? 'Dispute in process' : 'Dispute price'}
                   </button>
                 </div>
                 {disputeSent && (
-                  <p className="text-[11px] text-emerald-600 mt-2">Proposal sent to the business. They can adjust the price or reply.</p>
+                  <p className="text-[11px] text-emerald-600 mt-2">Dispute in process. We’ll notify you when the provider responds.</p>
                 )}
               </div>
             );

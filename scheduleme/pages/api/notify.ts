@@ -9,6 +9,7 @@ import {
   sendStripeAlertEmail,
   sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
   sendCustomerProposedPriceBusiness, sendProviderAcceptedCustomerPrice, sendCustomerAcceptedProviderPrice,
+  sendPriceDisputeSubmitted,
   sendFeaturedOnEmail, sendFeaturedOffEmail,
 } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, isValidEmail } from '../../lib/apiSecurity';
@@ -75,6 +76,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       case 'customer_accepted_provider_price':
         result = await sendCustomerAcceptedProviderPrice({ to, businessName: rest.businessName || rest.name || 'Your business', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
+        break;
+      case 'price_dispute_submitted':
+        result = await sendPriceDisputeSubmitted({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
         break;
       case 'featured_on':
         result = await sendFeaturedOnEmail({ to, businessName: rest.businessName || rest.name || 'Your business', durationDays: rest.durationDays });

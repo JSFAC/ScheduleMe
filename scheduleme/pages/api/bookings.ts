@@ -601,6 +601,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
     if (consumer?.email) {
+      if (status === 'price_disputed' && updatePayload.dispute_amount_cents) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+        fetch(`${siteUrl}/api/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+          body: JSON.stringify({
+            type: 'price_dispute_submitted',
+            to: consumer.email,
+            name: consumer.name || 'there',
+            service: booking.service,
+            businessName: (booking.businesses as any)?.name || 'Your provider',
+            amountDollars: (Number(updatePayload.dispute_amount_cents) / 100).toFixed(2),
+            bookingId: booking_id,
+          }),
+        }).catch(() => {});
+      }
       // Send review request email when booking is completed
       if (status === 'completed') {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';

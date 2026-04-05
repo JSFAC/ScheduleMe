@@ -893,7 +893,7 @@ export default function BizPage() {
         </div>
         <div className="mx-auto max-w-2xl px-4">
           {!editMode && imgs.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto py-1" style={{ marginTop: -16 }}>
+            <div className="flex gap-2 overflow-x-auto py-2" style={{ marginTop: 14, marginBottom: 14 }}>
               {imgs.map((url, i) => (
                 <button
                   key={url}
