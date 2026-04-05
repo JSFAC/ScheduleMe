@@ -26,14 +26,31 @@ export default async function handler(req, res) {
   const sb = getSupabase();
 
   // Get booking (two-step to avoid FK join issues)
-  const { data: booking, error: bErr } = await sb
+  let { data: booking, error: bErr } = await sb
     .from('bookings')
     .select('id, status, user_id, business_id, customer_proposed_price_cents, businesses(owner_email, stripe_onboarded, stripe_account_id, name)')
     .eq('id', booking_id)
     .in('status', ['pending', 'confirmed', 'payment_pending', 'price_disputed'])
     .maybeSingle();
 
-  if (bErr || !booking) return res.status(404).json({ error: 'Booking not found' });
+  if (bErr || !booking) {
+    const { data: fallback, error: fbErr } = await sb
+      .from('bookings')
+      .select('id, status, user_id, business_id, customer_proposed_price_cents')
+      .eq('id', booking_id)
+      .maybeSingle();
+    if (fbErr || !fallback) return res.status(404).json({ error: 'Booking not found' });
+    if (!['pending', 'confirmed', 'payment_pending', 'price_disputed'].includes(fallback.status)) {
+      return res.status(400).json({ error: 'Booking status not eligible for pricing' });
+    }
+    const { data: bizRow, error: bizErr } = await sb
+      .from('businesses')
+      .select('owner_email, stripe_onboarded, stripe_account_id, name')
+      .eq('id', fallback.business_id)
+      .maybeSingle();
+    if (bizErr || !bizRow) return res.status(404).json({ error: 'Business not found' });
+    booking = { ...fallback, businesses: bizRow };
+  }
 
   const biz = booking.businesses;
   if (!biz || biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
