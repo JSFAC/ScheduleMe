@@ -2624,8 +2624,8 @@ const BusinessDashboard: NextPage = () => {
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
-                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d' }}
+                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
                         checked={campusShowName}
                         onChange={e => persistVisibility(publicVisibility, publicShowName, publicShowPhotos, e.target.checked)}
                         disabled={visibilitySaving}
@@ -2639,8 +2639,8 @@ const BusinessDashboard: NextPage = () => {
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
-                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d' }}
+                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
                         checked={publicVisibility}
                         onChange={e => {
                           const nextVis = e.target.checked;
@@ -2657,8 +2657,8 @@ const BusinessDashboard: NextPage = () => {
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
-                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d' }}
+                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
                         checked={publicShowName}
                         onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos, campusShowName)}
                         disabled={!publicVisibility || visibilitySaving}
@@ -2672,8 +2672,8 @@ const BusinessDashboard: NextPage = () => {
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
-                        className="mt-1 h-4 w-4 rounded-md border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d' }}
+                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
+                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
                         checked={publicShowPhotos}
                         onChange={e => persistVisibility(publicVisibility, publicShowName, e.target.checked, campusShowName)}
                         disabled={!publicVisibility || visibilitySaving}
