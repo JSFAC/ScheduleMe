@@ -59,6 +59,15 @@ export function middleware(req: NextRequest) {
 
   const res = NextResponse.next();
   Object.entries(corsHeaders).forEach(([key, value]) => res.headers.set(key, value));
+
+  const allowedMethods = ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'];
+  if (!allowedMethods.includes(req.method)) {
+    return new NextResponse(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   return res;
 }
 
