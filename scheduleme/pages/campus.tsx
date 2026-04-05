@@ -169,7 +169,11 @@ function deriveCampusTag(domain?: string | null): string | null {
 function normalizeCampusKey(name?: string | null): string | null {
   if (!name) return null;
   const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  return cleaned ? cleaned.replace(/\s+/g, '_') : null;
+  const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
+  if (!key) return null;
+  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
+  if (key === 'arizona_state_university' || key === 'asu') return 'asu';
+  return key;
 }
 
 function normalizeSchoolDomain(value?: string | null): string | null {
@@ -594,7 +598,7 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" style={{ alignItems: 'stretch' }}>
                 {sorted.filter((biz) => {
                   if (activeCategory === 'All' && !search) return !featuredIds.has(biz.id);
                   return true;
@@ -615,8 +619,8 @@ const CampusPage: NextPage = () => {
     const cardBg = dm ? '#1c1c1e' : 'white';
     const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
     return (
-      <button onClick={onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
-        style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
+      <button onClick={onClick} className="biz-card group w-full text-left flex flex-col"
+        style={{ borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
           {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
             <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
@@ -630,7 +634,7 @@ const CampusPage: NextPage = () => {
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }}
-            className="absolute top-2 right-2 h-7 w-7 rounded-full flex items-center justify-center"
+            className="absolute top-2 right-2 h-7 w-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
             style={{ background: pinned ? 'rgba(16,185,129,0.18)' : (dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6'), border: '1px solid ' + (pinned ? 'rgba(16,185,129,0.45)' : (dm ? 'rgba(255,255,255,0.12)' : '#e5e7eb')) }}
             aria-label={pinned ? 'Unpin' : 'Pin'}
           >

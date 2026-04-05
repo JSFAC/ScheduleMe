@@ -66,6 +66,7 @@ const AdminPage: NextPage = () => {
     const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
     if (!key) return null;
     if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
+    if (key === 'arizona_state_university' || key === 'asu') return 'asu';
     return key;
   }
 

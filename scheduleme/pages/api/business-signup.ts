@@ -32,7 +32,11 @@ function slugify(name: string): string {
 function normalizeCampusKey(name?: string | null): string | null {
   if (!name) return null;
   const cleaned = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  return cleaned ? cleaned.replace(/\s+/g, '_') : null;
+  const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
+  if (!key) return null;
+  if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
+  if (key === 'arizona_state_university' || key === 'asu') return 'asu';
+  return key;
 }
 
 const ADMIN_EMAIL = 'usescheduleme@gmail.com';

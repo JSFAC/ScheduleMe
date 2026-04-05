@@ -108,6 +108,7 @@ as $$
       where not trg.tgisinternal
         and cls.relname = t.table_name
         and trg.tgname like '%column_guard%'
+        and trg.tgenabled <> 'D'
     ) as has_guard
   from unnest(p_tables) as t(table_name);
 $$;

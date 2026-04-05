@@ -30,5 +30,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (err1) return res.status(500).json({ error: err1.message || 'Failed to normalize UCSC' });
 
+  // Normalize Arizona State University -> ASU
+  const { error: err2 } = await supabase
+    .from('businesses')
+    .update({ campus_key: 'asu', campus_school_name: 'ASU' })
+    .or('campus_key.eq.arizona_state_university,campus_key.eq.asu,campus_school_name.ilike.%arizona% state% university%');
+
+  if (err2) return res.status(500).json({ error: err2.message || 'Failed to normalize ASU' });
+
   return res.status(200).json({ success: true, message: 'Campus names normalized' });
 }
