@@ -978,7 +978,7 @@ const BusinessDashboard: NextPage = () => {
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, content }),
+        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', content }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -1039,7 +1039,7 @@ const BusinessDashboard: NextPage = () => {
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', sender_id: business?.id, content, image_url: imageUrl }),
+        body: JSON.stringify({ booking_id: bookingId, sender_type: 'business', content, image_url: imageUrl }),
       });
       if (res.ok) {
         const data = await res.json();

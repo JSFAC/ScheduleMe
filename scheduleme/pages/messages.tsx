@@ -291,7 +291,7 @@ const MessagesPage: NextPage = () => {
     const res = await fetch('/api/messages', {
       method: 'POST',
       headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_id: bookingId, sender_type: 'user', sender_id: userId, content }),
+      body: JSON.stringify({ booking_id: bookingId, sender_type: 'user', content }),
     });
     if (res.ok) {
       const data = await res.json();
