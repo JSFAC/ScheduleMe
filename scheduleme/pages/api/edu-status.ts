@@ -29,19 +29,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const userId = user.id;
     const email = user.email || '';
 
-    const { data: profile } = await supabase
+    const { data: profileById } = await supabase
       .from('profiles')
       .select('edu_verified, school_name, school_domain, school_email')
       .eq('id', userId)
       .maybeSingle();
 
-    const resolvedProfile = profile?.edu_verified !== undefined
-      ? profile
-      : (await supabase
-        .from('profiles')
-        .select('edu_verified, school_name, school_domain, school_email')
-        .eq('email', email)
-        .maybeSingle()).data;
+    const { data: profileByEmail } = await supabase
+      .from('profiles')
+      .select('edu_verified, school_name, school_domain, school_email')
+      .eq('email', email)
+      .maybeSingle();
+
+    const resolvedProfile = (() => {
+      if (profileByEmail?.school_email || profileByEmail?.school_domain || profileByEmail?.school_name) {
+        return profileByEmail;
+      }
+      return profileById || profileByEmail || null;
+    })();
 
     const { data: biz } = await supabase
       .from('businesses')
@@ -49,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('owner_email', email)
       .maybeSingle();
 
-    const verified = resolvedProfile?.edu_verified === true || biz?.edu_verified === true;
+    const verified = resolvedProfile?.edu_verified === true || profileById?.edu_verified === true || profileByEmail?.edu_verified === true || biz?.edu_verified === true;
     const emailDomain = email.split('@')[1] || '';
     const inferredDomain = emailDomain.endsWith('.edu') ? emailDomain : null;
     const schoolEmailDomain = resolvedProfile?.school_email?.split('@')[1] || null;
