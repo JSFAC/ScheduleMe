@@ -2631,8 +2631,8 @@ const BusinessDashboard: NextPage = () => {
                         disabled={visibilitySaving}
                       />
                       <div>
-                        <p className="font-semibold text-neutral-900">Show my name to students</p>
-                        <p className="text-xs text-neutral-500">If off, your name is hidden from students.</p>
+                        <p className="font-semibold text-neutral-900">Show my personal name to students</p>
+                        <p className="text-xs text-neutral-500">If off, your personal name is hidden from students.</p>
                       </div>
                     </label>
 
@@ -2664,8 +2664,8 @@ const BusinessDashboard: NextPage = () => {
                         disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my name publicly</p>
-                        <p className="text-xs text-neutral-500">If off, we display “Student Provider”.</p>
+                        <p className="font-semibold text-neutral-900">Show my personal name publicly</p>
+                        <p className="text-xs text-neutral-500">If off, your personal name is hidden on public pages.</p>
                       </div>
                     </label>
 

@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const vis = visMap.get(r.id);
       const showName = vis?.public_show_name === true;
       const address = showName ? r.address : (vis?.zip || vis?.address || r.address);
-      return { ...r, name: showName ? r.name : 'Student Provider', address };
+      return { ...r, name: r.name, address };
     });
 
     return res.status(200).json({ data: mapped });

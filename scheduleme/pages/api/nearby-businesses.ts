@@ -116,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const showPhotos = b.public_show_photos === true;
       return {
         ...b,
-        name: showName ? b.name : 'Student Provider',
+        name: b.name,
         phone: showName ? b.phone : null,
         website: showName ? b.website : null,
         address: showName ? b.address : (b.zip || b.address || null),

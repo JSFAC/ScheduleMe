@@ -234,12 +234,12 @@ export default function BizPage() {
   const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
   const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
   const sameCampus = !!(viewerSchoolDomain && (viewerSchoolDomain === bizSchoolDomain || viewerSchoolDomain === bizCampusKey));
-  const displayName = biz
+  const ownerDisplayName = biz
     ? (viewerEduVerified && sameCampus
-        ? (biz.campus_show_name ? biz.name : '')
-        : (biz.public_visibility && biz.public_show_name ? biz.name : 'Student Provider'))
+        ? (biz.campus_show_name ? biz.owner_name : '')
+        : (biz.public_visibility && biz.public_show_name ? biz.owner_name : ''))
     : '';
-  const titleName = displayName || 'ScheduleMe Provider';
+  const titleName = biz?.name || 'ScheduleMe Provider';
 
   useEffect(() => {
     if (!slug) return;
@@ -823,7 +823,7 @@ export default function BizPage() {
               {imgs[galleryIdx] && (
                 <img
                   src={imgs[galleryIdx]}
-                  alt={displayName || 'Provider'}
+                  alt={biz?.name || 'Provider'}
                   className="object-contain rounded-2xl"
                   style={{ maxHeight: 320, maxWidth: '100%' }}
                   onClick={() => imgs.length > 0 && setGalleryOpen(true)}
@@ -899,8 +899,11 @@ export default function BizPage() {
                 <path d="M9 15l-5 5" />
               </svg>
             </button>
-            {displayName ? (
-              <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{displayName}</h1>
+            <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
+            {ownerDisplayName ? (
+              <p className="text-sm font-semibold mb-2" style={{ color: dm ? '#d1d5db' : '#4b5563' }}>
+                {ownerDisplayName}
+              </p>
             ) : null}
             <div className="flex gap-2 flex-wrap mb-3">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
