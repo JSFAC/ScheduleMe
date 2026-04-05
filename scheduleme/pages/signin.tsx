@@ -88,6 +88,9 @@ const SignIn: NextPage = () => {
         if (error) throw error;
         setSent(true);
       } else if (tab === 'signup') {
+        if (password.length < 10) {
+          throw new Error('Password must be at least 10 characters.');
+        }
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setSent(true);
