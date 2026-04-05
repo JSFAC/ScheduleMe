@@ -32,6 +32,7 @@ function deriveCampusTag(value?: string | null): string | null {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'edu-status' }))) return;
 

@@ -292,7 +292,7 @@ const CampusPage: NextPage = () => {
       let schoolEmail: string | null = null;
       let campusTagFromApi: string | null = null;
       try {
-        const res = await fetch('/api/edu-status', {
+        const res = await fetch(`/api/edu-status?t=${Date.now()}`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (res.ok) {
@@ -348,7 +348,7 @@ const CampusPage: NextPage = () => {
       const schoolEmailDomain = schoolEmail?.split('@')[1] || null;
       const resolvedSchool = schoolName
         || profileDomain
-        || schoolEmailDomain
+        || (schoolEmailDomain && schoolEmailDomain.endsWith('.edu') ? schoolEmailDomain : null)
         || (emailDomain && emailDomain.endsWith('.edu') ? emailDomain : null);
       const resolvedTag = campusTagFromApi
         || deriveCampusTag(resolvedSchool)
