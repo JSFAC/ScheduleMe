@@ -902,3 +902,7 @@ const AdminPage: NextPage = () => {
 };
 
 export default AdminPage;
+
+export async function getServerSideProps() {
+  return { props: {} };
+}

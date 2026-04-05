@@ -1834,10 +1834,11 @@ const BusinessDashboard: NextPage = () => {
                   : <div className="space-y-3">
                       {filteredBookings.map((b, i) => {
                         const isCustom = !b.service || String(b.service).toLowerCase().includes('custom');
-                        const scheduledLabel = b.scheduled_start
-                          ? (b.scheduled_slot
-                            ? new Date(b.scheduled_start).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                            : new Date(b.scheduled_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+                        const scheduledSource = b.scheduled_start || b.scheduled_end || null;
+                        const scheduledLabel = scheduledSource
+                          ? (b.scheduled_exact
+                            ? new Date(scheduledSource).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                            : new Date(scheduledSource).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
                           : null;
                         const canComplete = canMarkComplete(b, business?.hours);
                         return (
@@ -1862,7 +1863,7 @@ const BusinessDashboard: NextPage = () => {
                             {b.profiles?.phone && <span>{b.profiles.phone}</span>}
                             {b.profiles?.email && <span>{b.profiles.email}</span>}
                             {b.amount_cents && <span className="text-neutral-700 font-semibold">{fmt(b.amount_cents)}</span>}
-                            {scheduledLabel && <span>{b.scheduled_slot ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
+                            {scheduledLabel && <span>{b.scheduled_exact ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
                           </div>
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
                           {b.status === 'price_disputed' && b.dispute_amount_cents && (

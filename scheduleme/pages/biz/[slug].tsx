@@ -572,8 +572,9 @@ export default function BizPage() {
     }
 
     setSubmitting(true); setErr('');
-    const scheduled_start = requiresTime
-      ? buildScheduledStart(date, slot)
+    const scheduled_start = requiresTime ? buildScheduledStart(date, slot) : null;
+    const scheduled_end = requiresTime
+      ? null
       : (() => { const due = new Date(date); due.setHours(12, 0, 0, 0); return due.toISOString(); })();
     let d: any = null;
     try {
@@ -586,7 +587,7 @@ export default function BizPage() {
           service_price_cents: isPaidService ? selectedSvc?.price_cents : null,
           note,
           scheduled_start,
-          scheduled_slot: requiresTime ? slot : null,
+          scheduled_end,
           user_id: session.user.id,
           user_email: session.user.email,
           user_name: session.user.user_metadata?.full_name,

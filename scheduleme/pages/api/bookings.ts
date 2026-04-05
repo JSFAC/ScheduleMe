@@ -171,7 +171,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     if (!(await rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
 
-    const allowed = ['business_id','user_id','service','user_name','user_phone','user_email','scheduled_start','scheduled_end','timezone','note','service_price_cents','scheduled_slot'];
+    const allowed = ['business_id','user_id','service','user_name','user_phone','user_email','scheduled_start','scheduled_end','timezone','note','service_price_cents'];
     const unknown = getUnknownFields(req.body, allowed);
     if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents } = req.body;
@@ -647,7 +647,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const withProfiles = await Promise.all((data || []).map(async (b: any) => {
         const userId = b.profiles?.id || b.user_id || null;
         const prof = await hydrateProfileFromAuth(supabase, userId, b.profiles, profileCache);
-        return { ...b, profiles: prof || b.profiles };
+        const scheduledAt = b.scheduled_start ?? b.scheduled_end ?? null;
+        const scheduledExact = !!b.scheduled_start && !b.scheduled_end && (() => {
+          try {
+            const d = new Date(b.scheduled_start);
+            return !(d.getHours() === 12 && d.getMinutes() === 0);
+          } catch {
+            return true;
+          }
+        })();
+        return { ...b, profiles: prof || b.profiles, scheduled_at: scheduledAt, scheduled_exact: scheduledExact };
       }));
       return res.status(200).json({ bookings: withProfiles || [] });
       } catch (err) {
@@ -687,7 +696,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const idList = Array.from(ids).filter(Boolean);
       let query = supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, scheduled_slot, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -705,7 +714,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, scheduled_slot, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {
@@ -729,14 +738,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           bizMap[biz.id] = { name: biz.name, phone: biz.phone, email: biz.email };
         });
       }
-      const bookings = (data || []).map((b: any) => ({
-        ...b,
-        scheduled_at: b.scheduled_start ?? null,
-        scheduled_slot: b.scheduled_slot ?? null,
-        business_name: b.business_name ?? b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
-        business_phone: b.businesses?.phone ?? bizMap[b.business_id || b.businesses?.id]?.phone ?? null,
-        business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,
-      }));
+      const bookings = (data || []).map((b: any) => {
+        const scheduledAt = b.scheduled_start ?? b.scheduled_end ?? null;
+        const scheduledExact = !!b.scheduled_start && !b.scheduled_end && (() => {
+          try {
+            const d = new Date(b.scheduled_start);
+            return !(d.getHours() === 12 && d.getMinutes() === 0);
+          } catch {
+            return true;
+          }
+        })();
+        return {
+          ...b,
+          scheduled_at: scheduledAt,
+          scheduled_exact: scheduledExact,
+          business_name: b.business_name ?? b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
+          business_phone: b.businesses?.phone ?? bizMap[b.business_id || b.businesses?.id]?.phone ?? null,
+          business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,
+        };
+      });
       return res.status(200).json({ bookings });
     } catch (err) {
       return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
