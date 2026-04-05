@@ -1115,10 +1115,22 @@ export default function BizPage() {
                 </div>
               </div>
             ) : (
-              <button onClick={()=>{setSelectedSvc({ id: '__custom__', name: 'Custom Request' });}} className="w-full text-left rounded-2xl p-4" style={{background:isCustom?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px dashed '+(isCustom?'#007e6d':bdr)}}>
-                <p className="font-semibold text-sm" style={{color:tx}}>Custom Request</p>
-                <p className="text-xs mt-0.5" style={{color:mu}}>Name the service you need — it will show up in bookings and messages.</p>
-              </button>
+              <div className="space-y-3">
+                <button onClick={()=>{setSelectedSvc({ id: '__custom__', name: 'Custom Request' });}} className="w-full text-left rounded-2xl p-4" style={{background:isCustom?(dm?'rgba(0,126,109,0.2)':'rgba(0,126,109,0.08)'):card,border:'1.5px dashed '+(isCustom?'#007e6d':bdr)}}>
+                  <p className="font-semibold text-sm" style={{color:tx}}>Custom Request</p>
+                  <p className="text-xs mt-0.5" style={{color:mu}}>Name the service you need — it will show up in bookings and messages.</p>
+                </button>
+                {isCustom && (
+                  <div className="rounded-2xl p-4" style={{background:card,border:'1px solid '+bdr}}>
+                    <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Name the service you need</label>
+                    <div className="relative">
+                      <input value={customServiceName} maxLength={40} onChange={e => setCustomServiceName(e.target.value)} placeholder="e.g. 3D printed dragon model" className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
+                      <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{customServiceName.length}/40</span>
+                    </div>
+                    <p className="text-[11px] mt-2" style={{color:mu}}>This name appears in your messages and bookings.</p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Reviews</h2>
@@ -1224,15 +1236,6 @@ export default function BizPage() {
               </div>
             )}
             <div>
-              {isCustom && (
-                <div className="mb-4">
-                  <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Name the service you need</label>
-                  <div className="relative">
-                    <input value={customServiceName} maxLength={40} onChange={e => setCustomServiceName(e.target.value)} placeholder="e.g. 3D printed dragon model" className="w-full rounded-xl px-4 py-3 text-sm outline-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
-                    <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{customServiceName.length}/40</span>
-                  </div>
-                </div>
-              )}
               <label className="text-xs font-bold uppercase tracking-wide mb-2 block" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>Note (required for custom)</label>
               <div className="relative">
                 <textarea value={note} maxLength={500} onChange={e=>setNote(e.target.value)} rows={3} placeholder={isCustom ? 'Describe your custom request...' : 'Describe what you need...'} className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none" style={{background:dm?'#0d0d0d':'#f9fafb',color:tx,border:'1.5px solid '+bdr}} />
