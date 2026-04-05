@@ -99,64 +99,6 @@ const AdminPage: NextPage = () => {
     setTimeout(() => setToast(null), 4000);
   }
 
-  useEffect(() => {
-    // Force re-auth whenever the page is left or restored from bfcache
-    const resetAuth = () => {
-      setAuthed(false);
-      setSecret('');
-      setRequests([]);
-      setBusinesses([]);
-      setFeaturedRows([]);
-    };
-    const onPageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) resetAuth();
-    };
-    const onVisibilityChange = () => {
-      if (document.hidden) resetAuth();
-    };
-    const onPageHide = () => resetAuth();
-    window.addEventListener('pageshow', onPageShow);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('pagehide', onPageHide);
-    return () => {
-      window.removeEventListener('pageshow', onPageShow);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('pagehide', onPageHide);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!authed || !secret) return;
-    loadFeatured(secret, featuredCampusKey);
-  }, [authed, secret, featuredCampusKey, loadFeatured]);
-
-  useEffect(() => {
-    if (!authed) return;
-    const IDLE_MS = 3 * 60 * 1000;
-    let timer: number | null = null;
-
-    const resetTimer = () => {
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        setAuthed(false);
-        setSecret('');
-        setRequests([]);
-        setBusinesses([]);
-        setFeaturedRows([]);
-        showToast('Logged out due to inactivity', false);
-      }, IDLE_MS);
-    };
-
-    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-    events.forEach((evt) => window.addEventListener(evt, resetTimer, { passive: true }));
-    resetTimer();
-
-    return () => {
-      if (timer) window.clearTimeout(timer);
-      events.forEach((evt) => window.removeEventListener(evt, resetTimer));
-    };
-  }, [authed]);
-
   const loadBusinesses = useCallback(async (s: string, campusKey = campusFilter) => {
     setLoading(true);
     try {
@@ -273,6 +215,64 @@ const AdminPage: NextPage = () => {
       setCampusOptions(options);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    // Force re-auth whenever the page is left or restored from bfcache
+    const resetAuth = () => {
+      setAuthed(false);
+      setSecret('');
+      setRequests([]);
+      setBusinesses([]);
+      setFeaturedRows([]);
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) resetAuth();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) resetAuth();
+    };
+    const onPageHide = () => resetAuth();
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authed || !secret) return;
+    loadFeatured(secret, featuredCampusKey);
+  }, [authed, secret, featuredCampusKey, loadFeatured]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const IDLE_MS = 3 * 60 * 1000;
+    let timer: number | null = null;
+
+    const resetTimer = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        setAuthed(false);
+        setSecret('');
+        setRequests([]);
+        setBusinesses([]);
+        setFeaturedRows([]);
+        showToast('Logged out due to inactivity', false);
+      }, IDLE_MS);
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      events.forEach((evt) => window.removeEventListener(evt, resetTimer));
+    };
+  }, [authed]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
