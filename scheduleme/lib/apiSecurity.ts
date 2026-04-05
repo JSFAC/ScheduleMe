@@ -158,6 +158,41 @@ export async function requireAuth(
   }
 }
 
+// ─── Admin Verification ─────────────────────────────────────────────────────
+// Requires authenticated user + admin role (or email allowlist)
+export async function requireAdmin(
+  req: NextApiRequest,
+  res: NextApiResponse
+): Promise<{ id: string; email: string } | null> {
+  const user = await requireAuth(req, res);
+  if (!user) return null;
+
+  const allowlist = (process.env.ADMIN_EMAIL_ALLOWLIST || '')
+    .split(',')
+    .map(v => v.trim().toLowerCase())
+    .filter(Boolean);
+  if (allowlist.includes(user.email.toLowerCase())) return user;
+
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) {
+      res.status(500).json({ error: 'Server misconfigured' });
+      return null;
+    }
+    const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (profile?.role === 'admin') return user;
+  } catch {}
+
+  res.status(403).json({ error: 'Admin access required.' });
+  return null;
+}
+
 // ─── Input Validation ─────────────────────────────────────────────────────────
 export function isValidUuid(s: unknown): s is string {
   return typeof s === 'string' &&

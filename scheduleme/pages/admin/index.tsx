@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useCallback, useEffect } from 'react';
+import { getSupabaseClient } from '../../lib/supabaseClient';
 
 interface Business {
   id: string; name: string; owner_name: string; owner_email: string;
@@ -30,8 +31,9 @@ function formatDate(iso: string) {
 }
 
 const AdminPage: NextPage = () => {
-  const [secret, setSecret] = useState('');
+  const [authToken, setAuthToken] = useState('');
   const [authed, setAuthed] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,19 +102,19 @@ const AdminPage: NextPage = () => {
     setTimeout(() => setToast(null), 4000);
   }
 
-  const loadBusinesses = useCallback(async (s: string, campusKey = campusFilter) => {
+  const loadBusinesses = useCallback(async (token: string, campusKey = campusFilter) => {
     setLoading(true);
     try {
       const qs = campusKey && campusKey !== 'all' ? `?campus=${encodeURIComponent(campusKey)}` : '';
       const res = await fetch(`/api/admin-businesses${qs}`, {
-        headers: { 'x-notify-secret': s },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 401) { setAuthed(false); showToast('Invalid secret', false); setLoading(false); return; }
+      if (res.status === 401 || res.status === 403) { setAuthed(false); showToast('Admin access required', false); setLoading(false); return; }
       const data = await res.json();
       setBusinesses(data.businesses ?? []);
       setAuthed(true);
       setStripeLoading(true);
-      const stripeRes = await fetch('/api/admin-stripe-health', { headers: { 'x-notify-secret': s } });
+      const stripeRes = await fetch('/api/admin-stripe-health', { headers: { Authorization: `Bearer ${token}` } });
       if (stripeRes.ok) {
         const stripeData = await stripeRes.json();
         setStripeHealth(stripeData);
@@ -125,12 +127,12 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
-  const loadFeatured = useCallback(async (s: string, campusKey: string) => {
+  const loadFeatured = useCallback(async (token: string, campusKey: string) => {
     setFeaturedLoading(true);
     try {
       const qs = campusKey && campusKey !== 'all' ? `?campus=${encodeURIComponent(campusKey)}` : '';
       const res = await fetch(`/api/admin-featured${qs}`, {
-        headers: { 'x-notify-secret': s },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed to load featured');
       const data = await res.json();
@@ -142,11 +144,11 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
-  const loadRlsStatus = useCallback(async (s: string) => {
+  const loadRlsStatus = useCallback(async (token: string) => {
     setRlsLoading(true);
     try {
       const res = await fetch('/api/admin-rls-status', {
-        headers: { 'x-notify-secret': s },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to load RLS status');
@@ -158,11 +160,11 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
-  const loadSecurityStatus = useCallback(async (s: string) => {
+  const loadSecurityStatus = useCallback(async (token: string) => {
     setSecurityLoading(true);
     try {
       const res = await fetch('/api/admin-security-status', {
-        headers: { 'x-notify-secret': s },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to load security status');
@@ -174,13 +176,13 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
-  const loadRequests = useCallback(async (s: string) => {
+  const loadRequests = useCallback(async (token: string) => {
     setRequestsLoading(true);
     try {
       const res = await fetch('/api/admin-change-requests', {
-        headers: { 'x-notify-secret': s },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 401) { setAuthed(false); showToast('Invalid secret', false); setRequestsLoading(false); return; }
+      if (res.status === 401 || res.status === 403) { setAuthed(false); showToast('Admin access required', false); setRequestsLoading(false); return; }
       const data = await res.json();
       setRequests(data.requests ?? []);
       setAuthed(true);
@@ -191,9 +193,9 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
-  const loadCampusOptions = useCallback(async (s: string) => {
+  const loadCampusOptions = useCallback(async (token: string) => {
     try {
-      const res = await fetch('/api/admin-businesses', { headers: { 'x-notify-secret': s } });
+      const res = await fetch('/api/admin-businesses', { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return;
       const data = await res.json();
       const all = data.businesses ?? [];
@@ -221,7 +223,7 @@ const AdminPage: NextPage = () => {
     // Force re-auth whenever the page is left or restored from bfcache
     const resetAuth = () => {
       setAuthed(false);
-      setSecret('');
+      setAuthToken('');
       setRequests([]);
       setBusinesses([]);
       setFeaturedRows([]);
@@ -244,9 +246,29 @@ const AdminPage: NextPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!authed || !secret) return;
-    loadFeatured(secret, featuredCampusKey);
-  }, [authed, secret, featuredCampusKey, loadFeatured]);
+    const sb = getSupabaseClient();
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.access_token) {
+        setAuthed(false);
+        setAuthToken('');
+        setAuthChecked(true);
+        return;
+      }
+      setAuthToken(session.access_token);
+      setAuthed(true);
+      setAuthChecked(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!authed || !authToken) return;
+    loadFeatured(authToken, featuredCampusKey);
+  }, [authed, authToken, featuredCampusKey, loadFeatured]);
+
+  useEffect(() => {
+    if (!authed || !authToken) return;
+    handleAdminRefresh();
+  }, [authed, authToken]);
 
   useEffect(() => {
     if (!authed) return;
@@ -257,7 +279,7 @@ const AdminPage: NextPage = () => {
       if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         setAuthed(false);
-        setSecret('');
+        setAuthToken('');
         setRequests([]);
         setBusinesses([]);
         setFeaturedRows([]);
@@ -275,14 +297,14 @@ const AdminPage: NextPage = () => {
     };
   }, [authed]);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    await loadBusinesses(secret);
-    await loadFeatured(secret, featuredCampusKey);
-    await loadCampusOptions(secret);
-    await loadRlsStatus(secret);
-    await loadSecurityStatus(secret);
-    await loadRequests(secret);
+  async function handleAdminRefresh() {
+    if (!authToken) return;
+    await loadBusinesses(authToken);
+    await loadFeatured(authToken, featuredCampusKey);
+    await loadCampusOptions(authToken);
+    await loadRlsStatus(authToken);
+    await loadSecurityStatus(authToken);
+    await loadRequests(authToken);
   }
 
   async function approveBusiness(id: string) {
@@ -290,7 +312,7 @@ const AdminPage: NextPage = () => {
     try {
       const res = await fetch('/api/approve-business', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ businessId: id, schoolDomain: schoolDomains[id] || null }),
       });
       const data = await res.json();
@@ -310,7 +332,7 @@ const AdminPage: NextPage = () => {
     try {
       const res = await fetch('/api/admin-refund-booking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ bookingId: refundBookingId.trim() }),
       });
       const data = await res.json();
@@ -328,7 +350,7 @@ const AdminPage: NextPage = () => {
     try {
       const res = await fetch('/api/review-change-request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ id, action }),
       });
       const data = await res.json();
@@ -359,7 +381,7 @@ const AdminPage: NextPage = () => {
     try {
       const res = await fetch('/api/admin-featured', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           business_id: featuredBusinessId,
           campus_key: campusKey,
@@ -375,7 +397,7 @@ const AdminPage: NextPage = () => {
       setFeaturedBusinessId('');
       setFeaturedEndsAt('');
       setFeaturedNote('');
-      await loadFeatured(secret, featuredCampusKey);
+      await loadFeatured(authToken, featuredCampusKey);
     } catch (err: any) {
       showToast(err?.message || 'Failed to add featured', false);
     }
@@ -385,12 +407,12 @@ const AdminPage: NextPage = () => {
     try {
       const res = await fetch(`/api/admin-featured?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: { 'x-notify-secret': secret },
+        headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to remove featured');
       showToast('Featured removed', true);
-      await loadFeatured(secret, featuredCampusKey);
+      await loadFeatured(authToken, featuredCampusKey);
     } catch (err: any) {
       showToast(err?.message || 'Failed to remove featured', false);
     }
@@ -400,14 +422,14 @@ const AdminPage: NextPage = () => {
     try {
       const res = await fetch('/api/admin-normalize-campus', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to normalize campuses');
       showToast(data.message || 'Campuses normalized', true);
-      await loadBusinesses(secret, campusFilter);
-      await loadCampusOptions(secret);
-      await loadFeatured(secret, featuredCampusKey);
+      await loadBusinesses(authToken, campusFilter);
+      await loadCampusOptions(authToken);
+      await loadFeatured(authToken, featuredCampusKey);
     } catch (err: any) {
       showToast(err?.message || 'Failed to normalize campuses', false);
     }
@@ -417,12 +439,12 @@ const AdminPage: NextPage = () => {
     try {
       const res = await fetch('/api/admin-normalize-categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to normalize categories');
       showToast(`Categories normalized (${data.updated || 0})`, true);
-      await loadBusinesses(secret, campusFilter);
+      await loadBusinesses(authToken, campusFilter);
     } catch (err: any) {
       showToast(err?.message || 'Failed to normalize categories', false);
     }
@@ -450,6 +472,14 @@ const AdminPage: NextPage = () => {
     return true;
   });
 
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
+        <p className="text-neutral-400 text-sm">Checking admin access…</p>
+      </div>
+    );
+  }
+
   if (!authed) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
@@ -457,16 +487,12 @@ const AdminPage: NextPage = () => {
           <div className="text-center mb-8">
             <span className="text-2xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
             <p className="text-accent text-xs font-semibold tracking-widest uppercase mt-1">Admin Panel</p>
-            <p className="text-neutral-500 text-sm mt-3">Enter your admin secret to continue</p>
+            <p className="text-neutral-500 text-sm mt-3">Admin access required.</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input type="password" placeholder="Admin secret" value={secret}
-              onChange={e => setSecret(e.target.value)}
-              className="form-input bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-600 w-full" />
-            <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-              {loading ? 'Checking…' : 'Enter Admin Panel'}
-            </button>
-          </form>
+          <div className="space-y-3">
+            <Link href="/signin" className="btn-primary w-full py-3 text-center block">Sign in</Link>
+            <p className="text-xs text-neutral-500 text-center">Use an admin account to continue.</p>
+          </div>
         </div>
       </div>
     );
@@ -492,8 +518,8 @@ const AdminPage: NextPage = () => {
                 {pendingCount} pending
               </span>
             )}
-            <button onClick={() => { loadBusinesses(secret); loadFeatured(secret, featuredCampusKey); loadCampusOptions(secret); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
-            <button onClick={() => setAuthed(false)} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
+            <button onClick={() => { if (authToken) { loadBusinesses(authToken); loadFeatured(authToken, featuredCampusKey); loadCampusOptions(authToken); } }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
+            <button onClick={async () => { const sb = getSupabaseClient(); await sb.auth.signOut(); setAuthed(false); setAuthToken(''); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
           </div>
         </div>
         <main className="mx-auto max-w-6xl px-6 py-8">
@@ -515,7 +541,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Stripe Health</p>
                 <p className="text-xs text-neutral-500 mt-1">Webhook + event status</p>
               </div>
-              <button onClick={() => { loadBusinesses(secret); loadFeatured(secret, featuredCampusKey); loadCampusOptions(secret); }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => { if (authToken) { loadBusinesses(authToken); loadFeatured(authToken, featuredCampusKey); loadCampusOptions(authToken); } }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -560,7 +586,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Campus Featured Manager</p>
                 <p className="text-xs text-neutral-500 mt-1">Manually feature providers by campus</p>
               </div>
-              <button onClick={() => loadFeatured(secret, featuredCampusKey)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => authToken && loadFeatured(authToken, featuredCampusKey)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -671,7 +697,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">RLS Status</p>
                 <p className="text-xs text-neutral-500 mt-1">Row Level Security for core tables</p>
               </div>
-              <button onClick={() => loadRlsStatus(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => authToken && loadRlsStatus(authToken)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -698,7 +724,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Security Status</p>
                 <p className="text-xs text-neutral-500 mt-1">Column guard triggers (mutation allowlists)</p>
               </div>
-              <button onClick={() => loadSecurityStatus(secret)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => authToken && loadSecurityStatus(authToken)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -726,7 +752,7 @@ const AdminPage: NextPage = () => {
                   key={tab}
                   onClick={() => {
                     setActiveTab(tab);
-                    if (tab === 'requests') loadRequests(secret);
+                    if (tab === 'requests' && authToken) loadRequests(authToken);
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${activeTab === tab ? 'bg-neutral-700 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
                 >
@@ -752,7 +778,7 @@ const AdminPage: NextPage = () => {
                 <span>Campus</span>
                 <select
                   value={campusFilter}
-                  onChange={e => { const next = e.target.value; setCampusFilter(next); loadBusinesses(secret, next); }}
+                  onChange={e => { const next = e.target.value; setCampusFilter(next); if (authToken) loadBusinesses(authToken, next); }}
                   className="bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200">
                   <option value="all">All campuses</option>
                   {campusOptions.map(opt => (

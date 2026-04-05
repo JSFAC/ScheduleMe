@@ -2,7 +2,7 @@
 // Secured cron/admin job: recompute founder50_status safely
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAdmin } from '../../lib/apiSecurity';
 import { computeFounder50Status } from '../../lib/founder50';
 import { isCronAuthorized } from '../../lib/cronAuth';
 
@@ -18,6 +18,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   if (!isCronAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
   if (!(await rateLimit(req, res, { max: 5, windowMs: 60_000, keyPrefix: 'admin-founder50' }))) return;
 
   const sb = getSupabase();

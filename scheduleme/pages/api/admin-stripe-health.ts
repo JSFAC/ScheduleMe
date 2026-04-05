@@ -1,15 +1,14 @@
 // pages/api/admin-stripe-health.ts — SECURED (admin only)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import stripe from '../../lib/stripe';
-import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAdmin } from '../../lib/apiSecurity';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const secret = req.headers['x-notify-secret'];
-  if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
-    return res.status(401).json({ error: 'Unauthorized' });
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
 
   if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin-stripe' }))) return;
 
@@ -39,4 +38,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: err?.message || 'Failed to load Stripe health' });
   }
 }
-

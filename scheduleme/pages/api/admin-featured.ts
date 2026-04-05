@@ -2,7 +2,7 @@
 // pages/api/admin-featured.ts — admin manage campus featured
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, logAuditEvent } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
 
 function getSupabase() {
   return createClient(
@@ -28,10 +28,8 @@ function normalizeCampusKey(name?: string | null): string | null {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  const secret = req.headers['x-notify-secret'];
-  if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
   if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'admin-featured' }))) return;
 
   const supabase = getSupabase();

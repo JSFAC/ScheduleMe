@@ -2,7 +2,7 @@
 // pages/api/admin-normalize-campus.ts — normalize campus naming
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAdmin } from '../../lib/apiSecurity';
 
 function getSupabase() {
   return createClient(
@@ -15,11 +15,9 @@ function getSupabase() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
   if (!(await rateLimit(req, res, { max: 10, windowMs: 60_000, keyPrefix: 'admin-normalize-campus' }))) return;
-  const secret = req.headers['x-notify-secret'];
-  if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
   const supabase = getSupabase();
 
   // If a school domain exists, prefer it as the campus key

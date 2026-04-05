@@ -1,7 +1,7 @@
 // pages/api/review-change-request.ts — SECURED (admin only)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, getUnknownFields, logAuditEvent } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, getUnknownFields, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
 import { sendChangeRequestDecisionEmail } from '../../lib/email';
 
 const ALLOWED_FIELDS = new Set(['name', 'address', 'description', 'cover_url', 'media_urls', 'video_url', 'service_tags', 'phone', 'website', 'hours', 'calendly_url']);
@@ -10,10 +10,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const secret = req.headers['x-notify-secret'];
-  if (!process.env.NOTIFY_SECRET || secret !== process.env.NOTIFY_SECRET)
-    return res.status(401).json({ error: 'Unauthorized' });
-
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
   if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'admin-review' }))) return;
 
   const allowed = ['id','action','notes'];

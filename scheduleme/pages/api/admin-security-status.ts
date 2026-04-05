@@ -2,7 +2,7 @@
 // Secured: check column guard trigger status for core tables
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAdmin } from '../../lib/apiSecurity';
 import { isCronAuthorized } from '../../lib/cronAuth';
 
 function getSupabase() {
@@ -27,6 +27,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   if (!isCronAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
   if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin-security-status' }))) return;
 
   const supabase = getSupabase();

@@ -1,10 +1,10 @@
 // pages/api/approve-business.ts
 // Call this manually (or via n8n) to approve a business and send their welcome email
-// Protected by NOTIFY_SECRET so only you can trigger it
+// Admin-only endpoint
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { sendBusinessApprovalEmail } from '../../lib/email';
-import { setSecurityHeaders, rateLimit, logAuditEvent } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
 
 function getSupabase() {
   return createClient(
@@ -27,13 +27,9 @@ function normalizeCampusKey(name?: string | null): string | null {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
   if (!(await rateLimit(req, res, { max: 20, windowMs: 60_000, keyPrefix: 'approve' }))) return;
-
-  // Protect with your existing secret
-  const secret = req.headers['x-notify-secret'];
-  if (secret !== process.env.NOTIFY_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
 
   const { businessId, schoolDomain } = req.body;
   if (!businessId) return res.status(400).json({ error: 'businessId required' });
