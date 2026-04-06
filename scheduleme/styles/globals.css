@@ -381,7 +381,9 @@ html, body {
 body { transition: background 0.2s ease, color 0.2s ease; }
 
 /* hCaptcha shell styling */
-.hcaptcha-shell iframe { border-radius: 12px !important; }
+.hcaptcha-shell { display: inline-flex; border-radius: 14px; overflow: hidden; }
+.hcaptcha-shell iframe { border-radius: 14px !important; border: none !important; }
+html.dark .hcaptcha-shell { background: #1a1a1a; padding: 6px; }
 
 /* ── Dark mode: CSS variables for inline-style overrides ─────── */
 :root {
