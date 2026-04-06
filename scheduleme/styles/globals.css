@@ -393,7 +393,8 @@ body { transition: background 0.2s ease, color 0.2s ease; }
   border-radius: 18px !important;
   border: none !important;
   display: block;
-  margin: -4px;
+  transform: scale(1.03);
+  transform-origin: center;
 }
 
 /* ── Dark mode: CSS variables for inline-style overrides ─────── */
