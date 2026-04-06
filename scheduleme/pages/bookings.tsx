@@ -74,6 +74,8 @@ interface Booking {
   price_accepted_by_customer?: boolean | null;
   price_accepted_by_provider?: boolean | null;
   price_accepted_at?: string | null;
+  dispute_amount_cents?: number | null;
+  dispute_note?: string | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string; badgeBg: string; badgeText: string }> = {

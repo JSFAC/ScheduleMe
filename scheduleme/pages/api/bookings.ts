@@ -743,8 +743,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const idList = Array.from(ids).filter(Boolean);
-      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)';
-      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, businesses(name, phone, email), profiles(email, avatar_url)';
+      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)';
+      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, businesses(name, phone, email), profiles(email, avatar_url)';
       let query = supabase
         .from('bookings')
         .select(selectWithPrice)
@@ -785,7 +785,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {
@@ -802,7 +802,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at')) {
           let plainLegacy = supabase
             .from('bookings')
-            .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id')
+            .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note')
             .order('created_at', { ascending: false })
             .limit(100);
           if (idList.length > 1) {
