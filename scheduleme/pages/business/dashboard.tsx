@@ -1531,7 +1531,7 @@ const BusinessDashboard: NextPage = () => {
     { title: 'Bookings & calendar', body: 'Confirm or complete bookings here. The calendar tab helps you see upcoming work at a glance.' },
     { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
     { title: 'Settings & payouts', body: 'Update your listing, hours, and connect Stripe to get paid.' },
-    { title: 'Visibility controls', body: 'In Settings, you can choose whether your provider profile appears on public browse/search and what details are shown.' },
+    { title: 'Visibility controls', body: 'In Settings, choose whether you appear on public browse/search or only on campus. You can also control which details (name/photos) are visible to students and the public.' },
     { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Provider landing page link.' },
   ];
   const tour = TOUR_STEPS[tourStep];

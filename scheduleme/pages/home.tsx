@@ -707,7 +707,12 @@ async function togglePinned(bizId: string) {
       const supabaseInst = getSupabase();
       const { data: profile } = await supabaseInst
         .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
-      setEduVerified(profile?.edu_verified ?? false);
+      const isEdu = profile?.edu_verified ?? false;
+      setEduVerified(isEdu);
+      if (isEdu) {
+        router.replace('/campus');
+        return;
+      }
       // Show install banner on mobile if not already installed and not dismissed
       const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
       const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
