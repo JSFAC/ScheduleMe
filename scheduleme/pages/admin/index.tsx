@@ -36,6 +36,8 @@ const AdminPage: NextPage = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [codeChecked, setCodeChecked] = useState(false);
   const [codeOk, setCodeOk] = useState(false);
+  const [adminVerified, setAdminVerified] = useState<boolean | null>(null);
+  const [adminVerifyError, setAdminVerifyError] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(false);
@@ -271,6 +273,7 @@ const AdminPage: NextPage = () => {
         setAuthed(false);
         setAuthToken('');
         setAuthChecked(true);
+        setAdminVerified(null);
         return;
       }
       setAuthToken(session.access_token);
@@ -281,13 +284,38 @@ const AdminPage: NextPage = () => {
 
   useEffect(() => {
     if (!authed || !authToken) return;
-    loadFeatured(authToken, featuredCampusKey);
-  }, [authed, authToken, featuredCampusKey, loadFeatured]);
+    let cancelled = false;
+    (async () => {
+      setAdminVerified(null);
+      setAdminVerifyError(null);
+      try {
+        const res = await fetch('/api/admin-verify', {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || 'Admin access required');
+        }
+        if (!cancelled) setAdminVerified(true);
+      } catch (err: any) {
+        if (!cancelled) {
+          setAdminVerified(false);
+          setAdminVerifyError(err?.message || 'Admin access required');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authed, authToken]);
 
   useEffect(() => {
-    if (!authed || !authToken) return;
+    if (!authed || !authToken || adminVerified !== true) return;
+    loadFeatured(authToken, featuredCampusKey);
+  }, [authed, authToken, adminVerified, featuredCampusKey, loadFeatured]);
+
+  useEffect(() => {
+    if (!authed || !authToken || adminVerified !== true) return;
     handleAdminRefresh();
-  }, [authed, authToken]);
+  }, [authed, authToken, adminVerified]);
 
   useEffect(() => {
     if (!authed) return;
@@ -537,6 +565,29 @@ const AdminPage: NextPage = () => {
           <div className="space-y-3">
             <Link href="/signin?next=/admin&admin=1" className="btn-primary w-full py-3 text-center block">Sign in</Link>
             <p className="text-xs text-neutral-500 text-center">Use an admin account to continue.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (adminVerified === null) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
+        <p className="text-neutral-400 text-sm">Verifying admin access…</p>
+      </div>
+    );
+  }
+
+  if (adminVerified === false) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <p className="text-white font-semibold">Admin access required.</p>
+          {adminVerifyError && <p className="text-xs text-neutral-500 mt-2">{adminVerifyError}</p>}
+          <div className="mt-4 space-y-2">
+            <Link href="/signin?next=/admin&admin=1" className="btn-primary w-full py-3 text-center block">Try another account</Link>
+            <Link href="/admin/login" className="text-xs text-neutral-500 hover:text-neutral-300 block">Enter admin code again</Link>
           </div>
         </div>
       </div>
