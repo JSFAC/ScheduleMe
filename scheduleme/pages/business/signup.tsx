@@ -23,6 +23,7 @@ const RADIUS_OPTIONS = ['5 miles','10 miles','15 miles','25 miles','50 miles','1
 const SignupPage: NextPage = () => {
   const [step, setStep] = useState<Step>('form');
   const [apiError, setApiError] = useState<string | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
   const captchaRef = useRef<HTMLDivElement | null>(null);
@@ -59,6 +60,11 @@ const SignupPage: NextPage = () => {
     script.onload = renderCaptcha;
     document.body.appendChild(script);
   }, [siteKey, captchaWidgetId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const flag = localStorage.getItem('sm_biz_app_submitted');
+    if (flag === 'true') setHasSubmitted(true);
+  }, []);
   const [form, setForm] = useState<FormData>({
     businessName:'', ownerName:'', email:'', phone:'', serviceCategory:'', otherCategory:'',
     city:'', zip:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', agree:false,
@@ -101,12 +107,39 @@ const SignupPage: NextPage = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed');
+      if (typeof window !== 'undefined') localStorage.setItem('sm_biz_app_submitted', 'true');
+      setHasSubmitted(true);
       setStep('success');
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Something went wrong');
       setStep('form');
     }
   }
+
+  if (hasSubmitted && step === 'form') return (
+    <>
+      <Head><title>Application Pending — ScheduleMe for Providers</title></Head>
+      <BusinessNav />
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-24">
+        <div className="w-full max-w-lg rounded-2xl border border-neutral-800 bg-neutral-900 p-8 text-center">
+          <div className="mx-auto h-12 w-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent text-xl mb-4">⏳</div>
+          <h1 className="text-2xl font-bold text-white mb-2">Application under review</h1>
+          <p className="text-sm text-neutral-400">
+            You’ve already submitted a provider application. We’re reviewing it now and will email you once it’s approved.
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Link href="/business/auth/login" className="btn-primary w-full py-3">Provider login</Link>
+            <button
+              type="button"
+              onClick={() => { if (typeof window !== 'undefined') { localStorage.removeItem('sm_biz_app_submitted'); setHasSubmitted(false); } }}
+              className="w-full text-xs text-neutral-500 hover:text-neutral-300">
+              Submitted by mistake? Clear and apply again
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 
   if (step === 'submitting') return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
