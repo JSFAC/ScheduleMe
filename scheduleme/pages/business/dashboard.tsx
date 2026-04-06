@@ -1952,15 +1952,15 @@ const BusinessDashboard: NextPage = () => {
                               Your set price {fmt(b.amount_cents)}
                             </div>
                           )}
-                          {b.status === 'price_disputed' && b.customer_proposed_price_cents && !b.price_accepted_by_provider && (
+                          {b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider && (
                             <div className="mb-3">
                               <div className="flex items-center gap-3">
                                 <div className="flex-[1.05] flex items-center justify-center gap-2">
                                   <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
-                                    Customer proposed {fmt(b.customer_proposed_price_cents)}
+                                    Customer proposed {fmt(b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
                                   </div>
                                   <button
-                                    onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents)}
+                                    onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
                                     className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
                                     Accept price
                                   </button>
@@ -2005,7 +2005,7 @@ const BusinessDashboard: NextPage = () => {
                               Customer accepted your price {fmt(b.provider_proposed_price_cents)}
                             </div>
                           )}
-                          {b.status === 'price_disputed' && b.dispute_amount_cents && (
+                          {b.status === 'price_disputed' && b.dispute_amount_cents && !b.customer_proposed_price_cents && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
                               Customer proposed {fmt(b.dispute_amount_cents)}{b.dispute_note ? ` — ${b.dispute_note}` : ''}
                             </div>
