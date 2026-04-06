@@ -739,12 +739,20 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                 </div>
               );
             }
+            const hasDispute = !!booking.dispute_amount_cents;
+            const providerPriceLabel = `Provider price $${booking.amount_cents ? (booking.amount_cents / 100).toFixed(2) : '—'}`;
+            const disputeLabel = `Your price $${booking.dispute_amount_cents ? (booking.dispute_amount_cents / 100).toFixed(2) : '—'}`;
             return (
               <div className="mt-6 pt-5 border-t border-neutral-100">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex-1 text-center text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#374151' }}>
-                    Provider set price ${booking.amount_cents ? (booking.amount_cents / 100).toFixed(2) : '—'}
+                    {providerPriceLabel}
                   </div>
+                  {hasDispute && (
+                    <div className="flex-1 text-center text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#fff7ed', color: '#9a3412' }}>
+                      {disputeLabel}
+                    </div>
+                  )}
                   {booking.provider_proposed_price_cents && booking.price_accepted_by_customer && (
                     <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ background: '#dcfce7', color: '#166534' }}>Price accepted</span>
                   )}
