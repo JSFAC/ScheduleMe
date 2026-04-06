@@ -40,6 +40,7 @@ const SignupPage: NextPage = () => {
         const id = hcaptcha.render(captchaRef.current, {
           sitekey: siteKey,
           theme: isDark ? 'dark' : 'light',
+          size: 'compact',
           callback: (token: string) => setCaptchaToken(token),
           'expired-callback': () => setCaptchaToken(''),
         });
