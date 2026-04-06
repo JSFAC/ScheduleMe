@@ -56,6 +56,9 @@ const AuthCallback: NextPage = () => {
             has_seen_welcome: false,
           }, { onConflict: 'id', ignoreDuplicates: true });
 
+          // Admin redirect override (set from /admin/login)
+          const adminNext = typeof window !== 'undefined' ? localStorage.getItem('sm_admin_next') : null;
+
           // Check if they've seen the welcome screen
           const { data: userRow } = await supabase
             .from('profiles')
@@ -65,6 +68,11 @@ const AuthCallback: NextPage = () => {
 
           const isNewUser = !userRow || userRow.has_seen_welcome === false;
 
+          if (adminNext) {
+            if (typeof window !== 'undefined') localStorage.removeItem('sm_admin_next');
+            router.replace(adminNext);
+            return;
+          }
           if (isNewUser) {
             router.replace('/bookings');
           } else {

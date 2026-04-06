@@ -34,6 +34,8 @@ const AdminPage: NextPage = () => {
   const [authToken, setAuthToken] = useState('');
   const [authed, setAuthed] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [codeChecked, setCodeChecked] = useState(false);
+  const [codeOk, setCodeOk] = useState(false);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(false);
@@ -243,6 +245,23 @@ const AdminPage: NextPage = () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('pagehide', onPageHide);
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem('sm_admin_code_ok');
+    if (!raw) { setCodeChecked(true); return; }
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.exp && Date.now() < parsed.exp) {
+        setCodeOk(true);
+      } else {
+        localStorage.removeItem('sm_admin_code_ok');
+      }
+    } catch {
+      localStorage.removeItem('sm_admin_code_ok');
+    }
+    setCodeChecked(true);
   }, []);
 
   useEffect(() => {
@@ -472,6 +491,32 @@ const AdminPage: NextPage = () => {
     return true;
   });
 
+  if (!codeChecked) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
+        <p className="text-neutral-400 text-sm">Checking admin access…</p>
+      </div>
+    );
+  }
+
+  if (!codeOk) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <span className="text-2xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
+            <p className="text-accent text-xs font-semibold tracking-widest uppercase mt-1">Admin Panel</p>
+            <p className="text-neutral-500 text-sm mt-3">Admin access code required.</p>
+          </div>
+          <div className="space-y-3">
+            <Link href="/admin/login" className="btn-primary w-full py-3 text-center block">Enter admin code</Link>
+            <p className="text-xs text-neutral-500 text-center">Use your admin access code to continue.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!authChecked) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
@@ -490,7 +535,7 @@ const AdminPage: NextPage = () => {
             <p className="text-neutral-500 text-sm mt-3">Admin access required.</p>
           </div>
           <div className="space-y-3">
-            <Link href="/signin?next=/admin" className="btn-primary w-full py-3 text-center block">Sign in</Link>
+            <Link href="/signin?next=/admin&admin=1" className="btn-primary w-full py-3 text-center block">Sign in</Link>
             <p className="text-xs text-neutral-500 text-center">Use an admin account to continue.</p>
           </div>
         </div>
