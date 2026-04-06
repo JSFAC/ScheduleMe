@@ -1961,13 +1961,13 @@ const BusinessDashboard: NextPage = () => {
                                   </div>
                                   <button
                                     onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
-                                    className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                                    className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white hover:opacity-95 transition-colors">
                                     Accept price
                                   </button>
                                 </div>
                                 <div className="flex-[0.2] flex items-center justify-center text-[10px] font-semibold uppercase text-neutral-400">or</div>
                                 <div className="flex-[1.35] flex items-center justify-center gap-2">
-                                  <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
+                                  <div className="w-28 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
                                     <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
                                     <input
                                       type="number" min="1" step="0.01" placeholder="Set price"
@@ -2014,7 +2014,7 @@ const BusinessDashboard: NextPage = () => {
                             <div className="flex gap-2">
                               {/* Price setting — required before confirm */}
                               {(b.status === 'pending' || b.status === 'price_disputed') && isCustom && (
-                                <div className={`w-full mb-2 ${b.status === 'price_disputed' && b.customer_proposed_price_cents && !b.price_accepted_by_provider ? 'hidden' : ''}`}>
+                                <div className={`w-full mb-2 ${b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider ? 'hidden' : ''}`}>
                                   <div className="flex items-center gap-2">
                                     <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
                                       <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
