@@ -817,6 +817,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {disputeOpen && (
