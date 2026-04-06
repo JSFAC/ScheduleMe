@@ -23,10 +23,10 @@ const AdminLogin: NextPage = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Invalid code');
-      const exp = Date.now() + 12 * 60 * 60 * 1000;
+      const exp = Date.now() + 6 * 60 * 60 * 1000;
       if (typeof window !== 'undefined') {
-        localStorage.setItem('sm_admin_code_ok', JSON.stringify({ exp }));
-        localStorage.setItem('sm_admin_next', '/admin');
+        sessionStorage.setItem('sm_admin_code_ok', JSON.stringify({ exp }));
+        sessionStorage.setItem('sm_admin_next', '/admin');
       }
       window.location.href = '/signin?next=/admin&admin=1';
     } catch (err: any) {

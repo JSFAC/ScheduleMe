@@ -251,17 +251,17 @@ const AdminPage: NextPage = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const raw = localStorage.getItem('sm_admin_code_ok');
+    const raw = sessionStorage.getItem('sm_admin_code_ok');
     if (!raw) { setCodeChecked(true); return; }
     try {
       const parsed = JSON.parse(raw);
       if (parsed?.exp && Date.now() < parsed.exp) {
         setCodeOk(true);
       } else {
-        localStorage.removeItem('sm_admin_code_ok');
+        sessionStorage.removeItem('sm_admin_code_ok');
       }
     } catch {
-      localStorage.removeItem('sm_admin_code_ok');
+      sessionStorage.removeItem('sm_admin_code_ok');
     }
     setCodeChecked(true);
   }, []);

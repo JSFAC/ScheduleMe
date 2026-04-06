@@ -207,6 +207,23 @@ export async function requireAdmin(
       });
       return user;
     }
+    // fallback: check by email in case profile row differs from auth id
+    const { data: profileByEmail } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('email', user.email)
+      .maybeSingle();
+    if (profileByEmail?.role === 'admin') {
+      await logAuditEvent(req, 'admin_access', {
+        entity_type: 'admin',
+        entity_id: null,
+        actor_id: user.id,
+        actor_email: user.email,
+        actor_role: 'admin',
+        meta: { method: req.method, path: req.url, via: 'email_fallback' },
+      });
+      return user;
+    }
   } catch {}
 
   res.status(403).json({ error: 'Admin access required.' });
