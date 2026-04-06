@@ -691,6 +691,12 @@ const BusinessDashboard: NextPage = () => {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeConnectError, setStripeConnectError] = useState('');
   const [stripeStatusMsg, setStripeStatusMsg] = useState('');
+  const [stripePolling, setStripePolling] = useState(false);
+  const [stripeFallbackUrl, setStripeFallbackUrl] = useState('');
+  const [showDisconnectStripe, setShowDisconnectStripe] = useState(false);
+  const [disconnectStripeText, setDisconnectStripeText] = useState('');
+  const [disconnectStripeLoading, setDisconnectStripeLoading] = useState(false);
+  const [disconnectStripeError, setDisconnectStripeError] = useState('');
   const [payoutBalance, setPayoutBalance] = useState<{ available: number; pending: number } | null>(null);
   const stripeSuccess = router.query.stripe === 'success';
   const stripeCta = business?.stripe_account_id ? 'Continue Stripe setup →' : 'Connect bank & get paid →';
@@ -876,7 +882,25 @@ const BusinessDashboard: NextPage = () => {
     if (!business) return;
     if (!router.query.stripe) return;
     if (!['success', 'refresh'].includes(String(router.query.stripe))) return;
-    refreshStripeStatus();
+    let cancelled = false;
+    const poll = async () => {
+      setStripePolling(true);
+      setStripeStatusMsg('Finishing Stripe setup…');
+      for (let i = 0; i < 4; i++) {
+        const onboarded = await refreshStripeStatus();
+        if (cancelled) return;
+        if (onboarded) {
+          setStripeStatusMsg('Stripe connected. You’re ready to get paid.');
+          setStripePolling(false);
+          return;
+        }
+        await new Promise(r => setTimeout(r, 3000));
+      }
+      setStripeStatusMsg('Stripe setup is still processing. It can take a few minutes — refresh this page if it doesn’t update.');
+      setStripePolling(false);
+    };
+    poll();
+    return () => { cancelled = true; };
   }, [business?.id, router.query?.stripe]);
 
   useEffect(() => {
@@ -1188,6 +1212,7 @@ const BusinessDashboard: NextPage = () => {
     if (!business) return;
     setStripeLoading(true);
     setStripeConnectError('');
+    setStripeFallbackUrl('');
     try {
       const headers = await getAuthHeaders();
       const res = await fetch('/api/stripe-connect', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: business.id, mode }) });
@@ -1196,6 +1221,7 @@ const BusinessDashboard: NextPage = () => {
         setStripeConnectError(data?.error || 'Failed to start Stripe onboarding.');
         return;
       }
+      setStripeFallbackUrl(data.url);
       window.location.href = data.url;
     } catch {
       setStripeConnectError('Failed to connect Stripe.');
@@ -1204,8 +1230,8 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
-  async function refreshStripeStatus() {
-    if (!business?.id) return;
+  async function refreshStripeStatus(): Promise<boolean> {
+    if (!business?.id) return false;
     setStripeLoading(true);
     setStripeConnectError('');
     setStripeStatusMsg('');
@@ -1219,7 +1245,7 @@ const BusinessDashboard: NextPage = () => {
       const data = await res.json();
       if (!res.ok) {
         setStripeConnectError(data?.error || 'Could not refresh Stripe status.');
-        return;
+        return false;
       }
       setBusiness(b => b ? { ...b, stripe_onboarded: !!data?.onboarded } : b);
       try {
@@ -1236,8 +1262,10 @@ const BusinessDashboard: NextPage = () => {
         const hash = typeof window !== 'undefined' ? window.location.hash : '';
         router.replace(`/business/dashboard${hash || ''}`, undefined, { shallow: true });
       }
+      return !!data?.onboarded;
     } catch {
       setStripeConnectError('Could not refresh Stripe status.');
+      return false;
     } finally {
       setStripeLoading(false);
     }
@@ -1898,9 +1926,27 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                   </div>
                   {business?.stripe_onboarded ? (
-                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 shrink-0">Connected ✓</span>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">Connected ✓</span>
+                      <button
+                        type="button"
+                        onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
+                        className="text-[11px] font-semibold px-3 py-1.5 rounded-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                        Disconnect
+                      </button>
+                    </div>
                   ) : (
-                    <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="shrink-0 btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading || stripePolling} className="btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
+                      {business?.stripe_account_id && (
+                        <button
+                          type="button"
+                          onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
+                          className="text-[11px] font-semibold px-3 py-1.5 rounded-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                          Disconnect
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -2934,15 +2980,36 @@ const BusinessDashboard: NextPage = () => {
                         <button
                           type="button"
                           onClick={() => handleStripeConnect('update')}
-                          disabled={stripeLoading}
+                          disabled={stripeLoading || stripePolling}
                           className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
                           Configure Stripe settings
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
+                          className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                          Disconnect Stripe
+                        </button>
                         <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts. New Stripe accounts may take up to 7 days for the first payout to arrive.</p>
                         {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
+                        {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
                       </div>
                     ) : (
-                      <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5">{stripeLoading ? 'Loading…' : stripeCta}</button>
+                      <div className="space-y-3">
+                        <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading || stripePolling} className="btn-primary text-sm px-5 py-2.5 w-full">
+                          {stripeLoading ? 'Loading…' : stripeCta}
+                        </button>
+                        {business?.stripe_account_id && (
+                          <button
+                            type="button"
+                            onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
+                            className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                            Disconnect Stripe
+                          </button>
+                        )}
+                        {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
+                        {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
+                      </div>
                     )}
                   </div>
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
@@ -2959,6 +3026,29 @@ const BusinessDashboard: NextPage = () => {
       {toast && (
         <div className={`fixed top-6 right-6 z-[600] px-5 py-3 rounded-xl text-sm font-semibold shadow-xl ${toast.ok ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
           {toast.msg}
+        </div>
+      )}
+      {stripeFallbackUrl && (
+        <div className="fixed bottom-6 right-6 z-[600] max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-xl">
+          <p className="text-sm font-semibold text-amber-800">Stripe didn’t open?</p>
+          <p className="text-xs text-amber-700 mt-1">Some browsers or blockers stop the Stripe page from loading. Use the button below to open it in a new tab.</p>
+          <div className="mt-3 flex items-center gap-2">
+            <a
+              href={stripeFallbackUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+            >
+              Open Stripe in new tab
+            </a>
+            <button
+              type="button"
+              onClick={() => setStripeFallbackUrl('')}
+              className="text-xs font-semibold text-amber-700 hover:text-amber-800"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
       {showDisconnectEdu && (
@@ -3014,6 +3104,60 @@ const BusinessDashboard: NextPage = () => {
                 {disconnectLoading ? 'Disconnecting…' : 'Disconnect'}
               </button>
               <button type="button" onClick={() => setShowDisconnectEdu(false)} className="w-full text-xs text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDisconnectStripe && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="relative w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <button onClick={() => setShowDisconnectStripe(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+            <span className="sm-eyebrow mb-2 block">Payments</span>
+            <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#111' }}>Disconnect Stripe</h2>
+            <p className="text-xs mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              This removes your Stripe connection and pauses payouts. Type <strong>disconnect</strong> to continue.
+            </p>
+            <div className="mt-4 space-y-3">
+              <input type="text" value={disconnectStripeText} onChange={(e) => setDisconnectStripeText(e.target.value)} placeholder="disconnect"
+                className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
+              {disconnectStripeError && <p className="text-xs text-red-500">{disconnectStripeError}</p>}
+              <button
+                type="button"
+                disabled={disconnectStripeText.trim().toLowerCase() !== 'disconnect' || disconnectStripeLoading}
+                onClick={async () => {
+                  if (!business) return;
+                  if (disconnectStripeText.trim().toLowerCase() !== 'disconnect') return;
+                  setDisconnectStripeLoading(true);
+                  setDisconnectStripeError('');
+                  try {
+                    const headers = await getAuthHeaders();
+                    const res = await fetch('/api/disconnect-stripe', {
+                      method: 'POST',
+                      headers: { ...headers, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ businessId: business.id }),
+                    });
+                    const d = await res.json();
+                    if (!res.ok) {
+                      setDisconnectStripeError(d.error || 'Failed to disconnect.');
+                    } else {
+                      setBusiness(b => b ? { ...b, stripe_account_id: null, stripe_onboarded: false } : b);
+                      setStripeStatusMsg('Stripe disconnected.');
+                      setShowDisconnectStripe(false);
+                    }
+                  } catch {
+                    setDisconnectStripeError('Network error.');
+                  } finally {
+                    setDisconnectStripeLoading(false);
+                  }
+                }}
+                style={{ background: disconnectStripeText.trim().toLowerCase() === 'disconnect' ? '#ef4444' : (dm ? '#2c2c2e' : '#e5e7eb'), color: disconnectStripeText.trim().toLowerCase() === 'disconnect' ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}
+                className="w-full py-2.5 rounded-xl font-semibold text-sm">
+                {disconnectStripeLoading ? 'Disconnecting…' : 'Disconnect Stripe'}
+              </button>
+              <button type="button" onClick={() => setShowDisconnectStripe(false)} className="w-full text-xs text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                 Cancel
               </button>
             </div>
