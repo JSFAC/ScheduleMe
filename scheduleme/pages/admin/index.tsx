@@ -490,7 +490,7 @@ const AdminPage: NextPage = () => {
             <p className="text-neutral-500 text-sm mt-3">Admin access required.</p>
           </div>
           <div className="space-y-3">
-            <Link href="/signin" className="btn-primary w-full py-3 text-center block">Sign in</Link>
+            <Link href="/signin?next=/admin" className="btn-primary w-full py-3 text-center block">Sign in</Link>
             <p className="text-xs text-neutral-500 text-center">Use an admin account to continue.</p>
           </div>
         </div>
