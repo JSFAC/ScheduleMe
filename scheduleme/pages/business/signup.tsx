@@ -26,6 +26,7 @@ const SignupPage: NextPage = () => {
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
   const captchaRef = useRef<HTMLDivElement | null>(null);
+  const [captchaLoadError, setCaptchaLoadError] = useState<string | null>(null);
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
 
   useEffect(() => {
@@ -33,12 +34,17 @@ const SignupPage: NextPage = () => {
     const renderCaptcha = () => {
       const hcaptcha = (window as any).hcaptcha;
       if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return;
-      const id = hcaptcha.render(captchaRef.current, {
-        sitekey: siteKey,
-        callback: (token: string) => setCaptchaToken(token),
-        'expired-callback': () => setCaptchaToken(''),
-      });
-      setCaptchaWidgetId(id);
+      try {
+        const id = hcaptcha.render(captchaRef.current, {
+          sitekey: siteKey,
+          callback: (token: string) => setCaptchaToken(token),
+          'expired-callback': () => setCaptchaToken(''),
+        });
+        setCaptchaWidgetId(id);
+        setCaptchaLoadError(null);
+      } catch (err) {
+        setCaptchaLoadError('Captcha failed to load. Please refresh or disable ad blockers.');
+      }
     };
     if ((window as any).hcaptcha) {
       renderCaptcha();
@@ -65,7 +71,7 @@ const SignupPage: NextPage = () => {
 
   function validate(): boolean {
     const e: Partial<Record<keyof FormData, string>> = {};
-    if (!form.businessName.trim()) e.businessName = 'Provider name is required.';
+    if (!form.businessName.trim()) e.businessName = 'Business name is required.';
     if (!form.ownerName.trim()) e.ownerName = 'Your name is required.';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address.';
     if (!/^[\d\s\-().+]{7,20}$/.test(form.phone)) e.phone = 'Enter a valid phone number.';
@@ -205,7 +211,7 @@ const SignupPage: NextPage = () => {
                 </legend>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-400 mb-1.5">Provider name *</label>
+                    <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business name *</label>
                     <div className="relative">
                       <input type="text" maxLength={60} className={`form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600 ${errors.businessName ? 'ring-2 ring-red-400' : ''}`}
                         placeholder="Mike R. Plumbing" value={form.businessName} onChange={e => set('businessName', e.target.value)} />
@@ -401,9 +407,10 @@ const SignupPage: NextPage = () => {
             </div>
 
             {siteKey && (
-              <div className="mt-6">
+            <div className="mt-6">
                 <div ref={captchaRef} style={{ minHeight: 78 }} />
                 {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
+                {captchaLoadError && <p className="mt-2 text-xs text-red-400">{captchaLoadError}</p>}
                 {errors.captcha && <p className="mt-2 text-xs text-red-400">{errors.captcha}</p>}
               </div>
             )}
