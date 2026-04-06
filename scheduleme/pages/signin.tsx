@@ -15,7 +15,7 @@ function getSupabase() {
 
 const SignIn: NextPage = () => {
   const router = useRouter();
-  const { next } = router.query;
+  const { next, admin } = router.query;
   const [tab, setTab] = useState<'login' | 'signup'>('login');
 
   // Default to signup tab if ?mode=signup is in the URL
@@ -68,6 +68,10 @@ const SignIn: NextPage = () => {
   async function handleGoogle() {
     const supabase = getSupabase();
     localStorage.setItem('auth_source', 'consumer');
+    const isAdminSignin = admin === '1' || next === '/admin';
+    if (isAdminSignin && typeof window !== 'undefined') {
+      localStorage.setItem('sm_admin_next', '/admin');
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback`, queryParams: { prompt: 'select_account' } },
@@ -106,7 +110,9 @@ const SignIn: NextPage = () => {
           throw error;
         }
         setFailedCount(0);
-        const redirectTarget = safeRedirect(next, '/home');
+        const isAdminSignin = admin === '1' || next === '/admin';
+        const nextTarget = typeof next === 'string' ? next : '';
+        const redirectTarget = safeRedirect(nextTarget || (isAdminSignin ? '/admin' : '/home'), isAdminSignin ? '/admin' : '/home');
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.id) {
           const { data: profile } = await supabase
