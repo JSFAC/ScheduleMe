@@ -113,7 +113,13 @@ const AdminPage: NextPage = () => {
       const res = await fetch(`/api/admin-businesses${qs}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 401 || res.status === 403) { setAuthed(false); showToast('Admin access required', false); setLoading(false); return; }
+      if (res.status === 401 || res.status === 403) {
+        setAuthed(false);
+        setAuthToken('');
+        setAdminVerified(false);
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
       setBusinesses(data.businesses ?? []);
       setAuthed(true);
@@ -186,7 +192,13 @@ const AdminPage: NextPage = () => {
       const res = await fetch('/api/admin-change-requests', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 401 || res.status === 403) { setAuthed(false); showToast('Admin access required', false); setRequestsLoading(false); return; }
+      if (res.status === 401 || res.status === 403) {
+        setAuthed(false);
+        setAuthToken('');
+        setAdminVerified(false);
+        setRequestsLoading(false);
+        return;
+      }
       const data = await res.json();
       setRequests(data.requests ?? []);
       setAuthed(true);
