@@ -145,6 +145,8 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ScheduleMe" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" href="/icon-192.png" sizes="192x192" />
+        <link rel="icon" href="/icon-512.png" sizes="512x512" />
         <meta name="mobile-web-app-capable" content="yes" />
       </Head>
 
