@@ -1953,15 +1953,44 @@ const BusinessDashboard: NextPage = () => {
                             </div>
                           )}
                           {b.status === 'price_disputed' && b.customer_proposed_price_cents && !b.price_accepted_by_provider && (
-                            <div className="mb-3 flex items-center gap-2">
-                              <div className="flex-1 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#a5b4fc', background: '#eef2ff', color: '#3730a3' }}>
-                                Customer proposed {fmt(b.customer_proposed_price_cents)}
+                            <div className="mb-3">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
+                                  Customer proposed {fmt(b.customer_proposed_price_cents)}
+                                </div>
+                                <button
+                                  onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents)}
+                                  className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                                  Accept price
+                                </button>
+                                <div className="flex-1 flex items-center justify-center text-[10px] font-semibold uppercase text-neutral-400">or</div>
+                                <div className="flex-[1.3] flex items-center gap-2">
+                                  <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
+                                    <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+                                    <input
+                                      type="number" min="1" step="0.01" placeholder="Set price"
+                                      className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
+                                      style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
+                                      value={bookingPrices[b.id] ?? (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
+                                      onChange={e => setBookingPrices(p => ({ ...p, [b.id]: e.target.value }))}
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      const raw = bookingPrices[b.id];
+                                      const dollars = parseFloat(raw || '0');
+                                      const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                      if (!(dollars > 0) && fallbackCents <= 0) return;
+                                      const cents = dollars > 0 ? Math.round(dollars * 100) : fallbackCents;
+                                      setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
+                                    }}
+                                    disabled={!bookingPrices[b.id] && !b.amount_cents}
+                                    className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 bg-accent text-white disabled:opacity-40">
+                                    Send Price
+                                  </button>
+                                  <button onClick={() => setConfirmAction({ booking: b, action: 'cancel' })} className="text-xs font-bold px-3.5 py-2 rounded-xl h-9" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
+                                </div>
                               </div>
-                              <button
-                                onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents)}
-                                className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
-                                Accept
-                              </button>
                             </div>
                           )}
                           {b.status === 'price_disputed' && b.price_accepted_by_provider && b.customer_proposed_price_cents && (
@@ -1983,7 +2012,7 @@ const BusinessDashboard: NextPage = () => {
                             <div className="flex gap-2">
                               {/* Price setting — required before confirm */}
                               {(b.status === 'pending' || b.status === 'price_disputed') && isCustom && (
-                                <div className="w-full mb-2">
+                                <div className={`w-full mb-2 ${b.status === 'price_disputed' && b.customer_proposed_price_cents && !b.price_accepted_by_provider ? 'hidden' : ''}`}>
                                   <div className="flex items-center gap-2">
                                     <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
                                       <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
