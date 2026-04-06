@@ -267,6 +267,29 @@ const AdminPage: NextPage = () => {
   }, []);
 
   useEffect(() => {
+    if (!codeChecked) return;
+    if (codeOk) return;
+    if (typeof window === 'undefined') return;
+    window.location.replace('/admin/login');
+  }, [codeChecked, codeOk]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const clearCodeAndSession = () => {
+      try { sessionStorage.removeItem('sm_admin_code_ok'); } catch {}
+      try { sessionStorage.removeItem('sm_admin_next'); } catch {}
+      const sb = getSupabaseClient();
+      sb.auth.signOut({ scope: 'local' });
+    };
+    window.addEventListener('pagehide', clearCodeAndSession);
+    window.addEventListener('beforeunload', clearCodeAndSession);
+    return () => {
+      window.removeEventListener('pagehide', clearCodeAndSession);
+      window.removeEventListener('beforeunload', clearCodeAndSession);
+    };
+  }, []);
+
+  useEffect(() => {
     const sb = getSupabaseClient();
     sb.auth.getSession().then(({ data: { session } }) => {
       if (!session?.access_token) {
@@ -530,16 +553,8 @@ const AdminPage: NextPage = () => {
   if (!codeOk) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <span className="text-2xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
-            <p className="text-accent text-xs font-semibold tracking-widest uppercase mt-1">Admin Panel</p>
-            <p className="text-neutral-500 text-sm mt-3">Admin access code required.</p>
-          </div>
-          <div className="space-y-3">
-            <Link href="/admin/login" className="btn-primary w-full py-3 text-center block">Enter admin code</Link>
-            <p className="text-xs text-neutral-500 text-center">Use your admin access code to continue.</p>
-          </div>
+        <div className="w-full max-w-sm text-center">
+          <p className="text-neutral-400 text-sm">Redirecting to admin code…</p>
         </div>
       </div>
     );
