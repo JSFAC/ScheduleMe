@@ -898,6 +898,13 @@ const BusinessDashboard: NextPage = () => {
       }
       setStripeStatusMsg('Stripe setup is still processing. It can take a few minutes — refresh this page if it doesn’t update.');
       setStripePolling(false);
+      if (business?.stripe_account_id && typeof window !== 'undefined') {
+        const autoKey = `sm_stripe_autocontinue_${business.id}`;
+        if (!localStorage.getItem(autoKey)) {
+          localStorage.setItem(autoKey, '1');
+          setTimeout(() => handleStripeConnect('update'), 1200);
+        }
+      }
     };
     poll();
     return () => { cancelled = true; };
@@ -1937,7 +1944,7 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                   ) : (
                     <div className="flex flex-col items-end gap-2 shrink-0">
-                      <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading || stripePolling} className="btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
+                      <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
                       {business?.stripe_account_id && (
                         <button
                           type="button"
@@ -2980,7 +2987,7 @@ const BusinessDashboard: NextPage = () => {
                         <button
                           type="button"
                           onClick={() => handleStripeConnect('update')}
-                          disabled={stripeLoading || stripePolling}
+                          disabled={stripeLoading}
                           className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
                           Configure Stripe settings
                         </button>
@@ -2996,7 +3003,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading || stripePolling} className="btn-primary text-sm px-5 py-2.5 w-full">
+                        <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
                           {stripeLoading ? 'Loading…' : stripeCta}
                         </button>
                         {business?.stripe_account_id && (
