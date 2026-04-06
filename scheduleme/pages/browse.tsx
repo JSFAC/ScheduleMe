@@ -320,6 +320,7 @@ const BrowsePage: NextPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMapBiz, setSelectedMapBiz] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+  const [eduVerified, setEduVerified] = useState<boolean | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -370,6 +371,16 @@ function writeCoords(lat: number, lng: number) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
       setLoading(false);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('edu_verified')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      if (profile?.edu_verified) {
+        router.replace('/campus');
+        return;
+      }
+      setEduVerified(false);
       
       // Cached coords (avoid empty map if user already allowed once)
       const cached = readCoords();
@@ -566,6 +577,43 @@ function writeCoords(lat: number, lng: number) {
             </div>
           </div>
         </div>
+
+        {/* EDU Campus banner — only shown to non-verified users */}
+        {eduVerified === false && (
+          <div style={{ background: dm ? '#0a0a0a' : '#FCFAF6' }}>
+            <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 16, paddingBottom: 4 }}>
+              <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
+                style={{ background: dm ? 'rgba(0,126,109,0.10)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xl shrink-0">🎓</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: dm ? '#d5e1de' : '#0f3f36' }}>Are you a student?</p>
+                    <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#1e554c' }}>Verify your .edu email to unlock your campus marketplace.</p>
+                    <p className="text-[11px]" style={{ color: dm ? '#6b7280' : '#2f6b60' }}>Some student providers only show themselves to verified students on campus.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/account?edu=1')}
+                    className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-90"
+                    style={{ background: '#007e6d', color: 'white', boxShadow: '0 4px 12px rgba(0,126,109,0.25)' }}>
+                    Verify Now →
+                  </button>
+                  <button
+                    onClick={() => setEduVerified(true)}
+                    className="shrink-0 h-8 w-8 flex items-center justify-center rounded-xl"
+                    style={{ background: dm ? '#1f2937' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="border-b" style={{ background: dm ? '#111111' : 'white', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
           <div className="flex justify-center gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>

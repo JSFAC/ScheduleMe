@@ -68,7 +68,16 @@ const AuthCallback: NextPage = () => {
           if (isNewUser) {
             router.replace('/bookings');
           } else {
-            router.replace('/home');
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('edu_verified')
+              .eq('id', userId)
+              .maybeSingle();
+            if (profile?.edu_verified) {
+              router.replace('/campus');
+            } else {
+              router.replace('/home');
+            }
           }
         }
       }

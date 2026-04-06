@@ -103,7 +103,20 @@ const SignIn: NextPage = () => {
           throw error;
         }
         setFailedCount(0);
-        router.push(safeRedirect(next, '/home'));
+        const redirectTarget = safeRedirect(next, '/home');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('edu_verified')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          if (profile?.edu_verified && redirectTarget === '/home') {
+            router.push('/campus');
+            return;
+          }
+        }
+        router.push(redirectTarget);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
