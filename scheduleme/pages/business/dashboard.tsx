@@ -1956,7 +1956,7 @@ const BusinessDashboard: NextPage = () => {
                           )}
                           {b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider && (
                             <div className="mb-2 mt-1">
-                              <div className="inline-flex flex-col gap-2 rounded-2xl border px-3 py-3" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#f9fafb' }}>
+                              <div className="inline-flex flex-col gap-2 rounded-2xl border px-3 py-3 ml-3" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#f9fafb' }}>
                                 <div className="flex items-center gap-2">
                                   <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
                                     Customer proposed {fmt(b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
