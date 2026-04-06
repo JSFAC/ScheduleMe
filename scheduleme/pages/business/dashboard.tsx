@@ -1954,17 +1954,19 @@ const BusinessDashboard: NextPage = () => {
                           )}
                           {b.status === 'price_disputed' && b.customer_proposed_price_cents && !b.price_accepted_by_provider && (
                             <div className="mb-3">
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
-                                  Customer proposed {fmt(b.customer_proposed_price_cents)}
+                              <div className="flex items-center gap-3">
+                                <div className="flex-[1.05] flex items-center justify-center gap-2">
+                                  <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
+                                    Customer proposed {fmt(b.customer_proposed_price_cents)}
+                                  </div>
+                                  <button
+                                    onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents)}
+                                    className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                                    Accept price
+                                  </button>
                                 </div>
-                                <button
-                                  onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents)}
-                                  className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
-                                  Accept price
-                                </button>
-                                <div className="flex-1 flex items-center justify-center text-[10px] font-semibold uppercase text-neutral-400">or</div>
-                                <div className="flex-[1.3] flex items-center gap-2">
+                                <div className="flex-[0.2] flex items-center justify-center text-[10px] font-semibold uppercase text-neutral-400">or</div>
+                                <div className="flex-[1.35] flex items-center justify-center gap-2">
                                   <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
                                     <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
                                     <input
