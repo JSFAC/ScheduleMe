@@ -1955,7 +1955,7 @@ const BusinessDashboard: NextPage = () => {
                           {b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider && (
                             <div className="mb-3">
                               <div className="flex items-center gap-3">
-                                <div className="flex-[1.05] flex items-center justify-center gap-2">
+                                <div className="flex-[1.1] flex items-center justify-center gap-2">
                                   <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
                                     Customer proposed {fmt(b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
                                   </div>
@@ -1966,8 +1966,8 @@ const BusinessDashboard: NextPage = () => {
                                   </button>
                                 </div>
                                 <div className="flex-[0.2] flex items-center justify-center text-[10px] font-semibold uppercase text-neutral-400">or</div>
-                                <div className="flex-[1.35] flex items-center justify-center gap-2">
-                                  <div className="w-28 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
+                                <div className="flex-[1.1] flex items-center justify-center gap-2">
+                                  <div className="w-24 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
                                     <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
                                     <input
                                       type="number" min="1" step="0.01" placeholder="Set price"
@@ -2005,11 +2005,7 @@ const BusinessDashboard: NextPage = () => {
                               Customer accepted your price {fmt(b.provider_proposed_price_cents)}
                             </div>
                           )}
-                          {b.status === 'price_disputed' && b.dispute_amount_cents && !b.customer_proposed_price_cents && (
-                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
-                              Customer proposed {fmt(b.dispute_amount_cents)}{b.dispute_note ? ` — ${b.dispute_note}` : ''}
-                            </div>
-                          )}
+                          
                           {(['pending', 'confirmed', 'active', 'payment_pending', 'price_disputed'].includes(b.status)) && (
                             <div className="flex gap-2">
                               {/* Price setting — required before confirm */}
@@ -2064,7 +2060,9 @@ const BusinessDashboard: NextPage = () => {
                                 </button>
                               )}
                               {b.paid_at && <span className="text-xs font-bold text-emerald-600 px-2">✓ Paid {fmt(b.amount_cents || 0)}</span>}
-                              <button onClick={() => setConfirmAction({ booking: b, action: 'cancel' })} className="text-xs font-bold px-3.5 py-2 rounded-xl h-9 ml-auto" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
+                              {(b.status !== 'price_disputed' || !isCustom) && (
+                                <button onClick={() => setConfirmAction({ booking: b, action: 'cancel' })} className="text-xs font-bold px-3.5 py-2 rounded-xl h-9 ml-auto" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
+                              )}
                             </div>
                           )}
                         </div>
