@@ -26,6 +26,17 @@ export default async function handler(req, res) {
 
   const sb = getSupabase();
 
+  const missingCol = (err: any) => {
+    const msg = err?.message || '';
+    return (
+      msg.includes('customer_proposed_price_cents') ||
+      msg.includes('provider_proposed_price_cents') ||
+      msg.includes('price_accepted_by_provider') ||
+      msg.includes('price_accepted_by_customer') ||
+      msg.includes('price_accepted_at')
+    );
+  };
+
   // Get booking (two-step to avoid FK join issues)
   let { data: booking, error: bErr } = await sb
     .from('bookings')
@@ -33,23 +44,46 @@ export default async function handler(req, res) {
     .eq('id', bookingId)
     .maybeSingle();
 
+  if ((bErr && missingCol(bErr)) || !booking) {
+    // Retry without the new columns (older schema)
+    const { data: retry, error: rErr } = await sb
+      .from('bookings')
+      .select('id, status, user_id, business_id')
+      .eq('id', bookingId)
+      .maybeSingle();
+    if (!rErr && retry) {
+      booking = retry;
+      bErr = null;
+    }
+  }
+
   if (bErr || !booking) {
     const { data: fallback, error: fbErr } = await sb
       .from('bookings')
       .select('id, status, user_id, business_id, customer_proposed_price_cents')
       .eq('id', bookingId)
       .maybeSingle();
-    if (fbErr || !fallback) return res.status(404).json({ error: 'Booking not found' });
-    if (!['pending', 'confirmed', 'payment_pending', 'price_disputed', 'disputed'].includes(fallback.status)) {
+    if ((fbErr && missingCol(fbErr)) || !fallback) {
+      const { data: fbRetry, error: fbRetryErr } = await sb
+        .from('bookings')
+        .select('id, status, user_id, business_id')
+        .eq('id', bookingId)
+        .maybeSingle();
+      if (fbRetryErr || !fbRetry) return res.status(404).json({ error: 'Booking not found' });
+      booking = fbRetry;
+    } else {
+      booking = fallback;
+    }
+    if (!['pending', 'confirmed', 'payment_pending', 'price_disputed', 'disputed'].includes(booking.status)) {
       return res.status(400).json({ error: 'Booking status not eligible for pricing' });
     }
     const { data: bizRow, error: bizErr } = await sb
       .from('businesses')
       .select('owner_email, stripe_onboarded, stripe_account_id, name')
-      .eq('id', fallback.business_id)
+      .eq('id', booking.business_id)
       .maybeSingle();
     if (bizErr || !bizRow) return res.status(404).json({ error: 'Business not found' });
-    booking = { ...fallback, businesses: bizRow };
+    booking = { ...booking, businesses: bizRow };
   }
 
   if (!['pending', 'confirmed', 'payment_pending', 'price_disputed', 'disputed'].includes(booking.status)) {
