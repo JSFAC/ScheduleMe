@@ -4,12 +4,12 @@
 const isProd = process.env.NODE_ENV === 'production';
 const ContentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${isProd ? '' : "'unsafe-eval'"} https://js.stripe.com`,
+  `script-src 'self' 'unsafe-inline' ${isProd ? '' : "'unsafe-eval'"} https://js.stripe.com https://hcaptcha.com https://*.hcaptcha.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https: https://hcaptcha.com https://*.hcaptcha.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https: wss: https://api.stripe.com https://ipapi.co https://*.supabase.co https://*.supabase.in",
-  "frame-src https://js.stripe.com",
+  "connect-src 'self' https: wss: https://api.stripe.com https://ipapi.co https://*.supabase.co https://*.supabase.in https://hcaptcha.com https://*.hcaptcha.com",
+  "frame-src https://js.stripe.com https://hcaptcha.com https://*.hcaptcha.com",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
