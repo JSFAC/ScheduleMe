@@ -69,6 +69,8 @@ const NAV: { id: TabId; label: string; d: string }[] = [
 function fmt(cents: number) { return '$' + (cents / 100).toFixed(2); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function fmtTime(d: string) { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+function onlyDigits(v: string) { return (v || '').replace(/[^\d]/g, '').slice(0, 7); }
+function digitsToDollars(digits: string) { return digits ? (Number(digits) / 100).toFixed(2) : ''; }
 function toCalDate(d: Date) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z'); }
 function buildGoogleCalendarUrl(opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
   const params = new URLSearchParams({
@@ -1277,8 +1279,8 @@ const BusinessDashboard: NextPage = () => {
 
   async function handleAddService() {
     if (!business || !svcName.trim() || !svcPrice) { setSvcError('Name and price are required'); return; }
-    const priceCents = Math.round(parseFloat(svcPrice) * 100);
-    if (isNaN(priceCents) || priceCents < 1) { setSvcError('Enter a valid price'); return; }
+    const priceCents = parseInt(svcPrice, 10);
+    if (!Number.isFinite(priceCents) || priceCents < 500) { setSvcError('Minimum price is $5.00'); return; }
     setSvcSaving(true); setSvcError('');
     try {
       const headers = await getAuthHeaders();
@@ -1968,29 +1970,29 @@ const BusinessDashboard: NextPage = () => {
                                   </div>
                                   <div className="text-[10px] font-semibold uppercase text-neutral-400">or</div>
                                   <div className="flex items-center justify-center gap-2">
-                                    <div className="w-24 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
-                                      <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
-                                      <input
-                                        type="number" min="1" step="0.01" placeholder="Set price"
-                                        className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
-                                        style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
-                                        value={bookingPrices[b.id] ?? (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
-                                        onChange={e => setBookingPrices(p => ({ ...p, [b.id]: e.target.value }))}
-                                      />
-                                    </div>
+                                  <div className="w-24 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
+                                    <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+                                    <input
+                                      type="text" inputMode="numeric" placeholder="0.00"
+                                      className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
+                                      style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
+                                      value={bookingPrices[b.id] ? digitsToDollars(bookingPrices[b.id]) : (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
+                                      onChange={e => setBookingPrices(p => ({ ...p, [b.id]: onlyDigits(e.target.value) }))}
+                                    />
+                                  </div>
                                     <button
                                       onClick={() => {
-                                        const raw = bookingPrices[b.id];
-                                        const dollars = parseFloat(raw || '0');
-                                        const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
-                                        if (!(dollars > 0) && fallbackCents <= 0) return;
-                                        const cents = dollars > 0 ? Math.round(dollars * 100) : fallbackCents;
-                                        setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
-                                      }}
-                                      disabled={!bookingPrices[b.id] && !b.amount_cents}
-                                      className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 bg-accent text-white disabled:opacity-40">
-                                      Send Price
-                                    </button>
+                                      const rawDigits = onlyDigits(bookingPrices[b.id] || '');
+                                      const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
+                                      const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                      const cents = typedCents > 0 ? typedCents : fallbackCents;
+                                      if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
+                                      setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
+                                    }}
+                                    disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
+                                    className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 bg-accent text-white disabled:opacity-40">
+                                    Send Price
+                                  </button>
                                     <button onClick={() => setConfirmAction({ booking: b, action: 'cancel' })} className="text-xs font-bold px-3.5 py-2 rounded-xl h-9" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
                                   </div>
                                 </div>
@@ -2017,24 +2019,24 @@ const BusinessDashboard: NextPage = () => {
                                     <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
                                       <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
                                       <input
-                                        type="number" min="1" step="0.01" placeholder="Set price"
+                                        type="text" inputMode="numeric" placeholder="0.00"
                                         className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
                                         style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
-                                        value={bookingPrices[b.id] ?? (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
-                                        onChange={e => setBookingPrices(p => ({ ...p, [b.id]: e.target.value }))}
+                                        value={bookingPrices[b.id] ? digitsToDollars(bookingPrices[b.id]) : (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
+                                        onChange={e => setBookingPrices(p => ({ ...p, [b.id]: onlyDigits(e.target.value) }))}
                                       />
                                     </div>
                                     <span className="text-[10px] font-semibold uppercase text-neutral-400">or</span>
                                     <button
                                       onClick={() => {
-                                        const raw = bookingPrices[b.id];
-                                        const dollars = parseFloat(raw || '0');
+                                        const rawDigits = onlyDigits(bookingPrices[b.id] || '');
+                                        const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
                                         const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
-                                        if (!(dollars > 0) && fallbackCents <= 0) return;
-                                        const cents = dollars > 0 ? Math.round(dollars * 100) : fallbackCents;
+                                        const cents = typedCents > 0 ? typedCents : fallbackCents;
+                                        if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
                                         setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
                                       }}
-                                      disabled={!bookingPrices[b.id] && !b.amount_cents}
+                                      disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
                                       className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 bg-accent text-white disabled:opacity-40">
                                       {b.status === 'price_disputed' ? 'Send Price' : 'Confirm & Set Price'}
                                     </button>
@@ -2570,7 +2572,18 @@ const BusinessDashboard: NextPage = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
-                      <input type="number" step="0.01" min="0" value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder="0.00" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                      <div className="flex items-center rounded-xl border px-3 py-2.5" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }}>
+                        <span className="text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={digitsToDollars(svcPrice)}
+                          onChange={e => setSvcPrice(onlyDigits(e.target.value))}
+                          placeholder="0.00"
+                          className="flex-1 ml-2 text-sm outline-none bg-transparent"
+                          style={{ color: dm ? '#f2f2f7' : '#111' }}
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>

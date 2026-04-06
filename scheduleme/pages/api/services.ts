@@ -48,6 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { business_id, name, description, price_cents, duration_min, sort_order, requires_time } = req.body;
     if (!business_id || !name || price_cents === undefined) return res.status(400).json({ error: 'business_id, name, price_cents required' });
+    if (Number(price_cents) < 500) return res.status(400).json({ error: 'Minimum service price is $5.00' });
     if (typeof name !== 'string' || name.trim().length === 0) return res.status(400).json({ error: 'Service name required' });
     if (name.length > NAME_MAX) return res.status(400).json({ error: `Service name must be ${NAME_MAX} characters or less` });
     if (typeof description === 'string' && description.length > DESC_MAX) return res.status(400).json({ error: `Service description must be ${DESC_MAX} characters or less` });
@@ -75,7 +76,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!(await verifyOwner(business_id))) return res.status(403).json({ error: 'Access denied' });
     if (typeof updates.name === 'string' && updates.name.length > NAME_MAX) return res.status(400).json({ error: `Service name must be ${NAME_MAX} characters or less` });
     if (typeof updates.description === 'string' && updates.description.length > DESC_MAX) return res.status(400).json({ error: `Service description must be ${DESC_MAX} characters or less` });
-    if (updates.price_cents) updates.price_cents = Math.round(updates.price_cents);
+    if (updates.price_cents) {
+      if (Number(updates.price_cents) < 500) return res.status(400).json({ error: 'Minimum service price is $5.00' });
+      updates.price_cents = Math.round(updates.price_cents);
+    }
     if (typeof updates.name === 'string') updates.name = updates.name.slice(0, NAME_MAX);
     if (typeof updates.description === 'string') updates.description = updates.description.slice(0, DESC_MAX);
     const { data, error } = await supabase.from('services').update(updates).eq('id', id).eq('business_id', business_id).select().single();

@@ -208,9 +208,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (email && !isValidEmail(email)) return res.status(400).json({ error: 'Invalid email' });
 
     if (service_price_cents && typeof service_price_cents !== 'number') return res.status(400).json({ error: 'Invalid service_price_cents' });
+    if (typeof service_price_cents === 'number' && service_price_cents < 500) return res.status(400).json({ error: 'Minimum service price is $5.00' });
     if (customer_proposed_price_cents != null) {
       const proposed = Number(customer_proposed_price_cents);
-      if (!Number.isFinite(proposed) || proposed <= 0) return res.status(400).json({ error: 'Invalid customer_proposed_price_cents' });
+      if (!Number.isFinite(proposed) || proposed < 500) return res.status(400).json({ error: 'Minimum customer proposed price is $5.00' });
       if (typeof service_price_cents === 'number') return res.status(400).json({ error: 'customer_proposed_price_cents only allowed for custom requests' });
     }
 
@@ -451,8 +452,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const updatePayload: any = { status };
     if (status === 'price_disputed') {
-      if (!dispute_amount_cents || dispute_amount_cents <= 0) {
-        return res.status(400).json({ error: 'Valid dispute_amount_cents required' });
+      if (!dispute_amount_cents || dispute_amount_cents < 500) {
+        return res.status(400).json({ error: 'Minimum dispute price is $5.00' });
       }
       updatePayload.dispute_amount_cents = Math.round(dispute_amount_cents);
       updatePayload.dispute_note = dispute_note || null;

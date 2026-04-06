@@ -596,9 +596,9 @@ export default function BizPage() {
     const proposedRaw = customProposedPrice.trim();
     let proposedPriceCents: number | null = null;
     if (isCustom && proposedRaw.length > 0) {
-      const parsed = Number.parseFloat(proposedRaw);
-      if (!Number.isFinite(parsed) || parsed <= 0) { setErr('Enter a valid proposed price or leave blank.'); return; }
-      proposedPriceCents = Math.round(parsed * 100);
+      const parsedCents = parseInt(proposedRaw, 10);
+      if (!Number.isFinite(parsedCents) || parsedCents < 500) { setErr('Minimum proposed price is $5.00 or leave blank.'); return; }
+      proposedPriceCents = parsedCents;
     }
 
     const isPaidService = !isCustom;
@@ -1188,12 +1188,14 @@ export default function BizPage() {
                       <div className="flex items-center rounded-xl border overflow-hidden" style={{ borderColor: bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
                         <span className="px-3 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
                         <input
-                          value={customProposedPrice}
-                          onChange={(e) => setCustomProposedPrice(e.target.value)}
-                          placeholder="Proposed price (optional)"
-                          type="number"
-                          min="1"
-                          step="0.01"
+                          value={customProposedPrice ? (Number(customProposedPrice) / 100).toFixed(2) : ''}
+                          onChange={(e) => {
+                            const digits = (e.target.value || '').replace(/[^\d]/g, '').slice(0, 7);
+                            setCustomProposedPrice(digits);
+                          }}
+                          placeholder="0.00"
+                          inputMode="numeric"
+                          type="text"
                           className="py-2 pr-3 text-sm outline-none bg-transparent"
                           style={{ color: tx }}
                         />

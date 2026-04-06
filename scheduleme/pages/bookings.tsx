@@ -875,7 +875,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             <button
               onClick={async () => {
                 const cents = parseInt(disputePrice || '0', 10);
-                if (!(cents > 0)) { setErr('Enter a valid price'); return; }
+                if (!(cents >= 500)) { setErr('Minimum price is $5.00'); return; }
                 setDisputeSending(true);
                 try {
                   const headers = await getAuthHeaders();
