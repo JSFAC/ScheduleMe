@@ -448,7 +448,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
       }}
       onMouseDown={(e) => { if (disputeOpen) return; if (e.target === e.currentTarget) close(); }}>
 
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-y-auto"
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
         style={{
           maxHeight: '88vh',
           // Opening: morph from card. Closing: fade out only (no scale) so text stays legible
@@ -464,7 +464,6 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
               : 'none',
         }}
         onClick={e => e.stopPropagation()}>
-
         {/* Close */}
         <button onClick={close} className="absolute top-4 right-4 z-10 h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
           <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -472,6 +471,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
           </svg>
         </button>
 
+        <div className="max-h-[88vh] overflow-y-auto">
         <div className="px-6 pb-8 pt-6 max-w-xl mx-auto">
                       <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service || 'Custom Request'}</h2>
           {formatBusinessName(displayBizName) && (
@@ -719,8 +719,8 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
           {isCustom && booking.amount_cents && !booking.paid_at && (() => {
             const providerAccepted = !!booking.price_accepted_by_provider && !!booking.customer_proposed_price_cents;
             const customerAccepted = !!booking.price_accepted_by_customer && !!booking.provider_proposed_price_cents;
-            const showConfirm = !!booking.provider_proposed_price_cents && !booking.price_accepted_by_customer;
             const disputeDisabled = disputeSent || booking.status === 'price_disputed';
+            const showConfirm = !!booking.provider_proposed_price_cents && !booking.price_accepted_by_customer && !disputeDisabled;
             if (providerAccepted) {
               return (
                 <div className="mt-6 pt-5 border-t border-neutral-100">
@@ -741,8 +741,8 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             }
             return (
               <div className="mt-6 pt-5 border-t border-neutral-100">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#374151' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 text-center text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#374151' }}>
                     Provider set price ${booking.amount_cents ? (booking.amount_cents / 100).toFixed(2) : '—'}
                   </div>
                   {booking.provider_proposed_price_cents && booking.price_accepted_by_customer && (
