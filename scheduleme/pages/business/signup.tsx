@@ -28,6 +28,7 @@ const SignupPage: NextPage = () => {
   const captchaRef = useRef<HTMLDivElement | null>(null);
   const [captchaLoadError, setCaptchaLoadError] = useState<string | null>(null);
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+  const isDark = true;
 
   useEffect(() => {
     if (!siteKey) return;
@@ -37,6 +38,7 @@ const SignupPage: NextPage = () => {
       try {
         const id = hcaptcha.render(captchaRef.current, {
           sitekey: siteKey,
+          theme: isDark ? 'dark' : 'light',
           callback: (token: string) => setCaptchaToken(token),
           'expired-callback': () => setCaptchaToken(''),
         });
@@ -407,8 +409,8 @@ const SignupPage: NextPage = () => {
             </div>
 
             {siteKey && (
-            <div className="mt-6">
-                <div ref={captchaRef} style={{ minHeight: 78 }} />
+            <div className="mt-6 flex flex-col items-center">
+                <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
                 {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
                 {captchaLoadError && <p className="mt-2 text-xs text-red-400">{captchaLoadError}</p>}
                 {errors.captcha && <p className="mt-2 text-xs text-red-400">{errors.captcha}</p>}

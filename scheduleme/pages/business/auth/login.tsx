@@ -26,6 +26,7 @@ const BusinessLoginPage: NextPage = () => {
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
   const captchaRef = useRef<HTMLDivElement | null>(null);
+  const isDark = true;
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
   const captchaRequired = !!siteKey && failedCount >= 3;
 
@@ -45,6 +46,7 @@ const BusinessLoginPage: NextPage = () => {
       if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return;
       const id = hcaptcha.render(captchaRef.current, {
         sitekey: siteKey,
+        theme: isDark ? 'dark' : 'light',
         callback: (token: string) => setCaptchaToken(token),
         'expired-callback': () => setCaptchaToken(''),
       });
@@ -276,8 +278,8 @@ const BusinessLoginPage: NextPage = () => {
                     placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
                 {captchaRequired && (
-                  <div className="pt-1">
-                    <div ref={captchaRef} style={{ minHeight: 78 }} />
+                  <div className="pt-1 flex flex-col items-center">
+                    <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
                     {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
                   </div>
                 )}

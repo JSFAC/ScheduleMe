@@ -380,6 +380,9 @@ html, body {
 /* Transition for smooth switching */
 body { transition: background 0.2s ease, color 0.2s ease; }
 
+/* hCaptcha shell styling */
+.hcaptcha-shell iframe { border-radius: 12px !important; }
+
 /* ── Dark mode: CSS variables for inline-style overrides ─────── */
 :root {
   --page-bg: #EDF5FF;
