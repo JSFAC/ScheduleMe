@@ -283,9 +283,15 @@ export default function Nav({ variant = 'light' }: NavProps) {
               )}
             </div>
           ) : (
-            <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
-              Sign up
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/signin" scroll={false}
+                className={`text-sm px-4 py-1 md:py-2 rounded-full border whitespace-nowrap transition-colors ${isDark || darkMode ? 'text-white/80 border-white/20 hover:border-white/40 hover:text-white' : 'text-neutral-700 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900'}`}>
+                Log in
+              </Link>
+              <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
+                Sign up
+              </Link>
+            </div>
           )}
         </div>
       </nav>

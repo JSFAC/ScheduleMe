@@ -55,7 +55,7 @@ const SignIn: NextPage = () => {
       return;
     }
     const script = document.createElement('script');
-    script.src = 'https://hcaptcha.com/1/api.js?render=explicit';
+    script.src = 'https://js.hcaptcha.com/1/api.js?render=explicit';
     script.async = true;
     script.defer = true;
     script.onload = renderCaptcha;
@@ -259,7 +259,8 @@ const SignIn: NextPage = () => {
                     </div>
                     {captchaRequired && (
                       <div className="pt-1">
-                        <div ref={captchaRef} />
+                        <div ref={captchaRef} style={{ minHeight: 78 }} />
+                        {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
                       </div>
                     )}
                     <button type="submit" disabled={loading} className="btn-primary w-full py-3">
