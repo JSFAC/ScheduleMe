@@ -88,6 +88,28 @@ using (
   )
 );
 
+-- Profiles: users can read/update their own profile
+drop policy if exists "Profiles select own" on public.profiles;
+create policy "Profiles select own"
+on public.profiles
+for select
+to authenticated
+using (auth.uid()::text = id::text);
+
+drop policy if exists "Profiles update own" on public.profiles;
+create policy "Profiles update own"
+on public.profiles
+for update
+to authenticated
+using (auth.uid()::text = id::text);
+
+drop policy if exists "Profiles insert own" on public.profiles;
+create policy "Profiles insert own"
+on public.profiles
+for insert
+to authenticated
+with check (auth.uid()::text = id::text);
+
 drop policy if exists "Messages insert by sender" on public.messages;
 create policy "Messages insert by sender"
 on public.messages
