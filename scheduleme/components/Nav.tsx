@@ -52,11 +52,11 @@ export default function Nav({ variant = 'light' }: NavProps) {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.profile?.avatar_url) {
         u.avatar_url = data.profile.avatar_url;
-      } else if (session.user.user_metadata?.avatar_url) {
-        u.avatar_url = session.user.user_metadata.avatar_url;
+      } else {
+        u.avatar_url = null;
       }
     } catch {
-      if (session.user.user_metadata?.avatar_url) u.avatar_url = session.user.user_metadata.avatar_url;
+      u.avatar_url = null;
     }
     return u;
   }

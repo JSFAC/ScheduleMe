@@ -286,7 +286,7 @@ const Account: NextPage = () => {
       if (!session?.user) { router.push('/signin'); return; }
       const u = session.user;
       setUser(u);
-      if (u.user_metadata?.avatar_url) setAvatarUrl(u.user_metadata.avatar_url);
+      // Prefer server profile avatar; avoid Google avatar fallback
       setName(u.user_metadata?.full_name || '');
       setPhone(u.user_metadata?.phone || '');
       setAuthProvider(u.app_metadata?.provider || 'email');
