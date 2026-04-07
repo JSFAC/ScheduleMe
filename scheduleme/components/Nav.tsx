@@ -40,42 +40,40 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  async function hydrateUserWithProfile(session: any) {
+    if (!session?.user) return null;
+    const u = {
+      email: session.user.email,
+      name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+      avatar_url: null as string | null,
+    };
+    try {
+      const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${session.access_token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.profile?.avatar_url) {
+        u.avatar_url = data.profile.avatar_url;
+      } else if (session.user.user_metadata?.avatar_url) {
+        u.avatar_url = session.user.user_metadata.avatar_url;
+      }
+    } catch {
+      if (session.user.user_metadata?.avatar_url) u.avatar_url = session.user.user_metadata.avatar_url;
+    }
+    return u;
+  }
+
   useEffect(() => {
     const supabase = getSupabase();
     // Verify cache against real session (silently, no re-render if same)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session?.user) {
-        writeCache(null);
-        setUser(null);
-        return;
-      }
-      const u = {
-        email: session.user.email,
-        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-        avatar_url: session.user.user_metadata?.avatar_url || null,
-      };
-      try {
-        const { data } = await supabase.from('profiles').select('avatar_url').eq('id', session.user.id).maybeSingle();
-        if (data?.avatar_url) u.avatar_url = data.avatar_url;
-      } catch {}
+      const u = await hydrateUserWithProfile(session);
       writeCache(u);
-      // Only trigger re-render if value actually changed
       setUser(prev => {
         if (JSON.stringify(prev) === JSON.stringify(u)) return prev;
         return u;
       });
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        writeCache(null);
-        setUser(null);
-        return;
-      }
-      const u = {
-        email: session.user.email,
-        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-        avatar_url: session.user.user_metadata?.avatar_url || null,
-      };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = await hydrateUserWithProfile(session);
       writeCache(u);
       setUser(u);
     });

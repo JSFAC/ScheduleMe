@@ -14,6 +14,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'profile' }))) return;
 
+  if (req.method === 'GET') {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, name, phone, avatar_url, edu_verified, school_email')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (error) return res.status(500).json({ error: error.message || 'Failed to load profile' });
+      return res.status(200).json({ profile: data || null });
+    } catch (e: any) {
+      return res.status(500).json({ error: e?.message || 'Server error' });
+    }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const user = await requireAuth(req, res);

@@ -307,6 +307,12 @@ const Account: NextPage = () => {
           } catch {}
         }
       });
+      // Prefer service-role profile fetch via API for avatar (bypasses RLS issues)
+      try {
+        const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const payload = await res.json().catch(() => ({}));
+        if (res.ok && payload?.profile?.avatar_url) setAvatarUrl(payload.profile.avatar_url);
+      } catch {}
       if (u.user_metadata?.notif_prefs) setNotifPrefs(p => ({ ...p, ...u.user_metadata.notif_prefs }));
       if (u.user_metadata?.addresses) setAddresses(u.user_metadata.addresses);
       try {
