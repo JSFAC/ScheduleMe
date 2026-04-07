@@ -709,10 +709,6 @@ async function togglePinned(bizId: string) {
         .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
       const isEdu = profile?.edu_verified ?? false;
       setEduVerified(isEdu);
-      if (isEdu) {
-        router.replace('/campus');
-        return;
-      }
       // Show install banner on mobile if not already installed and not dismissed
       const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
       const isAndroid = /android/.test(navigator.userAgent.toLowerCase());

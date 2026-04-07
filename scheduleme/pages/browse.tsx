@@ -377,10 +377,10 @@ function writeCoords(lat: number, lng: number) {
         .eq('id', session.user.id)
         .maybeSingle();
       if (profile?.edu_verified) {
-        router.replace('/campus');
-        return;
+        setEduVerified(true);
+      } else {
+        setEduVerified(false);
       }
-      setEduVerified(false);
       
       // Cached coords (avoid empty map if user already allowed once)
       const cached = readCoords();
