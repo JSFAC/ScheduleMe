@@ -9,6 +9,7 @@ import { Elements, CardElement, useElements, useStripe } from '@stripe/react-str
 import Nav from '../../components/Nav';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
+import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 
 function getSupabase() {
   return getSupabaseClient();
@@ -102,6 +103,7 @@ const PayPage: NextPage = () => {
   const [showAddCard, setShowAddCard] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showCardMenu, setShowCardMenu] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   async function fetchPaymentMethods() {
     try {
@@ -183,6 +185,11 @@ const PayPage: NextPage = () => {
   const cardBorder = dm ? '#262626' : '#e5e7eb';
   const textPrimary = dm ? '#f3f4f6' : '#0f172a';
   const textMuted = dm ? '#9ca3af' : '#6b7280';
+  const serviceAmountCents = Number(booking?.amount_cents || 0);
+  const protectionFeeCents = typeof booking?.protection_fee_cents === 'number'
+    ? booking.protection_fee_cents
+    : PROTECTION_FEE_CENTS;
+  const totalChargeCents = serviceAmountCents + protectionFeeCents;
 
   return (
     <>
@@ -192,7 +199,7 @@ const PayPage: NextPage = () => {
         <div className="max-w-3xl mx-auto px-4 pb-32 pt-20" style={{ minHeight: 'calc(100vh - 64px)' }}>
           <div className="mb-6">
             <h1 className="text-2xl font-black" style={{ color: textPrimary, letterSpacing: '-0.02em' }}>Payment</h1>
-            <p className="text-sm mt-1" style={{ color: textMuted }}>Secure your booking by saving a payment method.</p>
+            <p className="text-sm mt-1" style={{ color: textMuted }}>Confirm details and pay now to secure your booking.</p>
           </div>
 
           {loading ? (
@@ -207,12 +214,19 @@ const PayPage: NextPage = () => {
                     <p className="text-sm font-bold" style={{ color: textPrimary }}>{booking?.service || 'Booking'}</p>
                     <p className="text-xs mt-1" style={{ color: textMuted }}>{booking?.business_name || 'ScheduleMe'}</p>
                   </div>
-                  {booking?.amount_cents && (
-                    <div className="text-sm font-bold" style={{ color: '#007e6d' }}>${(booking.amount_cents / 100).toFixed(2)}</div>
+                  {serviceAmountCents > 0 && (
+                    <div className="text-sm font-bold text-right" style={{ color: '#007e6d' }}>
+                      <div>${(totalChargeCents / 100).toFixed(2)}</div>
+                      {protectionFeeCents > 0 && (
+                        <div className="text-[10px] font-medium" style={{ color: textMuted }}>
+                          includes ${(protectionFeeCents / 100).toFixed(2)} protection
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="mt-3 text-xs" style={{ color: textMuted }}>
-                  {paymentReady ? 'Payment accepted for this booking (authorized).' : 'Payment not yet saved.'}
+                  {booking?.paid_at ? 'Payment completed for this booking.' : (paymentReady ? 'Payment method saved. Ready to charge.' : 'Payment method not saved yet.')}
                 </div>
               </div>
 
@@ -285,15 +299,43 @@ const PayPage: NextPage = () => {
                 </button>
                 <button
                   onClick={async () => {
+                    if (booking?.paid_at) {
+                      setShowConfirm(true);
+                      return;
+                    }
                     if (!paymentReady) {
                       setErr('Please save a payment method first.');
                       return;
                     }
-                    await sendPaymentSavedEmail();
-                    setShowConfirm(true);
+                    setErr('');
+                    setPaying(true);
+                    try {
+                      const { data: { session } } = await getSupabase().auth.getSession();
+                      if (!session) {
+                        setErr('Please sign in to continue.');
+                        return;
+                      }
+                      const payRes = await fetch('/api/pay-booking-now', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+                        body: JSON.stringify({ booking_id: bookingId }),
+                      });
+                      const payData = await payRes.json().catch(() => ({}));
+                      if (!payRes.ok) {
+                        setErr(payData.error || 'Payment failed. Please try again.');
+                        return;
+                      }
+                      await sendPaymentSavedEmail();
+                      setBooking((prev: any) => prev ? { ...prev, paid_at: new Date().toISOString(), status: 'paid' } : prev);
+                      setShowConfirm(true);
+                    } finally {
+                      setPaying(false);
+                    }
                   }}
-                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>
-                  Continue
+                  disabled={paying}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-70"
+                  style={{ background: '#007e6d' }}>
+                  {booking?.paid_at ? 'Already paid' : (paying ? 'Processing…' : `Confirm & Pay ${totalChargeCents > 0 ? `$${(totalChargeCents / 100).toFixed(2)}` : ''}`)}
                 </button>
               </div>
             </div>
@@ -307,8 +349,8 @@ const PayPage: NextPage = () => {
           onClick={() => router.replace('/bookings')}
         >
           <div className="w-full max-w-md rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
-            <h3 className="text-lg font-bold" style={{ color: textPrimary }}>Payment accepted</h3>
-            <p className="text-sm mt-2" style={{ color: textMuted }}>Your payment method has been accepted for this booking. We’ll email you updates as it moves forward.</p>
+            <h3 className="text-lg font-bold" style={{ color: textPrimary }}>Payment complete</h3>
+            <p className="text-sm mt-2" style={{ color: textMuted }}>Your booking is now paid and secured. We’ll email you updates as it moves forward.</p>
             <div className="flex gap-2 mt-5">
               <button onClick={() => router.replace('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Go to bookings</button>
               <button onClick={() => router.replace('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>Go to bookings</button>

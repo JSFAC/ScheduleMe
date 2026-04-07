@@ -122,6 +122,7 @@ const BookPage: NextPage = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Booking failed');
       setBookingId(data.booking?.id);
+      const bookingAmountCents = Number(data?.booking?.amount_cents || 0);
 
       // Send confirmation email
       if (form.email) {
@@ -138,6 +139,11 @@ const BookPage: NextPage = () => {
             matches: [{ name: provider.name, rating: provider.rating }],
           }),
         }).catch(() => {});
+      }
+
+      if (data?.booking?.id && bookingAmountCents > 0) {
+        router.push(`/pay/${data.booking.id}`);
+        return;
       }
 
       setStep(provider.calendly_url ? 'calendly' : 'done');

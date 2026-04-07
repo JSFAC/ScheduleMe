@@ -336,7 +336,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         requires_manual_action: true,
         stripe_customer_id: profileStripeCustomerId || undefined,
         stripe_payment_method_id: profileStripePaymentMethodId || undefined,
-      }).select('id, status, created_at').single();
+      }).select('id, status, created_at, amount_cents').single();
 
       if (error) {
         // Fallback: some deployments don't have optional columns yet
@@ -349,7 +349,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           protection_fee_cents: PROTECTION_FEE_CENTS,
         stripe_customer_id: profileStripeCustomerId || undefined,
         stripe_payment_method_id: profileStripePaymentMethodId || undefined,
-        }).select('id, status, created_at').single();
+        }).select('id, status, created_at, amount_cents').single();
         if (fbErr) return res.status(500).json({ error: 'Failed to create booking', details: error.message || error });
         if (!service_price_cents || typeof service_price_cents !== 'number') {
           notifyNewBooking(fallback.id, supabase);
@@ -479,10 +479,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Charge on completion using saved card (SetupIntent flow)
-    if (status === 'completed' && booking.amount_cents && booking.amount_cents > 0) {
+    // Charge on completion using saved card (legacy flow).
+    // If already paid upfront, never charge again.
+    if (status === 'completed' && !booking.paid_at && booking.amount_cents && booking.amount_cents > 0) {
       if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
         return res.status(400).json({ error: 'Business has not connected their bank account yet' });
+      }
+      let profileStripeCustomerId: string | null = null;
+      let profileStripePaymentMethodId: string | null = null;
+      if (booking.user_id) {
+        const { data: pStripe } = await supabase
+          .from('profiles')
+          .select('stripe_customer_id, stripe_payment_method_id')
+          .eq('id', booking.user_id)
+          .maybeSingle();
+        if (pStripe) {
+          profileStripeCustomerId = pStripe.stripe_customer_id || null;
+          profileStripePaymentMethodId = pStripe.stripe_payment_method_id || null;
+        }
       }
       const customerId = booking.stripe_customer_id || profileStripeCustomerId;
       const paymentMethodId = booking.stripe_payment_method_id || profileStripePaymentMethodId;
@@ -520,6 +534,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         updatePayload.paid_at = new Date().toISOString();
+        updatePayload.protection_fee_cents = protectionFeeCents;
         updatePayload.stripe_payment_intent_id = pi.id;
         updatePayload.stripe_customer_id = customerId;
         updatePayload.stripe_payment_method_id = paymentMethodId;

@@ -26,6 +26,14 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
+function isPreviewLocked(biz: Business): boolean {
+  return (biz as any)?.preview_locked === true;
+}
+
+function displayNameForCard(biz: Business): string {
+  return isPreviewLocked(biz) ? 'Student provider' : (biz.name || 'Provider');
+}
+
 function renderCover(opts: {
   src?: string | null;
   name: string;
@@ -198,24 +206,33 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
 function BizCard({ biz, onClick, dm, index = 0, href }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
+  const locked = isPreviewLocked(biz);
   const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
   const cardLabel = biz.category || 'Provider';
-  const cardName = biz.name || '';
+  const cardName = displayNameForCard(biz);
   return (
-    <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
+    <button onClick={href ? () => { if (!locked) window.location.href = href; } : onClick} disabled={locked} className="biz-card group w-full text-left flex flex-col animate-fade-up disabled:cursor-not-allowed"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {renderCover({
           src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
           name: cardName || cardLabel,
           className: 'absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]',
-          style: { objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 },
+          style: { objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0, filter: locked ? 'blur(14px) saturate(0.85)' : 'none' },
           fallbackClassName: 'absolute inset-0 flex flex-col items-center justify-center gap-1',
           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
           showLabel: true,
           onLoad: () => setImgLoaded(true),
           onError: () => setImgLoaded(true),
         })}
+        {locked && (
+          <div className="absolute inset-x-0 bottom-0 px-2 pb-2">
+            <div className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+              style={{ background: 'rgba(0,0,0,0.58)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+              Private until student verification
+            </div>
+          </div>
+        )}
         {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
           <div
             className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
@@ -242,12 +259,16 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           {(biz.reviews ?? 0) === 0 && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
           )}
-          <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
-            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
-          </span>
+          {!locked ? (
+            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
+              <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
+            </span>
+          ) : (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>Locked</span>
+          )}
         </div>
-        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
-          {(biz.reviews ?? 0) > 0 && biz.rating != null && (
+        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{locked ? 'Visible to verified students' : biz.distance}</p>
+          {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="flex items-center gap-0.5">
                 {[1,2,3,4,5].map(i => (
@@ -446,9 +467,14 @@ function writeCoords(lat: number, lng: number) {
   useEffect(() => {
     if (router.query.biz) {
       const biz = bizList.find(b => b.id === router.query.biz);
-      if (biz) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id);
+      if (biz && !isPreviewLocked(biz)) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id);
     }
   }, [router.query.biz]);
+
+  function openBiz(biz: Business) {
+    if (!biz || isPreviewLocked(biz)) return;
+    window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id);
+  }
 
   const filtered = bizList.filter(b => {
     const matchCat = activeCategory === 'All'
@@ -666,31 +692,39 @@ function writeCoords(lat: number, lng: number) {
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                   {paginated.map((biz, i) => (
-                    <BizCard key={biz.id} biz={biz} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} />
+                    <BizCard key={biz.id} biz={biz} onClick={() => openBiz(biz)} dm={dm} index={i} />
                   ))}
                 </div>
               ) : (
                 <div className="space-y-2.5 animate-fade-up" style={{ animationDuration: '0.3s' }}>
                   {paginated.map(biz => {
+                    const locked = isPreviewLocked(biz);
                     const listStatus = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
                     return (
-                    <button key={biz.id} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }}
-                      className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
+                    <button key={biz.id} onClick={() => openBiz(biz)} disabled={locked}
+                      className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up disabled:cursor-not-allowed disabled:hover:translate-y-0"
                       style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
                         {renderCover({
                           src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                          name: biz.name || biz.category || 'Provider',
+                          name: displayNameForCard(biz),
                           className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]',
-                          style: { objectPosition: 'center 25%' },
+                          style: { objectPosition: 'center 25%', filter: locked ? 'blur(14px) saturate(0.85)' : 'none' },
                           fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
                           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                           showLabel: true,
                         })}
-                        <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
-                          <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
-                          <span className="text-[9px] font-bold text-white">{listStatus.label}</span>
-                        </div>
+                        {!locked ? (
+                          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+                            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
+                            <span className="text-[9px] font-bold text-white">{listStatus.label}</span>
+                          </div>
+                        ) : (
+                          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+                            <span className="h-1.5 w-1.5 rounded-full flex-shrink-0 bg-neutral-400" />
+                            <span className="text-[9px] font-bold text-white">Locked</span>
+                          </div>
+                        )}
                         {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
                           <div
                             className="absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
@@ -708,15 +742,15 @@ function writeCoords(lat: number, lng: number) {
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || 'Provider'}</h3>
+                            <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(biz)}</h3>
                             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" data-pill style={PILL_STYLE}>{biz.category}</span>
                           </div>
                           {(biz.reviews ?? 0) === 0 && (
                             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
                           )}
                         </div>
-                        <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
-                        {(biz.reviews ?? 0) > 0 && biz.rating != null && (
+                        <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{locked ? 'Visible to verified students' : biz.distance}</p>
+                        {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
 
                         <div className="flex items-center gap-1.5">
                           <div className="flex items-center gap-0.5">
@@ -731,8 +765,11 @@ function writeCoords(lat: number, lng: number) {
                         </div>
 
                         )}
-                        {biz.tagline && (
+                        {!locked && biz.tagline && (
                           <p className="text-[11px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>{biz.tagline}</p>
+                        )}
+                        {locked && (
+                          <p className="text-[11px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>Private listing available to verified students.</p>
                         )}
                       </div>
                     </button>
@@ -780,17 +817,22 @@ function writeCoords(lat: number, lng: number) {
                   <div className="flex items-center gap-3 p-3">
                     {renderCover({
                       src: selectedMapBizData.coverUrl || (selectedMapBizData as any).allImages?.[0] || (selectedMapBizData as any).cover_url || (selectedMapBizData as any).media_urls?.[0],
-                      name: selectedMapBizData.name || selectedMapBizData.category || 'Provider',
+                      name: displayNameForCard(selectedMapBizData),
                       className: 'h-14 w-14 rounded-xl object-cover flex-shrink-0',
+                      style: { filter: isPreviewLocked(selectedMapBizData) ? 'blur(12px)' : 'none' },
                       fallbackClassName: 'h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0',
                       fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                       showLabel: false,
                     })}
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name || 'Provider'}</p>
+                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(selectedMapBizData)}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                     </div>
-                    <button onClick={() => window.location.href='/biz/'+(selectedMapBizData.slug||selectedMapBizData.realId||selectedMapBizData.id)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
+                    {!isPreviewLocked(selectedMapBizData) ? (
+                      <button onClick={() => openBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
+                    ) : (
+                      <span className="text-[11px] font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>Locked</span>
+                    )}
                     <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5', color: dm ? '#9ca3af' : '#6b7280' }}>
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -806,15 +848,15 @@ function writeCoords(lat: number, lng: number) {
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
                       {renderCover({
                         src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                        name: biz.name || biz.category || 'Provider',
+                        name: displayNameForCard(biz),
                         className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]',
-                        style: { objectPosition: 'center 25%' },
+                        style: { objectPosition: 'center 25%', filter: isPreviewLocked(biz) ? 'blur(14px) saturate(0.85)' : 'none' },
                         fallbackClassName: 'w-full h-full flex items-center justify-center',
                         fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                       })}
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' }} />
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-                        <p className="text-white text-[11px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.name || 'Provider'}</p>
+                        <p className="text-white text-[11px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{displayNameForCard(biz)}</p>
                       </div>
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
@@ -837,15 +879,16 @@ function writeCoords(lat: number, lng: number) {
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
                         {renderCover({
                           src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                          name: biz.name || biz.category || 'Provider',
+                          name: displayNameForCard(biz),
                           className: 'w-full h-full object-cover',
+                          style: { filter: isPreviewLocked(biz) ? 'blur(12px)' : 'none' },
                           fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
                           fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                           showLabel: true,
                         })}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || 'Provider'}</p>
+                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(biz)}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</p>
                       </div>
@@ -860,17 +903,22 @@ function writeCoords(lat: number, lng: number) {
                     <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
                       {renderCover({
                         src: selectedMapBizData.coverUrl,
-                        name: selectedMapBizData.name || selectedMapBizData.category || 'Provider',
+                        name: displayNameForCard(selectedMapBizData),
                         className: 'h-12 w-12 rounded-xl object-cover flex-shrink-0',
+                        style: { filter: isPreviewLocked(selectedMapBizData) ? 'blur(12px)' : 'none' },
                         fallbackClassName: 'h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0',
                         fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
                         showLabel: false,
                       })}
                       <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name || 'Provider'}</p>
+                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(selectedMapBizData)}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                       </div>
-                      <button onClick={() => window.location.href='/biz/'+(selectedMapBizData.slug||selectedMapBizData.realId||selectedMapBizData.id)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
+                      {!isPreviewLocked(selectedMapBizData) ? (
+                        <button onClick={() => openBiz(selectedMapBizData)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
+                      ) : (
+                        <span className="text-[11px] font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>Locked</span>
+                      )}
                       <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: dm ? '#9ca3af' : '#6b7280' }}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>

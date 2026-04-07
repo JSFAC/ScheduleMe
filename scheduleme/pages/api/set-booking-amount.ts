@@ -2,6 +2,7 @@
 // pages/api/set-booking-amount.ts
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 
 function getSupabase() {
   return createClient(
@@ -106,6 +107,7 @@ export default async function handler(req, res) {
     .from('bookings')
     .update({
       amount_cents: cents,
+      protection_fee_cents: PROTECTION_FEE_CENTS,
       status: 'payment_pending',
       dispute_amount_cents: null,
       dispute_note: null,
@@ -119,10 +121,12 @@ export default async function handler(req, res) {
 
   if (uErr) {
     const msg = uErr.message || '';
-    if (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_at')) {
+    if (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_at') || msg.includes('protection_fee_cents')) {
+      const fallbackPayload: any = { amount_cents: cents, status: 'payment_pending' };
+      if (!msg.includes('protection_fee_cents')) fallbackPayload.protection_fee_cents = PROTECTION_FEE_CENTS;
       const { error: fbErr } = await sb
         .from('bookings')
-        .update({ amount_cents: cents, status: 'payment_pending' })
+        .update(fallbackPayload)
         .eq('id', bookingId);
       if (fbErr) return res.status(500).json({ error: fbErr.message || 'Failed to update booking' });
     } else {

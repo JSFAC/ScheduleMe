@@ -84,8 +84,8 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   pending:         { label: 'Pending Review',   bg: 'bg-emerald-50  border-emerald-100',  text: 'text-emerald-700',  dot: 'bg-emerald-500', barColor: '#10b981', badgeBg: 'rgba(16,185,129,0.12)', badgeText: '#047857' },
   price_disputed:  { label: 'Disputing Price',  bg: 'bg-amber-100   border-amber-200',    text: 'text-amber-800',    dot: 'bg-amber-500',   barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.18)', badgeText: '#92400e' },
   confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6', badgeBg: 'rgba(59,130,246,0.12)', badgeText: '#1d4ed8' },
-  payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6', badgeBg: 'rgba(139,92,246,0.12)', badgeText: '#5b21b6' },
-  paid:            { label: 'Paid',              bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
+  payment_pending: { label: 'Awaiting Payment',  bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6', badgeBg: 'rgba(139,92,246,0.12)', badgeText: '#5b21b6' },
+  paid:            { label: 'Paid Upfront',      bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
   completed:       { label: 'Completed',         bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
   cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3', badgeBg: 'rgba(163,163,163,0.16)', badgeText: '#6b7280' },
   payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444', badgeBg: 'rgba(239,68,68,0.12)', badgeText: '#b91c1c' },
@@ -212,7 +212,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ProgressBar({ status, steps, labels }: { status: string; steps: string[]; labels: string[] }) {
-  const effective = steps.includes(status) ? status : (status === 'paid' ? 'confirmed' : status === 'payment_pending' ? 'pending' : status);
+  const effective = steps.includes(status) ? status : (status === 'payment_pending' ? 'pending' : status);
   const idx = Math.max(0, steps.indexOf(effective));
   return (
     <div className="mt-5">
@@ -299,7 +299,7 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
   }
 
   if (booking.stripe_payment_method_id) {
-    return <div className="mt-3 text-xs font-semibold text-emerald-700">Card saved. You will be charged after completion.</div>;
+    return <div className="mt-3 text-xs font-semibold text-emerald-700">Card saved. You are ready to pay now.</div>;
   }
 
   return (
@@ -487,9 +487,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
 
           <StatusBadge status={booking.status} />
           {!['cancelled', 'payment_failed'].includes(booking.status) && (() => {
-            const isCustom = !booking.service || String(booking.service).toLowerCase().includes('custom');
-            const steps = isCustom ? STEPS : STEPS_NO_PAID;
-            const labels = isCustom ? STEP_LABELS : STEP_LABELS_NO_PAID;
+            const usesPayment = !!booking.amount_cents;
+            const steps = usesPayment ? STEPS : STEPS_NO_PAID;
+            const labels = usesPayment ? STEP_LABELS : STEP_LABELS_NO_PAID;
             return <ProgressBar status={booking.status} steps={steps} labels={labels} />;
           })()}
 
@@ -659,16 +659,16 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
               {booking.amount_cents && !booking.paid_at && (
                 booking.stripe_payment_method_id ? (
                   <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#0f1f1c' : '#ecfdf3', border: `1px solid ${panelBorder}` }}>
-                    <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Payment received</p>
-                    <p className="text-xs" style={{ color: panelText }}>Your payment method is saved. You will be charged after the service is completed.</p>
+                    <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Ready to pay</p>
+                    <p className="text-xs" style={{ color: panelText }}>Your payment method is saved. Complete payment now to secure this booking.</p>
                     <a href={`/pay/${booking.id}`} className="mt-3 inline-flex items-center text-xs font-semibold" style={{ color: accent }}>
-                      Change payment method →
+                      Pay now →
                     </a>
                   </div>
                 ) : (
                   <div className="rounded-2xl p-4 mb-4" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}>
                     <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Payment method required</p>
-                    <p className="text-xs" style={{ color: panelText }}>Save a card to confirm your booking. You will only be charged after the service is completed.</p>
+                    <p className="text-xs" style={{ color: panelText }}>Save a card to continue to payment and secure your booking.</p>
                     {paymentLoading ? (
                       <div className="mt-3 text-xs" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Loading payment methods…</div>
                     ) : paymentMethods.length > 0 && !showAddCard ? (
@@ -1697,7 +1697,7 @@ function writeCoords(lat: number, lng: number) {
                                     </svg>
                                   </div>
                                 </div>
-                                <ProgressBar status={b.status} steps={(String(b.service||'').toLowerCase().includes('custom') ? STEPS : STEPS_NO_PAID)} labels={(String(b.service||'').toLowerCase().includes('custom') ? STEP_LABELS : STEP_LABELS_NO_PAID)} />
+                                <ProgressBar status={b.status} steps={(b.amount_cents ? STEPS : STEPS_NO_PAID)} labels={(b.amount_cents ? STEP_LABELS : STEP_LABELS_NO_PAID)} />
                               </div>
                             </button>
                           );
@@ -1924,7 +1924,7 @@ function writeCoords(lat: number, lng: number) {
           <p className="text-sm font-semibold text-white">
             {paymentToast === 'cancelled' && 'Payment cancelled — no charge was made.'}
             {paymentToast === 'setup_cancelled' && 'Card setup cancelled — no charge was made.'}
-            {paymentToast === 'setup_success' && 'Card saved. You will be charged after completion.'}
+            {paymentToast === 'setup_success' && 'Card saved. You can pay now to secure your booking.'}
           </p>
           <button onClick={() => setPaymentToast(null)} className="ml-1 text-neutral-400 hover:text-white transition-colors">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>

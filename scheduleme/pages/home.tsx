@@ -94,6 +94,14 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
+function isPreviewLocked(biz: Business): boolean {
+  return (biz as any)?.preview_locked === true;
+}
+
+function displayNameForCard(biz: Business): string {
+  return isPreviewLocked(biz) ? 'Student provider' : (biz.name || 'Provider');
+}
+
 const MATCH_STOPWORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'for', 'to', 'of', 'in', 'on', 'with', 'my', 'your', 'our', 'need', 'needs',
   'looking', 'look', 'find', 'someone', 'anyone', 'help', 'please', 'asap', 'soon', 'today', 'tomorrow', 'this',
@@ -340,35 +348,46 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Business; onClick: () => void; dm?: boolean; index?: number; pinned?: boolean; onTogglePin?: (id: string) => void }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
+  const locked = isPreviewLocked(biz);
   const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
   const cardLabel = biz.category || 'Provider';
-  const cardName = biz.name || '';
+  const cardName = displayNameForCard(biz);
   return (
-    <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
+    <button onClick={onClick} disabled={locked} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col disabled:cursor-not-allowed"
       style={{ width: 'clamp(180px, 22vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
           <img src={biz.coverUrl} alt={cardLabel}
             onLoad={() => setImgLoaded(true)}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-            style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+            style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0, filter: locked ? 'blur(14px) saturate(0.85)' : 'none' }} />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1" style={{ background: dm ? '#242426' : '#e5e7eb' }}>
             <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(cardName || cardLabel)}</span>
             <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos yet</span>
           </div>
         )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }}
-          className="absolute top-2 right-2 h-7 w-7 rounded-full flex items-center justify-center"
-          style={{ background: pinned ? 'rgba(16,185,129,0.18)' : (dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6'), border: '1px solid ' + (pinned ? 'rgba(16,185,129,0.45)' : (dm ? 'rgba(255,255,255,0.12)' : '#e5e7eb')) }}
-          aria-label={pinned ? 'Unpin' : 'Pin'}
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke={pinned ? '#10b981' : (dm ? '#9ca3af' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
-            <path d="M9 15l-5 5" />
-          </svg>
-        </button>
+        {!locked && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }}
+            className="absolute top-2 right-2 h-7 w-7 rounded-full flex items-center justify-center"
+            style={{ background: pinned ? 'rgba(16,185,129,0.18)' : (dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6'), border: '1px solid ' + (pinned ? 'rgba(16,185,129,0.45)' : (dm ? 'rgba(255,255,255,0.12)' : '#e5e7eb')) }}
+            aria-label={pinned ? 'Unpin' : 'Pin'}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke={pinned ? '#10b981' : (dm ? '#9ca3af' : '#6b7280')} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
+              <path d="M9 15l-5 5" />
+            </svg>
+          </button>
+        )}
+        {locked && (
+          <div className="absolute inset-x-0 bottom-0 px-2 pb-2">
+            <div className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+              style={{ background: 'rgba(0,0,0,0.58)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+              Private until student verification
+            </div>
+          </div>
+        )}
         {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
           <div
             className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
@@ -395,12 +414,16 @@ function BizCard({ biz, onClick, dm, index = 0, pinned, onTogglePin }: { biz: Bu
           {(biz.reviews ?? 0) === 0 && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
           )}
-          <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
-            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
-          </span>
+          {!locked ? (
+            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
+              <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
+            </span>
+          ) : (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>Locked</span>
+          )}
         </div>
-        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
-          {(biz.reviews ?? 0) > 0 && biz.rating != null && (
+        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{locked ? 'Visible to verified students' : biz.distance}</p>
+          {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="flex items-center gap-0.5">
                 {[1,2,3,4,5].map(i => (
@@ -830,14 +853,15 @@ async function togglePinned(bizId: string) {
                           {matchResults.map(biz => (
                             <button
                               key={biz.id}
-                              onClick={() => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
-                              className="w-full rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5"
+                              onClick={() => { if (isPreviewLocked(biz)) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                              disabled={isPreviewLocked(biz)}
+                              className="w-full rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                               style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#111111' : '#fafafa' }}
                             >
                               <div className="flex items-center gap-3">
                                 <div className="h-14 w-14 rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
                                   {biz.coverUrl ? (
-                                    <img src={biz.coverUrl} alt={biz.category || 'Provider'} className="h-full w-full object-cover" />
+                                    <img src={biz.coverUrl} alt={biz.category || 'Provider'} className="h-full w-full object-cover" style={{ filter: isPreviewLocked(biz) ? 'blur(12px)' : 'none' }} />
                                   ) : (
                                     <div className="h-full w-full flex items-center justify-center">
                                       <span className="text-xs font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{initials(biz.category || 'Provider')}</span>
@@ -845,14 +869,17 @@ async function togglePinned(bizId: string) {
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.category || 'Provider'}</p>
-                                  <p className="text-[11px] mt-0.5 truncate" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.category}{biz.distance ? ` · ${biz.distance}` : ''}</p>
-                                  {biz.tagline && (
+                                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(biz)}</p>
+                                  <p className="text-[11px] mt-0.5 truncate" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.category}{!isPreviewLocked(biz) && biz.distance ? ` · ${biz.distance}` : ''}</p>
+                                  {!isPreviewLocked(biz) && biz.tagline && (
                                     <p className="text-[11px] mt-1 line-clamp-2" style={{ color: dm ? '#8e8e93' : '#94a3b8' }}>{biz.tagline}</p>
+                                  )}
+                                  {isPreviewLocked(biz) && (
+                                    <p className="text-[11px] mt-1 line-clamp-2" style={{ color: dm ? '#8e8e93' : '#94a3b8' }}>Private listing available to verified students.</p>
                                   )}
                                 </div>
                                 <div className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                                  {(biz.reviews ?? 0) > 0 && biz.rating != null ? `${biz.rating.toFixed(1)}★` : 'New'}
+                                  {isPreviewLocked(biz) ? 'Locked' : ((biz.reviews ?? 0) > 0 && biz.rating != null ? `${biz.rating.toFixed(1)}★` : 'New')}
                                 </div>
                               </div>
                             </button>
@@ -1090,7 +1117,7 @@ async function togglePinned(bizId: string) {
                   subtitle="Available now — highly reviewed"
                   href="/browse"
                   businesses={t1.slice(0, 6)}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (isPreviewLocked(biz)) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                   bg={sectionBg}
@@ -1103,7 +1130,7 @@ async function togglePinned(bizId: string) {
                   subtitle="Solo tradespeople — your booking helps them grow"
                   href="/browse?category=Independent"
                   businesses={t2.slice(0, 6)}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (isPreviewLocked(biz)) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                   bg={sectionBg}
@@ -1116,7 +1143,7 @@ async function togglePinned(bizId: string) {
                   subtitle="Pros that pick up jobs fast"
                   href="/browse"
                   businesses={t3.slice(0, 6)}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (isPreviewLocked(biz)) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                   bg={sectionBg}

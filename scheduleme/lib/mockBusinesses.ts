@@ -36,6 +36,8 @@ export interface Business {
   calendlyUrl?: string | null;
   website?: string | null;
   video_url?: string | null;
+  preview_locked?: boolean;
+  public_visibility?: boolean;
 }
 
 // Empty arrays — no mock data. All business data comes from Supabase.

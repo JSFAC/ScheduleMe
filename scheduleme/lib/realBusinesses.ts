@@ -46,10 +46,11 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
   const mediaUrls = Array.isArray(b.media_urls) && b.media_urls.length > 0 ? b.media_urls : [];
   const cover = getCover(b.cover_url, mediaUrls);
   const allImages = mediaUrls.length > 0 ? mediaUrls : (cover ? [cover] : []);
+  const previewLocked = b.preview_locked === true;
   return {
     id: b.id,
     realId: b.id,
-    name: b.name || 'Local Business',
+    name: previewLocked ? '' : (b.name || 'Local Business'),
     slug: b.slug || b.id,
     description: b.description || '',
     tagline: b.description ? b.description.split('.')[0] : '',
@@ -76,6 +77,8 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     services: [],
     about: b.description || '',
     badges: [],
+    preview_locked: previewLocked,
+    public_visibility: b.public_visibility,
   } as Business;
 }
 

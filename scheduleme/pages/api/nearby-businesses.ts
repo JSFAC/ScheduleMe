@@ -46,7 +46,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('businesses')
       .select(baseSelect)
       .eq('is_onboarded', true)
-      .eq('public_visibility', true)
       .not('lat', 'is', null)
       .not('lng', 'is', null);
 
@@ -114,14 +113,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const status = computeFounder50Status(b);
       const showName = b.public_show_name === true;
       const showPhotos = b.public_show_photos === true;
+      const previewLocked = b.public_visibility === false;
       return {
         ...b,
-        name: b.name,
-        phone: showName ? b.phone : null,
-        website: showName ? b.website : null,
-        address: showName ? b.address : (b.zip || b.address || null),
+        name: previewLocked ? null : b.name,
+        description: previewLocked ? null : b.description,
+        phone: previewLocked ? null : (showName ? b.phone : null),
+        website: previewLocked ? null : (showName ? b.website : null),
+        address: previewLocked ? (b.zip || null) : (showName ? b.address : (b.zip || b.address || null)),
         cover_url: showPhotos ? b.cover_url : null,
         media_urls: showPhotos ? b.media_urls : [],
+        preview_locked: previewLocked,
         distance_miles: d,
         price_tier: priceTier,
         rating,
