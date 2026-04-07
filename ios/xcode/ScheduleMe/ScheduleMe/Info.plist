@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_BASE_URL</key>
+	<string>https://www.usescheduleme.com</string>
+	<key>APP_URL_SCHEME</key>
+	<string>$(APP_URL_SCHEME)</string>
+	<key>APPLE_PAY_MERCHANT_ID</key>
+	<string>$(APPLE_PAY_MERCHANT_ID)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>scheduleme</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>scheduleme</string>
+			</array>
+		</dict>
+	</array>
+	<key>GOOGLE_IOS_CLIENT_ID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to show nearby professionals.</string>
+	<key>STRIPE_PUBLISHABLE_KEY</key>
+	<string>$(STRIPE_PUBLISHABLE_KEY)</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>SUPABASE_REDIRECT_URL</key>
+	<string>$(SUPABASE_REDIRECT_URL)</string>
+	<key>SUPABASE_URL</key>
+	<string>https://imfrlykibvjdbijegdky.supabase.co</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Resources/Fonts/PlusJakartaSans-VariableFont_wght.ttf</string>
+		<string>Resources/Fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf</string>
+	</array>
+</dict>
+</plist>
