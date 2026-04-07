@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
+import { PROTECTION_FEE_CENTS } from '../lib/fees';
 
 function getSupabase() {
   return getSupabaseClient();
@@ -18,6 +19,7 @@ interface BookingDetail {
   service: string;
   status: string;
   amount_cents: number;
+  protection_fee_cents?: number | null;
   paid_at: string;
   scheduled_at?: string;
   business_name?: string;
@@ -190,9 +192,20 @@ const PaymentSuccessPage: NextPage = () => {
                   </div>
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: dm ? 'rgba(255,255,255,0.35)' : '#a3a3a3' }}>Amount Paid</p>
-                    <p className="text-xl font-black" style={{ color: dm ? '#4ade80' : '#16a34a', letterSpacing: '-0.02em' }}>
-                      ${(booking.amount_cents / 100).toFixed(2)}
-                    </p>
+                    {(() => {
+                      const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
+                      const totalCents = booking.amount_cents + protectionFee;
+                      return (
+                        <>
+                          <p className="text-xl font-black" style={{ color: dm ? '#4ade80' : '#16a34a', letterSpacing: '-0.02em' }}>
+                            ${(totalCents / 100).toFixed(2)}
+                          </p>
+                          <p className="text-[11px]" style={{ color: dm ? 'rgba(255,255,255,0.5)' : '#9ca3af' }}>
+                            Includes ${'$'}{(protectionFee / 100).toFixed(2)} protection fee
+                          </p>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 

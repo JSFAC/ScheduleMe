@@ -15,11 +15,11 @@ function getSupabase() {
 // Cache key — avoids async flash that causes the nav layout shift/shake
 const AUTH_CACHE_KEY = 'sm_nav_user';
 
-function readCache(): { email?: string; name?: string } | null {
+function readCache(): { email?: string; name?: string; avatar_url?: string | null } | null {
   if (typeof window === 'undefined') return null;
   try { return JSON.parse(sessionStorage.getItem(AUTH_CACHE_KEY) || 'null'); } catch { return null; }
 }
-function writeCache(u: { email?: string; name?: string } | null) {
+function writeCache(u: { email?: string; name?: string; avatar_url?: string | null } | null) {
   if (typeof window === 'undefined') return;
   if (u) sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(u));
   else sessionStorage.removeItem(AUTH_CACHE_KEY);
@@ -36,18 +36,28 @@ export default function Nav({ variant = 'light' }: NavProps) {
     if (meta) meta.content = (isDark || darkMode) ? '#0F1117' : '#EDF5FF';
   }, [darkMode, isDark]);
   // Initialise from cache synchronously — no layout shift on mount
-  const [user, setUser] = useState<{ email?: string; name?: string } | null>(readCache);
+  const [user, setUser] = useState<{ email?: string; name?: string; avatar_url?: string | null } | null>(readCache);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
     // Verify cache against real session (silently, no re-render if same)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ? {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) {
+        writeCache(null);
+        setUser(null);
+        return;
+      }
+      const u = {
         email: session.user.email,
         name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-      } : null;
+        avatar_url: session.user.user_metadata?.avatar_url || null,
+      };
+      try {
+        const { data } = await supabase.from('profiles').select('avatar_url').eq('id', session.user.id).maybeSingle();
+        if (data?.avatar_url) u.avatar_url = data.avatar_url;
+      } catch {}
       writeCache(u);
       // Only trigger re-render if value actually changed
       setUser(prev => {
@@ -56,10 +66,16 @@ export default function Nav({ variant = 'light' }: NavProps) {
       });
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user ? {
+      if (!session?.user) {
+        writeCache(null);
+        setUser(null);
+        return;
+      }
+      const u = {
         email: session.user.email,
         name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-      } : null;
+        avatar_url: session.user.user_metadata?.avatar_url || null,
+      };
       writeCache(u);
       setUser(u);
     });
@@ -230,8 +246,12 @@ export default function Nav({ variant = 'light' }: NavProps) {
               <button onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-1.5 pl-1 pr-3 py-1 md:py-1.5 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
                 aria-label="Account menu">
-                <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-accent flex items-center justify-center text-white text-[11px] md:text-[12px] font-bold shrink-0">
-                  {initials}
+                <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-accent flex items-center justify-center text-white text-[11px] md:text-[12px] font-bold shrink-0 overflow-hidden">
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt={user?.name || 'User'} className="h-full w-full object-cover" />
+                  ) : (
+                    initials
+                  )}
                 </div>
                 <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />

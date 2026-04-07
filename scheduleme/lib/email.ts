@@ -750,7 +750,7 @@ export function paymentReceiptCustomerHtml(opts: {
           <a href="${SITE_URL}/bookings" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View Booking →</a>
         </td></tr>
       </table>
-      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Standard platform fee is 12% (Founder50 members are 6%). ScheduleMe takes care of the rest.</p>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Includes a $0.99 protection fee. Standard provider fee is 12% (Founder50 members are 6%).</p>
     </td></tr>
   `;
   return layout('Payment confirmed', body, `$${opts.amountDollars} payment confirmed for ${opts.service}`);

@@ -179,6 +179,7 @@ alter table bookings add column if not exists provider_proposed_price_cents inte
 alter table bookings add column if not exists price_accepted_by_customer boolean default false;
 alter table bookings add column if not exists price_accepted_by_provider boolean default false;
 alter table bookings add column if not exists price_accepted_at timestamptz;
+alter table bookings add column if not exists protection_fee_cents integer default 99;
 
 
 -- ============================================================

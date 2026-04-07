@@ -13,6 +13,7 @@ import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 import { getSupabaseClient } from '../lib/supabaseClient';
+import { PROTECTION_FEE_CENTS } from '../lib/fees';
 
 
 function getSupabase() {
@@ -64,6 +65,7 @@ interface Booking {
   business_email?: string;
   business_id?: string;
   amount_cents?: number;
+  protection_fee_cents?: number | null;
   paid_at?: string;
   stripe_payment_method_id?: string;
   stripe_customer_id?: string;
@@ -634,7 +636,18 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                 </div>
                 <div>
                   <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{booking.paid_at ? 'Amount Paid' : 'Amount Due'}</p>
-                  <p className="text-sm font-bold text-neutral-900 mt-0.5">{'$'}{(booking.amount_cents / 100).toFixed(2)}</p>
+                  {(() => {
+                    const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
+                    const totalCents = booking.amount_cents + protectionFee;
+                    return (
+                      <>
+                        <p className="text-sm font-bold text-neutral-900 mt-0.5">{'$'}{(totalCents / 100).toFixed(2)}</p>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">
+                          Includes ${'$'}{(protectionFee / 100).toFixed(2)} protection fee
+                        </p>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -790,7 +803,15 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                 <svg className="h-5 w-5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <div>
                   <p className="text-sm font-bold text-green-800">Payment confirmed</p>
-                  <p className="text-xs text-green-700">{'$'}{(booking.amount_cents! / 100).toFixed(2)} paid · {new Date(booking.paid_at).toLocaleDateString()}</p>
+                  {(() => {
+                    const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
+                    const totalCents = booking.amount_cents! + protectionFee;
+                    return (
+                      <p className="text-xs text-green-700">
+                        {'$'}{(totalCents / 100).toFixed(2)} paid · {new Date(booking.paid_at).toLocaleDateString()}
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1656,11 +1677,15 @@ function writeCoords(lat: number, lng: number) {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    {b.amount_cents != null && (
-                                      <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#e5e7eb' : '#111827' }}>
-                                        {'$'}{(b.amount_cents / 100).toFixed(2)}
-                                      </span>
-                                    )}
+                                    {b.amount_cents != null && (() => {
+                                      const protectionFee = typeof b.protection_fee_cents === 'number' ? b.protection_fee_cents : PROTECTION_FEE_CENTS;
+                                      const totalCents = b.amount_cents + protectionFee;
+                                      return (
+                                        <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#e5e7eb' : '#111827' }}>
+                                          {'$'}{(totalCents / 100).toFixed(2)}
+                                        </span>
+                                      );
+                                    })()}
                                     {priceAcceptedLabel && (
                                       <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(16,185,129,0.2)' : '#dcfce7', color: dm ? '#86efac' : '#166534' }}>
                                         {priceAcceptedLabel}
@@ -1741,7 +1766,13 @@ function writeCoords(lat: number, lng: number) {
                                   {b.amount_cents && (
                                     <>
                                       <span className="text-neutral-200">·</span>
-                                      <p className="text-[10px] font-bold text-neutral-500">{'$'}{(b.amount_cents / 100).toFixed(2)} paid</p>
+                                      {(() => {
+                                        const protectionFee = typeof b.protection_fee_cents === 'number' ? b.protection_fee_cents : PROTECTION_FEE_CENTS;
+                                        const totalCents = b.amount_cents + protectionFee;
+                                        return (
+                                          <p className="text-[10px] font-bold text-neutral-500">{'$'}{(totalCents / 100).toFixed(2)} paid</p>
+                                        );
+                                      })()}
                                     </>
                                   )}
                                 </div>

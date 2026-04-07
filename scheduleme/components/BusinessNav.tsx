@@ -4,7 +4,7 @@ import Link from 'next/link';
 export default function BusinessNav() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800">
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: '72px' }} aria-label="Provider navigation">
+      <nav className="mx-auto max-w-6xl px-4 sm:px-6 flex items-center justify-between" style={{ height: 'clamp(56px, 10vw, 72px)' }} aria-label="Provider navigation">
         <Link href="/business" className="group flex flex-col leading-none" aria-label="ScheduleMe for Providers">
           <span className="text-xl font-black text-white transition-opacity group-hover:opacity-70" style={{ letterSpacing: '-0.03em' }}>
             ScheduleMe
@@ -29,14 +29,17 @@ export default function BusinessNav() {
           ))}
         </ul>
 
-        <div className="flex items-center gap-3">
-          <Link href="/" className="hidden sm:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link href="/" className="hidden md:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
             Consumer site →
           </Link>
-          <Link href="/business/auth/login" className="hidden sm:block text-sm font-semibold px-4 py-2 rounded-lg bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors">
+          <Link
+            href="/business/auth/login"
+            className="text-[11px] sm:text-sm font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors whitespace-nowrap"
+          >
             Log In
           </Link>
-          <Link href="/business/signup" className="btn-primary text-sm px-5 py-2.5">
+          <Link href="/business/signup" className="btn-primary text-[11px] sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 whitespace-nowrap">
             Join for Free
           </Link>
         </div>

@@ -35,7 +35,7 @@ const sections = [
   },
   {
     title: '7. Payments and Fees',
-    body: 'Consumer use of ScheduleMe is free. Provider accounts may be subject to platform fees or pricing as disclosed at signup or in the dashboard. All payments are processed by Stripe. You authorize Stripe and ScheduleMe to charge your payment method for fees incurred. Providers are responsible for issuing refunds or resolving disputes with customers; ScheduleMe may facilitate refunds but does not guarantee any refund outcome. Chargebacks and disputes may result in account limitations.',
+    body: 'Consumers pay a $0.99 protection fee per booking. Provider accounts may be subject to platform fees (standard 12% or 6% for Founder50) as disclosed at signup or in the dashboard. All payments are processed by Stripe. You authorize Stripe and ScheduleMe to charge your payment method for fees incurred. Providers are responsible for issuing refunds or resolving disputes with customers; ScheduleMe may facilitate refunds but does not guarantee any refund outcome. Chargebacks and disputes may result in account limitations.',
   },
   {
     title: '8. Disputes Between Users',

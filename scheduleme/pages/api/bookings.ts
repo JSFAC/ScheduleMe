@@ -7,6 +7,7 @@ import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail, getUnknownFields, logAuditEvent } from '../../lib/apiSecurity';
 import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
+import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 const LIMITS = {
   service: 120,
   note: 500,
@@ -325,6 +326,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_id: resolvedUserId ?? null,
         service: (service?.slice(0, LIMITS.service) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
         amount_cents: typeof service_price_cents === 'number' ? service_price_cents : undefined,
+        protection_fee_cents: PROTECTION_FEE_CENTS,
         customer_proposed_price_cents: typeof customer_proposed_price_cents === 'number' ? Math.round(customer_proposed_price_cents) : undefined,
         note: typeof note === 'string' ? note.slice(0, LIMITS.note) : null,
         scheduled_start: scheduledStart ?? null,
@@ -344,6 +346,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           service: (service?.slice(0, LIMITS.service) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
           status: 'pending',
           requires_manual_action: true,
+          protection_fee_cents: PROTECTION_FEE_CENTS,
         stripe_customer_id: profileStripeCustomerId || undefined,
         stripe_payment_method_id: profileStripePaymentMethodId || undefined,
         }).select('id, status, created_at').single();
@@ -384,7 +387,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, status, service, user_id, amount_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+      .select('id, status, service, user_id, amount_cents, protection_fee_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -492,16 +495,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
         }
         const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);
+        const protectionFeeCents = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
+        const totalChargeCents = booking.amount_cents + protectionFeeCents;
+        const applicationFeeCents = platformFeeCents + protectionFeeCents;
         const pi = await stripe.paymentIntents.create({
-          amount: booking.amount_cents,
+          amount: totalChargeCents,
           currency: 'usd',
           customer: customerId,
           payment_method: paymentMethodId,
           confirm: true,
           off_session: true,
-          application_fee_amount: platformFeeCents,
+          application_fee_amount: applicationFeeCents,
           transfer_data: { destination: biz.stripe_account_id },
-          metadata: { bookingId: booking_id, businessId: biz.id, platform_fee_percent: String(platformFeePercent) },
+          metadata: {
+            bookingId: booking_id,
+            businessId: biz.id,
+            platform_fee_percent: String(platformFeePercent),
+            protection_fee_cents: String(protectionFeeCents),
+          },
         });
 
         if (pi.status !== 'succeeded') {
@@ -744,8 +755,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const idList = Array.from(ids).filter(Boolean);
-      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)';
-      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, businesses(name, phone, email), profiles(email, avatar_url)';
+      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)';
+      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, businesses(name, phone, email), profiles(email, avatar_url)';
       let query = supabase
         .from('bookings')
         .select(selectWithPrice)
@@ -786,7 +797,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {
@@ -803,7 +814,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at')) {
           let plainLegacy = supabase
             .from('bookings')
-            .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note')
+            .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note')
             .order('created_at', { ascending: false })
             .limit(100);
           if (idList.length > 1) {

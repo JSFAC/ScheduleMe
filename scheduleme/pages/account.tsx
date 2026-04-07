@@ -291,9 +291,10 @@ const Account: NextPage = () => {
       setAuthProvider(u.app_metadata?.provider || 'email');
       // Load edu verified status
       const sb2 = getSupabase();
-      sb2.from('profiles').select('edu_verified,school_email,name,phone,email').eq('id', u.id).maybeSingle().then(async ({data}) => {
+      sb2.from('profiles').select('edu_verified,school_email,name,phone,email,avatar_url').eq('id', u.id).maybeSingle().then(async ({data}) => {
         setEduVerified(data?.edu_verified ?? false);
         if (data?.school_email) setEduEmail(data.school_email);
+        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
         if ((u.user_metadata?.full_name || u.user_metadata?.phone) && (!data?.name || !data?.phone)) {
           try {
             await sb2.from('profiles').upsert({
