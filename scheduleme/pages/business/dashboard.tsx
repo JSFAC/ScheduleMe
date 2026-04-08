@@ -2713,49 +2713,44 @@ const BusinessDashboard: NextPage = () => {
                 <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-neutral-500">Live Preview</p>
-                    <p className="text-[11px] text-neutral-400">This renders the same layout as the public provider page.</p>
+                    <p className="text-[11px] text-neutral-400">Interactive preview of your listing inside the dashboard.</p>
                   </div>
-                  {!previewEditMode ? (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setPreviewEditMode(true)}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      onClick={() => setPreviewKey(Date.now())}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
                     >
-                      Edit listing
+                      Refresh
                     </button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setPreviewEditMode(false);
-                          showToast('Changes submitted for review.', true);
-                        }}
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-600 text-white"
+                    {business?.slug && (
+                      <a
+                        href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&preview=1&bid=${business.id}&k=${previewKey}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
                       >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPreviewEditMode(false);
-                          setPreviewKey(Date.now());
-                        }}
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
+                        Open full-page editor
+                      </a>
+                    )}
+                  </div>
                 </div>
-                {business?.slug ? (
-                  <iframe
-                    title="Provider preview"
-                    src={previewEditMode
-                      ? `/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&preview=1&bid=${business.id}&k=${previewKey}`
-                      : `/biz/${encodeURIComponent(business.slug)}?from=dashboard&preview=1&bid=${business.id}&k=${previewKey}`}
-                    className="w-full"
-                    style={{ height: '80vh', border: 'none' }}
-                  />
+                {business ? (
+                  <div className="p-4" key={previewKey}>
+                    <EditablePreview
+                      business={business}
+                      services={services}
+                      mediaImages={mediaImages}
+                      mediaVideo={mediaVideo}
+                      editDesc={editDesc}
+                      setEditDesc={setEditDesc}
+                      setMediaImages={setMediaImages}
+                      setMediaVideo={setMediaVideo}
+                      setBusiness={setBusiness}
+                      dm={dm}
+                    />
+                  </div>
                 ) : (
-                  <div className="p-6 text-sm text-neutral-500">Preview unavailable — missing provider slug.</div>
+                  <div className="p-6 text-sm text-neutral-500">Preview unavailable — provider data is still loading.</div>
                 )}
               </div>
             )}
