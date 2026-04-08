@@ -40,7 +40,7 @@ const SignupPage: NextPage = () => {
         const id = hcaptcha.render(captchaRef.current, {
           sitekey: siteKey,
           theme: isDark ? 'dark' : 'light',
-          size: 'compact',
+          size: 'normal',
           callback: (token: string) => setCaptchaToken(token),
           'expired-callback': () => setCaptchaToken(''),
         });
@@ -443,8 +443,8 @@ const SignupPage: NextPage = () => {
             </div>
 
             {siteKey && (
-            <div className="mt-6 flex flex-col items-center">
-                <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
+            <div className="mt-6 flex flex-col items-start w-full">
+                <div ref={captchaRef} className="hcaptcha-shell w-full" style={{ minHeight: 78 }} />
                 {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
                 {captchaLoadError && <p className="mt-2 text-xs text-red-400">{captchaLoadError}</p>}
                 {errors.captcha && <p className="mt-2 text-xs text-red-400">{errors.captcha}</p>}
