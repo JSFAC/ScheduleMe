@@ -23,7 +23,8 @@ const SignIn: NextPage = () => {
     if (router.query.mode === 'signup') setTab('signup');
   }, [router.query.mode]);
   const [showEmail, setShowEmail] = useState(false);
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showReset, setShowReset] = useState(false);
@@ -156,8 +157,8 @@ const SignIn: NextPage = () => {
         if (error) throw error;
         setSent(true);
       } else if (tab === 'signup') {
-        if (!fullName.trim()) {
-          throw new Error('Please enter your name.');
+        if (!firstName.trim() || !lastName.trim()) {
+          throw new Error('Please enter your first and last name.');
         }
         if (password.length < 10) {
           throw new Error('Password must be at least 10 characters.');
@@ -168,7 +169,8 @@ const SignIn: NextPage = () => {
           body: JSON.stringify({
             email,
             password,
-            fullName: fullName.trim().slice(0, 80),
+            firstName: firstName.trim().slice(0, 40),
+            lastName: lastName.trim().slice(0, 40),
             captchaToken: captchaToken || undefined,
             redirectTo: emailRedirectTo,
           }),
@@ -380,10 +382,17 @@ const SignIn: NextPage = () => {
                 ) : (
                   <>
                     {tab === 'signup' && (
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Name</label>
-                        <input type="text" required className="form-input" placeholder="Your full name"
-                          value={fullName} onChange={e => setFullName(e.target.value)} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-700 mb-1.5">First name</label>
+                          <input type="text" required className="form-input" placeholder="First name"
+                            value={firstName} onChange={e => setFirstName(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-700 mb-1.5">Last name</label>
+                          <input type="text" required className="form-input" placeholder="Last name"
+                            value={lastName} onChange={e => setLastName(e.target.value)} />
+                        </div>
                       </div>
                     )}
                     <div>

@@ -44,10 +44,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!(await rateLimit(req, res, { max: 6, windowMs: 15 * 60_000, keyPrefix: 'auth-email-signup' }))) return;
 
-  const { email, password, fullName, captchaToken, redirectTo } = req.body || {};
+  const { email, password, firstName, lastName, captchaToken, redirectTo } = req.body || {};
 
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  const normalizedName = String(fullName || '').trim().slice(0, 80);
+  const normalizedFirstName = String(firstName || '').trim().slice(0, 40);
+  const normalizedLastName = String(lastName || '').trim().slice(0, 40);
+  const normalizedName = `${normalizedFirstName} ${normalizedLastName}`.trim().slice(0, 80);
   const pwd = String(password || '');
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
   const safeRedirectTo = typeof redirectTo === 'string' && redirectTo.startsWith(siteUrl)
@@ -57,7 +59,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ error: 'Enter a valid email address.' });
   }
-  if (!normalizedName) return res.status(400).json({ error: 'Please enter your name.' });
+  if (!normalizedFirstName || !normalizedLastName) {
+    return res.status(400).json({ error: 'Please enter your first and last name.' });
+  }
   if (pwd.length < 10) return res.status(400).json({ error: 'Password must be at least 10 characters.' });
 
   try {
@@ -74,7 +78,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       password: pwd,
       options: {
         redirectTo: safeRedirectTo,
-        data: { full_name: normalizedName },
+        data: {
+          first_name: normalizedFirstName,
+          last_name: normalizedLastName,
+          full_name: normalizedName,
+          name: normalizedName,
+        },
       },
     });
 
