@@ -160,7 +160,7 @@ const PayPage: NextPage = () => {
       try {
         const { data: { session } } = await getSupabase().auth.getSession();
         if (!session) { setErr('Please sign in to continue.'); return; }
-        const res = await fetch('/api/bookings', { headers: { Authorization: 'Bearer ' + session.access_token } });
+        const res = await fetch('/api/bookings?include_unpaid=1', { headers: { Authorization: 'Bearer ' + session.access_token } });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Failed to load booking');
         const found = (data.bookings || []).find((b: any) => b.id === bookingId);

@@ -988,7 +988,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
             <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
               {booking.paid_at
                 ? 'Your booking has been cancelled and your refund is now processing to your original payment method.'
-                : 'Your booking request has been cancelled successfully.'}
+                : 'Your booking request has been cancelled. No charge was made, so no refund was needed.'}
             </p>
             {booking.paid_at && (
               <p className="text-[11px] mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>

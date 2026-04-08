@@ -1063,7 +1063,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,
         };
       });
-      return res.status(200).json({ bookings });
+      const includeUnpaid = String(req.query.include_unpaid || '').toLowerCase() === '1'
+        || String(req.query.include_unpaid || '').toLowerCase() === 'true';
+      const visibleBookings = includeUnpaid
+        ? bookings
+        : bookings.filter((b: any) => {
+            const svc = String(b?.service || '').toLowerCase();
+            const isCustomFlow =
+              svc.includes('custom')
+              || b?.status === 'price_disputed'
+              || b?.status === 'payment_pending'
+              || b?.amount_cents == null
+              || b?.customer_proposed_price_cents != null
+              || b?.provider_proposed_price_cents != null;
+            if (isCustomFlow) return true;
+            // Standard flow: only show in consumer bookings once payment is completed.
+            return !!b?.paid_at;
+          });
+      return res.status(200).json({ bookings: visibleBookings });
     } catch (err) {
       return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
     }
