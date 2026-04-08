@@ -1515,12 +1515,13 @@ const BusinessDashboard: NextPage = () => {
     );
   }
 
-  const PLATFORM_FEE = 0.12;
+  const platformFeeRate = business?.founder50 ? 0.06 : 0.12;
+  const toProviderNet = (grossCents: number) => Math.max(0, Math.round(grossCents * (1 - platformFeeRate)));
   // Only completed jobs count as earned payout.
   const totalCompletedGross = bookings
     .filter(b => b.status === 'completed' && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
-  const totalEarned = Math.round(totalCompletedGross * (1 - PLATFORM_FEE));
+  const totalEarned = toProviderNet(totalCompletedGross);
   const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
@@ -1529,15 +1530,17 @@ const BusinessDashboard: NextPage = () => {
   const thisMonthGross = bookings
     .filter(b => b.status === 'completed' && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth() && new Date(b.created_at).getFullYear() === new Date().getFullYear())
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
-  const thisMonthEarned = Math.round(thisMonthGross * (1 - PLATFORM_FEE));
+  const thisMonthEarned = toProviderNet(thisMonthGross);
   // Amounts still awaiting release:
   // 1) customer not yet charged, or 2) charged but still not marked complete.
-  const pendingPaymentAmount = bookings
+  const pendingPaymentGross = bookings
     .filter(b => ['confirmed', 'payment_pending'].includes(b.status) && b.amount_cents && !b.paid_at)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
-  const heldInStripeAmount = bookings
+  const heldInStripeGross = bookings
     .filter(b => b.status === 'paid' && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
+  const pendingPaymentAmount = toProviderNet(pendingPaymentGross);
+  const heldInStripeAmount = toProviderNet(heldInStripeGross);
   const awaitingReleaseAmount = pendingPaymentAmount + heldInStripeAmount;
 
   const filteredBookings = bookings.filter(b => {
