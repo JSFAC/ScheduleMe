@@ -30,6 +30,9 @@ const SignIn: NextPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [tabVisible, setTabVisible] = useState(true);
   const [businessRedirecting, setBusinessRedirecting] = useState(false);
   const [failedCount, setFailedCount] = useState(0);
@@ -42,6 +45,10 @@ const SignIn: NextPage = () => {
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
   const captchaRequired = !!siteKey && (tab === 'signup' || failedCount >= 3);
   const captchaBlocked = !!captchaLoadError;
+  const emailRedirectTo =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback`
+      : undefined;
 
   useEffect(() => {
     if (!siteKey || !captchaRequired) return;
@@ -157,6 +164,7 @@ const SignIn: NextPage = () => {
         }
         const signUpOptions: any = {
           data: { full_name: fullName.trim().slice(0, 80) },
+          emailRedirectTo,
         };
         if (captchaToken) signUpOptions.captchaToken = captchaToken;
         const { error } = await supabase.auth.signUp({
@@ -200,6 +208,33 @@ const SignIn: NextPage = () => {
     }
   }
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCooldown]);
+
+  async function handleResendConfirmation() {
+    if (!email || resendBusy || resendCooldown > 0) return;
+    setResendBusy(true);
+    setResendMsg(null);
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: emailRedirectTo ? { emailRedirectTo } : undefined,
+      });
+      if (error) throw error;
+      setResendMsg(`Confirmation email resent to ${email}.`);
+      setResendCooldown(30);
+    } catch (err) {
+      setResendMsg(err instanceof Error ? err.message : 'Could not resend confirmation email.');
+    } finally {
+      setResendBusy(false);
+    }
+  }
+
   if (sent) {
     return (
       <>
@@ -217,6 +252,24 @@ const SignIn: NextPage = () => {
                 ? <>We sent a password reset link to <strong>{email}</strong>.</>
                 : <>We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.</>}
             </p>
+            {!showReset && (
+              <div className="space-y-2 mb-4">
+                <button
+                  onClick={handleResendConfirmation}
+                  disabled={resendBusy || resendCooldown > 0}
+                  className="text-accent text-sm hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  {resendBusy
+                    ? 'Resending…'
+                    : resendCooldown > 0
+                      ? `Resend available in ${resendCooldown}s`
+                      : 'Resend confirmation email'}
+                </button>
+                {resendMsg && (
+                  <p className="text-xs text-neutral-500">{resendMsg}</p>
+                )}
+              </div>
+            )}
             <button onClick={() => { setSent(false); setShowReset(false); }} className="text-accent text-sm hover:underline">
               Use a different email
             </button>
