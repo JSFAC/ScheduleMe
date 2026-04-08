@@ -39,6 +39,18 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
   });
 }
 
+function getWebhookSecrets(): string[] {
+  const list = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_LIVE,
+    process.env.STRIPE_WEBHOOK_SECRET_TEST,
+    ...(process.env.STRIPE_WEBHOOK_SECRETS || '').split(','),
+  ]
+    .map((v) => String(v || '').trim())
+    .filter(Boolean);
+  return Array.from(new Set(list));
+}
+
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
   try {
     const { data: booking } = await supabase
@@ -90,19 +102,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const sig = req.headers['stripe-signature'];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecrets = getWebhookSecrets();
 
-  if (!sig || !webhookSecret) {
-    return res.status(400).json({ error: 'Missing stripe signature or webhook secret' });
+  if (!sig) {
+    // Avoid repeated disablement noise from non-Stripe traffic.
+    return res.status(200).json({ received: true, ignored: 'missing_signature' });
+  }
+
+  if (webhookSecrets.length === 0) {
+    console.error('[webhook] No webhook secret configured');
+    await alertAdmin('Stripe webhook secret missing', 'No STRIPE_WEBHOOK_SECRET configured in environment.');
+    // Return 2xx so Stripe does not disable the endpoint while config is being fixed.
+    return res.status(200).json({ received: true, ignored: 'missing_webhook_secret' });
   }
 
   let event: Stripe.Event;
   try {
     const rawBody = await getRawBody(req);
-    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    let constructed: Stripe.Event | null = null;
+    for (const secret of webhookSecrets) {
+      try {
+        constructed = stripe.webhooks.constructEvent(rawBody, sig, secret);
+        break;
+      } catch {
+        // Try next secret (supports rotated endpoint secrets).
+      }
+    }
+    if (!constructed) throw new Error('No configured webhook secret matched signature.');
+    event = constructed;
   } catch (err) {
     console.error('[webhook] Signature verification failed:', err);
-    return res.status(400).json({ error: 'Invalid signature' });
+    await alertAdmin('Stripe webhook signature verification failed', String((err as any)?.message || err));
+    // Return 2xx to avoid endpoint auto-disable while secrets are corrected.
+    return res.status(200).json({ received: true, ignored: 'invalid_signature' });
   }
 
   const supabase = getSupabase();
@@ -285,7 +317,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (err) {
     console.error('[webhook] Handler error:', err);
     await alertAdmin('Stripe webhook handler error', String((err as any)?.message || err));
-    return res.status(500).json({ error: 'Webhook handler failed' });
+    // Acknowledge to Stripe to prevent endpoint disablement loops.
+    return res.status(200).json({ received: true, handler_error: true });
   }
 }
 
