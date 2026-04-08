@@ -356,6 +356,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelErr, setCancelErr] = useState('');
+  const [cancelDoneOpen, setCancelDoneOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [completeErr, setCompleteErr] = useState('');
@@ -395,7 +396,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
     setCancelErr('');
     try {
       await onCancel(booking.id, reason);
-      close();
+      setCancelOpen(false);
+      setCancelReason('');
+      setCancelDoneOpen(true);
     } catch (e: any) {
       setCancelErr(e?.message || 'Could not cancel booking. Please try again.');
     } finally {
@@ -957,6 +960,48 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                 {cancelling ? 'Cancelling…' : 'Confirm cancel'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {cancelDoneOpen && (
+        <div
+          className="fixed inset-0 z-[2150] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) { setCancelDoneOpen(false); close(); } }}
+        >
+          <div
+            className="w-full max-w-md mx-4 rounded-2xl p-5"
+            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: '#dcfce7' }}>
+                <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>
+                Booking cancelled
+              </p>
+            </div>
+            <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              {booking.paid_at
+                ? 'Your booking has been cancelled and your refund is now processing to your original payment method.'
+                : 'Your booking request has been cancelled successfully.'}
+            </p>
+            {booking.paid_at && (
+              <p className="text-[11px] mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                Refund timing depends on your bank and card network.
+              </p>
+            )}
+            <button
+              onClick={() => { setCancelDoneOpen(false); close(); }}
+              className="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+              style={{ background: '#007e6d' }}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
