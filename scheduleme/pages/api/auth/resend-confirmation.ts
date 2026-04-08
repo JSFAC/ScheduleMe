@@ -16,6 +16,18 @@ function getResend() {
   return new Resend(key);
 }
 
+function isAllowedRedirect(redirectTo: string, siteUrl: string): boolean {
+  try {
+    const requested = new URL(redirectTo);
+    const configured = new URL(siteUrl);
+    const host = configured.hostname.replace(/^www\./i, '').toLowerCase();
+    const reqHost = requested.hostname.replace(/^www\./i, '').toLowerCase();
+    return requested.protocol === 'https:' && reqHost === host;
+  } catch {
+    return false;
+  }
+}
+
 function esc(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -46,9 +58,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { email, redirectTo } = req.body || {};
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-  const safeRedirectTo = typeof redirectTo === 'string' && redirectTo.startsWith(siteUrl)
+  const safeRedirectTo = typeof redirectTo === 'string' && isAllowedRedirect(redirectTo, siteUrl)
     ? redirectTo
-    : `${siteUrl}/auth/callback`;
+    : `${siteUrl}/auth/verified?source=email_signup`;
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ error: 'Enter a valid email address.' });

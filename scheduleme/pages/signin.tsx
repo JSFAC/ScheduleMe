@@ -48,7 +48,7 @@ const SignIn: NextPage = () => {
   const captchaBlocked = !!captchaLoadError;
   const emailRedirectTo =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/auth/callback`
+      ? `${window.location.origin}/auth/verified?source=email_signup`
       : undefined;
 
   useEffect(() => {
@@ -242,6 +242,36 @@ const SignIn: NextPage = () => {
     }
   }
 
+  useEffect(() => {
+    if (!sent || showReset) return;
+    let cancelled = false;
+    const supabase = getSupabase();
+
+    const continueToVerified = async (session: any) => {
+      if (cancelled || !session) return;
+      await router.replace('/auth/verified?source=email_wait');
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) continueToVerified(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) continueToVerified(session);
+    });
+
+    const pollId = window.setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) continueToVerified(session);
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+      window.clearInterval(pollId);
+    };
+  }, [sent, showReset, router]);
+
   if (sent) {
     return (
       <>
@@ -259,6 +289,11 @@ const SignIn: NextPage = () => {
                 ? <>We sent a password reset link to <strong>{email}</strong>.</>
                 : <>We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.</>}
             </p>
+            {!showReset && (
+              <p className="text-xs text-neutral-400 mb-5">
+                Once verified, this page will continue automatically.
+              </p>
+            )}
             {!showReset && (
               <div className="space-y-2 mb-4">
                 <button
