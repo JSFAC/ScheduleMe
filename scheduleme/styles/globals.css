@@ -382,7 +382,9 @@ body { transition: background 0.2s ease, color 0.2s ease; }
 
 /* hCaptcha shell styling */
 .hcaptcha-shell {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
+  justify-content: center;
   border-radius: 18px;
   overflow: hidden;
   background: #151515;

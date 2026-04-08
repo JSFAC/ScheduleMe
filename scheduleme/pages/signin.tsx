@@ -34,24 +34,44 @@ const SignIn: NextPage = () => {
   const [failedCount, setFailedCount] = useState(0);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
+  const [captchaLoadError, setCaptchaLoadError] = useState<string | null>(null);
   const captchaRef = useRef<HTMLDivElement | null>(null);
+  const captchaTimeoutRef = useRef<number | null>(null);
   const isDark = false;
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
   const captchaRequired = !!siteKey && (tab === 'signup' || failedCount >= 3);
 
   useEffect(() => {
-    if (!siteKey || !captchaRequired) return;
+    if (!siteKey || !captchaRequired) {
+      if (captchaTimeoutRef.current) {
+        window.clearTimeout(captchaTimeoutRef.current);
+        captchaTimeoutRef.current = null;
+      }
+      return;
+    }
     const renderCaptcha = () => {
       const hcaptcha = (window as any).hcaptcha;
       if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return;
-      const id = hcaptcha.render(captchaRef.current, {
-        sitekey: siteKey,
-        theme: isDark ? 'dark' : 'light',
-        size: 'compact',
-        callback: (token: string) => setCaptchaToken(token),
-        'expired-callback': () => setCaptchaToken(''),
-      });
-      setCaptchaWidgetId(id);
+      try {
+        const id = hcaptcha.render(captchaRef.current, {
+          sitekey: siteKey,
+          theme: isDark ? 'dark' : 'light',
+          size: 'normal',
+          callback: (token: string) => {
+            setCaptchaLoadError(null);
+            setCaptchaToken(token);
+          },
+          'expired-callback': () => setCaptchaToken(''),
+          'error-callback': () => {
+            setCaptchaToken('');
+            setCaptchaLoadError('Captcha failed to load. Disable blockers/shields and refresh.');
+          },
+        });
+        setCaptchaWidgetId(id);
+        setCaptchaLoadError(null);
+      } catch {
+        setCaptchaLoadError('Captcha failed to load. Disable blockers/shields and refresh.');
+      }
     };
     if ((window as any).hcaptcha) {
       renderCaptcha();
@@ -62,7 +82,21 @@ const SignIn: NextPage = () => {
     script.async = true;
     script.defer = true;
     script.onload = renderCaptcha;
+    script.onerror = () => setCaptchaLoadError('Captcha script was blocked. Disable blockers/shields and refresh.');
     document.body.appendChild(script);
+
+    captchaTimeoutRef.current = window.setTimeout(() => {
+      if (captchaWidgetId === null) {
+        setCaptchaLoadError('Captcha did not appear. Disable blockers/shields, then refresh.');
+      }
+    }, 8000);
+
+    return () => {
+      if (captchaTimeoutRef.current) {
+        window.clearTimeout(captchaTimeoutRef.current);
+        captchaTimeoutRef.current = null;
+      }
+    };
   }, [siteKey, captchaRequired, captchaWidgetId]);
 
   async function handleGoogle() {
@@ -267,9 +301,10 @@ const SignIn: NextPage = () => {
                         value={password} onChange={e => setPassword(e.target.value)} />
                     </div>
                     {captchaRequired && (
-                      <div className="pt-1 flex flex-col items-center">
-                        <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
+                      <div className="pt-1 flex flex-col items-start w-full">
+                        <div ref={captchaRef} className="hcaptcha-shell w-full" style={{ minHeight: 78 }} />
                         {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
+                        {captchaLoadError && <p className="mt-2 text-xs text-red-500">{captchaLoadError}</p>}
                       </div>
                     )}
                     <button type="submit" disabled={loading} className="btn-primary w-full py-3">
