@@ -419,7 +419,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, status, service, user_id, amount_cents, protection_fee_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+      .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -437,6 +437,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isBusinessOwner = biz?.owner_email === user.email;
     let canCancelAsConsumer = false;
     let canDisputeAsConsumer = false;
+    let canCompleteAsConsumer = false;
     if (!isBusinessOwner && status === 'cancelled') {
       let canCancel = booking.user_id === user.id;
       if (!canCancel && user.email) {
@@ -481,11 +482,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       canDisputeAsConsumer = canDispute;
     }
+    if (!isBusinessOwner && status === 'completed') {
+      let canComplete = booking.user_id === user.id;
+      if (!canComplete && user.email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (profile?.id && booking.user_id === profile.id) canComplete = true;
+        if (!canComplete) {
+          try {
+            const { data: legacyUser } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (legacyUser?.id && booking.user_id === legacyUser.id) canComplete = true;
+          } catch {}
+        }
+      }
+      canCompleteAsConsumer = canComplete;
+    }
 
-    if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer)
+    if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer && !canCompleteAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
     const cancellationReason = typeof cancellation_reason === 'string' ? cancellation_reason.trim().slice(0, LIMITS.note) : '';
-    if (status === 'cancelled' && !isBusinessOwner && !cancellationReason) {
+    if (status === 'cancelled' && !isBusinessOwner && booking.paid_at && !cancellationReason) {
       return res.status(400).json({ error: 'Cancellation reason is required' });
     }
 
@@ -505,6 +528,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             error: 'You can mark this booking complete only after the scheduled service time.',
           });
         }
+      }
+    }
+    if (status === 'completed' && !isBusinessOwner) {
+      if (!booking.paid_at) {
+        return res.status(400).json({ error: 'Payment must be completed before confirming service completion.' });
+      }
+      if (!['confirmed', 'active', 'paid'].includes(booking.status)) {
+        return res.status(400).json({ error: 'This booking cannot be marked complete yet.' });
       }
     }
 

@@ -329,11 +329,12 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, onPriceAccepted, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete, onRequestReview, onPriceAccepted, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string, reason: string) => Promise<void>;
+  onConfirmComplete: (id: string) => Promise<void>;
   onRequestReview: (booking: Booking) => void;
   onPriceAccepted: (id: string, updates: Partial<Booking>) => void;
   dm: boolean;
@@ -355,6 +356,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelErr, setCancelErr] = useState('');
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [completeErr, setCompleteErr] = useState('');
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputePrice, setDisputePrice] = useState('');
   const [disputeNote, setDisputeNote] = useState('');
@@ -396,6 +400,19 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
       setCancelErr(e?.message || 'Could not cancel booking. Please try again.');
     } finally {
       setCancelling(false);
+    }
+  }
+
+  async function handleConfirmCompleteSubmit() {
+    setCompleteErr('');
+    setCompleting(true);
+    try {
+      await onConfirmComplete(booking.id);
+      close();
+    } catch (e: any) {
+      setCompleteErr(e?.message || 'Could not confirm completion. Please try again.');
+    } finally {
+      setCompleting(false);
     }
   }
 
@@ -855,6 +872,18 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
             </div>
           )}
 
+          {/* Consumer complete confirmation (early payout release) */}
+          {booking.paid_at && ['confirmed', 'active', 'paid'].includes(booking.status) && (
+            <div className="mt-6 pt-5 border-t border-neutral-100">
+              <button
+                onClick={() => { setCompleteOpen(true); setCompleteErr(''); }}
+                className="w-full py-3 rounded-xl border-2 border-emerald-200 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-colors"
+              >
+                Confirm Service Complete
+              </button>
+            </div>
+          )}
+
           {/* Cancel action */}
           {!['completed', 'cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
@@ -926,6 +955,57 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                 style={{ background: cancelling ? '#ef9a9a' : '#dc2626' }}
               >
                 {cancelling ? 'Cancelling…' : 'Confirm cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {completeOpen && (
+        <div
+          className="fixed inset-0 z-[2150] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !completing) setCompleteOpen(false); }}
+        >
+          <div
+            className="w-full max-w-md mx-4 rounded-2xl p-5"
+            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Confirm completion</p>
+              <button
+                onClick={() => !completing && setCompleteOpen(false)}
+                className="h-8 w-8 rounded-full flex items-center justify-center"
+                style={{ background: dm ? '#1f2937' : '#f3f4f6' }}
+                disabled={completing}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p className="text-sm font-semibold" style={{ color: dm ? '#e5e7eb' : '#111827' }}>
+              You are about to confirm this booking is complete.
+            </p>
+            <p className="text-xs mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              This releases provider payout immediately. Once confirmed, this booking will not be eligible for a refund.
+            </p>
+            {completeErr && <p className="text-[11px] text-red-500 mt-2">{completeErr}</p>}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => !completing && setCompleteOpen(false)}
+                disabled={completing}
+                className="py-2.5 rounded-xl text-sm font-semibold border"
+                style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#d1d5db' : '#374151', background: dm ? '#171717' : '#f9fafb' }}
+              >
+                Not yet
+              </button>
+              <button
+                onClick={handleConfirmCompleteSubmit}
+                disabled={completing}
+                className="py-2.5 rounded-xl text-sm font-semibold text-white"
+                style={{ background: completing ? '#8cd3c8' : '#007e6d' }}
+              >
+                {completing ? 'Confirming…' : 'Yes, confirm'}
               </button>
             </div>
           </div>
@@ -1387,6 +1467,19 @@ function writeCoords(lat: number, lng: number) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || 'Failed to cancel booking');
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
+  }
+
+  async function confirmBookingComplete(id: string) {
+    const { data: { session } } = await getSupabase().auth.getSession();
+    if (!session) throw new Error('Please sign in again and retry.');
+    const res = await fetch('/api/bookings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ booking_id: id, status: 'completed' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to confirm booking completion');
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'completed' } : b));
   }
 
   useEffect(() => {
@@ -1915,8 +2008,9 @@ function writeCoords(lat: number, lng: number) {
         <DetailSheet
           booking={selectedBooking}
           originRect={originRect}
-          onClose={() => setSelectedBooking(null)}
+          onClose={() => { setSelectedBooking(null); setOriginRect(null); }}
           onCancel={cancelBooking}
+          onConfirmComplete={confirmBookingComplete}
           onRequestReview={(b) => {
             if (!b.business_id) { setPaymentToast('setup_cancelled'); return; }
             setReviewTarget({
