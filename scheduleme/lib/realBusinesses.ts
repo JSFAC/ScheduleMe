@@ -101,9 +101,14 @@ export async function fetchNearbyBusinesses(
         limit: String(opts.limit ?? 40),
       });
       if (opts.category) params.set('category', opts.category.toLowerCase());
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
       const res = await fetch(`/api/nearby-businesses?${params.toString()}`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-store' },
+        headers,
       });
       if (res.ok) {
         if (res.status === 304) return [];

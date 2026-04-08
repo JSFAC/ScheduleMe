@@ -6,6 +6,21 @@ import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 import { computeFounder50Status } from '../../lib/founder50';
 
+function normalizeDomain(domain?: string | null): string | null {
+  if (!domain) return null;
+  const trimmed = String(domain).trim().toLowerCase();
+  if (!trimmed) return null;
+  return trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+}
+
+function domainFromSchoolEmail(schoolEmail?: string | null): string | null {
+  if (!schoolEmail) return null;
+  const email = String(schoolEmail).trim().toLowerCase();
+  const at = email.lastIndexOf('@');
+  if (at < 0) return null;
+  return normalizeDomain(email.slice(at + 1));
+}
+
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
   const R = 3958.8;
@@ -38,6 +53,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!serviceKey) return res.status(200).json({ businesses: [], error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
+    let viewerEduVerified = false;
+    let viewerSchoolDomain: string | null = null;
+    const authHeader = String(req.headers.authorization || '');
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      if (token) {
+        try {
+          const { data: authData } = await sb.auth.getUser(token);
+          const viewerId = authData?.user?.id;
+          if (viewerId) {
+            const { data: profile } = await sb
+              .from('profiles')
+              .select('edu_verified, school_email, school_name')
+              .eq('id', viewerId)
+              .maybeSingle();
+            viewerEduVerified = !!profile?.edu_verified;
+            viewerSchoolDomain =
+              domainFromSchoolEmail(profile?.school_email)
+              || normalizeDomain(profile?.school_name)
+              || null;
+          }
+        } catch {
+          // Keep public/locked behavior when token parsing fails.
+        }
+      }
+    }
 
     const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos';
     const legacySelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
@@ -115,7 +156,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const showPhotos = b.public_show_photos === true;
       // Only mask "private until student verification" listings for campus providers.
       // Non-campus providers should stay publicly visible.
-      const previewLocked = b.campus_provider === true && b.public_visibility === false;
+      const businessSchoolDomain = normalizeDomain(b.school_domain);
+      const sameCampusVerifiedViewer =
+        viewerEduVerified
+        && !!viewerSchoolDomain
+        && !!businessSchoolDomain
+        && viewerSchoolDomain === businessSchoolDomain;
+      const previewLocked = b.campus_provider === true && b.public_visibility === false && !sameCampusVerifiedViewer;
       return {
         ...b,
         name: previewLocked ? null : b.name,
