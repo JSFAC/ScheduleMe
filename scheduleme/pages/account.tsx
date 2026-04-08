@@ -17,6 +17,17 @@ function getSupabase() {
   return getSupabaseClient();
 }
 
+function metadataDisplayName(user: any): string {
+  const first = String(user?.user_metadata?.first_name || '').trim();
+  const last = String(user?.user_metadata?.last_name || '').trim();
+  const fromParts = `${first} ${last}`.trim();
+  return (
+    String(user?.user_metadata?.full_name || '').trim() ||
+    String(user?.user_metadata?.name || '').trim() ||
+    fromParts
+  );
+}
+
 type Tab = 'addresses' | 'notifications' | 'security' | 'settings' | 'payments';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -285,9 +296,10 @@ const Account: NextPage = () => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) { router.push('/signin'); return; }
       const u = session.user;
+      const metaName = metadataDisplayName(u);
       setUser(u);
       // Prefer server profile avatar; avoid Google avatar fallback
-      setName(u.user_metadata?.full_name || '');
+      setName(metaName || '');
       setPhone(u.user_metadata?.phone || '');
       setAuthProvider(u.app_metadata?.provider || 'email');
       // Load edu verified status
@@ -296,11 +308,12 @@ const Account: NextPage = () => {
         setEduVerified(data?.edu_verified ?? false);
         if (data?.school_email) setEduEmail(data.school_email);
         if (data?.avatar_url) setAvatarUrl(data.avatar_url);
-        if ((u.user_metadata?.full_name || u.user_metadata?.phone) && (!data?.name || !data?.phone)) {
+        if (!metaName && data?.name) setName(data.name);
+        if ((metaName || u.user_metadata?.phone) && (!data?.name || !data?.phone)) {
           try {
             await sb2.from('profiles').upsert({
               id: u.id,
-              name: u.user_metadata?.full_name || data?.name || null,
+              name: metaName || data?.name || null,
               phone: u.user_metadata?.phone || data?.phone || null,
               email: u.email || data?.email || null,
             }, { onConflict: 'id' });
@@ -485,7 +498,7 @@ const Account: NextPage = () => {
     </>
   );
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const displayName = metadataDisplayName(user) || user?.email?.split('@')[0] || 'User';
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
   const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
   const isGoogleAuth = authProvider === 'google';

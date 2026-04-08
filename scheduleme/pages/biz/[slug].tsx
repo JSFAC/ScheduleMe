@@ -612,6 +612,12 @@ export default function BizPage() {
     const scheduled_end = requiresTime
       ? null
       : (() => { const due = new Date(date); due.setHours(12, 0, 0, 0); return due.toISOString(); })();
+    const metaFirst = String(session.user.user_metadata?.first_name || '').trim();
+    const metaLast = String(session.user.user_metadata?.last_name || '').trim();
+    const metaName =
+      String(session.user.user_metadata?.full_name || '').trim() ||
+      String(session.user.user_metadata?.name || '').trim() ||
+      `${metaFirst} ${metaLast}`.trim();
     let d: any = null;
     try {
       const res = await fetch('/api/bookings', {
@@ -627,7 +633,7 @@ export default function BizPage() {
           scheduled_end,
           user_id: session.user.id,
           user_email: session.user.email,
-          user_name: session.user.user_metadata?.full_name,
+          user_name: metaName || null,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });

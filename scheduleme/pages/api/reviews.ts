@@ -13,6 +13,36 @@ function getSupabase() {
   );
 }
 
+async function hydrateReviewerName(supabase: ReturnType<typeof getSupabase>, userId: string) {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, name, email')
+      .eq('id', userId)
+      .maybeSingle();
+    if (profile?.name) return;
+
+    const { data: authData } = await supabase.auth.admin.getUserById(userId);
+    const authUser = authData?.user;
+    const first = String(authUser?.user_metadata?.first_name || '').trim();
+    const last = String(authUser?.user_metadata?.last_name || '').trim();
+    const fromParts = `${first} ${last}`.trim();
+    const metaName =
+      String(authUser?.user_metadata?.full_name || '').trim() ||
+      String(authUser?.user_metadata?.name || '').trim() ||
+      fromParts;
+
+    if (!metaName) return;
+    await supabase.from('profiles').upsert({
+      id: userId,
+      name: metaName,
+      email: authUser?.email || profile?.email || null,
+    }, { onConflict: 'id' });
+  } catch {
+    // non-blocking best effort
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
 
@@ -50,6 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const supabase = getSupabase();
+    await hydrateReviewerName(supabase, user.id);
 
     // Verify the booking belongs to this user and is completed
     const { data: booking } = await supabase

@@ -27,7 +27,13 @@ async function hydrateProfileFromAuth(
   try {
     const { data: authData } = await supabase.auth.admin.getUserById(userId);
     const authUser = authData?.user;
-    const metaName = authUser?.user_metadata?.full_name;
+    const first = String(authUser?.user_metadata?.first_name || '').trim();
+    const last = String(authUser?.user_metadata?.last_name || '').trim();
+    const fromParts = `${first} ${last}`.trim();
+    const metaName =
+      String(authUser?.user_metadata?.full_name || '').trim() ||
+      String(authUser?.user_metadata?.name || '').trim() ||
+      fromParts;
     if (metaName) {
       await supabase.from('profiles').upsert({
         id: userId,

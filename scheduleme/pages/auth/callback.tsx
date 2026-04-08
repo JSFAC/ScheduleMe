@@ -19,6 +19,13 @@ const AuthCallback: NextPage = () => {
       if (event === 'SIGNED_IN' && session) {
         const email = session.user.email ?? '';
         const userId = session.user.id;
+        const firstName = String(session.user.user_metadata?.first_name || '').trim();
+        const lastName = String(session.user.user_metadata?.last_name || '').trim();
+        const fallbackFromParts = `${firstName} ${lastName}`.trim();
+        const name =
+          String(session.user.user_metadata?.full_name || '').trim() ||
+          String(session.user.user_metadata?.name || '').trim() ||
+          fallbackFromParts;
 
         const source = localStorage.getItem('auth_source');
         localStorage.removeItem('auth_source');
@@ -46,8 +53,6 @@ const AuthCallback: NextPage = () => {
           }
         } else {
           // Consumer flow — profiles is source of truth (trigger creates row on signup)
-          const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
-
           // Belt+suspenders: create profile if trigger didn't fire (e.g. existing auth users)
           await supabase.from('profiles').upsert({
             id: userId,
