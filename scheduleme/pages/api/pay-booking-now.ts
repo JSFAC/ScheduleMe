@@ -121,7 +121,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await supabase
       .from('bookings')
       .update({
-        status: 'paid',
         paid_at: new Date().toISOString(),
         protection_fee_cents: protectionFeeCents,
         stripe_payment_intent_id: pi.id,

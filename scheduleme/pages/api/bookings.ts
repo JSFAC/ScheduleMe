@@ -401,7 +401,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, status, service, user_id, amount_cents, protection_fee_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+      .select('id, status, service, user_id, amount_cents, protection_fee_cents, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -472,6 +472,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (status === 'cancelled' && booking.status === 'cancelled') {
       return res.status(200).json({ success: true, already_cancelled: true });
+    }
+    if (status === 'completed' && isBusinessOwner) {
+      // Basic anti-fraud guard: provider cannot complete before the scheduled service time.
+      const gateIso = booking.scheduled_end || booking.scheduled_start || null;
+      if (gateIso) {
+        const gate = new Date(gateIso).getTime();
+        if (!Number.isNaN(gate) && Date.now() < gate) {
+          return res.status(400).json({
+            error: 'You can mark this booking complete only after the scheduled service time.',
+          });
+        }
+      }
     }
 
     const updatePayload: any = { status };

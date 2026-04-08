@@ -223,7 +223,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       }
 
-      // Payment succeeded — mark booking as paid (or keep completed)
+      // Payment succeeded — keep booking workflow status and only mark funds as paid
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent;
         const { bookingId, businessId } = pi.metadata;
@@ -235,13 +235,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .eq('id', bookingId)
             .maybeSingle();
 
-          const nextStatus = existing?.status === 'completed' ? 'completed' : 'paid';
+          const updates: any = {
+            paid_at: new Date().toISOString(),
+            stripe_payment_intent_id: pi.id,
+          };
+          // Keep legacy compatibility only for old payment_pending rows.
+          if (existing?.status === 'payment_pending') {
+            updates.status = 'pending';
+          }
           await supabase
             .from('bookings')
-            .update({ status: nextStatus, paid_at: new Date().toISOString() })
+            .update(updates)
             .eq('id', bookingId);
 
-          console.log(`[webhook] Booking ${bookingId} marked as paid`);
+          console.log(`[webhook] Booking ${bookingId} payment succeeded`);
 
           await notifyNewBooking(bookingId, supabase);
 
