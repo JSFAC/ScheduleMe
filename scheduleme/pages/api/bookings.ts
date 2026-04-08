@@ -60,7 +60,7 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
   try {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, status, created_at, customer_proposed_price_cents, businesses(name, owner_email, phone), profiles(name, email, phone, avatar_url)')
+      .select('id, service, status, created_at, scheduled_start, scheduled_end, note, amount_cents, protection_fee_cents, customer_proposed_price_cents, businesses(name, owner_email, phone), profiles(name, email, phone, avatar_url)')
       .eq('id', bookingId)
       .single();
     if (!booking) return;
@@ -87,6 +87,12 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
 
     // Email business owner about new booking
     if (biz?.owner_email) {
+      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
+      const scheduledAt = scheduledRaw
+        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
+      const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
+      const totalCents = typeof booking.amount_cents === 'number' ? (booking.amount_cents + protectionFee) : null;
       await fetch(`${siteUrl}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
@@ -96,7 +102,9 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
           name: biz.name,
           service: booking.service,
           customerName: user?.name || 'A customer',
-          customerPhone: user?.phone || '',
+          scheduledAt,
+          note: booking.note || '',
+          amountDollars: totalCents != null ? (totalCents / 100).toFixed(2) : '',
           bookingId,
         }),
       }).catch(() => {});
@@ -471,8 +479,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatePayload.price_accepted_at = null;
     }
 
-    // If cancelling a paid booking, issue a full refund and reverse transfer + app fee
-    if (status === 'cancelled' && booking.stripe_payment_intent_id && booking.paid_at) {
+    // If cancelling a booking with a Stripe payment intent, issue a full refund and reverse transfer + app fee.
+    // This also protects edge cases where paid_at did not update yet but Stripe already captured funds.
+    if (status === 'cancelled' && booking.stripe_payment_intent_id) {
       try {
         await stripe.refunds.create({
           payment_intent: booking.stripe_payment_intent_id,
@@ -527,9 +536,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           off_session: true,
           application_fee_amount: applicationFeeCents,
           transfer_data: { destination: biz.stripe_account_id },
+          description: `ScheduleMe booking: ${booking.service || 'Service'} with ${biz.name || 'provider'}`,
           metadata: {
             bookingId: booking_id,
             businessId: biz.id,
+            service: booking.service || '',
+            business_name: biz.name || '',
             platform_fee_percent: String(platformFeePercent),
             protection_fee_cents: String(protectionFeeCents),
           },

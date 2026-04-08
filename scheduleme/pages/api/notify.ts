@@ -45,7 +45,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         result = await sendWelcomeEmail({ to, name: name || 'there' });
         break;
       case 'new_booking_business':
-        result = await sendNewBookingBusinessEmail({ to, businessName: rest.name || 'Your business', customerName: rest.customerName || 'A customer', customerPhone: rest.customerPhone || '', service: rest.service || 'Service Request', bookingId: rest.bookingId || '' });
+        result = await sendNewBookingBusinessEmail({
+          to,
+          businessName: rest.name || 'Your business',
+          customerName: rest.customerName || 'A customer',
+          service: rest.service || 'Service Request',
+          bookingId: rest.bookingId || '',
+          scheduledAt: rest.scheduledAt || '',
+          note: rest.note || '',
+          amountDollars: rest.amountDollars || '',
+        });
         break;
       case 'new_business_application':
         result = await sendNewBusinessApplicationEmail({ to, name: rest.name || 'Unknown', ownerName: rest.ownerName || '', email: rest.email || '', phone: rest.phone || '', category: rest.category || '', city: rest.city || '', campusProvider: rest.campusProvider === true, schoolName: rest.schoolName });

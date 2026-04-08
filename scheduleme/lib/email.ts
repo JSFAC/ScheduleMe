@@ -270,9 +270,11 @@ export function welcomeHtml(opts: { name: string }) {
 export function newBookingBusinessHtml(opts: {
   businessName: string;
   customerName: string;
-  customerPhone: string;
   service: string;
   bookingId: string;
+  scheduledAt?: string;
+  note?: string;
+  amountDollars?: string;
 }) {
   const dashUrl = `${SITE_URL}/business/dashboard`;
   const body = `
@@ -287,12 +289,20 @@ export function newBookingBusinessHtml(opts: {
           <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerName}</span>
         </td></tr>
         <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
-          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Phone</span>
-          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerPhone || 'Not provided'}</span>
-        </td></tr>
-        <tr><td style="padding:14px 20px;">
           <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service Requested</span>
           <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.service}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Date & Time</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.scheduledAt || 'Not specified yet'}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Booking Note</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.note || 'No note provided'}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Price (incl. protection)</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.amountDollars ? `$${opts.amountDollars}` : 'Pending provider pricing'}</span>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
@@ -704,7 +714,7 @@ export async function sendStripeAlertEmail(opts: { to: string; subject: string; 
 }
 
 export async function sendNewBookingBusinessEmail(opts: {
-  to: string; businessName: string; customerName: string; customerPhone: string; service: string; bookingId: string;
+  to: string; businessName: string; customerName: string; service: string; bookingId: string; scheduledAt?: string; note?: string; amountDollars?: string;
 }) {
   const resend = getResend();
   return resend.emails.send({ from: FROM, to: opts.to, subject: `New booking request — ${opts.service}`, html: newBookingBusinessHtml(opts) });

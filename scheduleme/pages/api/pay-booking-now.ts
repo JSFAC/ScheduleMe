@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+    .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
     .eq('id', booking_id)
     .maybeSingle();
 
@@ -95,14 +95,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       amount: totalChargeCents,
       currency: 'usd',
       customer: customerId,
+      receipt_email: user.email || undefined,
       payment_method: paymentMethodId,
       confirm: true,
       off_session: true,
       application_fee_amount: applicationFeeCents,
       transfer_data: { destination: biz.stripe_account_id },
+      description: `ScheduleMe booking: ${booking.service || 'Service'} with ${biz.name || 'provider'}`,
       metadata: {
         bookingId: booking.id,
         businessId: biz.id,
+        service: booking.service || '',
+        business_name: biz.name || '',
         flow: 'upfront_pay_page',
         platform_fee_percent: String(platformFeePercent),
         protection_fee_cents: String(protectionFeeCents),

@@ -352,7 +352,7 @@ const PayPage: NextPage = () => {
             <h3 className="text-lg font-bold" style={{ color: textPrimary }}>Payment complete</h3>
             <p className="text-sm mt-2" style={{ color: textMuted }}>Your booking is now paid and secured. We’ll email you updates as it moves forward.</p>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => router.replace('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Go to bookings</button>
+              <button onClick={() => router.replace('/home')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Back to home</button>
               <button onClick={() => router.replace('/bookings')} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#007e6d' }}>Go to bookings</button>
             </div>
           </div>

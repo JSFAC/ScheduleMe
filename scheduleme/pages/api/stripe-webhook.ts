@@ -55,7 +55,7 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
   try {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, status, created_at, businesses(name, owner_email, phone), profiles(name, email, phone)')
+      .select('id, service, status, created_at, scheduled_start, scheduled_end, note, amount_cents, protection_fee_cents, businesses(name, owner_email, phone), profiles(name, email, phone)')
       .eq('id', bookingId)
       .single();
     if (!booking) return;
@@ -80,6 +80,12 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
     }
 
     if (biz?.owner_email) {
+      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
+      const scheduledAt = scheduledRaw
+        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
+      const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : 99;
+      const totalCents = typeof booking.amount_cents === 'number' ? (booking.amount_cents + protectionFee) : null;
       await fetch(`${siteUrl}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
@@ -89,7 +95,9 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
           name: biz.name,
           service: booking.service,
           customerName: user?.name || 'A customer',
-          customerPhone: user?.phone || '',
+          scheduledAt,
+          note: booking.note || '',
+          amountDollars: totalCents != null ? (totalCents / 100).toFixed(2) : '',
           bookingId,
         }),
       }).catch(() => {});
