@@ -11,7 +11,6 @@ import Nav from '../components/Nav';
 import ReviewModal from '../components/ReviewModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
-import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import { PROTECTION_FEE_CENTS } from '../lib/fees';
 
@@ -1156,15 +1155,9 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
   );
 }
 
-type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
-
-
 const BookingsPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
-  const [phase, setPhase] = useState<Phase>('loading');
-  const [userName, setUserName] = useState('');
-  const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [nearbyBizList, setNearbyBizList] = useState<any[]>([]);
@@ -1309,36 +1302,6 @@ function writeCoords(lat: number, lng: number) {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        const fullName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
-        const firstName = fullName.split(' ')[0];
-        const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-
-        const { data: profile } = await supabase
-          .from('profiles').select('has_seen_welcome').eq('id', session.user.id).maybeSingle();
-
-        const seenCacheKey = `sm_seen_welcome_${session.user.id}`;
-        const emailCacheKey = `sm_welcome_email_sent_${session.user.id}`;
-        const cachedSeen = typeof window !== 'undefined' && localStorage.getItem(seenCacheKey) === 'true';
-        const cachedEmailSent = typeof window !== 'undefined' && localStorage.getItem(emailCacheKey) === 'true';
-
-        const isFirstVisit = !cachedSeen && profile !== null && profile.has_seen_welcome === false;
-
-        if (isFirstVisit) {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(seenCacheKey, 'true');
-          }
-          setUserName(firstName);
-          setUserInitials(initials);
-          setPhase('welcome');
-          if (session.user.email && !cachedEmailSent) {
-            maybeSendWelcomeEmail(session.user.email, fullName, session.user.id);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(emailCacheKey, 'true');
-            }
-          }
-        } else {
-          setPhase('done');
-        }
 
         // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
@@ -1412,7 +1375,6 @@ function writeCoords(lat: number, lng: number) {
           }
         }
       } else {
-        setPhase('done');
         setLoadingBookings(false);
           // Also fetch nearby businesses for the "Available near you" section
           try {
@@ -1458,8 +1420,6 @@ function writeCoords(lat: number, lng: number) {
     });
   }, []);
 
-  const showOverlay = phase === 'welcome' || phase === 'transitioning';
-  const overlayOut = phase === 'transitioning';
   const filteredBookings = bookings; // category filter removed - column doesn't exist in DB
   const activeBookings = filteredBookings.filter(b => !['completed', 'cancelled'].includes(b.status));
   const pastBookings   = filteredBookings.filter(b => ['completed', 'cancelled'].includes(b.status));
@@ -1481,16 +1441,6 @@ function writeCoords(lat: number, lng: number) {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Bookings — ScheduleMe</title></Head>
-
-      {/* Onboarding carousel — first time users only */}
-      {showOverlay && (
-        <OnboardingCarousel
-          userName={userName}
-          userInitials={userInitials}
-          fading={overlayOut}
-          onDone={() => { setPhase('transitioning'); setTimeout(() => setPhase('done'), 500); }}
-        />
-      )}
 
       <Nav />
 

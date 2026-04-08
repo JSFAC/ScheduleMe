@@ -79,7 +79,7 @@ const AuthCallback: NextPage = () => {
             return;
           }
           if (isNewUser) {
-            router.replace('/bookings');
+            router.replace('/home');
           } else {
             const { data: profile } = await supabase
               .from('profiles')

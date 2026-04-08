@@ -12,6 +12,7 @@ import type { Business } from '../lib/mockBusinesses';
 import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import FeedbackModal from '../components/FeedbackModal';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
+import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
@@ -623,10 +624,97 @@ function ReferCard() {
   );
 }
 
+type WelcomePhase = 'welcome' | 'transitioning' | 'done';
+
+const HOME_ONBOARDING_STEPS = [
+  {
+    icon: 'shield',
+    headline: 'Book confidently on ScheduleMe',
+    body: 'You now pay when you book. Funds are held securely and providers are paid after completion, with protection fee coverage and dispute support.',
+    cta: 'Next',
+  },
+  {
+    icon: 'campus',
+    headline: 'Campus mode is built in',
+    body: 'Student providers can stay private until .edu verification. Public providers remain visible, so Home and Browse always feel alive.',
+    cta: 'Next',
+  },
+  {
+    icon: 'flow',
+    headline: 'Everything in one flow',
+    body: 'Search, compare, review booking details, pay securely, chat, cancel with fast refunds, and track status updates in one place.',
+    cta: 'Start using ScheduleMe',
+  },
+];
+
+function HomeOnboarding({ userName, fading, onDone }: { userName: string; fading: boolean; onDone: () => void }) {
+  const [step, setStep] = useState(0);
+  const s = HOME_ONBOARDING_STEPS[step];
+
+  function next() {
+    if (step < HOME_ONBOARDING_STEPS.length - 1) setStep(step + 1);
+    else onDone();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center px-6 transition-opacity duration-300"
+      style={{ opacity: fading ? 0 : 1, background: '#070b0a' }}
+    >
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(70% 50% at 50% 70%, rgba(0,126,109,0.16) 0%, rgba(0,126,109,0) 100%)' }} />
+
+      <div className="absolute top-9 left-0 right-0 flex items-center justify-between px-6">
+        <div className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          Welcome{userName ? `, ${userName}` : ''}
+        </div>
+        <button onClick={onDone} className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          Skip
+        </button>
+      </div>
+
+      <div className="max-w-md w-full text-center rounded-3xl border px-7 py-8" style={{ borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(15,20,19,0.9)' }}>
+        <div className="flex justify-center gap-2 mb-6">
+          {HOME_ONBOARDING_STEPS.map((_, i) => (
+            <div key={i} className="h-1.5 rounded-full transition-all" style={{ width: i === step ? 22 : 8, background: i === step ? '#007e6d' : 'rgba(255,255,255,0.25)' }} />
+          ))}
+        </div>
+
+        <div className="mx-auto mb-5 h-14 w-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(0,126,109,0.2)', border: '1px solid rgba(0,126,109,0.35)' }}>
+          {s.icon === 'shield' && (
+            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="#54d3b9" strokeWidth={1.9}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7.5 3v5.25c0 4.56-3.12 8.76-7.5 9.75-4.38-.99-7.5-5.19-7.5-9.75V6L12 3z" />
+            </svg>
+          )}
+          {s.icon === 'campus' && (
+            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="#54d3b9" strokeWidth={1.9}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.25L12 4l9 4.25L12 12.5 3 8.25zm3 2.5v4.75l6 3 6-3v-4.75" />
+            </svg>
+          )}
+          {s.icon === 'flow' && (
+            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="#54d3b9" strokeWidth={1.9}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5h7.5m0 0L9.75 5.25M12 7.5L9.75 9.75M19.5 16.5H12m0 0 2.25-2.25M12 16.5l2.25 2.25" />
+            </svg>
+          )}
+        </div>
+
+        <h1 className="text-2xl font-black text-white mb-3" style={{ letterSpacing: '-0.02em' }}>{s.headline}</h1>
+        <p className="text-sm leading-relaxed mb-7" style={{ color: 'rgba(255,255,255,0.72)' }}>{s.body}</p>
+
+        <button onClick={next} className="w-full py-3.5 rounded-2xl font-bold text-white transition-all active:scale-[0.99]" style={{ background: '#007e6d' }}>
+          {s.cta}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const HomePage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
   const [userName, setUserName] = useState('');
+  const [welcomePhase, setWelcomePhase] = useState<WelcomePhase>('done');
+  const [welcomeName, setWelcomeName] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
     const [activeCategory, setActiveCategory] = useState<string>('All');
   const [realBizList, setRealBizList] = useState<Business[]>([]);
@@ -722,16 +810,39 @@ async function togglePinned(bizId: string) {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
-      const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
-      setUserName(name.split(' ')[0]);
+      const fullName =
+        String(session.user.user_metadata?.full_name || '').trim() ||
+        `${String(session.user.user_metadata?.first_name || '').trim()} ${String(session.user.user_metadata?.last_name || '').trim()}`.trim() ||
+        session.user.email?.split('@')[0] ||
+        'there';
+      const firstName = fullName.split(' ')[0];
+      setUserName(firstName);
+      setWelcomeName(firstName);
+      setCurrentUserId(session.user.id);
       setLoading(false);
       await loadPinned(session.user.id);
       // Check edu verification status
       const supabaseInst = getSupabase();
       const { data: profile } = await supabaseInst
-        .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
+        .from('profiles').select('edu_verified, has_seen_welcome').eq('id', session.user.id).maybeSingle();
       const isEdu = profile?.edu_verified ?? false;
       setEduVerified(isEdu);
+
+      const seenCacheKey = `sm_seen_welcome_${session.user.id}`;
+      const emailCacheKey = `sm_welcome_email_sent_${session.user.id}`;
+      const cachedSeen = typeof window !== 'undefined' && localStorage.getItem(seenCacheKey) === 'true';
+      const cachedEmailSent = typeof window !== 'undefined' && localStorage.getItem(emailCacheKey) === 'true';
+      const isFirstVisit = (!profile || profile.has_seen_welcome === false) && !cachedSeen;
+      if (isFirstVisit) {
+        setWelcomePhase('welcome');
+        if (session.user.email && !cachedEmailSent) {
+          maybeSendWelcomeEmail(session.user.email, fullName, session.user.id);
+          if (typeof window !== 'undefined') localStorage.setItem(emailCacheKey, 'true');
+        }
+      } else {
+        setWelcomePhase('done');
+      }
+
       // Show install banner on mobile if not already installed and not dismissed
       const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
       const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
@@ -783,6 +894,19 @@ async function togglePinned(bizId: string) {
     });
   }, [router]);
 
+  async function completeWelcome() {
+    if (currentUserId && typeof window !== 'undefined') {
+      const seenCacheKey = `sm_seen_welcome_${currentUserId}`;
+      localStorage.setItem(seenCacheKey, 'true');
+      await getSupabase().from('profiles').update({ has_seen_welcome: true }).eq('id', currentUserId);
+    }
+    setWelcomePhase('transitioning');
+    window.setTimeout(() => setWelcomePhase('done'), 320);
+  }
+
+  const showWelcomeOverlay = welcomePhase === 'welcome' || welcomePhase === 'transitioning';
+  const welcomeFading = welcomePhase === 'transitioning';
+
   if (loading) return (
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
@@ -803,6 +927,13 @@ async function togglePinned(bizId: string) {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Home — ScheduleMe</title></Head>
+      {showWelcomeOverlay && (
+        <HomeOnboarding
+          userName={welcomeName}
+          fading={welcomeFading}
+          onDone={completeWelcome}
+        />
+      )}
       <Nav />
       <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #FCFAF6)' }} data-page-bg="true">
 

@@ -85,7 +85,7 @@ const VerifiedPage: NextPage = () => {
               .maybeSingle();
 
             const isNewUser = !userRow || userRow.has_seen_welcome === false;
-            if (isNewUser) target = '/bookings';
+            if (isNewUser) target = '/home';
             else target = userRow?.edu_verified ? '/campus' : '/home';
           }
         }
@@ -172,4 +172,3 @@ const VerifiedPage: NextPage = () => {
 };
 
 export default VerifiedPage;
-

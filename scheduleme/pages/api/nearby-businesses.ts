@@ -113,7 +113,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const status = computeFounder50Status(b);
       const showName = b.public_show_name === true;
       const showPhotos = b.public_show_photos === true;
-      const previewLocked = b.public_visibility === false;
+      // Only mask "private until student verification" listings for campus providers.
+      // Non-campus providers should stay publicly visible.
+      const previewLocked = b.campus_provider === true && b.public_visibility === false;
       return {
         ...b,
         name: previewLocked ? null : b.name,
