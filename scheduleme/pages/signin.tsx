@@ -37,23 +37,23 @@ const SignIn: NextPage = () => {
   const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
   const [captchaLoadError, setCaptchaLoadError] = useState<string | null>(null);
   const captchaRef = useRef<HTMLDivElement | null>(null);
-  const captchaTimeoutRef = useRef<number | null>(null);
+  const captchaReadyRef = useRef(false);
   const isDark = false;
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
   const captchaRequired = !!siteKey && (tab === 'signup' || failedCount >= 3);
   const captchaBlocked = !!captchaLoadError;
 
   useEffect(() => {
-    if (!siteKey || !captchaRequired) {
-      if (captchaTimeoutRef.current) {
-        window.clearTimeout(captchaTimeoutRef.current);
-        captchaTimeoutRef.current = null;
-      }
-      return;
-    }
-    const renderCaptcha = () => {
+    if (!siteKey || !captchaRequired) return;
+
+    let cancelled = false;
+    let pollId: number | null = null;
+    let failId: number | null = null;
+
+    const renderCaptcha = (): boolean => {
+      if (cancelled) return false;
       const hcaptcha = (window as any).hcaptcha;
-      if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return;
+      if (!hcaptcha || !captchaRef.current || captchaWidgetId !== null) return false;
       try {
         const id = hcaptcha.render(captchaRef.current, {
           sitekey: siteKey,
@@ -70,34 +70,52 @@ const SignIn: NextPage = () => {
           },
         });
         setCaptchaWidgetId(id);
+        captchaReadyRef.current = true;
         setCaptchaLoadError(null);
+        return true;
       } catch {
         setCaptchaLoadError('Captcha failed to load. Disable blockers/shields and refresh.');
+        return false;
       }
     };
-    if ((window as any).hcaptcha) {
-      renderCaptcha();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://js.hcaptcha.com/1/api.js?render=explicit';
-    script.async = true;
-    script.defer = true;
-    script.onload = renderCaptcha;
-    script.onerror = () => setCaptchaLoadError('Captcha script was blocked. Disable blockers/shields and refresh.');
-    document.body.appendChild(script);
 
-    captchaTimeoutRef.current = window.setTimeout(() => {
-      if (captchaWidgetId === null) {
-        setCaptchaLoadError('Captcha did not appear. Disable blockers/shields, then refresh.');
-      }
-    }, 8000);
+    const startRenderFlow = () => {
+      if (renderCaptcha()) return;
+
+      pollId = window.setInterval(() => {
+        if (renderCaptcha() && pollId) {
+          window.clearInterval(pollId);
+          pollId = null;
+        }
+      }, 250);
+
+      failId = window.setTimeout(() => {
+        if (!captchaReadyRef.current && captchaWidgetId === null) {
+          setCaptchaLoadError('Captcha did not appear. Disable blockers/shields, then refresh.');
+        }
+        if (pollId) {
+          window.clearInterval(pollId);
+          pollId = null;
+        }
+      }, 7000);
+    };
+
+    if ((window as any).hcaptcha) {
+      startRenderFlow();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://js.hcaptcha.com/1/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+      script.onload = startRenderFlow;
+      script.onerror = () => setCaptchaLoadError('Captcha script was blocked. Disable blockers/shields and refresh.');
+      document.body.appendChild(script);
+    }
 
     return () => {
-      if (captchaTimeoutRef.current) {
-        window.clearTimeout(captchaTimeoutRef.current);
-        captchaTimeoutRef.current = null;
-      }
+      cancelled = true;
+      if (pollId) window.clearInterval(pollId);
+      if (failId) window.clearTimeout(failId);
     };
   }, [siteKey, captchaRequired, captchaWidgetId]);
 
