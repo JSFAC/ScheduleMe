@@ -18,22 +18,17 @@ final class SupabaseManager {
     private init() {
         let urlString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? ""
         let anonKey = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? ""
-        let configuredRedirect = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_REDIRECT_URL") as? String
-        let redirectString = configuredRedirect?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            ? (configuredRedirect ?? "scheduleme://auth/callback")
-            : "scheduleme://auth/callback"
+        // NOTE: SUPABASE_REDIRECT_URL cannot be read from xcconfig/Info.plist because
+        // xcconfig treats `//` as a comment, which silently truncates `scheduleme://auth/callback`
+        // to `scheduleme:`. The redirect URL is therefore hardcoded here using the app URL scheme.
+        let appScheme = (Bundle.main.object(forInfoDictionaryKey: "APP_URL_SCHEME") as? String)
+            ?? "scheduleme"
+        let redirectURL = URL(string: "\(appScheme)://auth/callback")!
 
         let supabaseURL = URL(string: urlString) ?? URL(string: "https://imfrlykibvjdbijegdky.supabase.co")!
         if URL(string: urlString) == nil {
             #if DEBUG
             assertionFailure("SUPABASE_URL is invalid. Falling back to default project URL.")
-            #endif
-        }
-
-        let redirectURL = URL(string: redirectString) ?? URL(string: "scheduleme://auth/callback")!
-        if URL(string: redirectString) == nil {
-            #if DEBUG
-            assertionFailure("SUPABASE_REDIRECT_URL is invalid. Falling back to scheduleme://auth/callback.")
             #endif
         }
 
