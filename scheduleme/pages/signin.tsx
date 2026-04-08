@@ -162,17 +162,19 @@ const SignIn: NextPage = () => {
         if (password.length < 10) {
           throw new Error('Password must be at least 10 characters.');
         }
-        const signUpOptions: any = {
-          data: { full_name: fullName.trim().slice(0, 80) },
-          emailRedirectTo,
-        };
-        if (captchaToken) signUpOptions.captchaToken = captchaToken;
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: signUpOptions,
+        const response = await fetch('/api/auth/email-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            fullName: fullName.trim().slice(0, 80),
+            captchaToken: captchaToken || undefined,
+            redirectTo: emailRedirectTo,
+          }),
         });
-        if (error) throw error;
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload?.error || 'Could not create account.');
         setSent(true);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -219,13 +221,16 @@ const SignIn: NextPage = () => {
     setResendBusy(true);
     setResendMsg(null);
     try {
-      const supabase = getSupabase();
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: emailRedirectTo ? { emailRedirectTo } : undefined,
+      const response = await fetch('/api/auth/resend-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          redirectTo: emailRedirectTo,
+        }),
       });
-      if (error) throw error;
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || 'Could not resend confirmation email.');
       setResendMsg(`Confirmation email resent to ${email}.`);
       setResendCooldown(30);
     } catch (err) {
