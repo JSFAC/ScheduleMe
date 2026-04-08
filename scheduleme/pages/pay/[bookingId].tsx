@@ -190,6 +190,13 @@ const PayPage: NextPage = () => {
     ? booking.protection_fee_cents
     : PROTECTION_FEE_CENTS;
   const totalChargeCents = serviceAmountCents + protectionFeeCents;
+  const scheduledRaw = booking?.scheduled_at || booking?.scheduled_start || booking?.scheduled_end || null;
+  const scheduledLabel = scheduledRaw
+    ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })
+    : 'Not specified';
+  const bookingCreatedLabel = booking?.created_at
+    ? new Date(booking.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+    : 'Not available';
 
   return (
     <>
@@ -227,6 +234,47 @@ const PayPage: NextPage = () => {
                 </div>
                 <div className="mt-3 text-xs" style={{ color: textMuted }}>
                   {booking?.paid_at ? 'Payment completed for this booking.' : (paymentReady ? 'Payment method saved. Ready to charge.' : 'Payment method not saved yet.')}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                <h2 className="text-sm font-bold mb-3" style={{ color: textPrimary }}>Review booking information</h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ color: textMuted }}>Service</span>
+                    <span className="font-semibold text-right" style={{ color: textPrimary }}>{booking?.service || 'Not specified'}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ color: textMuted }}>Provider</span>
+                    <span className="font-semibold text-right" style={{ color: textPrimary }}>{booking?.business_name || 'Not specified'}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ color: textMuted }}>Date & time</span>
+                    <span className="font-semibold text-right" style={{ color: textPrimary }}>{scheduledLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ color: textMuted }}>Booking note</span>
+                    <span className="font-semibold text-right max-w-[70%] whitespace-pre-wrap break-words" style={{ color: textPrimary }}>
+                      {booking?.note || 'No note'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ color: textMuted }}>Requested on</span>
+                    <span className="font-semibold text-right" style={{ color: textPrimary }}>{bookingCreatedLabel}</span>
+                  </div>
+                  <div className="my-2 h-px" style={{ background: cardBorder }} />
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ color: textMuted }}>Service amount</span>
+                    <span className="font-semibold text-right" style={{ color: textPrimary }}>${(serviceAmountCents / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span style={{ color: textMuted }}>Protection fee</span>
+                    <span className="font-semibold text-right" style={{ color: textPrimary }}>${(protectionFeeCents / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-bold" style={{ color: textPrimary }}>Total charge now</span>
+                    <span className="font-bold text-right" style={{ color: '#007e6d' }}>${(totalChargeCents / 100).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
