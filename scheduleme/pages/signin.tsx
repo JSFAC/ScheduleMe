@@ -23,6 +23,7 @@ const SignIn: NextPage = () => {
     if (router.query.mode === 'signup') setTab('signup');
   }, [router.query.mode]);
   const [showEmail, setShowEmail] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showReset, setShowReset] = useState(false);
@@ -40,6 +41,7 @@ const SignIn: NextPage = () => {
   const isDark = false;
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
   const captchaRequired = !!siteKey && (tab === 'signup' || failedCount >= 3);
+  const captchaBlocked = !!captchaLoadError;
 
   useEffect(() => {
     if (!siteKey || !captchaRequired) {
@@ -117,7 +119,7 @@ const SignIn: NextPage = () => {
     setLoading(true); setError(null);
     const supabase = getSupabase();
     try {
-      if (captchaRequired && !captchaToken) {
+      if (captchaRequired && !captchaBlocked && !captchaToken) {
         setError('Please complete the captcha.');
         setLoading(false);
         return;
@@ -129,10 +131,21 @@ const SignIn: NextPage = () => {
         if (error) throw error;
         setSent(true);
       } else if (tab === 'signup') {
+        if (!fullName.trim()) {
+          throw new Error('Please enter your name.');
+        }
         if (password.length < 10) {
           throw new Error('Password must be at least 10 characters.');
         }
-        const { error } = await supabase.auth.signUp({ email, password });
+        const signUpOptions: any = {
+          data: { full_name: fullName.trim().slice(0, 80) },
+        };
+        if (captchaToken) signUpOptions.captchaToken = captchaToken;
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: signUpOptions,
+        });
         if (error) throw error;
         setSent(true);
       } else {
@@ -290,6 +303,13 @@ const SignIn: NextPage = () => {
                   </>
                 ) : (
                   <>
+                    {tab === 'signup' && (
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Name</label>
+                        <input type="text" required className="form-input" placeholder="Your full name"
+                          value={fullName} onChange={e => setFullName(e.target.value)} />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
                       <input type="email" required className="form-input" placeholder="you@example.com"
@@ -303,8 +323,13 @@ const SignIn: NextPage = () => {
                     {captchaRequired && (
                       <div className="pt-1 flex flex-col items-start w-full">
                         <div ref={captchaRef} className="hcaptcha-shell w-full" style={{ minHeight: 78 }} />
-                        {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
+                        {!captchaWidgetId && !captchaLoadError && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
                         {captchaLoadError && <p className="mt-2 text-xs text-red-500">{captchaLoadError}</p>}
+                        {captchaLoadError && (
+                          <p className="mt-1 text-xs text-neutral-500">
+                            You can still continue signup below while captcha is unavailable.
+                          </p>
+                        )}
                       </div>
                     )}
                     <button type="submit" disabled={loading} className="btn-primary w-full py-3">
