@@ -1992,6 +1992,8 @@ const BusinessDashboard: NextPage = () => {
                   : <div className="space-y-3">
                       {filteredBookings.map((b, i) => {
                         const isCustom = !b.service || String(b.service).toLowerCase().includes('custom');
+                        const payoutFeeRate = business?.founder50 ? 0.06 : 0.12;
+                        const providerNetPayoutCents = b.amount_cents ? Math.max(0, Math.round(b.amount_cents * (1 - payoutFeeRate))) : 0;
                         const scheduledSource = b.scheduled_start || b.scheduled_end || null;
                         const scheduledLabel = scheduledSource
                           ? (b.scheduled_exact
@@ -2141,9 +2143,19 @@ const BusinessDashboard: NextPage = () => {
                                   Mark Complete
                                 </button>
                               )}
-                              {b.paid_at && <span className="text-xs font-bold text-emerald-600 px-2">✓ Paid {fmt(b.amount_cents || 0)}</span>}
+                              {b.paid_at && (
+                                <span className="ml-auto text-xs font-bold text-emerald-600 px-2">
+                                  ✓ Payment secured
+                                  {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
+                                </span>
+                              )}
                               {(b.status !== 'price_disputed' || !isCustom) && (
-                                <button onClick={() => setConfirmAction({ booking: b, action: 'cancel' })} className="text-xs font-bold px-3.5 py-2 rounded-xl h-9 ml-auto" style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>Cancel</button>
+                                <button
+                                  onClick={() => setConfirmAction({ booking: b, action: 'cancel' })}
+                                  className={`text-xs font-bold px-3.5 py-2 rounded-xl h-9 ${b.paid_at ? '' : 'ml-auto'}`}
+                                  style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>
+                                  Cancel
+                                </button>
                               )}
                             </div>
                           )}

@@ -95,6 +95,17 @@ const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Done'];
 const STEPS_NO_PAID = ['pending', 'confirmed', 'completed'];
 const STEP_LABELS_NO_PAID = ['Submitted', 'Confirmed', 'Done'];
 
+function shouldShowPaidStep(booking: Booking): boolean {
+  const serviceLabel = String(booking.service || '').toLowerCase();
+  const isCustomFlow = serviceLabel.includes('custom')
+    || booking.status === 'payment_pending'
+    || booking.status === 'price_disputed'
+    || !!booking.customer_proposed_price_cents
+    || !!booking.provider_proposed_price_cents
+    || !!booking.dispute_amount_cents;
+  return isCustomFlow;
+}
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 function formatDate(iso: string) {
@@ -486,9 +497,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
 
           <StatusBadge status={booking.status} />
           {!['cancelled', 'payment_failed'].includes(booking.status) && (() => {
-            const usesPayment = !!booking.amount_cents;
-            const steps = usesPayment ? STEPS : STEPS_NO_PAID;
-            const labels = usesPayment ? STEP_LABELS : STEP_LABELS_NO_PAID;
+            const showPaidStep = shouldShowPaidStep(booking);
+            const steps = showPaidStep ? STEPS : STEPS_NO_PAID;
+            const labels = showPaidStep ? STEP_LABELS : STEP_LABELS_NO_PAID;
             return <ProgressBar status={booking.status} steps={steps} labels={labels} />;
           })()}
 
@@ -1647,7 +1658,11 @@ function writeCoords(lat: number, lng: number) {
                                     </svg>
                                   </div>
                                 </div>
-                                <ProgressBar status={b.status} steps={(b.amount_cents ? STEPS : STEPS_NO_PAID)} labels={(b.amount_cents ? STEP_LABELS : STEP_LABELS_NO_PAID)} />
+                                <ProgressBar
+                                  status={b.status}
+                                  steps={shouldShowPaidStep(b) ? STEPS : STEPS_NO_PAID}
+                                  labels={shouldShowPaidStep(b) ? STEP_LABELS : STEP_LABELS_NO_PAID}
+                                />
                               </div>
                             </button>
                           );
