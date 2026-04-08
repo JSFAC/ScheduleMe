@@ -173,6 +173,9 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
 export default function BizPage() {
   const router = useRouter();
   const { slug } = router.query;
+  const slugValue = Array.isArray(slug) ? slug[0] : slug;
+  const bidQuery = router.query?.bid;
+  const businessIdFromQuery = Array.isArray(bidQuery) ? bidQuery[0] : bidQuery;
   const fromQuery = router.query?.from;
   const fromParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('from') : null;
   const previewQuery = router.query?.preview;
@@ -251,10 +254,44 @@ export default function BizPage() {
   const titleName = biz?.name || 'ScheduleMe Provider';
 
   useEffect(() => {
-    if (!slug) return;
-    getSB().from('businesses').select('*').eq('slug', slug).eq('is_onboarded', true).maybeSingle()
-      .then(({ data }) => {
-        if (!data) { router.replace('/browse'); return; }
+    if (!router.isReady) return;
+
+    const resolvedSlug = typeof slugValue === 'string' ? decodeURIComponent(slugValue) : '';
+    const resolvedBusinessId = typeof businessIdFromQuery === 'string' ? businessIdFromQuery : '';
+    if (!resolvedSlug && !resolvedBusinessId) {
+      setLoading(false);
+      return;
+    }
+
+    const loadBusiness = async () => {
+      try {
+        let data: any = null;
+        if (resolvedSlug) {
+          const { data: bySlug } = await getSB()
+            .from('businesses')
+            .select('*')
+            .eq('slug', resolvedSlug)
+            .eq('is_onboarded', true)
+            .maybeSingle();
+          data = bySlug;
+        }
+
+        if (!data && resolvedBusinessId) {
+          const { data: byId } = await getSB()
+            .from('businesses')
+            .select('*')
+            .eq('id', resolvedBusinessId)
+            .eq('is_onboarded', true)
+            .maybeSingle();
+          data = byId;
+        }
+
+        if (!data) {
+          if (!isPreview) router.replace('/browse');
+          setLoading(false);
+          return;
+        }
+
         setBiz(data);
         setEditDesc(data.description || '');
         const initialImages = [data.cover_url, ...(data.media_urls || [])].filter(Boolean) as string[];
@@ -306,9 +343,13 @@ export default function BizPage() {
             setComputedPriceTier(computePriceTier(avg, primaryTag));
           })
           .catch(() => {});
+      } finally {
         setLoading(false);
-      });
-  }, [slug]);
+      }
+    };
+
+    loadBusiness();
+  }, [router.isReady, slugValue, businessIdFromQuery, isPreview]);
 
   useEffect(() => {
     if (!biz?.id) return;
@@ -677,8 +718,38 @@ export default function BizPage() {
     if (galleryIdx >= activeImgs.length) setGalleryIdx(0);
   }, [biz, editMode, editImages, galleryIdx]);
 
-  if (loading) return <><Head><title>Loading — ScheduleMe</title></Head><div style={{background:bg,minHeight:'100vh'}}>{!hideNav && <Nav />}</div></>;
-  if (!biz) return null;
+  if (loading) return (
+    <>
+      <Head><title>Loading — ScheduleMe</title></Head>
+      <div style={{ background: bg, minHeight: '100vh' }}>
+        {!hideNav && <Nav />}
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 rounded-full border-2 border-accent/25 border-t-accent animate-spin" />
+            <p className="mt-3 text-sm" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              {isPreview ? 'Loading live preview…' : 'Loading provider page…'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+  if (!biz) return (
+    <>
+      <Head><title>Preview Unavailable — ScheduleMe</title></Head>
+      <div style={{ background: bg, minHeight: '100vh' }}>
+        {!hideNav && <Nav />}
+        <div className="min-h-[60vh] flex items-center justify-center px-6">
+          <div className="max-w-md w-full rounded-2xl border p-5 text-center" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111111' : '#ffffff' }}>
+            <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>Preview unavailable</p>
+            <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              We could not load this provider listing. Refresh the dashboard and try again.
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 
   const tags = biz.service_tags || [];
   const cat = tags.length > 0 ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g,' ') : 'Service';

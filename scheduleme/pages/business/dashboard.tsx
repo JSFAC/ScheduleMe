@@ -652,7 +652,7 @@ const BusinessDashboard: NextPage = () => {
   const router = useRouter();
   const { dm: darkMode, toggle: toggleDark } = useDm();
   const dm = darkMode;
-  const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','settings'];
+  const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','services','preview','settings'];
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
   const [previewKey, setPreviewKey] = useState(() => Date.now());
@@ -2749,8 +2749,8 @@ const BusinessDashboard: NextPage = () => {
                   <iframe
                     title="Provider preview"
                     src={previewEditMode
-                      ? `/biz/${business.slug}?edit=1&from=dashboard&preview=1&k=${previewKey}`
-                      : `/biz/${business.slug}?from=dashboard&preview=1&k=${previewKey}`}
+                      ? `/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&preview=1&bid=${business.id}&k=${previewKey}`
+                      : `/biz/${encodeURIComponent(business.slug)}?from=dashboard&preview=1&bid=${business.id}&k=${previewKey}`}
                     className="w-full"
                     style={{ height: '80vh', border: 'none' }}
                   />
