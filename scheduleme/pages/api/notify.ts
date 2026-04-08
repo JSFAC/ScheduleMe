@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail,
   sendNewBookingBusinessEmail, sendReviewRequestEmail,
+  sendBookingCancelledBusinessEmail,
   sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail,
   sendStripeAlertEmail,
   sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
@@ -54,6 +55,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           scheduledAt: rest.scheduledAt || '',
           note: rest.note || '',
           amountDollars: rest.amountDollars || '',
+        });
+        break;
+      case 'booking_cancelled_business':
+        result = await sendBookingCancelledBusinessEmail({
+          to,
+          businessName: rest.businessName || rest.name || 'Your business',
+          customerName: rest.customerName || 'A customer',
+          service: rest.service || 'Service Request',
+          bookingId: rest.bookingId || '',
+          scheduledAt: rest.scheduledAt || '',
+          cancellationReason: rest.cancellationReason || 'Not provided',
         });
         break;
       case 'new_business_application':

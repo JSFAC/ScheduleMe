@@ -333,7 +333,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
-  onCancel: (id: string) => void;
+  onCancel: (id: string, reason: string) => Promise<void>;
   onRequestReview: (booking: Booking) => void;
   onPriceAccepted: (id: string, updates: Partial<Booking>) => void;
   dm: boolean;
@@ -352,6 +352,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
   const [err, setErr] = useState<string>('');
   const [closing, setClosing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelErr, setCancelErr] = useState('');
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputePrice, setDisputePrice] = useState('');
   const [disputeNote, setDisputeNote] = useState('');
@@ -378,11 +381,22 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
     return () => document.removeEventListener('keydown', h);
   }, []);
 
-  async function handleCancel() {
+  async function handleCancelSubmit() {
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setCancelErr('Please share why you are cancelling.');
+      return;
+    }
     setCancelling(true);
-    await new Promise(r => setTimeout(r, 600));
-    onCancel(booking.id);
-    close();
+    setCancelErr('');
+    try {
+      await onCancel(booking.id, reason);
+      close();
+    } catch (e: any) {
+      setCancelErr(e?.message || 'Could not cancel booking. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
   }
 
   async function handleAcceptPrice() {
@@ -842,7 +856,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
           )}
 
           {/* Cancel action */}
-          {['pending', 'confirmed'].includes(booking.status) && !booking.paid_at && (
+          {!['completed', 'cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               {cancelling ? (
                 <div className="flex items-center justify-center gap-2 py-3">
@@ -850,9 +864,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
                   <span className="text-sm text-red-500">Cancelling...</span>
                 </div>
               ) : (
-                <button onClick={handleCancel}
+                <button onClick={() => { setCancelOpen(true); setCancelErr(''); }}
                   className="w-full py-3 rounded-xl border-2 border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 hover:border-red-300 transition-colors">
-                  Cancel Request
+                  Cancel Booking
                 </button>
               )}
             </div>
@@ -860,6 +874,63 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onRequestReview, 
         </div>
         </div>
       </div>
+
+      {cancelOpen && (
+        <div
+          className="fixed inset-0 z-[2150] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !cancelling) setCancelOpen(false); }}
+        >
+          <div
+            className="w-full max-w-md mx-4 rounded-2xl p-5"
+            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Cancel booking</p>
+              <button
+                onClick={() => !cancelling && setCancelOpen(false)}
+                className="h-8 w-8 rounded-full flex items-center justify-center"
+                style={{ background: dm ? '#1f2937' : '#f3f4f6' }}
+                disabled={cancelling}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p className="text-xs mb-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              This reason will be emailed to the provider.
+            </p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value.slice(0, 400))}
+              rows={4}
+              placeholder="Reason for cancellation..."
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
+            />
+            <div className="mt-1 text-[10px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>{cancelReason.length}/400</div>
+            {cancelErr && <p className="text-[11px] text-red-500 mt-2">{cancelErr}</p>}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => !cancelling && setCancelOpen(false)}
+                disabled={cancelling}
+                className="py-2.5 rounded-xl text-sm font-semibold border"
+                style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#d1d5db' : '#374151', background: dm ? '#171717' : '#f9fafb' }}
+              >
+                Keep booking
+              </button>
+              <button
+                onClick={handleCancelSubmit}
+                disabled={cancelling}
+                className="py-2.5 rounded-xl text-sm font-semibold text-white"
+                style={{ background: cancelling ? '#ef9a9a' : '#dc2626' }}
+              >
+                {cancelling ? 'Cancelling…' : 'Confirm cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {disputeOpen && (
         <div
@@ -1305,7 +1376,16 @@ function writeCoords(lat: number, lng: number) {
     fetchPaymentMethods();
   }
 
-  function cancelBooking(id: string) {
+  async function cancelBooking(id: string, reason: string) {
+    const { data: { session } } = await getSupabase().auth.getSession();
+    if (!session) throw new Error('Please sign in again and retry.');
+    const res = await fetch('/api/bookings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ booking_id: id, status: 'cancelled', cancellation_reason: reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to cancel booking');
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
   }
 

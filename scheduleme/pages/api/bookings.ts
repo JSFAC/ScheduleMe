@@ -406,10 +406,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
-    const allowed = ['booking_id','status','dispute_amount_cents','dispute_note'];
+    const allowed = ['booking_id','status','dispute_amount_cents','dispute_note','cancellation_reason'];
     const unknown = getUnknownFields(req.body, allowed);
     if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
-    const { booking_id, status, dispute_amount_cents, dispute_note } = req.body;
+    const { booking_id, status, dispute_amount_cents, dispute_note, cancellation_reason } = req.body;
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
     const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid', 'price_disputed'];
     if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
@@ -484,6 +484,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
+    const cancellationReason = typeof cancellation_reason === 'string' ? cancellation_reason.trim().slice(0, LIMITS.note) : '';
+    if (status === 'cancelled' && !isBusinessOwner && !cancellationReason) {
+      return res.status(400).json({ error: 'Cancellation reason is required' });
+    }
 
     if (status === 'completed' && booking.status === 'completed') {
       return res.status(200).json({ success: true, already_completed: true });
@@ -683,7 +687,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       actor_id: user.id,
       actor_email: user.email,
       actor_role: isBusinessOwner ? 'business' : 'consumer',
-      meta: { status },
+      meta: { status, cancellation_reason: status === 'cancelled' ? (cancellationReason || null) : null },
     });
 
     // Notify business of dispute so they can respond immediately
@@ -788,6 +792,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }),
         }).catch(() => {});
       }
+    }
+
+    if (status === 'cancelled' && !isBusinessOwner && biz?.owner_email) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
+      const scheduledAt = scheduledRaw
+        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
+      fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+        body: JSON.stringify({
+          type: 'booking_cancelled_business',
+          to: biz.owner_email,
+          businessName: biz?.name || 'Your business',
+          customerName: consumer?.name || user.email?.split('@')[0] || 'A customer',
+          service: booking.service || 'Service',
+          scheduledAt,
+          cancellationReason: cancellationReason || 'Not provided',
+          bookingId: booking_id,
+        }),
+      }).catch(() => {});
     }
 
     return res.status(200).json({ success: true });

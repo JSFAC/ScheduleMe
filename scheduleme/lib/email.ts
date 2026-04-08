@@ -319,6 +319,50 @@ export function newBookingBusinessHtml(opts: {
   return layout(`New booking — ${opts.service}`, body, `${opts.customerName} wants to book ${opts.service}`);
 }
 
+export function bookingCancelledBusinessHtml(opts: {
+  businessName: string;
+  customerName: string;
+  service: string;
+  bookingId: string;
+  scheduledAt?: string;
+  cancellationReason: string;
+}) {
+  const dashUrl = `${SITE_URL}/business/dashboard`;
+  const body = `
+    <tr><td bgcolor="#b91c1c" style="background:#b91c1c;padding:32px;text-align:center;">
+      <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#ffffff;">Booking cancelled</h1>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);">${opts.customerName} cancelled a booking for ${opts.businessName}</p>
+    </td></tr>
+    <tr><td style="padding:32px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff7f7;border-radius:10px;border:1px solid #fecaca;margin-bottom:24px;overflow:hidden;">
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Customer</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerName}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.service}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Date & Time</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.scheduledAt || 'Not specified'}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Cancellation reason</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.cancellationReason}</span>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td align="center">
+          <a href="${dashUrl}" style="display:inline-block;background:#111827;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
+            View in Dashboard →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>`;
+  return layout(`Booking cancelled — ${opts.service}`, body, `${opts.customerName} cancelled ${opts.service}.`);
+}
+
 // ─── Template: review request ─────────────────────────────────────────────────
 export function reviewRequestHtml(opts: {
   name: string;
@@ -718,6 +762,18 @@ export async function sendNewBookingBusinessEmail(opts: {
 }) {
   const resend = getResend();
   return resend.emails.send({ from: FROM, to: opts.to, subject: `New booking request — ${opts.service}`, html: newBookingBusinessHtml(opts) });
+}
+
+export async function sendBookingCancelledBusinessEmail(opts: {
+  to: string; businessName: string; customerName: string; service: string; bookingId: string; scheduledAt?: string; cancellationReason: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Booking cancelled — ${opts.service}`,
+    html: bookingCancelledBusinessHtml(opts),
+  });
 }
 
 export async function sendWelcomeEmail(opts: { to: string; name: string }) {
