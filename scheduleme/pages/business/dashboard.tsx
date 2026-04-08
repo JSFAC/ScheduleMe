@@ -2091,7 +2091,7 @@ const BusinessDashboard: NextPage = () => {
                           )}
                           
                           {(['pending', 'confirmed', 'active', 'payment_pending', 'price_disputed'].includes(b.status)) && (
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-2">
                               {/* Price setting — required before confirm */}
                               {(b.status === 'pending') && isCustom && (
                                 <div className={`w-full mb-2 ${b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider ? 'hidden' : ''}`}>
@@ -2135,16 +2135,24 @@ const BusinessDashboard: NextPage = () => {
                                 </div>
                               )}
                               {b.status === 'confirmed' && (
-                                <button
-                                  onClick={() => setConfirmComplete(b)}
-                                  disabled={!canComplete}
-                                  title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
-                                  className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                  Mark Complete
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setConfirmComplete(b)}
+                                    disabled={!canComplete}
+                                    title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
+                                    className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Mark Complete
+                                  </button>
+                                  {b.paid_at && (
+                                    <span className="text-xs font-bold text-emerald-600 px-1">
+                                      ✓ Payment secured
+                                      {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
+                                    </span>
+                                  )}
+                                </div>
                               )}
-                              {b.paid_at && (
-                                <span className="ml-auto text-xs font-bold text-emerald-600 px-2">
+                              {b.status !== 'confirmed' && b.paid_at && (
+                                <span className="text-xs font-bold text-emerald-600 px-1">
                                   ✓ Payment secured
                                   {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
                                 </span>
@@ -2152,7 +2160,7 @@ const BusinessDashboard: NextPage = () => {
                               {(b.status !== 'price_disputed' || !isCustom) && (
                                 <button
                                   onClick={() => setConfirmAction({ booking: b, action: 'cancel' })}
-                                  className={`text-xs font-bold px-3.5 py-2 rounded-xl h-9 ${b.paid_at ? '' : 'ml-auto'}`}
+                                  className="text-xs font-bold px-3.5 py-2 rounded-xl h-9 ml-auto"
                                   style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>
                                   Cancel
                                 </button>

@@ -373,7 +373,7 @@ export default function BizPage() {
     setLoadingSlots(true);
     const from = new Date().toISOString();
     const to = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
-    fetch(`${url}/rest/v1/bookings?business_id=eq.${biz.id}&status=in.(confirmed,paid,pending)&scheduled_start=gte.${from}&scheduled_start=lte.${to}&select=scheduled_start`,
+    fetch(`${url}/rest/v1/bookings?business_id=eq.${biz.id}&status=in.(pending,confirmed,active,payment_pending,paid,price_disputed)&scheduled_start=gte.${from}&scheduled_start=lte.${to}&select=scheduled_start`,
       { headers: { 'apikey': key, 'Authorization': 'Bearer ' + key } }
     ).then(r => r.json()).then(rows => {
       const slots = new Set<string>();
@@ -634,6 +634,13 @@ export default function BizPage() {
     if (!date || (requiresTime && !slot)) { setErr(requiresTime ? 'Pick a date and time' : 'Pick a due date'); return; }
     if (isCustom && !customServiceName.trim()) { setErr('Name the service you need.'); return; }
     if (isCustom && !note.trim()) { setErr('Please describe your custom request.'); return; }
+    if (requiresTime && date && slot) {
+      const dateKey = date.toISOString().split('T')[0];
+      if (bookedSlots.has(dateKey + '|' + slot)) {
+        setErr('That time slot was just booked. Please choose another time.');
+        return;
+      }
+    }
     const proposedRaw = customProposedPrice.trim();
     let proposedPriceCents: number | null = null;
     if (isCustom && proposedRaw.length > 0) {

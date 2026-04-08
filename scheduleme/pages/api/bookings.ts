@@ -289,6 +289,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!Number.isNaN(d.getTime())) scheduledEnd = d.toISOString();
       }
 
+      // Prevent double-booking the same slot (or overlapping hour block).
+      if (scheduledStart) {
+        const startMs = new Date(scheduledStart).getTime();
+        const windowStart = new Date(startMs - 59 * 60 * 1000).toISOString();
+        const windowEnd = new Date(startMs + 59 * 60 * 1000).toISOString();
+        const { data: conflicts, error: conflictErr } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('business_id', business_id)
+          .not('status', 'in', '(cancelled,completed,payment_failed)')
+          .gte('scheduled_start', windowStart)
+          .lte('scheduled_start', windowEnd)
+          .limit(1);
+        if (!conflictErr && (conflicts || []).length > 0) {
+          return res.status(409).json({ error: 'That time slot is no longer available. Please pick another time.' });
+        }
+      }
+
       let resolvedUserId = user_id || authUser?.id;
       if (!email && authUser?.email) email = authUser.email;
 
