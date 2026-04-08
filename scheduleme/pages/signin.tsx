@@ -145,7 +145,9 @@ const SignIn: NextPage = () => {
     setLoading(true); setError(null);
     const supabase = getSupabase();
     try {
-      if (captchaRequired && !captchaBlocked && !captchaToken) {
+      const loginNeedsCaptcha = tab === 'login' && captchaRequired;
+      const signupNeedsCaptcha = tab === 'signup' && captchaRequired && !captchaBlocked;
+      if ((loginNeedsCaptcha || signupNeedsCaptcha) && !captchaToken) {
         setError('Please complete the captcha.');
         setLoading(false);
         return;
@@ -179,8 +181,16 @@ const SignIn: NextPage = () => {
         if (!response.ok) throw new Error(payload?.error || 'Could not create account.');
         setSent(true);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const signInPayload: any = { email, password };
+        if (captchaToken) {
+          signInPayload.options = { captchaToken };
+        }
+        const { error } = await supabase.auth.signInWithPassword(signInPayload);
         if (error) {
+          if (error.message.toLowerCase().includes('captcha')) {
+            setFailedCount(c => Math.max(c + 1, 3));
+            throw new Error('Please complete the captcha and try again.');
+          }
           if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('credentials')) {
             throw new Error('This email is linked to a Google account. Please use "Continue with Google" to sign in.');
           }
