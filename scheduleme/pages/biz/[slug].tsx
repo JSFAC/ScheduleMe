@@ -34,6 +34,13 @@ function formatSlotMinutes(mins: number): string {
   return `${h}:${m.toString().padStart(2, '0')} ${ap}`;
 }
 
+function localDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function buildScheduledStart(date: Date, slot: string): string | null {
   const mins = parseSlotMinutes(slot);
   if (Number.isNaN(mins)) return null;
@@ -367,21 +374,21 @@ export default function BizPage() {
 
   useEffect(() => {
     if (!biz?.id) return;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) return;
     setLoadingSlots(true);
     const from = new Date().toISOString();
     const to = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
-    fetch(`${url}/rest/v1/bookings?business_id=eq.${biz.id}&status=in.(pending,confirmed,active,payment_pending,paid,price_disputed)&scheduled_start=gte.${from}&scheduled_start=lte.${to}&select=scheduled_start`,
-      { headers: { 'apikey': key, 'Authorization': 'Bearer ' + key } }
-    ).then(r => r.json()).then(rows => {
+    fetch(`/api/business-booked-slots?business_id=${biz.id}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-store' },
+    }).then(r => r.json()).then(payload => {
+      const rows = payload?.rows || [];
       const slots = new Set<string>();
       const dateCounts: Record<string, number> = {};
       for (const row of rows || []) {
-        if (!row.scheduled_start) continue;
-        const d = new Date(row.scheduled_start);
-        const dk = d.toISOString().split('T')[0];
+        const scheduledAt = row.scheduled_start || row.scheduled_end;
+        if (!scheduledAt) continue;
+        const d = new Date(scheduledAt);
+        const dk = localDateKey(d);
         const mins = d.getHours() * 60 + d.getMinutes();
         const slotsForDate = getSlotsForDate(biz.hours, d);
         const matched = slotsForDate.find(s => Math.abs(parseSlotMinutes(s) - mins) < 30);
@@ -391,7 +398,8 @@ export default function BizPage() {
       setBookedSlots(slots);
       const full = new Set<string>();
       for (const [dk, cnt] of Object.entries(dateCounts)) {
-        const slotsForDate = getSlotsForDate(biz.hours, new Date(dk));
+        const [yy, mm, dd] = dk.split('-').map((v) => Number(v));
+        const slotsForDate = getSlotsForDate(biz.hours, new Date(yy, (mm || 1) - 1, dd || 1));
         if (cnt >= slotsForDate.length && slotsForDate.length > 0) full.add(dk);
       }
       setBookedDates(full);
@@ -635,7 +643,7 @@ export default function BizPage() {
     if (isCustom && !customServiceName.trim()) { setErr('Name the service you need.'); return; }
     if (isCustom && !note.trim()) { setErr('Please describe your custom request.'); return; }
     if (requiresTime && date && slot) {
-      const dateKey = date.toISOString().split('T')[0];
+      const dateKey = localDateKey(date);
       if (bookedSlots.has(dateKey + '|' + slot)) {
         setErr('That time slot was just booked. Please choose another time.');
         return;
@@ -766,7 +774,7 @@ export default function BizPage() {
 
   const requiresTime = isCustom ? (biz?.custom_requires_time !== false) : (selectedSvc?.requires_time !== false);
   const availableSlots = date && requiresTime ? (() => {
-    const dk = date.toISOString().split('T')[0];
+    const dk = localDateKey(date);
     const dh = getHoursForDate(biz.hours, date);
     const now = new Date();
     const isToday = now.toDateString() === date.toDateString();
