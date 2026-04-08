@@ -88,7 +88,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);
   const protectionFeeCents = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
   const totalChargeCents = booking.amount_cents + protectionFeeCents;
-  const applicationFeeCents = platformFeeCents + protectionFeeCents;
 
   try {
     const pi = await stripe.paymentIntents.create({
@@ -99,8 +98,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       payment_method: paymentMethodId,
       confirm: true,
       off_session: true,
-      application_fee_amount: applicationFeeCents,
-      transfer_data: { destination: biz.stripe_account_id },
       description: `ScheduleMe booking: ${booking.service || 'Service'} with ${biz.name || 'provider'}`,
       metadata: {
         bookingId: booking.id,
@@ -108,7 +105,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         service: booking.service || '',
         business_name: biz.name || '',
         flow: 'upfront_pay_page',
+        hold_in_platform: 'true',
         platform_fee_percent: String(platformFeePercent),
+        platform_fee_cents: String(platformFeeCents),
         protection_fee_cents: String(protectionFeeCents),
       },
     }, {

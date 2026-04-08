@@ -467,6 +467,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
 
+    if (status === 'completed' && booking.status === 'completed') {
+      return res.status(200).json({ success: true, already_completed: true });
+    }
+    if (status === 'cancelled' && booking.status === 'cancelled') {
+      return res.status(200).json({ success: true, already_cancelled: true });
+    }
+
     const updatePayload: any = { status };
     if (status === 'price_disputed') {
       if (!dispute_amount_cents || dispute_amount_cents < 500) {
@@ -479,8 +486,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatePayload.price_accepted_at = null;
     }
 
-    // If cancelling a booking with a Stripe payment intent, issue a full refund and reverse transfer + app fee.
-    // This also protects edge cases where paid_at did not update yet but Stripe already captured funds.
+    // If cancelling a booking with a Stripe payment intent, issue a full refund.
+    // Try destination-charge reversal first, then fall back to a standard platform refund.
     if (status === 'cancelled' && booking.stripe_payment_intent_id) {
       try {
         await stripe.refunds.create({
@@ -489,89 +496,134 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           refund_application_fee: true,
         });
       } catch (e: any) {
-        console.error('[booking] refund failed', e);
-        return res.status(500).json({ error: e?.message || 'Refund failed' });
+        try {
+          await stripe.refunds.create({
+            payment_intent: booking.stripe_payment_intent_id,
+          });
+        } catch (fallbackErr: any) {
+          console.error('[booking] refund failed', fallbackErr);
+          return res.status(500).json({ error: fallbackErr?.message || 'Refund failed' });
+        }
       }
     }
 
-    // Charge on completion using saved card (legacy flow).
-    // If already paid upfront, never charge again.
-    if (status === 'completed' && !booking.paid_at && booking.amount_cents && booking.amount_cents > 0) {
+    // Completion flow:
+    // 1) If not paid yet, charge customer now into platform balance.
+    // 2) Release provider payout via transfer only when booking is completed.
+    if (status === 'completed' && booking.amount_cents && booking.amount_cents > 0) {
       if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
         return res.status(400).json({ error: 'Business has not connected their bank account yet' });
       }
-      let profileStripeCustomerId: string | null = null;
-      let profileStripePaymentMethodId: string | null = null;
-      if (booking.user_id) {
-        const { data: pStripe } = await supabase
-          .from('profiles')
-          .select('stripe_customer_id, stripe_payment_method_id')
-          .eq('id', booking.user_id)
-          .maybeSingle();
-        if (pStripe) {
-          profileStripeCustomerId = pStripe.stripe_customer_id || null;
-          profileStripePaymentMethodId = pStripe.stripe_payment_method_id || null;
-        }
+      const platformFeePercent = getPlatformFeePercent(biz);
+      if (!assertPlatformFeePercent(biz, platformFeePercent)) {
+        return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
       }
-      const customerId = booking.stripe_customer_id || profileStripeCustomerId;
-      const paymentMethodId = booking.stripe_payment_method_id || profileStripePaymentMethodId;
-      if (!customerId || !paymentMethodId) {
-        return res.status(400).json({ error: 'Customer has not saved a card yet' });
-      }
-      try {
-        const platformFeePercent = getPlatformFeePercent(biz);
-        if (!assertPlatformFeePercent(biz, platformFeePercent)) {
-          return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
-        }
-        const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);
-        const protectionFeeCents = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
-        const totalChargeCents = booking.amount_cents + protectionFeeCents;
-        const applicationFeeCents = platformFeeCents + protectionFeeCents;
-        const pi = await stripe.paymentIntents.create({
-          amount: totalChargeCents,
-          currency: 'usd',
-          customer: customerId,
-          payment_method: paymentMethodId,
-          confirm: true,
-          off_session: true,
-          application_fee_amount: applicationFeeCents,
-          transfer_data: { destination: biz.stripe_account_id },
-          description: `ScheduleMe booking: ${booking.service || 'Service'} with ${biz.name || 'provider'}`,
-          metadata: {
-            bookingId: booking_id,
-            businessId: biz.id,
-            service: booking.service || '',
-            business_name: biz.name || '',
-            platform_fee_percent: String(platformFeePercent),
-            protection_fee_cents: String(protectionFeeCents),
-          },
-        });
+      const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);
+      const protectionFeeCents = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
+      const totalChargeCents = booking.amount_cents + protectionFeeCents;
 
-        if (pi.status !== 'succeeded') {
-          return res.status(500).json({ error: 'Payment could not be completed. Please try again.' });
-        }
+      let sourceTransactionId: string | null = null;
+      let isLegacyDestinationCharge = false;
 
-        updatePayload.paid_at = new Date().toISOString();
-        updatePayload.protection_fee_cents = protectionFeeCents;
-        updatePayload.stripe_payment_intent_id = pi.id;
-        updatePayload.stripe_customer_id = customerId;
-        updatePayload.stripe_payment_method_id = paymentMethodId;
-
-        // Best-effort instant payout to connected account (if enabled)
-        const transferAmount = Math.max(0, booking.amount_cents - platformFeeCents);
-        if (transferAmount > 0) {
-          try {
-            await stripe.payouts.create(
-              { amount: transferAmount, currency: 'usd', method: 'instant' },
-              { stripeAccount: biz.stripe_account_id }
-            );
-          } catch (e: any) {
-            console.warn('[booking] instant payout failed, falling back to standard schedule', e?.message || e);
+      if (!booking.paid_at) {
+        let profileStripeCustomerId: string | null = null;
+        let profileStripePaymentMethodId: string | null = null;
+        if (booking.user_id) {
+          const { data: pStripe } = await supabase
+            .from('profiles')
+            .select('stripe_customer_id, stripe_payment_method_id')
+            .eq('id', booking.user_id)
+            .maybeSingle();
+          if (pStripe) {
+            profileStripeCustomerId = pStripe.stripe_customer_id || null;
+            profileStripePaymentMethodId = pStripe.stripe_payment_method_id || null;
           }
         }
-      } catch (e: any) {
-        console.error('[booking] payment intent create failed', e);
-        return res.status(500).json({ error: e?.message || 'Payment failed' });
+        const customerId = booking.stripe_customer_id || profileStripeCustomerId;
+        const paymentMethodId = booking.stripe_payment_method_id || profileStripePaymentMethodId;
+        if (!customerId || !paymentMethodId) {
+          return res.status(400).json({ error: 'Customer has not saved a card yet' });
+        }
+        try {
+          const pi = await stripe.paymentIntents.create({
+            amount: totalChargeCents,
+            currency: 'usd',
+            customer: customerId,
+            payment_method: paymentMethodId,
+            confirm: true,
+            off_session: true,
+            description: `ScheduleMe booking: ${booking.service || 'Service'} with ${biz.name || 'provider'}`,
+            metadata: {
+              bookingId: booking_id,
+              businessId: biz.id,
+              service: booking.service || '',
+              business_name: biz.name || '',
+              hold_in_platform: 'true',
+              platform_fee_percent: String(platformFeePercent),
+              platform_fee_cents: String(platformFeeCents),
+              protection_fee_cents: String(protectionFeeCents),
+            },
+          });
+
+          if (pi.status !== 'succeeded') {
+            return res.status(500).json({ error: 'Payment could not be completed. Please try again.' });
+          }
+          if (pi.transfer_data?.destination) {
+            isLegacyDestinationCharge = true;
+          }
+          sourceTransactionId =
+            typeof pi.latest_charge === 'string'
+              ? pi.latest_charge
+              : ((pi.latest_charge as any)?.id || null);
+
+          updatePayload.paid_at = new Date().toISOString();
+          updatePayload.protection_fee_cents = protectionFeeCents;
+          updatePayload.stripe_payment_intent_id = pi.id;
+          updatePayload.stripe_customer_id = customerId;
+          updatePayload.stripe_payment_method_id = paymentMethodId;
+        } catch (e: any) {
+          console.error('[booking] payment intent create failed', e);
+          return res.status(500).json({ error: e?.message || 'Payment failed' });
+        }
+      } else if (booking.stripe_payment_intent_id) {
+        try {
+          const existingPi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
+          if (existingPi.transfer_data?.destination) {
+            isLegacyDestinationCharge = true;
+          }
+          sourceTransactionId =
+            typeof existingPi.latest_charge === 'string'
+              ? existingPi.latest_charge
+              : ((existingPi.latest_charge as any)?.id || null);
+        } catch (e: any) {
+          console.warn('[booking] could not retrieve payment intent for transfer source', e?.message || e);
+        }
+      }
+
+      // For new platform-held charges, release provider payout only on completion.
+      const transferAmount = Math.max(0, booking.amount_cents - platformFeeCents);
+      if (!isLegacyDestinationCharge && transferAmount > 0) {
+        try {
+          await stripe.transfers.create({
+            amount: transferAmount,
+            currency: 'usd',
+            destination: biz.stripe_account_id,
+            source_transaction: sourceTransactionId || undefined,
+            metadata: {
+              bookingId: booking_id,
+              businessId: biz.id,
+              release: 'on_completion',
+              platform_fee_percent: String(platformFeePercent),
+              protection_fee_cents: String(protectionFeeCents),
+            },
+            description: `ScheduleMe payout release for booking ${booking_id.slice(0, 8)}`,
+          }, {
+            idempotencyKey: `booking_${booking_id}_release_v1`,
+          });
+        } catch (e: any) {
+          console.error('[booking] payout release transfer failed', e);
+          return res.status(500).json({ error: e?.message || 'Could not release provider payout' });
+        }
       }
     }
 
