@@ -794,19 +794,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }),
         }).catch(() => {});
       }
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-      fetch(`${siteUrl}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-        body: JSON.stringify({
-          type: 'status_update',
-          to: consumer.email,
-          name: consumer.name || 'there',
-          service: booking.service,
-          status,
-          businessName: (booking.businesses as any)?.name,
-        }),
-      }).catch(() => {});
+      if (status !== 'cancelled') {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+        fetch(`${siteUrl}/api/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+          body: JSON.stringify({
+            type: 'status_update',
+            to: consumer.email,
+            name: consumer.name || 'there',
+            service: booking.service,
+            status,
+            businessName: (booking.businesses as any)?.name,
+          }),
+        }).catch(() => {});
+      }
 
       // n8n trigger for status changes
       if (process.env.N8N_WEBHOOK_URL) {
@@ -825,12 +827,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    if (status === 'cancelled' && !isBusinessOwner && biz?.owner_email) {
+    if (status === 'cancelled' && consumer?.email) {
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
       const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
       const scheduledAt = scheduledRaw
         ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
         : '';
+      const cancelledByLabel = isBusinessOwner
+        ? `${biz?.name || 'Provider'} (provider)`
+        : `${consumer?.name || user.email?.split('@')[0] || 'Customer'} (customer)`;
+      fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+        body: JSON.stringify({
+          type: 'booking_cancelled_consumer',
+          to: consumer.email,
+          name: consumer.name || 'there',
+          businessName: biz?.name || 'Your provider',
+          service: booking.service || 'Service',
+          scheduledAt,
+          cancellationReason: cancellationReason || 'Not provided',
+          cancelledByLabel,
+          refundInProgress: !!booking.paid_at,
+          bookingId: booking_id,
+        }),
+      }).catch(() => {});
+    }
+
+    if (status === 'cancelled' && biz?.owner_email) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
+      const scheduledAt = scheduledRaw
+        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
+      const cancelledByLabel = isBusinessOwner
+        ? `${biz?.name || 'Provider'} (provider)`
+        : `${consumer?.name || user.email?.split('@')[0] || 'Customer'} (customer)`;
       fetch(`${siteUrl}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
@@ -842,6 +874,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           service: booking.service || 'Service',
           scheduledAt,
           cancellationReason: cancellationReason || 'Not provided',
+          cancelledByLabel,
           bookingId: booking_id,
         }),
       }).catch(() => {});

@@ -326,15 +326,21 @@ export function bookingCancelledBusinessHtml(opts: {
   bookingId: string;
   scheduledAt?: string;
   cancellationReason: string;
+  cancelledByLabel?: string;
 }) {
   const dashUrl = `${SITE_URL}/business/dashboard`;
+  const cancelledBy = opts.cancelledByLabel || `${opts.customerName} (customer)`;
   const body = `
     <tr><td bgcolor="#b91c1c" style="background:#b91c1c;padding:32px;text-align:center;">
       <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#ffffff;">Booking cancelled</h1>
-      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);">${opts.customerName} cancelled a booking for ${opts.businessName}</p>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);">${cancelledBy} cancelled a booking for ${opts.businessName}</p>
     </td></tr>
     <tr><td style="padding:32px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff7f7;border-radius:10px;border:1px solid #fecaca;margin-bottom:24px;overflow:hidden;">
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Cancelled by</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${cancelledBy}</span>
+        </td></tr>
         <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
           <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Customer</span>
           <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.customerName}</span>
@@ -361,6 +367,65 @@ export function bookingCancelledBusinessHtml(opts: {
       </table>
     </td></tr>`;
   return layout(`Booking cancelled — ${opts.service}`, body, `${opts.customerName} cancelled ${opts.service}.`);
+}
+
+export function bookingCancelledConsumerHtml(opts: {
+  name: string;
+  businessName: string;
+  service: string;
+  bookingId: string;
+  scheduledAt?: string;
+  cancellationReason: string;
+  cancelledByLabel: string;
+  refundInProgress?: boolean;
+}) {
+  const bookingsUrl = `${SITE_URL}/bookings`;
+  const refundLine = opts.refundInProgress
+    ? 'Your payment refund is now processing and should appear back on your original payment method shortly.'
+    : 'No payment refund was required for this cancellation.';
+
+  const body = `
+    <tr><td bgcolor="#b91c1c" style="background:#b91c1c;padding:32px;text-align:center;">
+      <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#ffffff;">Booking cancelled</h1>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);">Your ${opts.service} booking has been cancelled.</p>
+    </td></tr>
+    <tr><td style="padding:32px;">
+      <p style="margin:0 0 20px;font-size:15px;color:#0f172a;">Hi <strong>${opts.name}</strong>, here are the details:</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff7f7;border-radius:10px;border:1px solid #fecaca;margin-bottom:20px;overflow:hidden;">
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Cancelled by</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.cancelledByLabel}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Provider</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.businessName}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Service</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.service}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Date & Time</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.scheduledAt || 'Not specified'}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;border-bottom:1px solid #fecaca;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Cancellation reason</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${opts.cancellationReason || 'Not provided'}</span>
+        </td></tr>
+        <tr><td style="padding:14px 20px;">
+          <span style="font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">Refund status</span>
+          <span style="font-size:15px;font-weight:600;color:#0f172a;">${refundLine}</span>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td align="center">
+          <a href="${bookingsUrl}" style="display:inline-block;background:#111827;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
+            View my bookings →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>`;
+  return layout(`Booking cancelled — ${opts.service}`, body, `Your ${opts.service} booking was cancelled.`);
 }
 
 // ─── Template: review request ─────────────────────────────────────────────────
@@ -765,7 +830,7 @@ export async function sendNewBookingBusinessEmail(opts: {
 }
 
 export async function sendBookingCancelledBusinessEmail(opts: {
-  to: string; businessName: string; customerName: string; service: string; bookingId: string; scheduledAt?: string; cancellationReason: string;
+  to: string; businessName: string; customerName: string; service: string; bookingId: string; scheduledAt?: string; cancellationReason: string; cancelledByLabel?: string;
 }) {
   const resend = getResend();
   return resend.emails.send({
@@ -773,6 +838,18 @@ export async function sendBookingCancelledBusinessEmail(opts: {
     to: opts.to,
     subject: `Booking cancelled — ${opts.service}`,
     html: bookingCancelledBusinessHtml(opts),
+  });
+}
+
+export async function sendBookingCancelledConsumerEmail(opts: {
+  to: string; name: string; businessName: string; service: string; bookingId: string; scheduledAt?: string; cancellationReason: string; cancelledByLabel: string; refundInProgress?: boolean;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Booking cancelled — ${opts.service}`,
+    html: bookingCancelledConsumerHtml(opts),
   });
 }
 

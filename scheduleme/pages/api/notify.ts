@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   sendBookingConfirmation, sendStatusUpdate, sendWelcomeEmail,
   sendNewBookingBusinessEmail, sendReviewRequestEmail,
-  sendBookingCancelledBusinessEmail,
+  sendBookingCancelledBusinessEmail, sendBookingCancelledConsumerEmail,
   sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail,
   sendStripeAlertEmail,
   sendPaymentReceiptCustomer, sendPaymentNotificationBusiness, sendPaymentRequestCustomer,
@@ -66,6 +66,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           bookingId: rest.bookingId || '',
           scheduledAt: rest.scheduledAt || '',
           cancellationReason: rest.cancellationReason || 'Not provided',
+          cancelledByLabel: rest.cancelledByLabel || `${rest.customerName || 'A customer'} (customer)`,
+        });
+        break;
+      case 'booking_cancelled_consumer':
+        result = await sendBookingCancelledConsumerEmail({
+          to,
+          name: name || 'there',
+          businessName: rest.businessName || 'Your provider',
+          service: rest.service || 'Service Request',
+          bookingId: rest.bookingId || '',
+          scheduledAt: rest.scheduledAt || '',
+          cancellationReason: rest.cancellationReason || 'Not provided',
+          cancelledByLabel: rest.cancelledByLabel || 'Provider',
+          refundInProgress: rest.refundInProgress === true,
         });
         break;
       case 'new_business_application':
