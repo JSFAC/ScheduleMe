@@ -44,7 +44,7 @@ const SignIn: NextPage = () => {
   const captchaReadyRef = useRef(false);
   const isDark = false;
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
-  const captchaRequired = !!siteKey && (tab === 'signup' || failedCount >= 3);
+  const captchaRequired = !!siteKey && (tab === 'signup' || (tab === 'login' && showEmail) || failedCount >= 3);
   const captchaBlocked = !!captchaLoadError;
   const emailRedirectTo =
     typeof window !== 'undefined'
