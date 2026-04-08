@@ -35,6 +35,7 @@ export interface Business {
   slug?: string | null;
   calendlyUrl?: string | null;
   website?: string | null;
+  instagram?: string | null;
   video_url?: string | null;
   preview_locked?: boolean;
   public_visibility?: boolean;

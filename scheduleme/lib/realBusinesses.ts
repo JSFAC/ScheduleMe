@@ -72,6 +72,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     allImages,
     phone: b.phone || '',
     website: b.website || '',
+    instagram: b.instagram || '',
     calendly_url: b.calendly_url || '',
     hours: [],
     services: [],

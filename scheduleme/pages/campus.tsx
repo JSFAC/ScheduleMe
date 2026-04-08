@@ -79,6 +79,7 @@ function mapCampusBusiness(b: any): Business {
     allImages: b.media_urls || (cover ? [cover] : []),
     phone: b.phone || '',
     website: b.website || '',
+    instagram: b.instagram || '',
     calendly_url: b.calendly_url || '',
     hours: normalizeHours(b.hours),
     services: [],
@@ -628,6 +629,11 @@ const CampusPage: NextPage = () => {
     const cardLabel = biz.category || 'Provider';
     const cardName = biz.name || '';
     const cardInitials = initials(cardName || cardLabel);
+    const website = String((biz as any).website || '').trim();
+    const instagramRaw = String((biz as any).instagram || '').trim();
+    const instagramHandle = instagramRaw
+      ? instagramRaw.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '').replace(/\/+$/, '')
+      : '';
     return (
       <button onClick={onClick} className="biz-card group w-full text-left flex flex-col"
         style={{ borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
@@ -686,6 +692,20 @@ const CampusPage: NextPage = () => {
             </span>
           </div>
           <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
+          {(website || instagramHandle) && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              {website && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#d1d5db' : '#4b5563' }}>
+                  Website
+                </span>
+              )}
+              {instagramHandle && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#d1d5db' : '#4b5563' }}>
+                  @{instagramHandle}
+                </span>
+              )}
+            </div>
+          )}
           {(biz.reviews ?? 0) > 0 && biz.rating != null && (
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="flex items-center gap-0.5">

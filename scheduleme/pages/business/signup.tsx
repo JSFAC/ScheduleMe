@@ -8,6 +8,7 @@ import BusinessNav from '../../components/BusinessNav';
 type Step = 'form' | 'submitting' | 'success';
 interface FormData {
   businessName: string; ownerName: string; email: string; phone: string;
+  website: string; instagram: string;
   serviceCategory: string; otherCategory: string; city: string; zip: string; radiusMiles: string;
   licenseNumber: string; yearsInBusiness: string; agree: boolean;
   campusProvider: boolean; schoolName: string;
@@ -28,6 +29,7 @@ const SignupPage: NextPage = () => {
   const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
   const captchaRef = useRef<HTMLDivElement | null>(null);
   const [captchaLoadError, setCaptchaLoadError] = useState<string | null>(null);
+  const [showSocialFields, setShowSocialFields] = useState(false);
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
   const isDark = true;
 
@@ -68,6 +70,7 @@ const SignupPage: NextPage = () => {
   }, []);
   const [form, setForm] = useState<FormData>({
     businessName:'', ownerName:'', email:'', phone:'', serviceCategory:'', otherCategory:'',
+    website:'', instagram:'',
     city:'', zip:'', radiusMiles:'25 miles', licenseNumber:'', yearsInBusiness:'', agree:false,
     campusProvider:false, schoolName:'',
   });
@@ -271,6 +274,48 @@ const SignupPage: NextPage = () => {
                         placeholder="5" value={form.yearsInBusiness} onChange={e => set('yearsInBusiness', e.target.value)} />
                     </div>
                   </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowSocialFields(v => !v)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 px-3 py-2 text-xs font-semibold text-neutral-300 hover:border-neutral-600 hover:text-white transition-colors"
+                    >
+                      {showSocialFields ? 'Hide social links' : 'Add social links'}
+                      <span className="text-neutral-500">(optional)</span>
+                    </button>
+                  </div>
+                  {showSocialFields && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-400 mb-1.5">Website <span className="text-xs text-neutral-600">(optional)</span></label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            maxLength={200}
+                            className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                            placeholder="https://yourbusiness.com"
+                            value={form.website}
+                            onChange={e => set('website', e.target.value)}
+                          />
+                          <span className="absolute bottom-2 right-3 text-[10px] text-neutral-500">{form.website.length}/200</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-400 mb-1.5">Instagram <span className="text-xs text-neutral-600">(optional)</span></label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            maxLength={120}
+                            className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                            placeholder="@yourhandle or instagram.com/yourhandle"
+                            value={form.instagram}
+                            onChange={e => set('instagram', e.target.value)}
+                          />
+                          <span className="absolute bottom-2 right-3 text-[10px] text-neutral-500">{form.instagram.length}/120</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </fieldset>
 
