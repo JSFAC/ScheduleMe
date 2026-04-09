@@ -1373,6 +1373,7 @@ const BusinessDashboard: NextPage = () => {
 
   async function handleSetPrice(bookingId: string, amountCents: number) {
     try {
+      const current = bookings.find(b => b.id === bookingId);
       const headers = await getAuthHeaders();
       const res = await fetch('/api/set-booking-amount', {
         method: 'POST',
@@ -1382,7 +1383,12 @@ const BusinessDashboard: NextPage = () => {
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Failed to set price'); return false; }
       const nextAmount = data?.amount_cents ?? amountCents;
-      const nextStatus = data?.status || 'payment_pending';
+      const inferredCounterOffer =
+        !!current
+        && current.status === 'price_disputed'
+        && current.customer_proposed_price_cents != null
+        && amountCents !== current.customer_proposed_price_cents;
+      const nextStatus = data?.status || (inferredCounterOffer ? 'price_disputed' : (current?.status === 'price_disputed' ? 'price_disputed' : 'payment_pending'));
       setBookings(bs => bs.map(b => b.id === bookingId
         ? {
           ...b,
@@ -1394,6 +1400,7 @@ const BusinessDashboard: NextPage = () => {
         }
         : b
       ));
+      try { await loadData(); } catch {}
       return true;
     } catch {
       alert('Failed to set price. Please try again.');
