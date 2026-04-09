@@ -104,7 +104,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         result = await sendPaymentRequestCustomer({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
         break;
       case 'customer_proposed_price':
-        result = await sendCustomerProposedPriceBusiness({ to, businessName: rest.businessName || rest.name || 'Your business', customerName: rest.customerName || 'A customer', service: rest.service || 'Service', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });
+        result = await sendCustomerProposedPriceBusiness({
+          to,
+          businessName: rest.businessName || rest.name || 'Your business',
+          customerName: rest.customerName || 'A customer',
+          service: rest.service || 'Service',
+          amountDollars: rest.amountDollars || '0.00',
+          bookingId: rest.bookingId || '',
+          scheduledAt: rest.scheduledAt || '',
+          note: rest.note || '',
+        });
         break;
       case 'provider_accepted_customer_price':
         result = await sendProviderAcceptedCustomerPrice({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });

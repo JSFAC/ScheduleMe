@@ -982,6 +982,8 @@ export function paymentRequestCustomerHtml(opts: {
 // ─── Customer Proposed Price — Business ──────────────────────────────────────
 export function customerProposedPriceBusinessHtml(opts: {
   businessName: string; customerName: string; service: string; amountDollars: string; bookingId: string;
+  scheduledAt?: string;
+  note?: string;
 }) {
   const body = `
     <tr><td style="background:#ffffff;border-radius:16px;padding:36px;border:1px solid #e2e8f0;">
@@ -997,6 +999,8 @@ export function customerProposedPriceBusinessHtml(opts: {
         ${[
           ['Service', opts.service],
           ['Customer', opts.customerName],
+          ['Date & Time', opts.scheduledAt || 'Not specified'],
+          ['Booking Note', opts.note || 'No note provided'],
           ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
         ].map(([label, value]) => `
         <tr>
@@ -1150,6 +1154,8 @@ export async function sendPriceDisputeSubmitted(opts: {
 
 export async function sendCustomerProposedPriceBusiness(opts: {
   to: string; businessName: string; customerName: string; service: string; amountDollars: string; bookingId: string;
+  scheduledAt?: string;
+  note?: string;
 }) {
   const resend = getResend();
   return resend.emails.send({ from: FROM, to: opts.to, subject: `Customer proposed $${opts.amountDollars} for ${opts.service}`, html: customerProposedPriceBusinessHtml(opts) });

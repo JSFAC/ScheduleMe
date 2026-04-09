@@ -721,23 +721,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       meta: { status, cancellation_reason: status === 'cancelled' ? (cancellationReason || null) : null },
     });
 
-    // Notify business of dispute so they can respond immediately
-    if (status === 'price_disputed' && biz?.owner_email) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-      fetch(`${siteUrl}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-        body: JSON.stringify({
-          type: 'status_update',
-          to: biz.owner_email,
-          name: biz?.name || 'there',
-          service: booking.service,
-          status: 'price_disputed',
-          businessName: biz?.name,
-        }),
-      }).catch(() => {});
-    }
-
     if (status === 'completed' && booking.status !== 'completed' && booking.business_id) {
       await handleCompletionBusinessUpdate(supabase, booking.business_id);
     }
@@ -794,7 +777,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }),
         }).catch(() => {});
       }
-      if (status !== 'cancelled') {
+      if (status !== 'cancelled' && status !== 'price_disputed') {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
         fetch(`${siteUrl}/api/notify`, {
           method: 'POST',
@@ -876,6 +859,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           cancellationReason: cancellationReason || 'Not provided',
           cancelledByLabel,
           bookingId: booking_id,
+        }),
+      }).catch(() => {});
+    }
+
+    if (status === 'price_disputed' && biz?.owner_email) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
+      const scheduledAt = scheduledRaw
+        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
+      fetch(`${siteUrl}/api/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+        body: JSON.stringify({
+          type: 'customer_proposed_price',
+          to: biz.owner_email,
+          businessName: biz?.name || 'Your business',
+          customerName: consumer?.name || user.email?.split('@')[0] || 'A customer',
+          service: booking.service || 'Custom request',
+          amountDollars: (Number(updatePayload.dispute_amount_cents || booking.dispute_amount_cents || 0) / 100).toFixed(2),
+          bookingId: booking_id,
+          scheduledAt,
+          note: booking.note || '',
         }),
       }).catch(() => {});
     }
