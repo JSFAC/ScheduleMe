@@ -47,7 +47,7 @@ struct NotificationsView: View {
                     NotificationTabs(selected: $selectedTab)
                         .padding(.horizontal, 20)
 
-                    if dataStore.isLoadingNotifications && dataStore.notifications.isEmpty {
+                    if (!dataStore.hasLoadedNotifications || dataStore.isLoadingNotifications) && dataStore.notifications.isEmpty {
                         NotificationSkeletonList()
                             .padding(.horizontal, 20)
                     } else if notificationsForTab.isEmpty {

@@ -10,14 +10,14 @@ import Supabase
 
 private enum ConsumerAuthTheme {
     static let bg = ScheduleMeTheme.pageBackground
-    static let surface = Color.white
-    static let surfaceSoft = Color(hex: "F3F4F6")
+    static let surface = ScheduleMeTheme.surface
+    static let surfaceSoft = Color.dynamic(light: Color(hex: "F3F4F6"), dark: Color(hex: "1F2937"))
     static let border = ScheduleMeTheme.cardBorder
     static let accent = ScheduleMeTheme.accent
     static let textPrimary = ScheduleMeTheme.titleText
     static let textSub = ScheduleMeTheme.mutedText
     static let fontName = ScheduleMeTheme.fontName
-    static let surfaceShadow = Color.black.opacity(0.08)
+    static let surfaceShadow = Color.dynamic(light: Color.black.opacity(0.08), dark: Color.black.opacity(0.24))
 }
 
 struct AuthView: View {

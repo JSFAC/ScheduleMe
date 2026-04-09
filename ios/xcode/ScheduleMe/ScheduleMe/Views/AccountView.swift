@@ -24,6 +24,7 @@ struct AccountView: View {
     @State private var avatarError: String?
     @AppStorage("scheduleme_display_name") private var storedDisplayName = ""
     @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = false
+    @AppStorage("scheduleme_has_logged_in_ever") private var hasLoggedInEver = false
     @AppStorage("scheduleme_notify_booking") private var notifyBooking = true
     @AppStorage("scheduleme_notify_messages") private var notifyMessages = true
     @AppStorage("scheduleme_notify_reminders") private var notifyReminders = true
@@ -31,13 +32,17 @@ struct AccountView: View {
     @State private var showingDeleteAlert = false
     @State private var isDeletingAccount = false
     @State private var deleteAccountError: String?
+    @State private var showingSupportFallbackAlert = false
+    @State private var supportFallbackMessage = ""
     @State private var profileSaveSuccess = false
+    @State private var isLoadingProfile = true
     @State private var showingEduVerification = false
     private let openEduOnAppear: Bool
     @State private var addresses: [SavedAddress] = []
     @State private var showingAddAddress = false
     @State private var editingAddress: SavedAddress?
-    private let addressesStorageKey = "scheduleme_saved_addresses"
+    private let addressesStorageKey = "scheduleme_saved_addresses_secure"
+    private let legacyAddressesStorageKey = "scheduleme_saved_addresses"
 
     init(openEduOnAppear: Bool = false) {
         self.openEduOnAppear = openEduOnAppear
@@ -132,7 +137,7 @@ struct AccountView: View {
                 }
             }
         }
-        .preferredColorScheme(darkModeEnabled ? .dark : .light)
+        .preferredColorScheme(effectiveDarkModeEnabled ? .dark : .light)
         .task {
             await loadProfile()
             loadAddresses()
@@ -148,6 +153,11 @@ struct AccountView: View {
             }
         } message: {
             Text("This permanently deletes your account and associated data. This action cannot be undone.")
+        }
+        .alert("Contact Support", isPresented: $showingSupportFallbackAlert) {
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(supportFallbackMessage)
         }
         .onAppear {
             if fullName.isEmpty {
@@ -198,7 +208,7 @@ struct AccountView: View {
     /// Applies the currently selected theme instantly to every active window,
     /// including this account sheet while it's already presented.
     private func applyInterfaceStyleImmediately() {
-        let style: UIUserInterfaceStyle = darkModeEnabled ? .dark : .light
+        let style: UIUserInterfaceStyle = effectiveDarkModeEnabled ? .dark : .light
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .forEach { scene in
@@ -206,6 +216,10 @@ struct AccountView: View {
                     window.overrideUserInterfaceStyle = style
                 }
             }
+    }
+
+    private var effectiveDarkModeEnabled: Bool {
+        hasLoggedInEver && darkModeEnabled
     }
 
     private var displayNameFromEmail: String {
@@ -223,7 +237,11 @@ struct AccountView: View {
 
     // MARK: - Tab Sections
 
+    @ViewBuilder
     private var accountProfileSection: some View {
+        if isLoadingProfile {
+            AccountProfileSkeletonView()
+        } else {
         VStack(alignment: .leading, spacing: 16) {
             ScheduleMeCard {
                 VStack(alignment: .leading, spacing: 14) {
@@ -251,7 +269,6 @@ struct AccountView: View {
                             .textInputAutocapitalization(.never)
                             .keyboardType(.emailAddress)
                             .scheduleMeFieldStyle()
-                            .disabled(true)
                         Text("Managed by Google.")
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                             .foregroundColor(ScheduleMeTheme.mutedText)
@@ -336,9 +353,7 @@ struct AccountView: View {
                         .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
                         .foregroundColor(ScheduleMeTheme.accent)
                         Button("Contact Support") {
-                            if let url = URL(string: "mailto:support@usescheduleme.com") {
-                                openURL(url)
-                            }
+                            contactSupport()
                         }
                         .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
                         .foregroundColor(ScheduleMeTheme.accent)
@@ -388,6 +403,7 @@ struct AccountView: View {
                     }
                 }
             }
+        }
         }
     }
 
@@ -531,17 +547,30 @@ struct AccountView: View {
     // MARK: - Address Persistence
 
     private func loadAddresses() {
-        if let data = UserDefaults.standard.data(forKey: addressesStorageKey),
+        if let data = KeychainStore.data(forKey: addressesStorageKey),
            let decoded = try? JSONDecoder().decode([SavedAddress].self, from: data) {
             addresses = decoded
-        } else {
-            addresses = []
+            return
         }
+
+        // One-time migration from legacy plain-text UserDefaults storage.
+        if let legacyData = UserDefaults.standard.data(forKey: legacyAddressesStorageKey),
+           let decoded = try? JSONDecoder().decode([SavedAddress].self, from: legacyData) {
+            addresses = decoded
+            if let reEncoded = try? JSONEncoder().encode(decoded) {
+                KeychainStore.setData(reEncoded, forKey: addressesStorageKey)
+            }
+            UserDefaults.standard.removeObject(forKey: legacyAddressesStorageKey)
+            return
+        }
+
+        addresses = []
     }
 
     private func persistAddresses() {
         if let data = try? JSONEncoder().encode(addresses) {
-            UserDefaults.standard.set(data, forKey: addressesStorageKey)
+            KeychainStore.setData(data, forKey: addressesStorageKey)
+            UserDefaults.standard.removeObject(forKey: legacyAddressesStorageKey)
         }
     }
 
@@ -570,6 +599,8 @@ struct AccountView: View {
 
     /// Loads profile fields from Supabase `profiles` table into local form state.
     private func loadProfile() async {
+        isLoadingProfile = true
+        defer { isLoadingProfile = false }
         guard let userID = appState.userID else { return }
         do {
             let response: PostgrestResponse<ProfileRow> = try await SupabaseManager.shared.client
@@ -630,6 +661,19 @@ struct AccountView: View {
             dismiss()
         } catch {
             deleteAccountError = "Couldn’t delete account in-app. You can still delete from the website."
+        }
+    }
+
+    private func contactSupport() {
+        guard let supportURL = URL(string: "https://www.usescheduleme.com/support") else {
+            supportFallbackMessage = "Could not open support page."
+            showingSupportFallbackAlert = true
+            return
+        }
+        openURL(supportURL) { accepted in
+            guard accepted == false else { return }
+            supportFallbackMessage = "Unable to open support page right now. Please visit https://www.usescheduleme.com/support."
+            showingSupportFallbackAlert = true
         }
     }
 
@@ -940,6 +984,43 @@ private struct AddressRow: View {
         .background(ScheduleMeTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(ScheduleMeTheme.cardBorder))
+    }
+}
+
+private struct AccountProfileSkeletonView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ScheduleMeCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        SkeletonCircle(size: 64)
+                        VStack(alignment: .leading, spacing: 6) {
+                            SkeletonBlock(width: 120, height: 16, cornerRadius: 8)
+                            SkeletonBlock(width: 180, height: 12, cornerRadius: 6)
+                        }
+                        Spacer()
+                    }
+                    SkeletonBlock(width: 90, height: 10, cornerRadius: 5)
+                    SkeletonBlock(width: 120, height: 20, cornerRadius: 8)
+                    SkeletonBlock(height: 44, cornerRadius: 14)
+                    SkeletonBlock(height: 44, cornerRadius: 14)
+                    SkeletonBlock(height: 44, cornerRadius: 14)
+                    SkeletonBlock(height: 46, cornerRadius: 16)
+                    SkeletonBlock(height: 46, cornerRadius: 14)
+                }
+            }
+
+            ScheduleMeCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SkeletonBlock(width: 80, height: 10, cornerRadius: 5)
+                    SkeletonBlock(width: 100, height: 18, cornerRadius: 8)
+                    SkeletonBlock(height: 34, cornerRadius: 10)
+                    SkeletonBlock(width: 120, height: 12, cornerRadius: 6)
+                    SkeletonBlock(width: 90, height: 12, cornerRadius: 6)
+                    SkeletonBlock(height: 44, cornerRadius: 14)
+                }
+            }
+        }
     }
 }
 

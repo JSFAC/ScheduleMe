@@ -15,6 +15,7 @@ struct BookingDetailView: View {
     @State private var showingReview = false
     @State private var showingCancelAlert = false
     @State private var showingPayment = false
+    @State private var showingPaymentReview = false
     @State private var cancelError: String?
 
     var body: some View {
@@ -60,9 +61,6 @@ struct BookingDetailView: View {
                             DetailRow(systemImage: "note.text", label: "Note", value: note)
                         }
 
-                        Text("ID: \(booking.id)")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                            .foregroundColor(ScheduleMeTheme.mutedText.opacity(0.6))
                     }
                 }
 
@@ -105,9 +103,17 @@ struct BookingDetailView: View {
                                 Text("Payment method saved")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
                                     .foregroundColor(ScheduleMeTheme.titleText)
-                                Text("Your card is authorized. You’ll be charged after the service is completed.")
+                                Text(booking.paidAt != nil
+                                     ? "Payment received. Your booking remains pending until the provider accepts."
+                                     : "Complete payment to keep this booking in the provider queue.")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
+                                if let actionTitle = pendingPriceActionTitle {
+                                    Button(actionTitle) {
+                                        showingPaymentReview = true
+                                    }
+                                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                }
                                 Button("Change payment method") {
                                     showingPayment = true
                                 }
@@ -119,6 +125,12 @@ struct BookingDetailView: View {
                                 Text("Save a card to secure this booking.")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
+                                if let actionTitle = pendingPriceActionTitle {
+                                    Button(actionTitle) {
+                                        showingPaymentReview = true
+                                    }
+                                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                }
                                 Button("Add payment method") {
                                     showingPayment = true
                                 }
@@ -155,8 +167,8 @@ struct BookingDetailView: View {
                         .buttonStyle(ScheduleMeSecondaryButtonStyle())
                     }
 
-                    // Cancel — only for pending bookings
-                    if booking.status == "pending" {
+                    // Cancel — allowed while not yet active/completed.
+                    if ["pending", "payment_pending", "awaiting_payment", "payment_collected", "confirmed"].contains(booking.status.lowercased()) {
                         Button("Cancel Booking") {
                             showingCancelAlert = true
                         }
@@ -192,6 +204,18 @@ struct BookingDetailView: View {
         .sheet(isPresented: $showingPayment) {
             PaymentSetupWebView(bookingID: booking.id)
         }
+        .sheet(isPresented: $showingPaymentReview) {
+            BookingPaymentReviewSheet(
+                booking: booking,
+                primaryActionTitle: pendingPriceActionTitle ?? "Pay Booking",
+                onContinue: {
+                    showingPaymentReview = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                        showingPayment = true
+                    }
+                }
+            )
+        }
     }
 
     // MARK: - Actions
@@ -204,6 +228,67 @@ struct BookingDetailView: View {
             dismiss()
         } catch {
             cancelError = error.localizedDescription
+        }
+    }
+
+    private var pendingPriceActionTitle: String? {
+        guard let amount = booking.amountCents, amount > 0, booking.paidAt == nil else { return nil }
+        switch booking.status.lowercased() {
+        case "pending":
+            return "Accept Price"
+        case "awaiting_payment", "payment_pending", "payment_collected", "confirmed":
+            return "Pay Booking"
+        default:
+            return nil
+        }
+    }
+}
+
+private struct BookingPaymentReviewSheet: View {
+    let booking: BookingSummary
+    let primaryActionTitle: String
+    let onContinue: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScheduleMeScreen(showsTopBar: false) {
+                VStack(spacing: 16) {
+                    ScheduleMeCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Review Booking")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                                .foregroundColor(ScheduleMeTheme.titleText)
+                            DetailRow(systemImage: "wrench.and.screwdriver.fill", label: "Service", value: booking.service)
+                            DetailRow(systemImage: "building.2.fill", label: "Provider", value: booking.businessName ?? "ScheduleMe provider")
+                            if let scheduledAt = booking.scheduledAt {
+                                DetailRow(systemImage: "calendar", label: "Scheduled", value: scheduledAt.formatted(date: .abbreviated, time: .shortened))
+                            }
+                            if let amountLabel = booking.amountLabel {
+                                DetailRow(systemImage: "creditcard.fill", label: "Amount Due", value: amountLabel)
+                            }
+                        }
+                    }
+
+                    Text("You can confirm this price now and complete payment securely in the next step.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+
+                    Button(primaryActionTitle) {
+                        onContinue()
+                    }
+                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+
+                    Button("Not now") {
+                        dismiss()
+                    }
+                    .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+            }
+            .navigationTitle("Review")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
@@ -231,18 +316,39 @@ private struct PaymentSetupWebView: View {
 private struct PaymentWebView: UIViewRepresentable {
     let url: URL?
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     /// Creates UIKit WKWebView used for hosted web payment page.
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView(frame: .zero)
         webView.allowsBackForwardNavigationGestures = true
         webView.backgroundColor = UIColor.systemBackground
+        webView.navigationDelegate = context.coordinator
         return webView
     }
 
     /// Loads booking payment URL whenever representable updates.
     func updateUIView(_ webView: WKWebView, context: Context) {
         guard let url else { return }
+        guard Coordinator.isAllowed(url: url) else { return }
         webView.load(URLRequest(url: url))
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        static func isAllowed(url: URL) -> Bool {
+            guard url.scheme?.lowercased() == "https", let host = url.host?.lowercased() else { return false }
+            if host == "usescheduleme.com" || host == "www.usescheduleme.com" { return true }
+            if host == "checkout.stripe.com" || host == "js.stripe.com" { return true }
+            if host.hasSuffix(".stripe.com") { return true }
+            return false
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            guard let url = navigationAction.request.url else { return .cancel }
+            return Self.isAllowed(url: url) ? .allow : .cancel
+        }
     }
 }
 
@@ -251,9 +357,9 @@ private struct StatusBadge: View {
 
     private var color: Color {
         switch status {
-        case "confirmed": return .green
+        case "confirmed", "active", "completion_pending": return .green
         case "completed": return ScheduleMeTheme.accent
-        case "pending": return .orange
+        case "pending", "payment_pending", "awaiting_payment", "payment_collected": return .orange
         case "cancelled": return .red
         default: return ScheduleMeTheme.mutedText
         }

@@ -5,18 +5,40 @@
 // If an endpoint fails, start here to inspect request build, auth headers, and response decoding.
 
 import Foundation
+import CryptoKit
+import Security
 
 // MARK: - HTTP Client
 
-final class APIClient {
+final class APIClient: NSObject, URLSessionDelegate {
     static let shared = APIClient()
 
     private let baseURL: URL
-    private let session: URLSession
+    private lazy var session: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.waitsForConnectivity = true
+        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+    }()
     private let decoder = JSONDecoder.scheduleMe
     private let encoder = JSONEncoder.scheduleMe
+    private let pinnedCertificateHashesByHost: [String: Set<String>] = [
+        // SHA-256 DER certificate hashes (base64), refreshed on 2026-04-09.
+        // Include leaf + intermediate hashes as backup pins for safer cert rotation.
+        "www.usescheduleme.com": [
+            "72CpCHtlFrQqwVm8JbmuAZ6wRsjAc0aeOwSTDSpLWlc=", // leaf (Let's Encrypt R12-issued)
+            "Ex/Od4QBaJmloAIDqe/IDxjrvXVYBxftwVU1gJMINuw="  // intermediate R12
+        ],
+        "usescheduleme.com": [
+            "DmDmsmFZEY5Pnk8huTrTewbM2B++UvOoZ3f+IZEVB3Y=", // leaf (Let's Encrypt R13-issued)
+            "07EoIWqEP47xMhUB9d9Spd9Sk57iwZKXcSzT3k1Bk1Q="  // intermediate R13
+        ],
+        "imfrlykibvjdbijegdky.supabase.co": [
+            "OYvM4tmVyyPLCSqTe1tYvZW0CKRfv4mre7EUA0eJrn0=", // leaf
+            "HfwWBfutNY2LyET3bRUgP6ycpcGnn9SFf/ryhk++v5Y="  // Google Trust Services WE1 intermediate
+        ]
+    ]
 
-    private init() {
+    private override init() {
         let configuredBase = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String ?? ""
         if let parsedURL = URL(string: configuredBase), parsedURL.host != nil {
             self.baseURL = parsedURL
@@ -26,7 +48,7 @@ final class APIClient {
             #endif
             self.baseURL = URL(string: "https://www.usescheduleme.com")!
         }
-        self.session = .shared
+        super.init()
     }
 
     /// GET helper used for read-only endpoints.
@@ -115,5 +137,49 @@ final class APIClient {
         }
 
         return try decoder.decode(T.self, from: data)
+    }
+
+    // MARK: - TLS Certificate Pinning
+
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let trust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        let host = challenge.protectionSpace.host.lowercased()
+        guard let pinnedHashes = pinnedCertificateHashesByHost[host], !pinnedHashes.isEmpty else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        guard SecTrustEvaluateWithError(trust, nil) else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        guard let certificateChain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
+              !certificateChain.isEmpty else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        var chainHashes = Set<String>()
+        for cert in certificateChain {
+            let certData = SecCertificateCopyData(cert) as Data
+            let hash = Data(SHA256.hash(data: certData)).base64EncodedString()
+            chainHashes.insert(hash)
+        }
+
+        if !pinnedHashes.isDisjoint(with: chainHashes) {
+            completionHandler(.useCredential, URLCredential(trust: trust))
+        } else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+        }
     }
 }

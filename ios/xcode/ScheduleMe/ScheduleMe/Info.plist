@@ -27,8 +27,10 @@
 	<string>$(STRIPE_PUBLISHABLE_KEY)</string>
 	<key>SUPABASE_ANON_KEY</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
-<key>SUPABASE_URL</key>
+	<key>SUPABASE_URL</key>
 	<string>https://imfrlykibvjdbijegdky.supabase.co</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ScheduleMe uses your location to show nearby providers, distance, and local availability.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Resources/Fonts/PlusJakartaSans-VariableFont_wght.ttf</string>

@@ -20,7 +20,8 @@ struct HomeView: View {
     @State private var selectedHomeCategory = "All"
     @State private var showingMatches = false
     @State private var matchedBusinesses: [BusinessSummary] = []
-    @Environment(\.colorScheme) private var colorScheme
+    private let homeCardWidth: CGFloat = 164
+    private let homeCardImageHeight: CGFloat = 84
 
     var body: some View {
         NavigationStack {
@@ -147,9 +148,16 @@ struct HomeView: View {
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 7)
                                     .background(
-                                        isGetMatchesDisabled
-                                            ? (colorScheme == .dark ? Color(hex: "1F2937") : Color(hex: "EEF2F1"))
-                                            : ScheduleMeTheme.accent
+                                        Capsule()
+                                            .fill(
+                                                isGetMatchesDisabled
+                                                    ? Color.dynamic(light: Color(hex: "DDE6E3"), dark: Color(hex: "1C2A2A"))
+                                                    : ScheduleMeTheme.accent
+                                            )
+                                    )
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(isGetMatchesDisabled ? ScheduleMeTheme.cardBorder : Color.clear, lineWidth: 1)
                                     )
                                     .clipShape(Capsule())
                                 }
@@ -245,25 +253,29 @@ struct HomeView: View {
                         }
 
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                PulseCard(
-                                    title: "Trending on campus",
-                                    value: "Haircuts + tutoring",
-                                    subtitle: "Updated today",
-                                    systemImage: "flame.fill"
-                                )
-                                PulseCard(
-                                    title: "Avg response time",
-                                    value: "~18 minutes",
-                                    subtitle: "Last 7 days",
-                                    systemImage: "clock.fill"
-                                )
-                                PulseCard(
-                                    title: "New pros nearby",
-                                    value: "12 this week",
-                                    subtitle: "Verified students",
-                                    systemImage: "person.2.fill"
-                                )
+                            if (!dataStore.hasLoadedBusinesses || dataStore.isLoadingBusinesses) && dataStore.businesses.isEmpty {
+                                PulseSkeletonRow()
+                            } else {
+                                HStack(spacing: 8) {
+                                    PulseCard(
+                                        title: "Trending on campus",
+                                        value: "Haircuts + tutoring",
+                                        subtitle: "Updated today",
+                                        systemImage: "flame.fill"
+                                    )
+                                    PulseCard(
+                                        title: "Avg response time",
+                                        value: "~18 minutes",
+                                        subtitle: "Last 7 days",
+                                        systemImage: "clock.fill"
+                                    )
+                                    PulseCard(
+                                        title: "New pros nearby",
+                                        value: "12 this week",
+                                        subtitle: "Verified students",
+                                        systemImage: "person.2.fill"
+                                    )
+                                }
                             }
                         }
                     }
@@ -274,13 +286,41 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Top‑rated near you")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
-                            .foregroundColor(ScheduleMeTheme.titleText)
-
-                        if dataStore.isLoadingBusinesses && dataStore.businesses.isEmpty {
-                            HomeTopRatedSkeleton()
+                    VStack(alignment: .leading, spacing: 20) {
+                        if (!dataStore.hasLoadedBusinesses || dataStore.isLoadingBusinesses) && dataStore.businesses.isEmpty {
+                            HomeBusinessCarouselSection(
+                                title: "Top‑rated near you",
+                                subtitle: "Available now — highly reviewed",
+                                businesses: [],
+                                cardWidth: homeCardWidth,
+                                imageHeight: homeCardImageHeight,
+                                showsSkeleton: true
+                            )
+                        } else if !dataStore.businesses.isEmpty {
+                            HomeBusinessCarouselSection(
+                                title: "Top‑rated near you",
+                                subtitle: "Available now — highly reviewed",
+                                businesses: homeSectionBusinesses.topRated,
+                                cardWidth: homeCardWidth,
+                                imageHeight: homeCardImageHeight,
+                                onSeeAll: { tabRouter.selected = .browse }
+                            )
+                            HomeBusinessCarouselSection(
+                                title: "Non-student providers",
+                                subtitle: "Local businesses in your area",
+                                businesses: homeSectionBusinesses.nonStudents,
+                                cardWidth: homeCardWidth,
+                                imageHeight: homeCardImageHeight,
+                                onSeeAll: { tabRouter.selected = .browse }
+                            )
+                            HomeBusinessCarouselSection(
+                                title: "Quick response",
+                                subtitle: "Pros that pick up jobs fast",
+                                businesses: homeSectionBusinesses.quickResponse,
+                                cardWidth: homeCardWidth,
+                                imageHeight: homeCardImageHeight,
+                                onSeeAll: { tabRouter.selected = .browse }
+                            )
                         } else if let businessError = dataStore.businessError {
                             ScheduleMeEmptyState(
                                 title: "Nearby search unavailable",
@@ -296,37 +336,7 @@ struct HomeView: View {
                                 systemImage: "magnifyingglass"
                             )
                         } else {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 14) {
-                                    ForEach(homeFilteredBusinesses.prefix(6)) { business in
-                                        NavigationLink(destination: BusinessDetailView(business: business)) {
-                                            HomeBusinessCard(business: business)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    // See all arrow card
-                                    Button { tabRouter.selected = .browse } label: {
-                                        VStack(spacing: 8) {
-                                            Circle()
-                                                .fill(ScheduleMeTheme.accentSoft)
-                                                .frame(width: 44, height: 44)
-                                                .overlay(
-                                                    Image(systemName: "arrow.right")
-                                                        .font(.system(size: 18, weight: .semibold))
-                                                        .foregroundStyle(ScheduleMeTheme.accent)
-                                                )
-                                            Text("See all\npros")
-                                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                                .foregroundColor(ScheduleMeTheme.mutedText)
-                                                .multilineTextAlignment(.center)
-                                        }
-                                        .frame(width: 80)
-                                        .padding(.vertical, 40)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                .padding(.vertical, 4)
-                            }
+                            HomeTopRatedSkeleton(cardWidth: homeCardWidth, imageHeight: homeCardImageHeight)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -399,12 +409,44 @@ struct HomeView: View {
 
     private var homeCategories: [String] {
         let categories = Array(Set(dataStore.businesses.map(\.primaryCategory))).sorted()
-        return ["All"] + categories
+        return ["All", "Non-students", "Quick response"] + categories
     }
 
     private var homeFilteredBusinesses: [BusinessSummary] {
-        guard selectedHomeCategory != "All" else { return dataStore.businesses }
-        return dataStore.businesses.filter { $0.primaryCategory == selectedHomeCategory }
+        switch selectedHomeCategory {
+        case "All":
+            return dataStore.businesses
+        case "Non-students":
+            return dataStore.businesses.filter { $0.campusProvider != true }
+        case "Quick response":
+            return dataStore.businesses.sorted { quickResponseRank($0) > quickResponseRank($1) }
+        default:
+            return dataStore.businesses.filter { $0.primaryCategory == selectedHomeCategory }
+        }
+    }
+
+    private var homeSectionBusinesses: (topRated: [BusinessSummary], nonStudents: [BusinessSummary], quickResponse: [BusinessSummary]) {
+        let pool = homeFilteredBusinesses
+        let sortedByRating = pool.sorted {
+            (($0.rating ?? 0), ($0.reviewCount ?? 0)) > (($1.rating ?? 0), ($1.reviewCount ?? 0))
+        }
+        let nonStudents = pool
+            .filter { $0.campusProvider != true }
+            .sorted { quickResponseRank($0) > quickResponseRank($1) }
+        let quickResponse = pool.sorted { quickResponseRank($0) > quickResponseRank($1) }
+        let topRated = Array(sortedByRating.prefix(6))
+        let nonStudentRow = Array((nonStudents.isEmpty ? sortedByRating : nonStudents).prefix(6))
+        let quickRow = Array(quickResponse.prefix(6))
+        return (topRated, nonStudentRow, quickRow)
+    }
+
+    private func quickResponseRank(_ business: BusinessSummary) -> (Int, Int, Double, Double) {
+        (
+            business.isOpen ? 1 : 0,
+            business.reviewCount ?? 0,
+            business.rating ?? 0,
+            -(business.distanceMiles ?? 999)
+        )
     }
 
     /// Lightweight local keyword matcher for the quick-request card.
@@ -427,21 +469,125 @@ struct HomeView: View {
             showingMatches = true
         }
     }
+
 }
 
 private struct HomeTopRatedSkeleton: View {
+    let cardWidth: CGFloat
+    let imageHeight: CGFloat
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 ForEach(0..<3, id: \.self) { _ in
                     VStack(alignment: .leading, spacing: 8) {
-                        SkeletonBlock(width: 160, height: 110, cornerRadius: 16)
-                        SkeletonBlock(width: 120, height: 14, cornerRadius: 8)
-                        SkeletonBlock(width: 80, height: 12, cornerRadius: 8)
+                        ZStack(alignment: .topTrailing) {
+                            SkeletonBlock(width: cardWidth, height: imageHeight, cornerRadius: 16)
+                            SkeletonCircle(size: 26)
+                                .padding(8)
+                        }
+                        SkeletonBlock(width: cardWidth * 0.78, height: 14, cornerRadius: 8)
+                        HStack(spacing: 6) {
+                            SkeletonBlock(width: cardWidth * 0.49, height: 12, cornerRadius: 8)
+                            SkeletonBlock(width: cardWidth * 0.29, height: 12, cornerRadius: 8)
+                            SkeletonCircle(size: 16)
+                        }
+                        SkeletonBlock(width: cardWidth * 0.54, height: 10, cornerRadius: 6)
                     }
+                    .frame(width: cardWidth, alignment: .leading)
                 }
             }
             .padding(.vertical, 4)
+        }
+    }
+}
+
+private struct HomeBusinessCarouselSection: View {
+    let title: String
+    let subtitle: String
+    let businesses: [BusinessSummary]
+    let cardWidth: CGFloat
+    let imageHeight: CGFloat
+    var onSeeAll: (() -> Void)? = nil
+    var showsSkeleton: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(title)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
+                    .foregroundColor(ScheduleMeTheme.titleText)
+                Text(subtitle)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+                    .lineLimit(1)
+            }
+
+            if showsSkeleton {
+                HomeTopRatedSkeleton(cardWidth: cardWidth, imageHeight: imageHeight)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(businesses.prefix(6)) { business in
+                            NavigationLink(destination: BusinessDetailView(business: business)) {
+                                HomeBusinessCard(
+                                    business: business,
+                                    cardWidth: cardWidth,
+                                    imageHeight: imageHeight
+                                )
+                                .frame(width: cardWidth, alignment: .leading)
+                                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            }
+                            .frame(width: cardWidth, alignment: .leading)
+                            .buttonStyle(.plain)
+                        }
+                        if let onSeeAll {
+                            Button(action: onSeeAll) {
+                                VStack(spacing: 8) {
+                                    Circle()
+                                        .fill(ScheduleMeTheme.accentSoft)
+                                        .frame(width: 44, height: 44)
+                                        .overlay(
+                                            Image(systemName: "arrow.right")
+                                                .font(.system(size: 18, weight: .semibold))
+                                                .foregroundStyle(ScheduleMeTheme.accent)
+                                        )
+                                    Text("See all\npros")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(width: 80)
+                                .padding(.vertical, 24)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+}
+
+private struct PulseSkeletonRow: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { _ in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        SkeletonCircle(size: 24)
+                        SkeletonBlock(width: 86, height: 10, cornerRadius: 6)
+                    }
+                    SkeletonBlock(width: 126, height: 16, cornerRadius: 7)
+                    SkeletonBlock(width: 90, height: 10, cornerRadius: 6)
+                }
+                .frame(width: 176, alignment: .leading)
+                .padding(12)
+                .background(ScheduleMeTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(ScheduleMeTheme.cardBorder))
+            }
         }
     }
 }
@@ -692,33 +838,38 @@ private struct HomeCategoryPill: View {
 }
 
 private struct HomeBusinessCard: View {
-    @EnvironmentObject private var dataStore: ScheduleMeDataStore
-    @EnvironmentObject private var appState: AppState
     let business: BusinessSummary
+    let cardWidth: CGFloat
+    let imageHeight: CGFloat
+    private var displayName: String { business.name }
+    private var imageURL: URL? {
+        business.heroImageURL
+    }
+    private var placeholderBackground: Color {
+        Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
+    }
+    private var contentWidth: CGFloat {
+        max(cardWidth - 24, 0)
+    }
 
     var body: some View {
         ScheduleMeCard {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 ZStack(alignment: .topLeading) {
-                    AsyncImage(url: business.heroImageURL) { phase in
+                    AsyncImage(url: imageURL) { phase in
                         switch phase {
                         case .success(let image):
                             image.resizable().scaledToFill()
                         default:
                             ZStack {
-                                Rectangle().fill(Color(hex: "EEF2F1"))
-                                VStack(spacing: 4) {
-                                    Text(String(business.name.prefix(2)).uppercased())
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
-                                        .foregroundColor(ScheduleMeTheme.mutedText)
-                                    Text("No photos yet")
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
-                                        .foregroundColor(ScheduleMeTheme.mutedText)
-                                }
+                                Rectangle().fill(placeholderBackground)
+                                Text(String(displayName.prefix(2)).uppercased())
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
                             }
                         }
                     }
-                    .frame(width: 220, height: 130)
+                    .frame(width: contentWidth, height: imageHeight)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                     if business.founder50 == true {
@@ -730,28 +881,127 @@ private struct HomeBusinessCard: View {
                         .padding(6)
                 }
 
-                Text(business.name)
+                Text(displayName)
                     .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
                     .foregroundColor(ScheduleMeTheme.titleText)
                     .lineLimit(1)
-                    .frame(width: 220, alignment: .leading)
+                    .truncationMode(.tail)
+                    .frame(height: 18, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 ScheduleMeTag(text: business.primaryCategory)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 6) {
                     if let priceLabel = business.priceLabel { ScheduleMeTag(text: priceLabel) }
                     if business.isNew { NewBadge() }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 6) {
                     OpenStatusDot(isOpen: business.isOpen, label: business.openStatusLabel)
-                    Text("•").foregroundColor(ScheduleMeTheme.mutedText.opacity(0.4))
+                    Spacer(minLength: 6)
                     Text(business.distanceLabel)
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.mutedText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
         }
-        .frame(width: 250)
+        .frame(width: cardWidth)
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct HomeWelcomeWalkthrough: View {
+    @State private var page = 0
+    @State private var hasUnlockedContinue = false
+    let onDone: () -> Void
+
+    private let pages: [(title: String, body: String, icon: String)] = [
+        (
+            "Welcome to ScheduleMe",
+            "Browse trusted local businesses and student providers in one marketplace with cleaner cards, faster loading, and better filtering.",
+            "sparkles"
+        ),
+        (
+            "Campus Mode Is Better",
+            "Link your .edu email to unlock campus-only providers, verified student listings, and the campus marketplace feed.",
+            "graduationcap.fill"
+        ),
+        (
+            "Clearer Checkout + Messaging",
+            "See transparent totals before confirming, keep booking updates in one thread, and manage requests end-to-end in-app.",
+            "message.fill"
+        )
+    ]
+
+    var body: some View {
+        ZStack {
+            ScheduleMeTheme.pageBackground.ignoresSafeArea()
+            VStack(spacing: 20) {
+                HStack(spacing: 0) {
+                    Text("Schedule")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 30).weight(.bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                    Text("Me")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 30).weight(.bold))
+                        .foregroundColor(ScheduleMeTheme.accent)
+                }
+                .padding(.top, 56)
+
+                TabView(selection: $page) {
+                    ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
+                        VStack(spacing: 14) {
+                            Circle()
+                                .fill(ScheduleMeTheme.accentSoft)
+                                .frame(width: 88, height: 88)
+                                .overlay(
+                                    Image(systemName: item.icon)
+                                        .font(.system(size: 30, weight: .semibold))
+                                        .foregroundStyle(ScheduleMeTheme.accent)
+                                )
+                            Text(item.title)
+                                .font(.custom(ScheduleMeTheme.fontName, size: 28).weight(.bold))
+                                .foregroundColor(ScheduleMeTheme.titleText)
+                                .multilineTextAlignment(.center)
+                            Text(item.body)
+                                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
+                        }
+                        .tag(index)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+                .frame(height: 360)
+
+                Button(hasUnlockedContinue ? "Get Started" : "Next") {
+                    if hasUnlockedContinue {
+                        onDone()
+                    } else {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            page += 1
+                        }
+                    }
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                .padding(.horizontal, 24)
+
+                Button("Skip") { onDone() }
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+                    .padding(.top, 6)
+
+                Spacer()
+            }
+        }
+        .onChange(of: page) { _, newPage in
+            if newPage == pages.count - 1 {
+                hasUnlockedContinue = true
+            }
+        }
     }
 }

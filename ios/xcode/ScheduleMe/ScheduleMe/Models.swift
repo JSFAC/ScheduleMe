@@ -5,11 +5,24 @@
 // Decoding mismatches and field-name regressions are usually fixed here.
 
 import Foundation
+import Security
 
 // MARK: - Business Feed + Profile Responses
 
 struct NearbyBusinessesResponse: Decodable {
     let businesses: [BusinessSummary]
+
+    private enum CodingKeys: String, CodingKey {
+        case businesses
+        case data
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        businesses = (try? container.decode([BusinessSummary].self, forKey: .businesses))
+            ?? (try? container.decode([BusinessSummary].self, forKey: .data))
+            ?? []
+    }
 }
 
 struct CampusBusinessesResponse: Decodable {
@@ -250,6 +263,12 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
     let distanceMiles: Double?
     let founder50: Bool?
     let availabilityStatus: String?
+    let campusProvider: Bool?
+    let publicVisibility: Bool?
+    let publicShowName: Bool?
+    let publicShowMedia: Bool?
+    let schoolDomain: String?
+    let campusSchoolName: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -271,6 +290,139 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         case distanceMiles = "distance_miles"
         case founder50
         case availabilityStatus = "availability_status"
+        case campusProvider = "campus_provider"
+        case publicVisibility = "public_visibility"
+        case publicShowName = "public_show_name"
+        case publicShowMedia = "public_show_media"
+        case schoolDomain = "school_domain"
+        case campusSchoolName = "campus_school_name"
+    }
+
+    private enum AlternateKeys: String, CodingKey {
+        case publicShowPhotos = "public_show_photos"
+    }
+
+    init(
+        id: String,
+        name: String,
+        slug: String?,
+        description: String?,
+        address: String?,
+        lat: Double?,
+        lng: Double?,
+        serviceTags: [String],
+        coverURL: URL?,
+        mediaURLs: [URL],
+        phone: String?,
+        website: String?,
+        calendlyURL: String?,
+        rating: Double?,
+        reviewCount: Int?,
+        priceTier: Int?,
+        distanceMiles: Double?,
+        founder50: Bool?,
+        availabilityStatus: String?,
+        campusProvider: Bool?,
+        publicVisibility: Bool?,
+        publicShowName: Bool?,
+        publicShowMedia: Bool?,
+        schoolDomain: String?,
+        campusSchoolName: String?
+    ) {
+        self.id = id
+        self.name = name
+        self.slug = slug
+        self.description = description
+        self.address = address
+        self.lat = lat
+        self.lng = lng
+        self.serviceTags = serviceTags
+        self.coverURL = coverURL
+        self.mediaURLs = mediaURLs
+        self.phone = phone
+        self.website = website
+        self.calendlyURL = calendlyURL
+        self.rating = rating
+        self.reviewCount = reviewCount
+        self.priceTier = priceTier
+        self.distanceMiles = distanceMiles
+        self.founder50 = founder50
+        self.availabilityStatus = availabilityStatus
+        self.campusProvider = campusProvider
+        self.publicVisibility = publicVisibility
+        self.publicShowName = publicShowName
+        self.publicShowMedia = publicShowMedia
+        self.schoolDomain = schoolDomain
+        self.campusSchoolName = campusSchoolName
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let alt = try? decoder.container(keyedBy: AlternateKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        name = (try? container.decodeIfPresent(String.self, forKey: .name)) ?? "Student provider"
+        slug = try? container.decodeIfPresent(String.self, forKey: .slug)
+        description = try? container.decodeIfPresent(String.self, forKey: .description)
+        address = try? container.decodeIfPresent(String.self, forKey: .address)
+        lat = try? container.decodeIfPresent(Double.self, forKey: .lat)
+        lng = try? container.decodeIfPresent(Double.self, forKey: .lng)
+        serviceTags = (try? container.decodeIfPresent([String].self, forKey: .serviceTags)) ?? []
+
+        if let cover = (try? container.decodeIfPresent(String.self, forKey: .coverURL)) ?? nil {
+            coverURL = Self.resolveRemoteURL(from: cover)
+        } else {
+            coverURL = nil
+        }
+
+        if let media = (try? container.decodeIfPresent([String].self, forKey: .mediaURLs)) ?? nil {
+            mediaURLs = media.compactMap(Self.resolveRemoteURL(from:))
+        } else {
+            mediaURLs = []
+        }
+
+        phone = try? container.decodeIfPresent(String.self, forKey: .phone)
+        website = try? container.decodeIfPresent(String.self, forKey: .website)
+        calendlyURL = try? container.decodeIfPresent(String.self, forKey: .calendlyURL)
+        rating = try? container.decodeIfPresent(Double.self, forKey: .rating)
+        reviewCount = try? container.decodeIfPresent(Int.self, forKey: .reviewCount)
+        priceTier = try? container.decodeIfPresent(Int.self, forKey: .priceTier)
+        distanceMiles = try? container.decodeIfPresent(Double.self, forKey: .distanceMiles)
+        founder50 = try? container.decodeIfPresent(Bool.self, forKey: .founder50)
+        availabilityStatus = try? container.decodeIfPresent(String.self, forKey: .availabilityStatus)
+        campusProvider = try? container.decodeIfPresent(Bool.self, forKey: .campusProvider)
+        publicVisibility = try? container.decodeIfPresent(Bool.self, forKey: .publicVisibility)
+        publicShowName = try? container.decodeIfPresent(Bool.self, forKey: .publicShowName)
+        publicShowMedia =
+            (try? container.decodeIfPresent(Bool.self, forKey: .publicShowMedia))
+            ?? (try? alt?.decodeIfPresent(Bool.self, forKey: .publicShowPhotos))
+        schoolDomain = try? container.decodeIfPresent(String.self, forKey: .schoolDomain)
+        campusSchoolName = try? container.decodeIfPresent(String.self, forKey: .campusSchoolName)
+    }
+
+    nonisolated static func resolveRemoteURL(from raw: String?) -> URL? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let absolute = URL(string: trimmed), absolute.scheme != nil {
+            return absolute
+        }
+
+        if trimmed.hasPrefix("//"), let protocolRelative = URL(string: "https:\(trimmed)") {
+            return protocolRelative
+        }
+
+        let normalizedPath: String
+        if trimmed.hasPrefix("/") {
+            normalizedPath = trimmed
+        } else {
+            normalizedPath = "/\(trimmed)"
+        }
+
+        let supabaseBase = "https://imfrlykibvjdbijegdky.supabase.co"
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return URL(string: "\(supabaseBase)\(normalizedPath)")
     }
 
     var primaryCategory: String {
@@ -324,6 +476,83 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         default: return "Open"
         }
     }
+
+    /// Campus providers should render as masked cards for non-verified viewers.
+    /// Non-campus providers are always public on Home/Browse.
+    var isPrivateUntilStudentVerification: Bool {
+        campusProvider == true
+    }
+
+    /// Student-only cards should stay masked unless the viewer is EDU verified
+    /// to the same school domain as the provider.
+    func shouldMaskForViewer(userEduVerified: Bool, userSchoolDomain: String?) -> Bool {
+        guard isPrivateUntilStudentVerification else { return false }
+        guard userEduVerified else { return true }
+        guard
+            let userSchoolDomain = userSchoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            !userSchoolDomain.isEmpty
+        else { return true }
+        guard
+            let providerSchoolDomain = schoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            !providerSchoolDomain.isEmpty
+        else {
+            // If provider school is unknown, keep masked to avoid leaking
+            // campus-locked profiles cross-campus.
+            return true
+        }
+        return providerSchoolDomain != userSchoolDomain
+    }
+}
+
+// MARK: - Shared Keychain Helpers
+
+enum KeychainStore {
+    private static let service = "com.usescheduleme.ScheduleMe.secure"
+
+    static func setString(_ value: String, forKey key: String) {
+        guard let data = value.data(using: .utf8) else { return }
+        setData(data, forKey: key)
+    }
+
+    static func string(forKey key: String) -> String? {
+        guard let data = data(forKey: key) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func setData(_ value: Data, forKey key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key
+        ]
+
+        let attributes: [String: Any] = [
+            kSecValueData as String: value,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if updateStatus == errSecSuccess { return }
+
+        var insert = query
+        insert[kSecValueData as String] = value
+        insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(insert as CFDictionary, nil)
+    }
+
+    static func data(forKey key: String) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess else { return nil }
+        return item as? Data
+    }
 }
 
 struct BookingsResponse: Decodable {
@@ -353,16 +582,88 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
         case status
         case createdAt = "created_at"
         case scheduledAt = "scheduled_at"
+        case scheduledStart = "scheduled_start"
         case amountCents = "amount_cents"
         case paidAt = "paid_at"
         case note
+        case notes
         case businessID = "business_id"
         case businessName = "business_name"
         case businessPhone = "business_phone"
         case businessEmail = "business_email"
+        case businesses
         case stripePaymentMethodID = "stripe_payment_method_id"
         case stripeCustomerID = "stripe_customer_id"
         case stripeSetupIntentID = "stripe_setup_intent_id"
+    }
+
+    private struct NestedBusiness: Decodable {
+        let id: String?
+        let name: String?
+        let phone: String?
+        let email: String?
+    }
+
+    init(
+        id: String,
+        service: String,
+        status: String,
+        createdAt: Date,
+        scheduledAt: Date?,
+        amountCents: Int?,
+        paidAt: Date?,
+        note: String?,
+        businessID: String?,
+        businessName: String?,
+        businessPhone: String?,
+        businessEmail: String?,
+        stripePaymentMethodID: String?,
+        stripeCustomerID: String?,
+        stripeSetupIntentID: String?
+    ) {
+        self.id = id
+        self.service = service
+        self.status = status
+        self.createdAt = createdAt
+        self.scheduledAt = scheduledAt
+        self.amountCents = amountCents
+        self.paidAt = paidAt
+        self.note = note
+        self.businessID = businessID
+        self.businessName = businessName
+        self.businessPhone = businessPhone
+        self.businessEmail = businessEmail
+        self.stripePaymentMethodID = stripePaymentMethodID
+        self.stripeCustomerID = stripeCustomerID
+        self.stripeSetupIntentID = stripeSetupIntentID
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        service = (try? container.decode(String.self, forKey: .service)) ?? "Service"
+        status = (try? container.decode(String.self, forKey: .status)) ?? "pending"
+        createdAt = (try? container.decode(Date.self, forKey: .createdAt)) ?? .distantPast
+        scheduledAt = (try? container.decodeIfPresent(Date.self, forKey: .scheduledAt))
+            ?? (try? container.decodeIfPresent(Date.self, forKey: .scheduledStart))
+        amountCents = try? container.decodeIfPresent(Int.self, forKey: .amountCents)
+        paidAt = try? container.decodeIfPresent(Date.self, forKey: .paidAt)
+        note = (try? container.decodeIfPresent(String.self, forKey: .note))
+            ?? (try? container.decodeIfPresent(String.self, forKey: .notes))
+
+        let nestedBusiness = try? container.decodeIfPresent(NestedBusiness.self, forKey: .businesses)
+        businessID = (try? container.decodeIfPresent(String.self, forKey: .businessID))
+            ?? nestedBusiness?.id
+        businessName = (try? container.decodeIfPresent(String.self, forKey: .businessName))
+            ?? nestedBusiness?.name
+        businessPhone = (try? container.decodeIfPresent(String.self, forKey: .businessPhone))
+            ?? nestedBusiness?.phone
+        businessEmail = (try? container.decodeIfPresent(String.self, forKey: .businessEmail))
+            ?? nestedBusiness?.email
+
+        stripePaymentMethodID = try? container.decodeIfPresent(String.self, forKey: .stripePaymentMethodID)
+        stripeCustomerID = try? container.decodeIfPresent(String.self, forKey: .stripeCustomerID)
+        stripeSetupIntentID = try? container.decodeIfPresent(String.self, forKey: .stripeSetupIntentID)
     }
 
     var statusLabel: String {
@@ -456,6 +757,60 @@ struct MessageThread: Decodable, Identifiable, Hashable {
         case unreadCount
     }
 
+    init(
+        id: String,
+        businessID: String?,
+        bookingID: String?,
+        bookingIDs: [String]?,
+        service: String,
+        status: String,
+        createdAt: Date,
+        businesses: ThreadBusiness?,
+        lastMessage: ConversationMessage?,
+        unreadCount: Int
+    ) {
+        self.id = id
+        self.businessID = businessID
+        self.bookingID = bookingID
+        self.bookingIDs = bookingIDs
+        self.service = service
+        self.status = status
+        self.createdAt = createdAt
+        self.businesses = businesses
+        self.lastMessage = lastMessage
+        self.unreadCount = unreadCount
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        businesses = try? container.decodeIfPresent(ThreadBusiness.self, forKey: .businesses)
+        businessID = (try? container.decodeIfPresent(String.self, forKey: .businessID))
+            ?? businesses?.id
+        let decodedBookingIDs = try? container.decodeIfPresent([String].self, forKey: .bookingIDs)
+        let explicitBookingID = try? container.decodeIfPresent(String.self, forKey: .bookingID)
+        bookingIDs = decodedBookingIDs ?? explicitBookingID.map { [$0] }
+        if let explicitBookingID {
+            bookingID = explicitBookingID
+        } else if let decodedBookingIDs, let first = decodedBookingIDs.first {
+            bookingID = first
+        } else if Self.looksLikeUUID(id) {
+            // Back-compat: older API rows used booking id as the thread id.
+            bookingID = id
+        } else {
+            bookingID = nil
+        }
+        service = (try? container.decode(String.self, forKey: .service)) ?? "Conversation"
+        status = (try? container.decode(String.self, forKey: .status)) ?? "pending"
+        createdAt = (try? container.decode(Date.self, forKey: .createdAt)) ?? .distantPast
+        lastMessage = try? container.decodeIfPresent(ConversationMessage.self, forKey: .lastMessage)
+        unreadCount = (try? container.decode(Int.self, forKey: .unreadCount)) ?? 0
+    }
+
+    private static func looksLikeUUID(_ value: String) -> Bool {
+        UUID(uuidString: value) != nil
+    }
+
     var title: String {
         businesses?.name ?? service
     }
@@ -501,12 +856,46 @@ struct SendMessageRequest: Encodable {
     let bookingID: String
     let senderType: String
     let content: String
+    let imageURL: String?
+    let messageType: String?
 
     enum CodingKeys: String, CodingKey {
         case bookingID = "booking_id"
         case senderType = "sender_type"
         case content
+        case imageURL = "image_url"
+        case messageType = "message_type"
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(bookingID, forKey: .bookingID)
+        try container.encode(senderType, forKey: .senderType)
+        try container.encode(content, forKey: .content)
+        try container.encodeIfPresent(imageURL, forKey: .imageURL)
+        try container.encodeIfPresent(messageType, forKey: .messageType)
+    }
+}
+
+struct UploadMessageMediaRequest: Encodable {
+    let bookingID: String
+    let mediaType: String
+    let fileData: String
+    let fileType: String
+    let fileName: String
+
+    enum CodingKeys: String, CodingKey {
+        case bookingID = "booking_id"
+        case mediaType = "media_type"
+        case fileData = "file_data"
+        case fileType = "file_type"
+        case fileName = "file_name"
+    }
+}
+
+struct UploadMessageMediaResponse: Decodable {
+    let url: String?
+    let error: String?
 }
 
 struct FeedbackRequest: Encodable {
@@ -524,11 +913,15 @@ struct FeedbackResponse: Decodable {
 
 struct BookingCreateRequest: Encodable {
     let businessID: String
+    let userID: String?
     let service: String
     let userName: String
     let userPhone: String
     let userEmail: String
     let note: String?
+    let address: String?
+    let scheduledDate: String?
+    let scheduledSlot: String?
     let scheduledStart: String?
     let scheduledEnd: String?
     let timezone: String?
@@ -536,11 +929,15 @@ struct BookingCreateRequest: Encodable {
 
     enum CodingKeys: String, CodingKey {
         case businessID = "business_id"
+        case userID = "user_id"
         case service
         case userName = "user_name"
         case userPhone = "user_phone"
         case userEmail = "user_email"
         case note
+        case address
+        case scheduledDate = "scheduled_date"
+        case scheduledSlot = "scheduled_slot"
         case scheduledStart = "scheduled_start"
         case scheduledEnd = "scheduled_end"
         case timezone
@@ -814,6 +1211,11 @@ struct PayBookingNowResponse: Decodable {
         case paymentIntentID = "payment_intent_id"
         case error
     }
+}
+
+struct CheckoutSessionResponse: Decodable {
+    let url: String?
+    let error: String?
 }
 
 struct PushTokenRequest: Encodable {

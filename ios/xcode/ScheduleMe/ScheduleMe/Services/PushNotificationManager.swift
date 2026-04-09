@@ -10,12 +10,19 @@ final class PushNotificationManager: NSObject, ObservableObject {
     @Published private(set) var deviceToken: String?
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
-    private let tokenDefaultsKey = "scheduleme_apns_device_token"
+    private let tokenStorageKey = "scheduleme_apns_device_token_secure"
+    private let legacyTokenDefaultsKey = "scheduleme_apns_device_token"
     private var hasRegisteredRemoteNotifications = false
 
     private override init() {
         super.init()
-        deviceToken = UserDefaults.standard.string(forKey: tokenDefaultsKey)
+        if let token = KeychainStore.string(forKey: tokenStorageKey) {
+            deviceToken = token
+        } else if let legacy = UserDefaults.standard.string(forKey: legacyTokenDefaultsKey) {
+            deviceToken = legacy
+            KeychainStore.setString(legacy, forKey: tokenStorageKey)
+            UserDefaults.standard.removeObject(forKey: legacyTokenDefaultsKey)
+        }
     }
 
     func configure() {
@@ -57,7 +64,8 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let token = tokenData.map { String(format: "%02.2hhx", $0) }.joined()
         guard !token.isEmpty else { return }
         deviceToken = token
-        UserDefaults.standard.set(token, forKey: tokenDefaultsKey)
+        KeychainStore.setString(token, forKey: tokenStorageKey)
+        UserDefaults.standard.removeObject(forKey: legacyTokenDefaultsKey)
         Task { await syncTokenIfPossible() }
     }
 

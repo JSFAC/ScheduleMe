@@ -73,8 +73,8 @@ struct CalendarMonthPicker: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
                 ForEach(gridDates, id: \.self) { date in
                     if let date {
-                        let isSelected = calendar.isDate(date, inSameDayAs: selectedDate)
                         let isDisabled = isDateDisabled(date)
+                        let isSelected = !isDisabled && calendar.isDate(date, inSameDayAs: selectedDate)
                         Button {
                             selectedDate = calendar.startOfDay(for: date)
                         } label: {
@@ -84,7 +84,11 @@ struct CalendarMonthPicker: View {
                                 .frame(width: 34, height: 34)
                                 .background(
                                     Circle()
-                                        .fill(isSelected ? ScheduleMeTheme.accent : Color.clear)
+                                        .fill(
+                                            isSelected
+                                            ? ScheduleMeTheme.accent
+                                            : (isDisabled ? ScheduleMeTheme.surface.opacity(0.25) : Color.clear)
+                                        )
                                 )
                         }
                         .buttonStyle(.plain)

@@ -13,6 +13,7 @@ struct MainTabView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
     @EnvironmentObject private var locationManager: LocationManager
+    @State private var didApplyInitialDefaultTab = false
 
     var body: some View {
         TabView(selection: selectedTabBinding) {
@@ -55,11 +56,13 @@ struct MainTabView: View {
             if verified != true && tabRouter.selected == .campus {
                 tabRouter.selected = .home
             }
+            applyInitialDefaultTabIfNeeded()
         }
         .onAppear {
             if appState.eduVerified != true && tabRouter.selected == .campus {
                 tabRouter.selected = .home
             }
+            applyInitialDefaultTabIfNeeded()
         }
         .task {
             // Prime core user data after the tab shell is mounted.
@@ -78,6 +81,14 @@ struct MainTabView: View {
                 await dataStore.loadNearbyBusinesses(coordinate: coordinate)
             }
         }
+    }
+
+    /// Sets first-launch default tab: EDU verified users start on Campus, otherwise Home.
+    private func applyInitialDefaultTabIfNeeded() {
+        guard !didApplyInitialDefaultTab else { return }
+        guard let verified = appState.eduVerified else { return }
+        didApplyInitialDefaultTab = true
+        tabRouter.selected = verified ? .campus : .home
     }
 
     private var selectedTabBinding: Binding<ScheduleMeTab> {

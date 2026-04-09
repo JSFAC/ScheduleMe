@@ -146,6 +146,8 @@ struct ScheduleMeTag: View {
         Text(text)
             .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
             .foregroundStyle(ScheduleMeTheme.tagText)
+            .lineLimit(1)
+            .truncationMode(.tail)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
             .background(ScheduleMeTheme.tagBackground)
@@ -492,25 +494,23 @@ struct SkeletonBlock: View {
     var width: CGFloat? = nil
     var height: CGFloat
     var cornerRadius: CGFloat = 14
-    var color: Color = Color.black.opacity(0.08)
+    var color: Color = Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(color)
             .frame(width: width, height: height)
-            .shimmer()
     }
 }
 
 struct SkeletonCircle: View {
     var size: CGFloat
-    var color: Color = Color.black.opacity(0.08)
+    var color: Color = Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
 
     var body: some View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            .shimmer()
     }
 }
 
@@ -525,19 +525,19 @@ private struct ShimmerModifier: ViewModifier {
                     LinearGradient(
                         gradient: Gradient(colors: [
                             Color.white.opacity(0.0),
-                            Color.white.opacity(0.45),
+                            Color.white.opacity(0.78),
                             Color.white.opacity(0.0)
                         ]),
                         startPoint: .leading,
                         endPoint: .trailing
                     )
-                    .frame(width: width * 0.6)
+                    .frame(width: width * 0.52)
                     .offset(x: phase * width * 2)
                 }
             )
             .mask(content)
             .onAppear {
-                withAnimation(.linear(duration: 1.35).repeatForever(autoreverses: false)) {
+                withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
                     phase = 0.6
                 }
             }

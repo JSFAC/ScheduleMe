@@ -24,6 +24,7 @@ struct BusinessDetailView: View {
     @State private var isLoadingServices = false
     @State private var profile: BusinessProfile?
     @State private var isLoadingProfile = false
+    @State private var didFinishProfileLoad = false
     @State private var selectedService: BusinessService?
     @State private var isCustomServiceSelected = false
     @State private var preferredDate = Date()
@@ -330,6 +331,11 @@ struct BusinessDetailView: View {
                                     .stroke(ScheduleMeTheme.cardBorder)
                             )
 
+                            Text("Leave empty and the provider will send a price quote.")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+                                .padding(.leading, 8)
+
                             if customPriceIsBelowMinimum {
                                 Text("Minimum booking price is $5.00")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
@@ -372,6 +378,9 @@ struct BusinessDetailView: View {
                                 minimumDate: Calendar.current.startOfDay(for: Date()),
                                 maximumDate: Calendar.current.date(byAdding: .month, value: 6, to: Date()) ?? Date(),
                                 isDateEnabled: { date in
+                                    if didFinishProfileLoad == false {
+                                        return false
+                                    }
                                     if shouldEnforceHours {
                                         return isDateOpen(date)
                                     }
@@ -408,7 +417,7 @@ struct BusinessDetailView: View {
                                     }
                                     .buttonStyle(.plain)
                                 } else {
-                                    Text("No times available for that day")
+                                    Text("No times available for the selected date")
                                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
                                         .foregroundColor(.red)
                                         .padding(.horizontal, 12)
@@ -488,6 +497,7 @@ struct BusinessDetailView: View {
                 preferredDate: preferredDate,
                 preferredTime: requiresExactTime ? preferredTime : nil,
                 requiresExactTime: requiresExactTime,
+                isCustomServiceRequest: isCustomServiceSelected,
                 servicePriceCents: selectedService?.priceCents ?? customServicePriceCents,
                 serviceDurationMin: selectedService?.durationMin
             )
@@ -496,11 +506,11 @@ struct BusinessDetailView: View {
             FullscreenBusinessImageView(url: photo.url)
         }
         .task {
+            await loadBusinessProfile()
+            await loadServices()
             isLoadingReviews = true
             reviews = (try? await dataStore.loadReviews(for: business.id)) ?? []
             isLoadingReviews = false
-            await loadBusinessProfile()
-            await loadServices()
             syncPreferredTimeToAllowedRange()
         }
         .onChange(of: preferredDate) { _, newValue in
@@ -516,6 +526,9 @@ struct BusinessDetailView: View {
             syncPreferredTimeToAllowedRange()
         }
         .onChange(of: profile?.hours) { _, _ in
+            if shouldEnforceHours, !isDateOpen(preferredDate) {
+                preferredDate = nextOpenDate(from: preferredDate)
+            }
             syncPreferredTimeToAllowedRange()
         }
         .sheet(isPresented: $showingTimePicker) {
@@ -555,7 +568,10 @@ struct BusinessDetailView: View {
     /// Loads business profile metadata including business hours and custom booking rules.
     private func loadBusinessProfile() async {
         isLoadingProfile = true
-        defer { isLoadingProfile = false }
+        defer {
+            isLoadingProfile = false
+            didFinishProfileLoad = true
+        }
         do {
             let response: BusinessProfileResponse = try await APIClient.shared.get(
                 path: "/api/business-profile",
@@ -762,11 +778,23 @@ struct BusinessDetailView: View {
 
     /// True only when the selected day has explicit open hours.
     private func isDateOpen(_ date: Date) -> Bool {
+        // Avoid briefly showing days as open before profile hours finish loading.
+        if didFinishProfileLoad == false {
+            return false
+        }
         let entries = hourEntries
         if !entries.isEmpty {
             for entry in entries {
-                if dayPatternMatches(entry.day, for: date) {
-                    return parseHours(entry.time, on: date) != nil
+                if dayPatternMatches(entry.day, for: date),
+                   let parsed = parseHours(entry.time, on: date) {
+                    let calendar = Calendar.current
+                    let selectedDay = calendar.startOfDay(for: date)
+                    let today = calendar.startOfDay(for: Date())
+                    if selectedDay == today && Date() >= parsed.1 {
+                        // If today's business window is already over, don't allow same-day booking.
+                        return false
+                    }
+                    return true
                 }
             }
             // When business hours are defined, days without an explicit match are closed.
@@ -823,7 +851,7 @@ struct BusinessDetailView: View {
             return
         }
         if requiresExactTime, timeIntervalForSelectedDate() == nil {
-            bookingValidationMessage = "No available times for that date."
+            bookingValidationMessage = "No times available for the selected date."
             return
         }
         if requiresExactTime == false {
@@ -848,6 +876,7 @@ struct BusinessDetailView: View {
     private func formattedCustomPrice(from digits: String) -> String {
         let trimmed = digits.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let value = Int(trimmed), !trimmed.isEmpty else { return "" }
+        if value == 0 { return "" }
         let dollars = value / 100
         let cents = value % 100
         return "\(dollars).\(String(format: "%02d", cents))"
@@ -902,15 +931,37 @@ private struct TimePickerModal: View {
     let interval: ClosedRange<Date>
     let onCancel: () -> Void
     let onDone: () -> Void
+    @State private var slotSelection: Date = .now
+
+    private var slots: [Date] {
+        var items: [Date] = []
+        var current = interval.lowerBound
+        while current <= interval.upperBound {
+            items.append(current)
+            guard let next = Calendar.current.date(byAdding: .minute, value: 15, to: current) else { break }
+            current = next
+        }
+        return items
+    }
+
+    private func slotLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                DatePicker("Preferred time", selection: $selectedTime, in: interval, displayedComponents: [.hourAndMinute])
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 8)
+                Picker("Time", selection: $slotSelection) {
+                    ForEach(slots, id: \.self) { slot in
+                        Text(slotLabel(slot)).tag(slot)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity)
+                .frame(height: 220)
+                .padding(.top, 8)
                 Spacer(minLength: 0)
             }
             .background(ScheduleMeTheme.creamBackground)
@@ -922,11 +973,18 @@ private struct TimePickerModal: View {
                         .foregroundColor(ScheduleMeTheme.accent)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", action: onDone)
+                    Button("Done") {
+                        selectedTime = slotSelection
+                        onDone()
+                    }
                         .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
                         .foregroundColor(ScheduleMeTheme.accent)
                 }
             }
+        }
+        .onAppear {
+            let clamped = min(max(selectedTime, interval.lowerBound), interval.upperBound)
+            slotSelection = slots.min(by: { abs($0.timeIntervalSince(clamped)) < abs($1.timeIntervalSince(clamped)) }) ?? interval.lowerBound
         }
     }
 }

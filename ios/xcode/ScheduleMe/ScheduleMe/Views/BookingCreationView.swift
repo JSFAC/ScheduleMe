@@ -23,10 +23,12 @@ struct BookingCreationView: View {
     let preferredDate: Date?
     let preferredTime: Date?
     let requiresExactTime: Bool
+    let isCustomServiceRequest: Bool
     let servicePriceCents: Int?
     let serviceDurationMin: Int?
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
+    @EnvironmentObject private var tabRouter: TabRouter
     @Environment(\.dismiss) private var dismiss
     @AppStorage("scheduleme_display_name") private var storedDisplayName = ""
 
@@ -45,8 +47,11 @@ struct BookingCreationView: View {
     @State private var selectedPaymentMethodID: String?
     @State private var showingCardEntry = false
     @State private var paymentError: String?
-    @State private var bookingWasPaid = false
     @State private var bookingResultMessage: String?
+    @State private var checkoutBookingID: String?
+    @State private var checkoutURL: URL?
+    @State private var showingHostedCheckout = false
+    @State private var showingBookingConfirmation = false
 #if canImport(StripePaymentSheet)
     @State private var paymentSheet: PaymentSheet?
     @State private var isPreparingSheet = false
@@ -163,6 +168,29 @@ struct BookingCreationView: View {
                     }
                 }
             )
+        }
+        .sheet(isPresented: $showingHostedCheckout) {
+            HostedCheckoutSheet(
+                url: checkoutURL ?? checkoutBookingID.flatMap { URL(string: "https://usescheduleme.com/pay/\($0)") }
+            ) {
+                Task { await dataStore.loadBookings() }
+                showingBookingConfirmation = true
+            }
+        }
+        .sheet(isPresented: $showingBookingConfirmation) {
+            BookingConfirmationSheet(
+                paid: (servicePriceCents ?? 0) > 0 && checkoutBookingID == nil,
+                showSecureCheckout: checkoutBookingID != nil
+            ) {
+                completeBookingFlow(route: .home)
+            } onOpenBookings: {
+                completeBookingFlow(route: .bookings)
+            } onSecureCheckout: {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    showingBookingConfirmation = false
+                }
+                showingHostedCheckout = true
+            }
         }
     }
 
@@ -469,16 +497,6 @@ struct BookingCreationView: View {
                             .foregroundColor(ScheduleMeTheme.mutedText)
                             .multilineTextAlignment(.center)
                     }
-                    if let bookingID = createdBookingID {
-                        Text("Booking ID: \(bookingID)")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                            .foregroundColor(ScheduleMeTheme.mutedText.opacity(0.6))
-                    }
-                    if bookingWasPaid {
-                        Text("Payment processed successfully.")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                            .foregroundColor(.green)
-                    }
                     if let bookingResultMessage {
                         Text(bookingResultMessage)
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
@@ -488,8 +506,27 @@ struct BookingCreationView: View {
                 }
 
                 VStack(spacing: 10) {
+                    if let checkoutBookingID {
+                        Button("Continue to Secure Checkout") {
+                            self.checkoutBookingID = checkoutBookingID
+                            showingHostedCheckout = true
+                        }
+                        .buttonStyle(ScheduleMePrimaryButtonStyle())
+                    }
                     Button("Done") { dismiss() }
                         .buttonStyle(ScheduleMePrimaryButtonStyle())
+
+                    Button("Back to Home") {
+                        tabRouter.selected = .home
+                        dismiss()
+                    }
+                    .buttonStyle(ScheduleMeSecondaryButtonStyle())
+
+                    Button("Open Bookings") {
+                        tabRouter.selected = .bookings
+                        dismiss()
+                    }
+                    .buttonStyle(ScheduleMeSecondaryButtonStyle())
                 }
             }
             .frame(maxWidth: .infinity)
@@ -500,13 +537,9 @@ struct BookingCreationView: View {
     // MARK: - Actions
 
     /// Final booking submit path:
-    /// 1) validates inputs, 2) creates booking, 3) attempts immediate payment, 4) advances to done state.
+    /// 1) validates inputs, 2) creates booking, 3) routes to hosted checkout, 4) advances to done state.
     private func submitBooking() async {
         error = nil
-        if selectedPaymentMethodID == nil {
-            error = "Please add a payment method to confirm."
-            return
-        }
         let trimmedService = service.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedService.isEmpty {
             error = "Please select a service before confirming."
@@ -546,23 +579,32 @@ struct BookingCreationView: View {
                 servicePriceCents: servicePriceCents
             )
             createdBookingID = booking.id
-            bookingWasPaid = false
             bookingResultMessage = nil
+            checkoutBookingID = nil
+            checkoutURL = nil
 
-            if let amount = servicePriceCents, amount > 0 {
+            if isCustomServiceRequest {
+                bookingResultMessage = "Request sent. Provider will confirm or set the final price before payment."
+            } else if let amount = servicePriceCents, amount > 0 {
                 do {
-                    let payResponse = try await dataStore.payBookingNow(bookingID: booking.id)
-                    if payResponse.ok == true || payResponse.alreadyPaid == true {
-                        bookingWasPaid = true
+                    let payment = try await dataStore.payBookingNow(bookingID: booking.id)
+                    if payment.ok == true || payment.alreadyPaid == true {
+                        bookingResultMessage = "Payment received. Your booking is pending provider approval."
+                    } else {
+                        throw DataStoreError.server(payment.error ?? "Payment could not be completed.")
                     }
                 } catch {
-                    bookingResultMessage = "Booking was created, but payment could not be completed yet. You can pay from Bookings."
+                    // Keep a manual fallback path only if in-app payment is unavailable.
+                    checkoutBookingID = booking.id
+                    checkoutURL = (try? await dataStore.createCheckoutSessionURL(bookingID: booking.id))
+                        ?? URL(string: "https://usescheduleme.com/pay/\(booking.id)")
+                    bookingResultMessage = "We couldn’t complete in-app payment. Use Secure Checkout to finish paying."
                 }
             } else {
-                bookingResultMessage = "Booking was created. Once the provider finalizes pricing, you'll pay from Bookings."
+                bookingResultMessage = "Booking was created and is pending provider approval."
             }
             Task { await dataStore.loadBookings() }
-            step = .done
+            showingBookingConfirmation = true
         } catch {
             self.error = error.localizedDescription
         }
@@ -589,6 +631,14 @@ struct BookingCreationView: View {
     private func currencyLabel(_ cents: Int) -> String {
         NumberFormatter.currency.string(from: NSNumber(value: Double(cents) / 100.0))
             ?? String(format: "$%.2f", Double(cents) / 100.0)
+    }
+
+    private func completeBookingFlow(route: ScheduleMeTab) {
+        withAnimation(.easeInOut(duration: 0.22)) {
+            tabRouter.selected = route
+            showingBookingConfirmation = false
+        }
+        dismiss()
     }
 
     // MARK: - Stripe / PaymentSheet
@@ -735,6 +785,122 @@ struct BookingCreationView: View {
     }
 }
 
+private struct HostedCheckoutSheet: View {
+    let url: URL?
+    let onDismiss: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            PaymentWebView(url: url)
+                .navigationTitle("Secure Checkout")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") {
+                            dismiss()
+                            onDismiss()
+                        }
+                    }
+                }
+        }
+    }
+}
+
+private struct BookingConfirmationSheet: View {
+    let paid: Bool
+    let showSecureCheckout: Bool
+    let onBackHome: () -> Void
+    let onOpenBookings: () -> Void
+    let onSecureCheckout: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                Circle()
+                    .fill(Color.green.opacity(0.14))
+                    .frame(width: 66, height: 66)
+                    .overlay(
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(Color.green)
+                    )
+
+                Text(paid ? "Payment Received" : "Booking Requested")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 22).weight(.bold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+                    .multilineTextAlignment(.center)
+
+                Text(
+                    paid
+                    ? "Your payment has been received and your booking is now pending provider approval."
+                    : "Your booking request was sent and is now pending provider approval."
+                )
+                .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 6)
+
+                if showSecureCheckout {
+                    Button("Continue to Secure Checkout") {
+                        onSecureCheckout()
+                    }
+                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                }
+
+                Button("Back to Home") {
+                    onBackHome()
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+
+                Button("Open Bookings") {
+                    onOpenBookings()
+                }
+                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+            }
+            .padding(20)
+            .presentationDetents([.height(420)])
+            .presentationDragIndicator(.visible)
+        }
+    }
+}
+
+private struct PaymentWebView: UIViewRepresentable {
+    let url: URL?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView(frame: .zero)
+        webView.allowsBackForwardNavigationGestures = true
+        webView.navigationDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard let url else { return }
+        guard Coordinator.isAllowed(url: url) else { return }
+        webView.load(URLRequest(url: url))
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        static func isAllowed(url: URL) -> Bool {
+            guard url.scheme?.lowercased() == "https", let host = url.host?.lowercased() else { return false }
+            if host == "usescheduleme.com" || host == "www.usescheduleme.com" { return true }
+            if host == "checkout.stripe.com" || host == "js.stripe.com" { return true }
+            if host.hasSuffix(".stripe.com") { return true }
+            return false
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            guard let url = navigationAction.request.url else { return .cancel }
+            return Self.isAllowed(url: url) ? .allow : .cancel
+        }
+    }
+}
+
 private enum BookingPaymentSheetError: LocalizedError {
     case timeout
 
@@ -751,15 +917,35 @@ private enum BookingPaymentSheetError: LocalizedError {
 private struct CalendlyWebView: UIViewRepresentable {
     let url: URL
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.scrollView.isScrollEnabled = true
+        webView.navigationDelegate = context.coordinator
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        guard Coordinator.isAllowed(url: url) else { return }
         webView.load(URLRequest(url: url))
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        static func isAllowed(url: URL) -> Bool {
+            guard url.scheme?.lowercased() == "https", let host = url.host?.lowercased() else { return false }
+            if host == "calendly.com" || host.hasSuffix(".calendly.com") { return true }
+            if host == "usescheduleme.com" || host == "www.usescheduleme.com" { return true }
+            return false
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            guard let url = navigationAction.request.url else { return .cancel }
+            return Self.isAllowed(url: url) ? .allow : .cancel
+        }
     }
 }
 

@@ -59,6 +59,7 @@ struct ScheduleMeApp: App {
     @StateObject private var providerTabRouter = ProviderTabRouter()
     // Single persisted source of truth for user-selected appearance.
     @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = false
+    @AppStorage("scheduleme_has_logged_in_ever") private var hasLoggedInEver = false
 
     init() {
         FontLoader.registerFonts()
@@ -104,12 +105,18 @@ struct ScheduleMeApp: App {
                 .environmentObject(tabRouter)
                 .environmentObject(providerTabRouter)
                 // SwiftUI-level scheme preference.
-                .preferredColorScheme(darkModeEnabled ? .dark : .light)
+                .preferredColorScheme(effectiveDarkModeEnabled ? .dark : .light)
                 .onAppear {
                     // UIKit-level forcing so sheets/fullScreenCover also swap instantly.
                     applyInterfaceStyle()
                 }
                 .onChange(of: darkModeEnabled) { _, _ in
+                    applyInterfaceStyle()
+                }
+                .onChange(of: appState.isAuthenticated) { _, isAuthenticated in
+                    if isAuthenticated {
+                        hasLoggedInEver = true
+                    }
                     applyInterfaceStyle()
                 }
                 .onOpenURL { url in
@@ -127,7 +134,7 @@ struct ScheduleMeApp: App {
     /// This is intentionally duplicated with SwiftUI `.preferredColorScheme`
     /// because some modal stacks lag if we only set one side.
     private func applyInterfaceStyle() {
-        let style: UIUserInterfaceStyle = darkModeEnabled ? .dark : .light
+        let style: UIUserInterfaceStyle = effectiveDarkModeEnabled ? .dark : .light
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .forEach { scene in
@@ -135,5 +142,10 @@ struct ScheduleMeApp: App {
                     window.overrideUserInterfaceStyle = style
                 }
             }
+    }
+
+    /// Brand-new users should always start in light mode until after first successful login.
+    private var effectiveDarkModeEnabled: Bool {
+        hasLoggedInEver && darkModeEnabled
     }
 }

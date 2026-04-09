@@ -256,7 +256,7 @@ struct CampusView: View {
                         }
 
                         // Content
-                        if dataStore.isLoadingCampusBusinesses && dataStore.campusBusinesses.isEmpty {
+                        if (!dataStore.hasLoadedCampusBusinesses || dataStore.isLoadingCampusBusinesses) && allCampusBusinesses.isEmpty {
                             CampusSkeletonView()
                                 .padding(.horizontal, 20)
                                 .padding(.top, 10)
@@ -348,6 +348,9 @@ private struct FeaturedCampusCard: View {
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
     @EnvironmentObject private var appState: AppState
     let business: BusinessSummary
+    private var placeholderBackground: Color {
+        Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
+    }
 
     var body: some View {
         ScheduleMeCard {
@@ -359,7 +362,12 @@ private struct FeaturedCampusCard: View {
                             case .success(let image):
                                 image.resizable().scaledToFill()
                             default:
-                                Rectangle().fill(ScheduleMeTheme.pageBackground)
+                                ZStack {
+                                    Rectangle().fill(placeholderBackground)
+                                    Text(String(business.name.prefix(2)).uppercased())
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                }
                             }
                         }
                         .frame(width: 110, height: 120)
@@ -398,7 +406,7 @@ private struct FeaturedCampusCard: View {
                     HStack(spacing: 6) {
                         OpenStatusDot(isOpen: business.isOpen, label: business.openStatusLabel)
                         Text("•").foregroundColor(ScheduleMeTheme.mutedText.opacity(0.4))
-                        Text("\(business.distanceLabel) • \(business.ratingLabel)★")
+                        Text(reviewSummary)
                             .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))
                             .foregroundColor(ScheduleMeTheme.mutedText)
                     }
@@ -408,6 +416,14 @@ private struct FeaturedCampusCard: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var reviewSummary: String {
+        let hasReviews = (business.reviewCount ?? 0) > 0
+        if hasReviews {
+            return "\(business.distanceLabel) • \(business.ratingLabel)★"
+        }
+        return "\(business.distanceLabel) • No reviews"
     }
 }
 
@@ -431,10 +447,18 @@ private struct CampusSkeletonView: View {
             ) {
                 ForEach(0..<4, id: \.self) { _ in
                     VStack(alignment: .leading, spacing: 8) {
-                        SkeletonBlock(height: 120, cornerRadius: 16)
-                        SkeletonBlock(height: 14, cornerRadius: 8)
-                        SkeletonBlock(width: 84, height: 12, cornerRadius: 8)
-                        SkeletonBlock(width: 68, height: 12, cornerRadius: 8)
+                        ZStack(alignment: .topTrailing) {
+                            SkeletonBlock(height: 120, cornerRadius: 16)
+                            SkeletonCircle(size: 24)
+                                .padding(8)
+                        }
+                        SkeletonBlock(width: 106, height: 14, cornerRadius: 8)
+                        HStack(spacing: 6) {
+                            SkeletonBlock(width: 78, height: 12, cornerRadius: 8)
+                            SkeletonBlock(width: 42, height: 12, cornerRadius: 8)
+                            SkeletonCircle(size: 14)
+                        }
+                        SkeletonBlock(width: 72, height: 10, cornerRadius: 6)
                     }
                 }
             }

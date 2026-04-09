@@ -10,26 +10,14 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
-    // Controls whether onboarding carousel should be shown before auth flow.
-    @AppStorage("scheduleme_onboarding_complete") private var onboardingComplete = false
 
     var body: some View {
         ScheduleMePage {
             Group {
                 // App entry routing order:
-                // 1) onboarding, 2) auth loading state, 3) main tabs if authenticated, 4) auth screens.
-                if onboardingComplete == false {
-                    OnboardingView()
-                } else if appState.isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .tint(ScheduleMeTheme.accent)
-                            .scaleEffect(1.2)
-                        Text("Loading ScheduleMe")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 16)).fontWeight(.semibold)
-                            .foregroundStyle(ScheduleMeTheme.mutedText)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // 1) auth loading state, 2) main tabs if authenticated, 3) auth screens.
+                if appState.isLoading {
+                    ConsumerLoadingScreen()
                 } else if appState.isAuthenticated {
                     MainTabView()
                 } else {
@@ -60,4 +48,28 @@ struct RootView: View {
 private struct PendingBusinessLookupItem: Identifiable {
     let key: String
     var id: String { key }
+}
+
+private struct ConsumerLoadingScreen: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+                .tint(ScheduleMeTheme.accent)
+                .scaleEffect(1.15)
+
+            HStack(spacing: 0) {
+                Text("Schedule")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 22).weight(.bold))
+                    .foregroundColor(ScheduleMeTheme.titleText)
+                Text("Me")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 22).weight(.bold))
+                    .foregroundColor(ScheduleMeTheme.accent)
+            }
+
+            Text("Loading ScheduleMe")
+                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }

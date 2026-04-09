@@ -23,11 +23,11 @@ struct BookingsView: View {
     // MARK: - Derived Counts
 
     private var activeCount: Int {
-        dataStore.bookings.filter { $0.status.lowercased() == "confirmed" || $0.status.lowercased() == "active" }.count
+        dataStore.bookings.filter { ["confirmed", "active", "completion_pending"].contains($0.status.lowercased()) }.count
     }
 
     private var completedCount: Int {
-        dataStore.bookings.filter { $0.status.lowercased() == "completed" || $0.status.lowercased() == "paid" }.count
+        dataStore.bookings.filter { ["completed"].contains($0.status.lowercased()) }.count
     }
 
     var body: some View {
@@ -46,10 +46,16 @@ struct BookingsView: View {
                             BookingStatCard(title: "Completed", value: "\(completedCount)")
                         }
                     }
-                    .padding(.top, 6)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(ScheduleMeTheme.cardBorder.opacity(0.45), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        if dataStore.isLoadingBookings && dataStore.bookings.isEmpty {
+                        if (!dataStore.hasLoadedBookings || dataStore.isLoadingBookings) && dataStore.bookings.isEmpty {
                             BookingSkeletonList()
                         } else if let bookingsError = dataStore.bookingsError {
                             ScheduleMeEmptyState(
@@ -111,15 +117,15 @@ struct BookingsView: View {
     // MARK: - Buckets
 
     private var pendingBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["pending", "payment_pending"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter { ["pending", "payment_pending", "payment_collected", "awaiting_payment"].contains($0.status.lowercased()) }
     }
 
     private var activeBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["confirmed", "active"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter { ["confirmed", "active", "completion_pending"].contains($0.status.lowercased()) }
     }
 
     private var completedBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["completed", "paid"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter { ["completed"].contains($0.status.lowercased()) }
     }
 
     private var cancelledBookings: [BookingSummary] {
@@ -225,8 +231,25 @@ private struct BookingSkeletonList: View {
         VStack(spacing: 12) {
             ForEach(0..<3, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 8) {
-                    SkeletonBlock(width: 120, height: 16, cornerRadius: 6)
-                    SkeletonBlock(height: 70, cornerRadius: 16)
+                    HStack {
+                        SkeletonBlock(width: 120, height: 14, cornerRadius: 6)
+                        Spacer()
+                        SkeletonBlock(width: 68, height: 12, cornerRadius: 8)
+                    }
+                    HStack(spacing: 10) {
+                        SkeletonCircle(size: 34)
+                        VStack(alignment: .leading, spacing: 6) {
+                            SkeletonBlock(width: 140, height: 13, cornerRadius: 7)
+                            SkeletonBlock(width: 102, height: 11, cornerRadius: 6)
+                        }
+                        Spacer()
+                        SkeletonCircle(size: 18)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(ScheduleMeTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
                 }
             }
         }
@@ -305,9 +328,9 @@ private struct BookingStatusBadge: View {
 
     private var color: Color {
         switch status {
-        case "confirmed", "active": return .green
-        case "completed", "paid": return ScheduleMeTheme.accent
-        case "pending", "payment_pending": return .orange
+        case "confirmed", "active", "completion_pending": return .green
+        case "completed": return ScheduleMeTheme.accent
+        case "pending", "payment_pending", "payment_collected", "awaiting_payment": return .orange
         case "cancelled", "payment_failed": return .red
         default: return ScheduleMeTheme.mutedText
         }

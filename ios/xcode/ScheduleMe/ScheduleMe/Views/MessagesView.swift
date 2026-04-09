@@ -5,6 +5,10 @@
 // Thread loading, badge pills, and message bubble rendering are managed here.
 
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
+import UIKit
+import AVKit
 
 struct MessagesView: View {
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
@@ -13,10 +17,14 @@ struct MessagesView: View {
     @Environment(\.openURL) private var openURL
     @State private var draft = ""
     @State private var pollingTask: Task<Void, Never>?
-    @State private var selectedImage: FullscreenImageItem?
+    @State private var selectedMedia: FullscreenMediaItem?
+    @State private var attachmentItem: PhotosPickerItem?
+    @State private var isUploadingAttachment = false
     @State private var didInitialScroll = false
+    @State private var showingSupportFallbackAlert = false
+    @State private var supportFallbackMessage = ""
     private let bottomAnchor = "bottom"
-    private let inputBarHeight: CGFloat = 52
+    private let inputBarHeight: CGFloat = 68
 
     var body: some View {
         NavigationStack {
@@ -44,6 +52,11 @@ struct MessagesView: View {
                     didInitialScroll = false
                 }
             }
+            .alert("Contact Support", isPresented: $showingSupportFallbackAlert) {
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(supportFallbackMessage)
+            }
         }
         .task {
             if let userID = appState.userID {
@@ -54,8 +67,12 @@ struct MessagesView: View {
             guard let newID else { return }
             Task { await dataStore.loadThreads(for: newID) }
         }
-        .fullScreenCover(item: $selectedImage) { item in
-            FullscreenImageView(url: item.url)
+        .onChange(of: attachmentItem) { _, newItem in
+            guard let newItem else { return }
+            Task { await sendPickedAttachment(newItem) }
+        }
+        .fullScreenCover(item: $selectedMedia) { item in
+            FullscreenMediaView(item: item)
         }
     }
 
@@ -129,6 +146,24 @@ struct MessagesView: View {
                             if dataStore.isLoadingMessages && dataStore.messages.isEmpty {
                                 MessageBubbleSkeletonStack()
                                     .padding(.top, 8)
+                            } else if let messagesError = dataStore.messagesError, dataStore.messages.isEmpty {
+                                ScheduleMeEmptyState(
+                                    title: "Messages unavailable",
+                                    message: messagesError,
+                                    systemImage: "bubble.left.and.exclamationmark.bubble.right",
+                                    actionTitle: "Retry",
+                                    action: {
+                                        Task { await dataStore.openThread(activeThread) }
+                                    }
+                                )
+                                .padding(.top, 20)
+                            } else if dataStore.messages.isEmpty {
+                                ScheduleMeEmptyState(
+                                    title: "No messages yet",
+                                    message: "Send a message to start this conversation.",
+                                    systemImage: "bubble.left.and.bubble.right"
+                                )
+                                .padding(.top, 20)
                             } else {
                                 if dataStore.hasMoreMessages {
                                     SkeletonBlock(width: 120, height: 14, cornerRadius: 6)
@@ -137,9 +172,15 @@ struct MessagesView: View {
                                             Task { await dataStore.loadMoreMessages() }
                                         }
                                 }
-                                ForEach(dataStore.messages) { message in
-                                    MessageBubble(message: message) { url in
-                                        selectedImage = FullscreenImageItem(url: url)
+                                ForEach(Array(dataStore.messages.enumerated()), id: \.element.id) { index, message in
+                                    if shouldShowTimestamp(for: index, in: dataStore.messages) {
+                                        MessageTimestampDivider(
+                                            text: timestampLabel(for: message.createdAt)
+                                        )
+                                        .padding(.vertical, 2)
+                                    }
+                                    MessageBubble(message: message) { item in
+                                        selectedMedia = item
                                     }
                                 }
                             }
@@ -255,7 +296,7 @@ struct MessagesView: View {
             .padding(.top, 6)
 
             VStack(alignment: .leading, spacing: 12) {
-                if dataStore.isLoadingThreads && dataStore.threads.isEmpty {
+                if (!dataStore.hasLoadedThreads || dataStore.isLoadingThreads) && dataStore.threads.isEmpty {
                     ThreadListSkeleton()
                 } else if let messagesError = dataStore.messagesError {
                     ScheduleMeEmptyState(
@@ -329,29 +370,52 @@ struct MessagesView: View {
                 .scheduleMeFieldStyle()
                 .foregroundColor(ScheduleMeTheme.titleText)
 
-            Button {
-                Task {
-                    let message = draft
-                    draft = ""
-                    await dataStore.sendMessage(message)
+            HStack(spacing: 10) {
+                PhotosPicker(selection: $attachmentItem, matching: .any(of: [.images, .videos])) {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+                        .frame(width: 38, height: 38)
+                        .background(ScheduleMeTheme.surface)
+                        .clipShape(Circle())
                 }
-            } label: {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
+                .disabled(isUploadingAttachment || dataStore.activeThread == nil)
+
+                Button {
+                    Task {
+                        let message = draft
+                        draft = ""
+                        await dataStore.sendMessage(message)
+                    }
+                } label: {
+                    Group {
+                        if isUploadingAttachment {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
                     .frame(width: 38, height: 38)
                     .background(ScheduleMeTheme.accent)
                     .clipShape(Circle())
+                }
+                .disabled(
+                    draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || dataStore.isSendingMessage
+                    || isUploadingAttachment
+                )
             }
-            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || dataStore.isSendingMessage)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 4)
-        .padding(.bottom, 8)
+        .padding(.top, 12)
+        .padding(.bottom, 18)
         .frame(height: inputBarHeight)
         .background(
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(ScheduleMeTheme.creamBackground)
                 .overlay(Rectangle().frame(height: 1).foregroundStyle(ScheduleMeTheme.cardBorder), alignment: .top)
         )
     }
@@ -369,6 +433,41 @@ struct MessagesView: View {
             }
         }
     }
+
+    private func shouldShowTimestamp(for index: Int, in messages: [ConversationMessage]) -> Bool {
+        guard messages.indices.contains(index) else { return false }
+        if index == 0 { return true }
+        let previous = messages[index - 1].createdAt
+        let current = messages[index].createdAt
+        if !Calendar.current.isDate(previous, inSameDayAs: current) {
+            return true
+        }
+        return current.timeIntervalSince(previous) > (20 * 60)
+    }
+
+    private func timestampLabel(for date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return "Today \(Self.messageTimeFormatter.string(from: date))"
+        }
+        if Calendar.current.isDateInYesterday(date) {
+            return "Yesterday \(Self.messageTimeFormatter.string(from: date))"
+        }
+        return "\(Self.messageDateFormatter.string(from: date)) \(Self.messageTimeFormatter.string(from: date))"
+    }
+
+    private static let messageTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+
+    private static let messageDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
 
 
     /// Polls frequently while a thread is open, and slower while only inbox is visible.
@@ -399,31 +498,57 @@ struct MessagesView: View {
 
     /// Opens pre-filled support email to report abusive or offensive content.
     private func reportThread(_ thread: MessageThread) {
-        let subject = "Report Conversation \(thread.id)"
-        let body = "Please review this thread for abusive/offensive content.\nThread ID: \(thread.id)\nBusiness: \(thread.title)"
-        openSupportMail(subject: subject, body: body)
+        openSupportPage()
     }
 
     /// Opens support contact route from message safety tools.
     private func contactSupport(activeThreadID: String?) {
-        let subject = "ScheduleMe Support"
-        let body: String
-        if let activeThreadID {
-            body = "I need help with conversation ID: \(activeThreadID)"
-        } else {
-            body = "I need help with my ScheduleMe account."
-        }
-        openSupportMail(subject: subject, body: body)
+        _ = activeThreadID // reserved for future support context passthrough
+        openSupportPage()
     }
 
-    private func openSupportMail(subject: String, body: String) {
-        let supportAddress = "support@usescheduleme.com"
-        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? subject
-        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? body
-        if let mailURL = URL(string: "mailto:\(supportAddress)?subject=\(encodedSubject)&body=\(encodedBody)") {
-            openURL(mailURL)
+    private func openSupportPage() {
+        guard let supportURL = URL(string: "https://www.usescheduleme.com/support") else {
+            supportFallbackMessage = "Could not open support page."
+            showingSupportFallbackAlert = true
+            return
+        }
+        openURL(supportURL) { accepted in
+            guard accepted == false else { return }
+            supportFallbackMessage = "Unable to open support page right now. Please visit https://www.usescheduleme.com/support."
+            showingSupportFallbackAlert = true
         }
     }
+
+    /// Uploads and sends selected media into the active thread.
+    private func sendPickedAttachment(_ item: PhotosPickerItem) async {
+        guard let thread = dataStore.activeThread else { return }
+        guard let bookingID = await dataStore.resolvedBookingIDForActiveThread(thread) else { return }
+        isUploadingAttachment = true
+        defer { isUploadingAttachment = false }
+
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                throw DataStoreError.server("Could not read selected media.")
+            }
+            let contentType = item.supportedContentTypes.first
+            let mimeType = contentType?.preferredMIMEType ?? "image/jpeg"
+            let mediaType = (contentType?.conforms(to: .movie) == true) ? "video" : "image"
+            let ext = mediaType == "video" ? "mp4" : "jpg"
+            let fileName = "msg_\(UUID().uuidString).\(ext)"
+            try await dataStore.sendMessageAttachment(
+                bookingID: bookingID,
+                data: data,
+                mimeType: mimeType,
+                fileName: fileName,
+                mediaType: mediaType
+            )
+            dataStore.messagesError = nil
+        } catch {
+            dataStore.messagesError = error.localizedDescription
+        }
+    }
+
 }
 
 private struct MessageBubbleSkeletonStack: View {
@@ -444,15 +569,13 @@ private struct MessageBubbleSkeleton: View {
     var body: some View {
         HStack {
             if isFromUser { Spacer() }
-            SkeletonBlock(
+            MessageSkeletonBlock(
                 width: width,
                 height: 44,
                 cornerRadius: 18,
-                color: isFromUser ? ScheduleMeTheme.accent.opacity(0.22) : ScheduleMeTheme.surface
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(isFromUser ? Color.clear : ScheduleMeTheme.cardBorder)
+                color: isFromUser
+                    ? ScheduleMeTheme.accent.opacity(0.38)
+                    : ScheduleMeTheme.surface
             )
             if !isFromUser { Spacer() }
         }
@@ -464,10 +587,10 @@ private struct ThreadListSkeleton: View {
         VStack(spacing: 12) {
             ForEach(0..<3, id: \.self) { _ in
                 HStack(spacing: 12) {
-                    SkeletonCircle(size: 42)
+                    MessageSkeletonCircle(size: 42)
                     VStack(alignment: .leading, spacing: 6) {
-                        SkeletonBlock(width: 160, height: 14, cornerRadius: 6)
-                        SkeletonBlock(width: 200, height: 12, cornerRadius: 6)
+                        MessageSkeletonBlock(width: 160, height: 14, cornerRadius: 6)
+                        MessageSkeletonBlock(width: 200, height: 12, cornerRadius: 6)
                     }
                     Spacer()
                 }
@@ -478,6 +601,86 @@ private struct ThreadListSkeleton: View {
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(ScheduleMeTheme.cardBorder))
             }
         }
+    }
+}
+
+private struct MessageSkeletonBlock: View {
+    var width: CGFloat? = nil
+    var height: CGFloat
+    var cornerRadius: CGFloat = 12
+    var color: Color = Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(color)
+            .frame(width: width, height: height)
+            .messageSkeletonSweep()
+    }
+}
+
+private struct MessageSkeletonCircle: View {
+    var size: CGFloat
+    var color: Color = Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .messageSkeletonSweep()
+    }
+}
+
+private struct MessageTimestampDivider: View {
+    let text: String
+
+    var body: some View {
+        HStack {
+            Spacer()
+            Text(text)
+                .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(ScheduleMeTheme.surface)
+                .clipShape(Capsule())
+            Spacer()
+        }
+    }
+}
+
+private struct MessageSkeletonSweep: ViewModifier {
+    @State private var phase: CGFloat = -0.8
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                GeometryReader { proxy in
+                    let width = max(proxy.size.width, 1)
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            .clear,
+                            Color.white.opacity(0.12),
+                            .clear
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: width * 0.45)
+                    .offset(x: phase * width * 2)
+                }
+            )
+            .mask(content)
+            .onAppear {
+                withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
+                    phase = 0.8
+                }
+            }
+    }
+}
+
+private extension View {
+    func messageSkeletonSweep() -> some View {
+        modifier(MessageSkeletonSweep())
     }
 }
 
@@ -524,35 +727,79 @@ private struct ThreadRow: View {
 
 private struct MessageBubble: View {
     let message: ConversationMessage
-    var onImageTap: (URL) -> Void = { _ in }
+    var onMediaTap: (FullscreenMediaItem) -> Void = { _ in }
+
+    private var mediaURL: URL? {
+        if let imageURL = message.imageURL,
+           let resolved = URL(string: imageURL) ?? URL(string: imageURL.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") {
+            return resolved
+        }
+        if let resolved = URL(string: message.content),
+           resolved.scheme != nil,
+           looksLikeMediaURL(resolved) {
+            return resolved
+        }
+        return nil
+    }
+
+    private var isVideoMedia: Bool {
+        if message.messageType?.lowercased() == "video" { return true }
+        guard let mediaURL else { return false }
+        return Self.videoExtensions.contains(mediaURL.pathExtension.lowercased())
+    }
+
+    private static let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "webm"]
+    private static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "heic", "webp", "gif"]
+
+    private func looksLikeMediaURL(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        return Self.videoExtensions.contains(ext) || Self.imageExtensions.contains(ext)
+    }
 
     var body: some View {
         HStack {
             if message.isFromUser { Spacer() }
-            if let imageURL = message.imageURL,
-               let url = URL(string: imageURL) ?? URL(string: imageURL.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(ScheduleMeTheme.surface)
-                            Text("Image failed to load")
+            if let url = mediaURL {
+                if isVideoMedia {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(ScheduleMeTheme.surface)
+                        VStack(spacing: 8) {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 34, weight: .semibold))
+                                .foregroundStyle(ScheduleMeTheme.accent)
+                            Text("Video attachment")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
                                 .foregroundStyle(ScheduleMeTheme.mutedText)
                         }
-                    default:
-                        SkeletonBlock(height: 140, cornerRadius: 16)
                     }
+                    .frame(maxWidth: 220, maxHeight: 160)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
+                    .onTapGesture { onMediaTap(FullscreenMediaItem(url: url, isVideo: true)) }
+                } else {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        case .failure:
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(ScheduleMeTheme.surface)
+                                Text("Image failed to load")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                            }
+                        default:
+                            SkeletonBlock(height: 140, cornerRadius: 16)
+                        }
+                    }
+                    .frame(maxWidth: 220, maxHeight: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
+                    .onTapGesture { onMediaTap(FullscreenMediaItem(url: url, isVideo: false)) }
                 }
-                .frame(maxWidth: 220, maxHeight: 160)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
-                .onTapGesture { onImageTap(url) }
             } else if let imageURL = message.imageURL, !imageURL.isEmpty {
                 ZStack {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -581,27 +828,40 @@ private struct MessageBubble: View {
     }
 }
 
-private struct FullscreenImageItem: Identifiable {
+private struct FullscreenMediaItem: Identifiable {
     let id = UUID()
     let url: URL
+    let isVideo: Bool
 }
 
-private struct FullscreenImageView: View {
-    let url: URL
+private struct FullscreenMediaView: View {
+    let item: FullscreenMediaItem
     @Environment(\.dismiss) private var dismiss
+    @State private var player: AVPlayer?
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFit()
-                case .failure:
-                    Text("Unable to load image")
-                        .foregroundColor(.white)
-                default:
-                    ProgressView().tint(.white)
+            Group {
+                if item.isVideo {
+                    if let player {
+                        VideoPlayer(player: player)
+                            .onAppear { player.play() }
+                    } else {
+                        ProgressView().tint(.white)
+                    }
+                } else {
+                    AsyncImage(url: item.url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFit()
+                        case .failure:
+                            Text("Unable to load image")
+                                .foregroundColor(.white)
+                        default:
+                            ProgressView().tint(.white)
+                        }
+                    }
                 }
             }
             .padding(20)
@@ -619,5 +879,21 @@ private struct FullscreenImageView: View {
             .padding(.trailing, 16)
             .padding(.top, 12)
         }
+        .onAppear {
+            if item.isVideo && player == nil {
+                player = AVPlayer(url: item.url)
+            }
+        }
+        .onDisappear {
+            player?.pause()
+            player = nil
+        }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
