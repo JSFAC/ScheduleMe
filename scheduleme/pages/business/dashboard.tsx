@@ -154,6 +154,18 @@ function canMarkComplete(b: Booking, bizHours?: any) {
   return new Date(b.scheduled_start).getTime() <= Date.now();
 }
 
+function isCustomPricingBooking(b: Partial<Booking>) {
+  if (!b) return false;
+  return (
+    !b.service
+    || String(b.service).toLowerCase().includes('custom')
+    || b.customer_proposed_price_cents != null
+    || b.provider_proposed_price_cents != null
+    || b.dispute_amount_cents != null
+    || (b.status === 'pending' && b.amount_cents == null)
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const c = STATUS_CFG[status] ?? STATUS_CFG.pending;
   return (
@@ -2025,7 +2037,7 @@ const BusinessDashboard: NextPage = () => {
                   ? <div className="bg-white rounded-2xl border border-neutral-100 py-12 text-center text-neutral-400 text-sm">No bookings in this category.</div>
                   : <div className="space-y-3">
                       {filteredBookings.map((b, i) => {
-                        const isCustom = !b.service || String(b.service).toLowerCase().includes('custom');
+                        const isCustom = isCustomPricingBooking(b);
                         const payoutFeeRate = business?.founder50 ? 0.06 : 0.12;
                         const providerNetPayoutCents = b.amount_cents ? Math.max(0, Math.round(b.amount_cents * (1 - payoutFeeRate))) : 0;
                         const scheduledSource = b.scheduled_start || b.scheduled_end || null;
@@ -2059,6 +2071,11 @@ const BusinessDashboard: NextPage = () => {
                             {b.amount_cents && <span className="text-neutral-700 font-semibold">{fmt(b.amount_cents)}</span>}
                             {scheduledLabel && <span>{b.scheduled_exact ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
                           </div>
+                          {isCustom && b.customer_proposed_price_cents != null && (
+                            <div className="mb-2 text-xs font-semibold" style={{ color: '#f59e0b' }}>
+                              Customer proposed: {fmt(b.customer_proposed_price_cents)}
+                            </div>
+                          )}
                           {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
                           {isCustom && b.amount_cents && b.status !== 'price_disputed' && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#e5e7eb', background: '#f8fafc', color: '#374151' }}>
@@ -2642,7 +2659,7 @@ const BusinessDashboard: NextPage = () => {
                         {list.map(b => {
                           const bookingDay = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
                           const canComplete = canMarkComplete(b, business?.hours);
-                          const isCustomBooking = !b.amount_cents;
+                          const isCustomBooking = isCustomPricingBooking(b);
                           return (
                             <div key={b.id} className="px-5 py-4">
                               <div className="flex items-start justify-between gap-3 mb-2">
@@ -3276,7 +3293,7 @@ const BusinessDashboard: NextPage = () => {
       )}
       {confirmAction && (() => {
         const b = confirmAction.booking;
-        const isCustom = String(b.service || '').toLowerCase().includes('custom');
+        const isCustom = isCustomPricingBooking(b);
         const priceCents = confirmAction.priceCents ?? b.amount_cents ?? 0;
         const needsPrice = (confirmAction.action === 'confirm' || confirmAction.action === 'dispute') && isCustom && !(priceCents > 0);
         return (
