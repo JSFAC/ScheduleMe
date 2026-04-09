@@ -131,6 +131,27 @@ create index if not exists businesses_campus_key_idx on businesses (campus_key);
 create index if not exists businesses_founder50_status_idx on businesses (founder50_status);
 create index if not exists businesses_featured_until_idx on businesses (featured_until);
 
+-- Campus allowlist for Founder50 assignment.
+-- Keep UCSC active; add more campuses only when you intentionally expand Founder50.
+create table if not exists founder50_allowed_campuses (
+  campus_key   text primary key,
+  active       boolean not null default true,
+  notes        text,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists founder50_allowed_active_idx on founder50_allowed_campuses (active);
+
+drop trigger if exists founder50_allowed_updated_at on founder50_allowed_campuses;
+create trigger founder50_allowed_updated_at
+  before update on founder50_allowed_campuses
+  for each row execute function set_updated_at();
+
+insert into founder50_allowed_campuses (campus_key, active, notes)
+values ('ucsc', true, 'Launch campus')
+on conflict (campus_key) do nothing;
+
 
 -- ============================================================
 -- 2. USERS

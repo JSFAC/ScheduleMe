@@ -58,8 +58,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Founder50 assignment happens at approval time (if campus-linked, campus is allowed, and under 50).
-    // Default policy is UCSC-only unless FOUNDER50_ALLOWED_CAMPUSES includes additional campuses.
-    const founder50CampusAllowed = isFounder50CampusAllowed({
+    // Campus allowlist is stored in Supabase table founder50_allowed_campuses.
+    const founder50CampusAllowed = await isFounder50CampusAllowed(supabase, {
       campusKey: business.campus_key,
       campusSchoolName: business.campus_school_name,
     });

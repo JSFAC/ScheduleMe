@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 const UCSC_ALIASES = new Set([
   'ucsc',
   'ucsc.edu',
@@ -17,24 +19,38 @@ function normalizeCampusToken(input?: string | null): string | null {
   return cleaned;
 }
 
-function parseAllowedCampuses(): Set<string> {
-  // Comma-separated list. Example:
-  // FOUNDER50_ALLOWED_CAMPUSES=ucsc
-  // FOUNDER50_ALLOWED_CAMPUSES=ucsc,sjsu
-  const raw = process.env.FOUNDER50_ALLOWED_CAMPUSES || 'ucsc';
-  const items = raw
-    .split(',')
-    .map((v) => normalizeCampusToken(v))
-    .filter(Boolean) as string[];
-  return new Set(items.length ? items : ['ucsc']);
+export function normalizeFounder50CampusKey(input?: string | null): string | null {
+  return normalizeCampusToken(input);
 }
 
-export function isFounder50CampusAllowed(opts: { campusKey?: string | null; campusSchoolName?: string | null }): boolean {
-  const allowed = parseAllowedCampuses();
+async function fetchAllowedFounder50Campuses(supabase: SupabaseClient): Promise<Set<string>> {
+  try {
+    const { data, error } = await supabase
+      .from('founder50_allowed_campuses')
+      .select('campus_key')
+      .eq('active', true);
+
+    if (error || !Array.isArray(data)) {
+      return new Set(['ucsc']);
+    }
+    const normalized = data
+      .map((row: any) => normalizeCampusToken(row?.campus_key))
+      .filter(Boolean) as string[];
+    return new Set(normalized.length ? normalized : ['ucsc']);
+  } catch {
+    // Safe fallback while table is being rolled out.
+    return new Set(['ucsc']);
+  }
+}
+
+export async function isFounder50CampusAllowed(
+  supabase: SupabaseClient,
+  opts: { campusKey?: string | null; campusSchoolName?: string | null }
+): Promise<boolean> {
+  const allowed = await fetchAllowedFounder50Campuses(supabase);
   const keyFromCampusKey = normalizeCampusToken(opts.campusKey);
   const keyFromSchoolName = normalizeCampusToken(opts.campusSchoolName);
   if (keyFromCampusKey && allowed.has(keyFromCampusKey)) return true;
   if (keyFromSchoolName && allowed.has(keyFromSchoolName)) return true;
   return false;
 }
-
