@@ -14,7 +14,7 @@ const sections = [
     content: [
       {
         subtitle: 'Account and profile data',
-        body: 'Name, email, password login metadata, campus verification data (.edu email domain and verification status), profile photo, provider profile details, service categories, service pricing, business media, and settings.',
+        body: 'Name, email, auth metadata (including sign-in provider and last sign-in time), campus verification data (.edu email domain and verification status), profile photo, provider profile details, service categories, service pricing, business media, and account settings.',
       },
       {
         subtitle: 'Booking and communication data',
@@ -22,11 +22,11 @@ const sections = [
       },
       {
         subtitle: 'Location and device data',
-        body: 'Precise location if you grant browser/device permission, saved last-known location for matching, approximate location from IP fallback, device/browser information, and basic security logs (including IP and request metadata).',
+        body: 'Precise location if you grant browser/device permission, saved last-known location for matching, approximate location from IP fallback, device/browser information, and basic security logs (including IP and request metadata). We use this to show nearby providers and protect against abuse.',
       },
       {
         subtitle: 'Payment data',
-        body: 'We store booking payment metadata (amounts, status, Stripe IDs, timestamps). Full card details are handled by Stripe and are not stored on ScheduleMe servers.',
+        body: 'We store booking payment metadata (amounts, status, Stripe IDs, payout/release metadata, and timestamps). Full card details are handled by Stripe and are not stored on ScheduleMe servers.',
       },
     ],
   },
@@ -77,7 +77,7 @@ const sections = [
     content: [
       {
         subtitle: 'How long we keep data',
-        body: 'Account data is retained while your account is active. Booking, payout, and dispute records are retained as needed for legal, tax, fraud, and payment reconciliation obligations. Support emails and operational logs are retained for troubleshooting and safety. When possible, old logs are rotated or deleted on a rolling basis.',
+        body: 'Account/profile data is retained while your account is active. Booking/payment/dispute records are retained for up to 7 years for legal, tax, fraud, and reconciliation requirements. Security logs are generally retained up to 12 months unless required longer for investigations. Support requests are generally retained up to 24 months for follow-up and quality/safety review. De-identified analytics may be retained longer.',
       },
     ],
   },
@@ -86,7 +86,7 @@ const sections = [
     content: [
       {
         subtitle: 'Account deletion',
-        body: 'You can request account deletion in-app (where available) or by contacting support at ' + EMAIL + '. We delete or de-identify data that is not required to be retained. Records that must be preserved for legal, tax, fraud, or payment obligations may be retained for the required period.',
+        body: 'You can request account deletion in-app (where available) or by contacting support at ' + EMAIL + '. We verify identity before deletion. After verification, we delete or de-identify data that is not required to be retained. Records that must be preserved for legal, tax, fraud, or payment obligations may be retained for the required period. Typical request handling target is within 30 days.',
       },
     ],
   },

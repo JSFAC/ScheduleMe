@@ -79,14 +79,18 @@ const sections = [
   },
   {
     title: '18. Data and Account Deletion',
-    body: 'You may request account deletion in-app (where supported) or by contacting support. Some records may be retained where required for tax, anti-fraud, legal compliance, or payment reconciliation.',
+    body: 'You may request account deletion in-app (where supported) or by contacting support. We verify identity before deletion requests are completed. Data that is not required for legal, tax, anti-fraud, or payment reconciliation obligations is deleted or de-identified. Required records may be retained for up to 7 years; security logs are typically retained up to 12 months; support records are typically retained up to 24 months.',
   },
   {
     title: '19. Third-Party Services',
-    body: 'ScheduleMe relies on third-party providers including Supabase (auth/data), Stripe (payments), Google/Apple auth (social sign-in), and push notification providers (such as APNs/FCM). Your use of those integrations is also subject to their terms and policies.',
+    body: 'ScheduleMe relies on third-party providers including Supabase (authentication, database, and storage), Stripe (payments, refunds, and payouts), Google/Apple auth (social sign-in), and push notification infrastructure (such as APNs/FCM). Your use of those integrations is also subject to their terms and policies.',
   },
   {
-    title: '20. Contact',
+    title: '20. Privacy Notice and Data Purposes',
+    body: 'Our Privacy Policy explains categories of personal data collected, why each category is used, retention periods, and your rights. By using the Service, you acknowledge those data practices for account creation, booking workflow, messaging, fraud prevention, payment handling, and support operations.',
+  },
+  {
+    title: '21. Contact',
     body: `For questions about these Terms, contact ${EMAIL} or use https://www.usescheduleme.com/support.`,
   },
 ];
