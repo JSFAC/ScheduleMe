@@ -719,7 +719,7 @@ const BusinessDashboard: NextPage = () => {
   const [bkFilterTouched, setBkFilterTouched] = useState(false);
   const [calendarDay, setCalendarDay] = useState<number | null>(null);
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel'; priceCents?: number } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel' | 'dispute'; priceCents?: number } | null>(null);
   const [confirmSubmitting, setConfirmSubmitting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const didAutoTabRef = useRef(false);
@@ -1405,6 +1405,37 @@ const BusinessDashboard: NextPage = () => {
       try { await loadData(); } catch {}
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to update booking. Please try again.', false);
+    }
+  }
+
+  async function handleDisputePrice(bookingId: string, disputeAmountCents: number) {
+    try {
+      if (!Number.isFinite(disputeAmountCents) || disputeAmountCents < 500) {
+        showToast('Minimum dispute price is $5.00', false);
+        return false;
+      }
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          booking_id: bookingId,
+          status: 'price_disputed',
+          dispute_amount_cents: disputeAmountCents,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to dispute price');
+      setBookings(bs => bs.map(b => b.id === bookingId
+        ? { ...b, status: 'price_disputed', dispute_amount_cents: disputeAmountCents, provider_proposed_price_cents: disputeAmountCents, price_accepted_by_customer: false, price_accepted_by_provider: false }
+        : b
+      ));
+      showToast('Price disputed. Customer was notified.', true);
+      try { await loadData(); } catch {}
+      return true;
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Failed to dispute price. Please try again.', false);
+      return false;
     }
   }
 
@@ -2123,6 +2154,22 @@ const BusinessDashboard: NextPage = () => {
                                       className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 bg-accent text-white disabled:opacity-40">
                                       {b.status === 'price_disputed' ? 'Send Price' : 'Confirm & Set Price'}
                                     </button>
+                                    {!!(b.customer_proposed_price_cents || b.dispute_amount_cents) && (
+                                      <button
+                                        onClick={() => {
+                                          const rawDigits = onlyDigits(bookingPrices[b.id] || '');
+                                          const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
+                                          const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                          const cents = typedCents > 0 ? typedCents : fallbackCents;
+                                          if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
+                                          setConfirmAction({ booking: b, action: 'dispute', priceCents: cents });
+                                        }}
+                                        disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
+                                        className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 text-white disabled:opacity-40"
+                                        style={{ background: '#f59e0b' }}>
+                                        Dispute price
+                                      </button>
+                                    )}
                                   </div>
                                   <p className="text-[10px] mt-1" style={{ color: dm ? '#636366' : '#9ca3af' }}>Set the price — customer will be prompted to pay after confirmation</p>
                                 </div>
@@ -3231,7 +3278,7 @@ const BusinessDashboard: NextPage = () => {
         const b = confirmAction.booking;
         const isCustom = String(b.service || '').toLowerCase().includes('custom');
         const priceCents = confirmAction.priceCents ?? b.amount_cents ?? 0;
-        const needsPrice = isCustom && !(priceCents > 0);
+        const needsPrice = (confirmAction.action === 'confirm' || confirmAction.action === 'dispute') && isCustom && !(priceCents > 0);
         return (
           <div className="fixed inset-0 z-[500] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
             <div className="w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
@@ -3240,6 +3287,8 @@ const BusinessDashboard: NextPage = () => {
                   <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>
                     {confirmAction.action === 'confirm'
                       ? (confirmAction.booking.status === 'price_disputed' ? 'Send price to customer?' : 'Confirm booking?')
+                      : confirmAction.action === 'dispute'
+                        ? 'Dispute price?'
                       : 'Cancel booking?'}
                   </p>
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
@@ -3247,6 +3296,8 @@ const BusinessDashboard: NextPage = () => {
                       ? (confirmAction.booking.status === 'price_disputed'
                         ? 'This will keep the booking disputed and send your price to the customer to confirm.'
                         : 'This will move the request into confirmed.')
+                      : confirmAction.action === 'dispute'
+                        ? 'This keeps the booking pending and sends your counter price for customer approval.'
                       : 'This will notify the customer and mark it cancelled.'}
                   </p>
                 </div>
@@ -3255,7 +3306,7 @@ const BusinessDashboard: NextPage = () => {
               <div className="text-xs mb-4" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                 {b.service || 'Custom Request'}{b.scheduled_start ? ` • ${fmtTime(b.scheduled_start)}` : ''}
               </div>
-              {confirmAction.action === 'confirm' && isCustom && (
+              {(confirmAction.action === 'confirm' || confirmAction.action === 'dispute') && isCustom && (
                 <div className="text-xs mb-4" style={{ color: needsPrice ? '#ef4444' : (dm ? '#9ca3af' : '#6b7280') }}>
                   {needsPrice ? 'Set a price before confirming.' : `Price: ${fmt(priceCents)}`}
                 </div>
@@ -3277,6 +3328,11 @@ const BusinessDashboard: NextPage = () => {
                       if (booking.status !== 'price_disputed') {
                         await handleUpdateBooking(booking.id, 'confirmed');
                       }
+                    } else if (action === 'dispute') {
+                      if (isCustom) {
+                        const ok = await handleDisputePrice(booking.id, priceCents);
+                        if (!ok) { setConfirmSubmitting(false); return; }
+                      }
                     } else {
                       await handleUpdateBooking(booking.id, 'cancelled');
                     }
@@ -3284,8 +3340,8 @@ const BusinessDashboard: NextPage = () => {
                     setConfirmSubmitting(false);
                   }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-40"
-                  style={{ background: confirmAction.action === 'confirm' ? '#10b981' : '#ef4444' }}>
-                  {confirmSubmitting ? 'Working…' : (confirmAction.action === 'confirm' ? 'Confirm' : 'Cancel Booking')}
+                  style={{ background: confirmAction.action === 'confirm' ? '#10b981' : (confirmAction.action === 'dispute' ? '#f59e0b' : '#ef4444') }}>
+                  {confirmSubmitting ? 'Working…' : (confirmAction.action === 'confirm' ? 'Confirm' : (confirmAction.action === 'dispute' ? 'Dispute Price' : 'Cancel Booking'))}
                 </button>
               </div>
             </div>
