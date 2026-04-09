@@ -145,8 +145,12 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
       const mapCenter: [number, number] = centerProp ?? (validBiz ? [validBiz.lat!, validBiz.lng!] : [39.8283, -98.5795]);
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
       leafletMapRef.current = map;
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+      const tileUrl = dm
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      L.tileLayer(tileUrl, {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
         maxZoom: 19,
       }).addTo(map);
       map.setView(mapCenter, hasUserCenter ? 12 : 13);
@@ -201,7 +205,6 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
 
   return (
     <>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <style>{`
         .leaflet-container { background: ${dm ? '#111827' : '#f3f4f6'} !important; }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
@@ -392,13 +395,16 @@ const BrowsePage: NextPage = () => {
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
 const COORDS_KEY = 'sm_last_coords';
-function readCoords(): { lat: number; lng: number } | null {
+const COORDS_MAX_AGE_MS = 1000 * 60 * 60 * 24;
+function readCoords(): { lat: number; lng: number; ts: number } | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(COORDS_KEY);
     if (!raw) return null;
     const v = JSON.parse(raw);
     if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') return null;
+    if (typeof v?.ts !== 'number') return null;
+    if (Date.now() - v.ts > COORDS_MAX_AGE_MS) return null;
     return v;
   } catch { return null; }
 }
@@ -434,37 +440,44 @@ function writeCoords(lat: number, lng: number) {
         setEduVerified(false);
       }
       
-      // Cached coords (avoid empty map if user already allowed once)
-      const cached = readCoords();
-      if (cached?.lat && cached?.lng) {
-        setUserLat(cached.lat);
-        setUserLng(cached.lng);
-        fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 40, radius })
-          .then((real) => { if (real.length > 0) { setBizListSafe(real); setUsingRealData(true); } })
-          .finally(() => setBizLoading(false));
-      }
-
-      let loaded = hasBizRef.current;
-      if (navigator.geolocation) {
-        await new Promise<void>((resolve) => {
+      let loaded = false;
+      const geolocate = () =>
+        new Promise<{ lat: number; lng: number } | null>((resolve) => {
+          if (!navigator.geolocation) return resolve(null);
           navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-              setUserLat(pos.coords.latitude);
-              setUserLng(pos.coords.longitude);
-              writeCoords(pos.coords.latitude, pos.coords.longitude);
-              const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
-              if (real.length > 0) {
-                setBizListSafe(real);
-                setUsingRealData(true);
-                loaded = true;
-              }
-              resolve();
-            },
-            () => resolve(),
-            { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve(null),
+            { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
           );
         });
+
+      const geo = await geolocate();
+      if (geo) {
+        setUserLat(geo.lat);
+        setUserLng(geo.lng);
+        writeCoords(geo.lat, geo.lng);
+        const real = await fetchNearbyBusinesses(geo.lat, geo.lng, { limit: 40, radius });
+        if (real.length > 0) {
+          setBizListSafe(real);
+          setUsingRealData(true);
+          loaded = true;
+        }
       }
+
+      if (!loaded) {
+        const cached = readCoords();
+        if (cached?.lat && cached?.lng) {
+          setUserLat(cached.lat);
+          setUserLng(cached.lng);
+          const real = await fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 40, radius });
+          if (real.length > 0) {
+            setBizListSafe(real);
+            setUsingRealData(true);
+            loaded = true;
+          }
+        }
+      }
+
       if (!loaded) {
         try {
           const _ipRes = await fetch('https://ipapi.co/json/');
@@ -719,7 +732,7 @@ function writeCoords(lat: number, lng: number) {
                       : 'Enable location access and click the button below to see local pros near you'}
                   </p>
                   {geoError && (
-                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizListSafe(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizListSafe([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0 }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#007e6d' }}>📍 Use My Location</button>
+                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); writeCoords(pos.coords.latitude, pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizListSafe(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizListSafe([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0, enableHighAccuracy: true }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#007e6d' }}>📍 Use My Location</button>
                   )}
                 </div>
               ) : viewMode === 'grid' ? (

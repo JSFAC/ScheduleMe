@@ -5,6 +5,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/globals.css';
+import 'leaflet/dist/leaflet.css';
 import { DarkModeProvider } from '../lib/DarkModeContext';
 
 const isBiz = (url: string) => url.startsWith('/business') || url.startsWith('/auth');

@@ -4,152 +4,143 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Nav from '../components/Nav';
 
-const LAST_UPDATED = 'April 4, 2026';
+const LAST_UPDATED = 'April 9, 2026';
 const COMPANY = 'ScheduleMe';
 const EMAIL = 'usescheduleme@gmail.com';
 
 const sections = [
   {
-    title: '1. Information We Collect',
+    title: '1. What We Collect',
     content: [
       {
-        subtitle: 'Information you provide',
-        body: 'We collect the information you choose to provide, such as name, email, phone number, school email, zip code, service requests, booking notes, messages, and profile content (photos, videos, descriptions). Providers may also provide provider details (service categories, hours, pricing, coverage area) and payout information via Stripe.',
+        subtitle: 'Account and profile data',
+        body: 'Name, email, password login metadata, campus verification data (.edu email domain and verification status), profile photo, provider profile details, service categories, service pricing, business media, and settings.',
       },
       {
-        subtitle: 'Information collected automatically',
-        body: 'We collect basic technical data such as IP address, device type, browser, pages viewed, and approximate location from IP to keep the service secure and improve performance. We do not sell or rent personal data.',
+        subtitle: 'Booking and communication data',
+        body: 'Booking records, requested date/time, notes, custom service pricing/dispute history, cancellation reasons, and in-app messages between consumers and providers.',
       },
       {
-        subtitle: 'Location data',
-        body: 'If you grant permission, we may collect your device’s precise geolocation to improve nearby matching. You can decline this permission and still use the service by entering a city or zip code.',
+        subtitle: 'Location and device data',
+        body: 'Precise location if you grant browser/device permission, saved last-known location for matching, approximate location from IP fallback, device/browser information, and basic security logs (including IP and request metadata).',
       },
       {
-        subtitle: 'Payments',
-        body: 'Payments are processed by Stripe. We do not store full card numbers on our servers. Stripe may store payment method details and transaction data as required to process payments and comply with law.',
+        subtitle: 'Payment data',
+        body: 'We store booking payment metadata (amounts, status, Stripe IDs, timestamps). Full card details are handled by Stripe and are not stored on ScheduleMe servers.',
       },
     ],
   },
   {
-    title: '2. How We Use Your Information',
+    title: '2. Why We Use It',
     content: [
       {
-        subtitle: 'To provide the service',
-        body: 'We use your information to match requests to providers, process bookings, enable messaging, and help providers complete services. Contact information is shared with the provider you choose so they can fulfill your request.',
+        subtitle: 'Core marketplace operations',
+        body: 'To create accounts, verify users, show nearby providers, process bookings, power messaging, and manage provider dashboards.',
       },
       {
-        subtitle: 'To operate the provider platform',
-        body: 'Provider information is used to create and manage profiles, verify campus status, and deliver matched requests.',
+        subtitle: 'Payments and payouts',
+        body: 'To collect payment, hold funds, process refunds, compute platform fees (including Founder50 rules), and support provider payout workflows.',
       },
       {
-        subtitle: 'To communicate with you',
-        body: 'We may use your email or phone number to send booking confirmations, lead alerts, platform updates, and support messages. You may opt out of marketing communications at any time.',
+        subtitle: 'Notifications and support',
+        body: 'To send verification emails, booking/payment updates, dispute updates, cancellation updates, and support replies.',
       },
       {
-        subtitle: 'To improve our service',
-        body: 'Aggregate usage data helps us improve matching quality, platform performance, and user experience. This data cannot be used to identify you.',
+        subtitle: 'Security and fraud prevention',
+        body: 'To detect abuse, enforce platform policy, investigate disputes, and protect users and ScheduleMe.',
       },
     ],
   },
   {
-    title: '3. Information Sharing',
+    title: '3. Third Parties We Use',
     content: [
       {
-        subtitle: 'With matched providers',
-        body: 'When you request a service or book a provider, your name, contact details, location, and request details are shared with that provider.',
+        subtitle: 'Infrastructure and auth',
+        body: 'Supabase (database, authentication, storage), Vercel (hosting/runtime), Google and Apple auth providers (when you use social sign-in).',
       },
       {
-        subtitle: 'With service providers',
-        body: 'We use trusted third‑party services to operate the platform, including Supabase (database/auth), Vercel (hosting), Resend (email), and Stripe (payments). These providers process data only as needed to deliver the service.',
+        subtitle: 'Payments and email',
+        body: 'Stripe (payment processing, refunds, payouts), Resend (transactional emails).',
       },
       {
-        subtitle: 'Legal requirements',
-        body: 'We may disclose information if required by law, court order, or government authority, or if we believe disclosure is necessary to protect the rights, property, or safety of ScheduleMe, our users, or the public.',
+        subtitle: 'Push notifications',
+        body: 'Apple Push Notification service (APNs) and Firebase Cloud Messaging (FCM), directly or through a push provider, for app notification delivery.',
       },
       {
-        subtitle: 'We do not sell your data',
-        body: 'ScheduleMe does not sell, rent, or trade your personal information to third parties for marketing or advertising purposes. Ever.',
+        subtitle: 'Provider data sharing',
+        body: 'When you make or manage a booking, relevant booking and contact details are shared between consumer and provider to perform the service.',
       },
     ],
   },
   {
-    title: '4. Data Retention',
+    title: '4. Retention Periods',
+    content: [
+      {
+        subtitle: 'How long we keep data',
+        body: 'Account data is retained while your account is active. Booking, payout, and dispute records are retained as needed for legal, tax, fraud, and payment reconciliation obligations. Support emails and operational logs are retained for troubleshooting and safety. When possible, old logs are rotated or deleted on a rolling basis.',
+      },
+    ],
+  },
+  {
+    title: '5. Deletion Rights and Process',
+    content: [
+      {
+        subtitle: 'Account deletion',
+        body: 'You can request account deletion in-app (where available) or by contacting support at ' + EMAIL + '. We delete or de-identify data that is not required to be retained. Records that must be preserved for legal, tax, fraud, or payment obligations may be retained for the required period.',
+      },
+    ],
+  },
+  {
+    title: '6. Security',
     content: [
       {
         subtitle: '',
-        body: 'We retain account and booking data while your account is active. If you delete your account, we retain essential records for compliance and fraud prevention for up to 90 days, unless a longer retention period is required by law. You can request deletion or export at any time by contacting us at ' + EMAIL + '.',
+        body: 'We use encryption in transit, access controls, and production security best practices. No system is perfectly secure, but we continuously work to reduce risk.',
       },
     ],
   },
   {
-    title: '5. Security',
+    title: '7. Your Rights',
     content: [
       {
         subtitle: '',
-        body: 'We implement industry-standard security measures including encrypted data transmission (TLS), encrypted storage, and role-based access controls. However, no method of transmission over the internet is 100% secure, and we cannot guarantee absolute security. We encourage you to use strong passwords and notify us immediately of any suspected unauthorized access.',
+        body: 'Depending on your location, you may have rights to access, correct, export, or delete your data. To exercise rights, email ' + EMAIL + '. We may need to verify identity before completing requests.',
       },
     ],
   },
   {
-    title: '6. Your Rights',
+    title: '8. Cookies',
     content: [
       {
         subtitle: '',
-        body: 'Depending on your jurisdiction (including California and the EEA), you may have the right to access, correct, delete, or export your information and to opt out of certain processing. To exercise these rights, contact us at ' + EMAIL + '. We will respond within 30 days.',
+        body: 'We use essential cookies for authentication and session continuity. We do not sell personal data.',
       },
     ],
   },
   {
-    title: '7. California & EEA Disclosures',
+    title: '9. Children\'s Privacy',
     content: [
       {
         subtitle: '',
-        body: 'California residents may request access, deletion, and a copy of their personal information, and may opt out of the sale or sharing of personal information for cross‑context behavioral advertising (which we do not do). EEA/UK users have similar rights and may request access, correction, deletion, restriction, or data portability. We process data under the following legal bases: to perform a contract (providing the Service), to comply with legal obligations, and our legitimate interests (security, fraud prevention, and improving the Service).',
+        body: 'ScheduleMe is not intended for children under 13. If you believe a child provided personal data, contact us so we can investigate and remove it.',
       },
     ],
   },
   {
-    title: '8. Data We Collect (Summary)',
+    title: '10. Changes to This Policy',
     content: [
       {
         subtitle: '',
-        body: 'Identifiers (name, email, phone), account details (school email, campus status), request details (service name, notes, attachments), communications (messages), location (precise if enabled, otherwise zip/city), payment metadata (via Stripe), device and usage data (IP, browser, pages viewed), and support communications.',
+        body: 'We may update this policy as product features evolve. Material changes will be posted here with a new "Last updated" date.',
       },
     ],
   },
   {
-    title: '9. Cookies',
+    title: '11. Contact',
     content: [
       {
         subtitle: '',
-        body: 'We use essential cookies to maintain session state and authentication. We do not use advertising or tracking cookies. You may disable cookies in your browser settings, though some features of the platform may not function correctly as a result.',
-      },
-    ],
-  },
-  {
-    title: '10. Children\'s Privacy',
-    content: [
-      {
-        subtitle: '',
-        body: 'ScheduleMe is not directed at children under the age of 13. We do not knowingly collect personal information from children. If you believe we have inadvertently collected information from a child, please contact us immediately and we will delete it.',
-      },
-    ],
-  },
-  {
-    title: '11. Changes to This Policy',
-    content: [
-      {
-        subtitle: '',
-        body: 'We may update this Privacy Policy from time to time. We will notify you of material changes by posting the new policy on this page with an updated "Last updated" date, and where appropriate, by email. Your continued use of the service after changes are posted constitutes your acceptance of the revised policy.',
-      },
-    ],
-  },
-  {
-    title: '12. Contact Us',
-    content: [
-      {
-        subtitle: '',
-        body: `If you have questions or concerns about this Privacy Policy or our data practices, please contact us at ${EMAIL} or write to us at ${COMPANY}, Privacy Team.`,
+        body: `Questions, deletion requests, or privacy requests: ${EMAIL}. You can also use our support form at https://www.usescheduleme.com/support.`,
       },
     ],
   },
@@ -201,6 +192,7 @@ const Privacy: NextPage = () => (
           <p className="text-xs text-neutral-400">© {new Date().getFullYear()} {COMPANY}. All rights reserved.</p>
           <div className="flex gap-5">
             <Link href="/terms" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Terms of Service</Link>
+            <Link href="/support" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Support</Link>
             <Link href="/" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Back to Home</Link>
           </div>
         </div>

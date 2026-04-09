@@ -4,7 +4,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Nav from '../components/Nav';
 
-const LAST_UPDATED = 'April 4, 2026';
+const LAST_UPDATED = 'April 9, 2026';
 const COMPANY = 'ScheduleMe';
 const EMAIL = 'usescheduleme@gmail.com';
 
@@ -35,11 +35,11 @@ const sections = [
   },
   {
     title: '7. Payments and Fees',
-    body: 'Consumers pay a $0.99 protection fee per booking. Provider accounts may be subject to platform fees (standard 12% or 6% for Founder50) as disclosed at signup or in the dashboard. All payments are processed by Stripe. You authorize Stripe and ScheduleMe to charge your payment method for fees incurred. Providers are responsible for issuing refunds or resolving disputes with customers; ScheduleMe may facilitate refunds but does not guarantee any refund outcome. Chargebacks and disputes may result in account limitations.',
+    body: 'Consumers pay on-platform when required by the booking flow, including a $0.99 protection fee for standard bookings. Funds are processed by Stripe. ScheduleMe may hold funds in-platform and release provider payouts according to booking state. Standard provider platform fee is 12%; Founder50 providers are 6% unless explicitly revoked per platform policy. Platform fee and protection fee amounts are disclosed in product UI and metadata. Off-platform payment to avoid platform fees may result in account penalties.',
   },
   {
     title: '8. Disputes Between Users',
-    body: 'Disputes between consumers and providers are solely between those parties. ScheduleMe is not responsible for, and does not control, disputes, claims, or damages arising from a service transaction. We may, but are not required to, assist with dispute resolution or facilitate communication.',
+    body: 'Disputes between consumers and providers are primarily between those parties. ScheduleMe may provide tooling for price disputes, cancellations, and communications, and may facilitate payment-side actions such as refunds where technically possible. We do not guarantee any specific dispute outcome.',
   },
   {
     title: '9. User Content and Reviews',
@@ -78,8 +78,16 @@ const sections = [
     body: 'ScheduleMe may terminate or suspend your access to the Service at any time, with or without cause, with or without notice. Upon termination, your right to use the Service ceases immediately. Provisions of these Terms that by their nature should survive termination will survive, including ownership provisions, warranty disclaimers, indemnity, and limitations of liability.',
   },
   {
-    title: '18. Contact',
-    body: `For questions about these Terms, contact us at ${EMAIL} or write to ${COMPANY}, Legal Team.`,
+    title: '18. Data and Account Deletion',
+    body: 'You may request account deletion in-app (where supported) or by contacting support. Some records may be retained where required for tax, anti-fraud, legal compliance, or payment reconciliation.',
+  },
+  {
+    title: '19. Third-Party Services',
+    body: 'ScheduleMe relies on third-party providers including Supabase (auth/data), Stripe (payments), Google/Apple auth (social sign-in), and push notification providers (such as APNs/FCM). Your use of those integrations is also subject to their terms and policies.',
+  },
+  {
+    title: '20. Contact',
+    body: `For questions about these Terms, contact ${EMAIL} or use https://www.usescheduleme.com/support.`,
   },
 ];
 
@@ -120,6 +128,7 @@ const Terms: NextPage = () => (
           <p className="text-xs text-neutral-400">© {new Date().getFullYear()} {COMPANY}. All rights reserved.</p>
           <div className="flex gap-5">
             <Link href="/privacy" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Privacy Policy</Link>
+            <Link href="/support" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Support</Link>
             <Link href="/" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Back to Home</Link>
           </div>
         </div>

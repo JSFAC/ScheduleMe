@@ -799,13 +799,16 @@ const HomePage: NextPage = () => {
   }
 
 const COORDS_KEY = 'sm_last_coords';
-function readCoords(): { lat: number; lng: number } | null {
+const COORDS_MAX_AGE_MS = 1000 * 60 * 60 * 24;
+function readCoords(): { lat: number; lng: number; ts: number } | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(COORDS_KEY);
     if (!raw) return null;
     const v = JSON.parse(raw);
     if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') return null;
+    if (typeof v?.ts !== 'number') return null;
+    if (Date.now() - v.ts > COORDS_MAX_AGE_MS) return null;
     return v;
   } catch { return null; }
 }
@@ -894,44 +897,61 @@ async function togglePinned(bizId: string) {
       if (isMobile && !isStandalone && !dismissed) {
         setShowInstallBanner(true);
       }
-      // Geo-only business loading — never show out-of-area results
-      const cached = readCoords();
-      if (cached?.lat && cached?.lng) {
-        const mod = await import('../lib/realBusinesses');
-        mod.fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 20, radius: 25 })
-          .then((real) => { if (real.length > 0) { setNearbySafe(real); setUsingRealData(true); } })
-          .finally(() => setDataLoading(false));
-      }
+      // Geo-first loading: precise location first, then recent cache, then IP fallback.
+      const mod = await import('../lib/realBusinesses');
+      let loaded = false;
 
-      try {
-        const _ipRes = await fetch('https://ipapi.co/json/');
-        const _ipData = await _ipRes.json();
-        if (_ipData.latitude && _ipData.longitude) {
-          const mod = await import('../lib/realBusinesses');
-          const _ipBiz = await mod.fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 20, radius: 25 });
-          if (_ipBiz.length > 0) { setNearbySafe(_ipBiz); setUsingRealData(true); setDataLoading(false); writeCoords(_ipData.latitude, _ipData.longitude); }
+      const geolocate = () =>
+        new Promise<{ lat: number; lng: number } | null>((resolve) => {
+          if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve(null),
+            { timeout: 15000, maximumAge: 0, enableHighAccuracy: true }
+          );
+        });
+
+      const geo = await geolocate();
+      if (geo) {
+        writeCoords(geo.lat, geo.lng);
+        const real = await mod.fetchNearbyBusinesses(geo.lat, geo.lng, { limit: 20, radius: 25 });
+        if (real.length > 0) {
+          setNearbySafe(real);
+          setUsingRealData(true);
+          loaded = true;
         }
-      } catch (_e) {}
-
-      if (typeof navigator !== 'undefined' && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (pos) => {
-            try {
-              writeCoords(pos.coords.latitude, pos.coords.longitude);
-              const mod = await import('../lib/realBusinesses');
-              const real = await mod.fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 20, radius: 25 });
-              if (real.length > 0) { setNearbySafe(real); setUsingRealData(true); }
-              // if empty, keep existing list
-            } catch (e) { /* geo loaded but fetch failed */ }
-            setDataLoading(false);
-          },
-          () => { if (!hasNearbyRef.current) setNearbySafe([]); setDataLoading(false); },
-          { timeout: 8000, maximumAge: 300000 }
-        );
-      } else {
-        if (!hasNearbyRef.current) setNearbySafe([]);
-        setDataLoading(false);
       }
+
+      if (!loaded) {
+        const cached = readCoords();
+        if (cached?.lat && cached?.lng) {
+          const real = await mod.fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 20, radius: 25 });
+          if (real.length > 0) {
+            setNearbySafe(real);
+            setUsingRealData(true);
+            loaded = true;
+          }
+        }
+      }
+
+      if (!loaded) {
+        try {
+          const _ipRes = await fetch('https://ipapi.co/json/');
+          const _ipData = await _ipRes.json();
+          if (_ipData.latitude && _ipData.longitude) {
+            const _ipBiz = await mod.fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 20, radius: 25 });
+            if (_ipBiz.length > 0) {
+              setNearbySafe(_ipBiz);
+              setUsingRealData(true);
+              writeCoords(_ipData.latitude, _ipData.longitude);
+              loaded = true;
+            }
+          }
+        } catch (_e) {}
+      }
+
+      if (!loaded && !hasNearbyRef.current) setNearbySafe([]);
+      setDataLoading(false);
     });
   }, [router]);
 
@@ -1279,7 +1299,10 @@ async function togglePinned(bizId: string) {
             const t1 = activeCategory === 'All'
               ? (rated.length > 0 ? rated.slice(0, 8) : pool.slice(0, 8))
               : (rated.length > 0 ? rated.slice(0, 8) : filtered.slice(0, 8));
-            const t2 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
+            const localProviders = filtered.filter((b) => !(b as any).campus_provider);
+            const t2 = activeCategory === 'All'
+              ? (localProviders.length > 0 ? localProviders.slice(0, 8) : pool.slice(0, 8))
+              : (localProviders.length > 0 ? localProviders : filtered);
             const t3 = activeCategory === 'All' ? pool.slice(0, 8) : filtered;
             return (
               <>
@@ -1298,9 +1321,9 @@ async function togglePinned(bizId: string) {
                 />
                 <ScrollSection
                   key={`indie-${activeCategory}`}
-                  title="Small & Independent"
-                  subtitle="Solo tradespeople — your booking helps them grow"
-                  href="/browse?category=Independent"
+                  title="Local providers"
+                  subtitle="Trusted non-student local pros near you"
+                  href="/browse"
                   businesses={t2.slice(0, 6)}
                   onBizClick={(biz) => { if (isPreviewLocked(biz)) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
