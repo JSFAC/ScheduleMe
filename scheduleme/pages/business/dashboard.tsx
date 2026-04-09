@@ -1593,11 +1593,22 @@ const BusinessDashboard: NextPage = () => {
   const heldInStripeAmount = toProviderNet(heldInStripeGross);
   const awaitingReleaseAmount = pendingPaymentAmount + heldInStripeAmount;
 
+  const isDisputedPricingFlow = (b: any) => {
+    if (b.status === 'price_disputed') return true;
+    if (b.status !== 'payment_pending') return false;
+    if (!isCustomPricingBooking(b)) return false;
+    const waitingOnCustomer = !!b.provider_proposed_price_cents && !b.price_accepted_by_customer;
+    const providerHasNotAcceptedCustomer = b.price_accepted_by_provider !== true;
+    return waitingOnCustomer || providerHasNotAcceptedCustomer;
+  };
+  const isActiveBookingFlow = (b: any) =>
+    b.status === 'confirmed' || (b.status === 'payment_pending' && !isDisputedPricingFlow(b));
+
   const filteredBookings = bookings.filter(b => {
     if (bkFilter === 'all') return true;
     if (bkFilter === 'pending') return b.status === 'pending';
-    if (bkFilter === 'disputed') return b.status === 'price_disputed';
-    if (bkFilter === 'active') return b.status === 'confirmed' || b.status === 'payment_pending';
+    if (bkFilter === 'disputed') return isDisputedPricingFlow(b);
+    if (bkFilter === 'active') return isActiveBookingFlow(b);
     if (bkFilter === 'completed') return b.status === 'completed' || b.status === 'paid';
     if (bkFilter === 'cancelled') return b.status === 'cancelled';
     return true;
@@ -2029,8 +2040,8 @@ const BusinessDashboard: NextPage = () => {
                   {([
                     { key: 'all', label: 'All (' + bookings.length + ')' },
                     { key: 'pending', label: 'Pending (' + bookings.filter(b => b.status === 'pending').length + ')' },
-                    { key: 'disputed', label: 'Disputed (' + bookings.filter(b => b.status === 'price_disputed').length + ')' },
-                    { key: 'active', label: 'Active (' + bookings.filter(b => b.status === 'confirmed' || b.status === 'payment_pending').length + ')' },
+                    { key: 'disputed', label: 'Disputed (' + bookings.filter(b => isDisputedPricingFlow(b)).length + ')' },
+                    { key: 'active', label: 'Active (' + bookings.filter(b => isActiveBookingFlow(b)).length + ')' },
                     { key: 'completed', label: 'Completed (' + bookings.filter(b => b.status === 'completed' || b.status === 'paid').length + ')' },
                     { key: 'cancelled', label: 'Cancelled (' + bookings.filter(b => b.status === 'cancelled').length + ')' },
                   ] as const).map(f => (
