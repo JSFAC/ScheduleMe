@@ -2067,11 +2067,12 @@ const BusinessDashboard: NextPage = () => {
                   : <div className="space-y-3">
                       {filteredBookings.map((b, i) => {
                         const isCustom = isCustomPricingBooking(b);
+                        const isPricingDisputedFlow = isDisputedPricingFlow(b);
                         const inferredProviderProposedCents =
                           b.provider_proposed_price_cents != null
                             ? b.provider_proposed_price_cents
                             : (
-                              b.status === 'price_disputed'
+                              isPricingDisputedFlow
                               && b.customer_proposed_price_cents != null
                               && b.dispute_amount_cents != null
                               && b.dispute_amount_cents !== b.customer_proposed_price_cents
@@ -2079,7 +2080,7 @@ const BusinessDashboard: NextPage = () => {
                               ? b.dispute_amount_cents
                               : null;
                         const waitingOnCustomerPriceDecision =
-                          b.status === 'price_disputed'
+                          isPricingDisputedFlow
                           && inferredProviderProposedCents != null
                           && !b.price_accepted_by_customer;
                         const payoutFeeRate = business?.founder50 ? 0.06 : 0.12;
@@ -2120,7 +2121,7 @@ const BusinessDashboard: NextPage = () => {
                               Customer proposed: {fmt(b.customer_proposed_price_cents)}
                             </div>
                           )}
-                          {b.status === 'price_disputed' && inferredProviderProposedCents != null && (
+                          {isPricingDisputedFlow && inferredProviderProposedCents != null && (
                             <div className="mb-2 text-xs font-semibold" style={{ color: '#10b981' }}>
                               Your disputed price: {fmt(inferredProviderProposedCents)}
                             </div>
@@ -2131,7 +2132,7 @@ const BusinessDashboard: NextPage = () => {
                               Your set price {fmt(b.amount_cents)}
                             </div>
                           )}
-                          {b.status === 'price_disputed' && waitingOnCustomerPriceDecision && (
+                          {isPricingDisputedFlow && waitingOnCustomerPriceDecision && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
                               <p className="mb-2">Waiting for customer response to your price {fmt(inferredProviderProposedCents ?? 0)}.</p>
                               {b.customer_proposed_price_cents != null && (
@@ -2145,7 +2146,7 @@ const BusinessDashboard: NextPage = () => {
                               )}
                             </div>
                           )}
-                          {b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider && !waitingOnCustomerPriceDecision && (
+                          {isPricingDisputedFlow && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider && !waitingOnCustomerPriceDecision && (
                             <div className="mb-3 mt-2">
                               <div className="w-full max-w-xl rounded-2xl border px-4 py-3" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#f9fafb' }}>
                                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] mb-2" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
