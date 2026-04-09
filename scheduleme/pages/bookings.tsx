@@ -436,6 +436,8 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
       onPriceAccepted(booking.id, {
         price_accepted_by_customer: true,
         price_accepted_at: data.price_accepted_at || new Date().toISOString(),
+        status: data.status || 'payment_pending',
+        amount_cents: typeof data.amount_cents === 'number' ? data.amount_cents : booking.amount_cents,
       });
       setPriceAccepted(true);
     } catch (e) {
@@ -491,6 +493,27 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
     || booking.customer_proposed_price_cents != null
     || booking.provider_proposed_price_cents != null
     || booking.dispute_amount_cents != null;
+  const inferredCustomerPriceCents =
+    booking.customer_proposed_price_cents != null
+      ? booking.customer_proposed_price_cents
+      : (
+        booking.status === 'price_disputed'
+        && booking.dispute_amount_cents != null
+        && booking.provider_proposed_price_cents == null
+      )
+        ? booking.dispute_amount_cents
+        : null;
+  const inferredProviderPriceCents =
+    booking.provider_proposed_price_cents != null
+      ? booking.provider_proposed_price_cents
+      : (
+        booking.status === 'price_disputed'
+        && booking.dispute_amount_cents != null
+        && inferredCustomerPriceCents != null
+        && booking.dispute_amount_cents !== inferredCustomerPriceCents
+      )
+        ? booking.dispute_amount_cents
+        : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -562,10 +585,10 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                 </div>
               </div>
             )}
-            {isCustom && booking.customer_proposed_price_cents && !booking.price_accepted_by_provider && (
+            {isCustom && inferredCustomerPriceCents && !booking.price_accepted_by_provider && (
               <div className="rounded-2xl border px-3 py-2" style={{ borderColor: '#e0e7ff', background: '#eef2ff' }}>
                 <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#4338ca' }}>Your proposed price</p>
-                <p className="text-sm font-semibold" style={{ color: '#3730a3' }}>${(booking.customer_proposed_price_cents / 100).toFixed(2)}</p>
+                <p className="text-sm font-semibold" style={{ color: '#3730a3' }}>${(inferredCustomerPriceCents / 100).toFixed(2)}</p>
               </div>
             )}
 
@@ -790,15 +813,15 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
             </div>
           )}
 
-          {isCustom && (booking.amount_cents || booking.provider_proposed_price_cents || booking.dispute_amount_cents) && !booking.paid_at && (() => {
-            const providerAccepted = !!booking.price_accepted_by_provider && !!booking.customer_proposed_price_cents;
-            const customerAccepted = !!booking.price_accepted_by_customer && !!booking.provider_proposed_price_cents;
+          {isCustom && (booking.amount_cents || inferredProviderPriceCents || inferredCustomerPriceCents || booking.dispute_amount_cents) && !booking.paid_at && (() => {
+            const providerAccepted = !!booking.price_accepted_by_provider && !!inferredCustomerPriceCents;
+            const customerAccepted = !!booking.price_accepted_by_customer && !!inferredProviderPriceCents;
             const waitingOnProviderResponse =
               booking.status === 'price_disputed'
-              && !!booking.dispute_amount_cents
-              && !booking.provider_proposed_price_cents;
+              && !!inferredCustomerPriceCents
+              && !inferredProviderPriceCents;
             const disputeDisabled = disputeSent || waitingOnProviderResponse;
-            const showConfirm = !!booking.provider_proposed_price_cents && !booking.price_accepted_by_customer;
+            const showConfirm = !!inferredProviderPriceCents && !booking.price_accepted_by_customer;
             if (providerAccepted) {
               return (
                 <div className="mt-6 pt-5 border-t border-neutral-100">
@@ -817,9 +840,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                 </div>
               );
             }
-            const hasDispute = !!booking.dispute_amount_cents;
-            const providerPriceLabel = `Provider price $${booking.amount_cents ? (booking.amount_cents / 100).toFixed(2) : '—'}`;
-            const disputeLabel = `Your price $${booking.dispute_amount_cents ? (booking.dispute_amount_cents / 100).toFixed(2) : '—'}`;
+            const hasDispute = !!inferredCustomerPriceCents;
+            const providerPriceLabel = `Provider price $${inferredProviderPriceCents ? (inferredProviderPriceCents / 100).toFixed(2) : '—'}`;
+            const disputeLabel = `Your price $${inferredCustomerPriceCents ? (inferredCustomerPriceCents / 100).toFixed(2) : '—'}`;
             return (
               <div className="mt-6 pt-5 border-t border-neutral-100">
                 <div className="flex items-center gap-2 mb-2">
@@ -831,7 +854,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                       {disputeLabel}
                     </div>
                   )}
-                  {booking.provider_proposed_price_cents && booking.price_accepted_by_customer && (
+                  {inferredProviderPriceCents && booking.price_accepted_by_customer && (
                     <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ background: '#dcfce7', color: '#166534' }}>Price accepted</span>
                   )}
                 </div>
@@ -841,7 +864,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                       onClick={handleAcceptPrice}
                       disabled={acceptingPrice}
                       className="w-full py-3 rounded-xl border-2 border-emerald-200 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-colors disabled:opacity-50">
-                      {acceptingPrice ? 'Confirming…' : `Confirm price $${(booking.provider_proposed_price_cents! / 100).toFixed(2)}`}
+                      {acceptingPrice ? 'Confirming…' : `Confirm price $${(inferredProviderPriceCents! / 100).toFixed(2)}`}
                     </button>
                   )}
                   <button
@@ -1144,7 +1167,16 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                     setDisputePrice('');
                     setDisputeNote('');
                     setBookings(prev => prev.map(b => b.id === booking.id
-                      ? { ...b, status: 'price_disputed', dispute_amount_cents: cents, dispute_note: disputeNote || null }
+                      ? {
+                        ...b,
+                        status: 'price_disputed',
+                        dispute_amount_cents: cents,
+                        dispute_note: disputeNote || null,
+                        customer_proposed_price_cents: cents,
+                        provider_proposed_price_cents: null,
+                        price_accepted_by_customer: false,
+                        price_accepted_by_provider: false,
+                      }
                       : b
                     ));
                   }
