@@ -1553,13 +1553,24 @@ const BusinessDashboard: NextPage = () => {
   // While loading, render a friendly splash instead of a black screen
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: dm ? '#0a0a0a' : '#f6f7f8' }}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative h-8 w-8">
-            <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#0b0d12' }}>
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="flex flex-col leading-none items-center mb-4">
+              <span className="text-2xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
+              <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Providers</span>
+            </div>
+            <p className="text-sm text-neutral-400">Loading your dashboard</p>
           </div>
-          <div className="text-xs font-semibold tracking-wide" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Loading your dashboard…</div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+            <div className="flex items-center justify-center gap-3">
+              <div className="relative h-7 w-7">
+                <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+              </div>
+              <span className="text-xs font-semibold tracking-wide text-neutral-300">Preparing your workspace…</span>
+            </div>
+          </div>
         </div>
       </div>
     );
