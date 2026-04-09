@@ -484,7 +484,13 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
   const inputBg = dm ? '#0b1513' : '#ffffff';
   const inputBorder = dm ? '#1e554c' : '#c7f0e3';
   const inputText = dm ? '#e5f9f4' : '#0f3d35';
-  const isCustom = String(booking.service || '').toLowerCase().includes('custom');
+  const isCustom =
+    String(booking.service || '').toLowerCase().includes('custom')
+    || booking.status === 'price_disputed'
+    || booking.status === 'payment_pending'
+    || booking.customer_proposed_price_cents != null
+    || booking.provider_proposed_price_cents != null
+    || booking.dispute_amount_cents != null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -784,11 +790,15 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
             </div>
           )}
 
-          {isCustom && booking.amount_cents && !booking.paid_at && (() => {
+          {isCustom && (booking.amount_cents || booking.provider_proposed_price_cents || booking.dispute_amount_cents) && !booking.paid_at && (() => {
             const providerAccepted = !!booking.price_accepted_by_provider && !!booking.customer_proposed_price_cents;
             const customerAccepted = !!booking.price_accepted_by_customer && !!booking.provider_proposed_price_cents;
-            const disputeDisabled = disputeSent || booking.status === 'price_disputed';
-            const showConfirm = !!booking.provider_proposed_price_cents && !booking.price_accepted_by_customer && !disputeDisabled;
+            const waitingOnProviderResponse =
+              booking.status === 'price_disputed'
+              && !!booking.dispute_amount_cents
+              && !booking.provider_proposed_price_cents;
+            const disputeDisabled = disputeSent || waitingOnProviderResponse;
+            const showConfirm = !!booking.provider_proposed_price_cents && !booking.price_accepted_by_customer;
             if (providerAccepted) {
               return (
                 <div className="mt-6 pt-5 border-t border-neutral-100">
