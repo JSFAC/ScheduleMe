@@ -141,15 +141,24 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
       if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; }
       const validBiz = businesses.find(b => b.lat && b.lng && b.lat !== 0);
       const centerProp = center && Number.isFinite(center[0]) && Number.isFinite(center[1]) ? center : null;
-      const center: [number, number] = centerProp ?? (validBiz ? [validBiz.lat!, validBiz.lng!] : [37.7749, -122.4194]);
+      const hasUserCenter = !!centerProp;
+      const mapCenter: [number, number] = centerProp ?? (validBiz ? [validBiz.lat!, validBiz.lng!] : [39.8283, -98.5795]);
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
       leafletMapRef.current = map;
-      L.tileLayer(dm
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }
-      ).addTo(map);
-      map.setView(center, 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map);
+      map.setView(mapCenter, hasUserCenter ? 12 : 13);
+      if (hasUserCenter) {
+        L.circleMarker([centerProp![0], centerProp![1]], {
+          radius: 7,
+          weight: 2,
+          color: '#ffffff',
+          fillColor: '#007e6d',
+          fillOpacity: 1,
+        }).addTo(map);
+      }
       markersRef.current = businesses.filter(b => b.lat && b.lng && b.lat !== 0).map(biz => {
         const isSel = selected === biz.id;
         const icon = L.divIcon({
@@ -160,6 +169,8 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
         const marker = L.marker([biz.lat!, biz.lng!], { icon }).addTo(map).on('click', () => onSelect(biz.id));
         return { id: biz.id, marker };
       });
+      map.whenReady(() => map.invalidateSize());
+      window.setTimeout(() => map.invalidateSize(), 120);
     });
     return () => { if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; } };
   }, [businesses, dm, center]);
@@ -192,6 +203,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
     <>
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <style>{`
+        .leaflet-container { background: ${dm ? '#111827' : '#f3f4f6'} !important; }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
         .leaflet-control-zoom { border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.15)!important;border-radius:10px!important;overflow:hidden!important; }
         .leaflet-popup-content-wrapper { border-radius:12px!important;box-shadow:0 4px 20px rgba(0,0,0,0.15)!important; }
@@ -432,49 +444,51 @@ function writeCoords(lat: number, lng: number) {
           .finally(() => setBizLoading(false));
       }
 
-      // IP geo fallback — loads businesses instantly without permission prompt
-      try {
-        const _ipRes = await fetch('https://ipapi.co/json/');
-        const _ipData = await _ipRes.json();
-        if (_ipData.latitude && _ipData.longitude) {
-          const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 40, radius });
-          if (_ipBiz.length > 0) {
-            setBizListSafe(_ipBiz);
-            setUsingRealData(true);
-            setUserLat(_ipData.latitude);
-            setUserLng(_ipData.longitude);
-            writeCoords(_ipData.latitude, _ipData.longitude);
-            setBizLoading(false);
-          }
-        }
-      } catch (_e) {}
+      let loaded = hasBizRef.current;
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (pos) => {
-            setUserLat(pos.coords.latitude);
-            setUserLng(pos.coords.longitude);
-            writeCoords(pos.coords.latitude, pos.coords.longitude);
-            const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
-            if (real.length > 0) {
-              setBizListSafe(real);
-              setUsingRealData(true);
-            }
-            // if empty, keep the current list
-            setBizLoading(false);
-
-          },
-          () => {
-            if (!hasBizRef.current) setBizListSafe([]);
-            setBizLoading(false);
-            setGeoError(true);
-          },
-          { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
-        );
-
-      } else {
-        if (!hasBizRef.current) setBizListSafe([]);
-        setBizLoading(false);
+        await new Promise<void>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+              setUserLat(pos.coords.latitude);
+              setUserLng(pos.coords.longitude);
+              writeCoords(pos.coords.latitude, pos.coords.longitude);
+              const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius });
+              if (real.length > 0) {
+                setBizListSafe(real);
+                setUsingRealData(true);
+                loaded = true;
+              }
+              resolve();
+            },
+            () => resolve(),
+            { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
+          );
+        });
       }
+      if (!loaded) {
+        try {
+          const _ipRes = await fetch('https://ipapi.co/json/');
+          const _ipData = await _ipRes.json();
+          if (_ipData.latitude && _ipData.longitude) {
+            const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 40, radius });
+            if (_ipBiz.length > 0) {
+              setBizListSafe(_ipBiz);
+              setUsingRealData(true);
+              setUserLat(_ipData.latitude);
+              setUserLng(_ipData.longitude);
+              writeCoords(_ipData.latitude, _ipData.longitude);
+              loaded = true;
+            }
+          }
+        } catch (_e) {}
+      }
+      if (!loaded) {
+        setGeoError(true);
+        if (!hasBizRef.current) setBizListSafe([]);
+      } else {
+        setGeoError(false);
+      }
+      setBizLoading(false);
     });
   }, [router]);
 
@@ -829,7 +843,7 @@ function writeCoords(lat: number, lng: number) {
           ) : (
             <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
               <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4" style={{ height: 300 }}>
-                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={userLat && userLng ? [userLat, userLng] : null} />
+                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={Number.isFinite(userLat) && Number.isFinite(userLng) ? [userLat, userLng] : null} />
               </div>
               {selectedMapBizData && (
                 <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
@@ -916,7 +930,7 @@ function writeCoords(lat: number, lng: number) {
                 </div>
                 <div className="flex flex-col gap-3" style={{ flex: '1 1 0', minWidth: 0 }}>
                   <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}>
-                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={userLat && userLng ? [userLat, userLng] : null} />
+                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={Number.isFinite(userLat) && Number.isFinite(userLng) ? [userLat, userLng] : null} />
                   </div>
                   {selectedMapBizData && (
                     <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
