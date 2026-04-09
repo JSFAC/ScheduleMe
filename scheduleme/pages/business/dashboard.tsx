@@ -731,8 +731,12 @@ const BusinessDashboard: NextPage = () => {
   const [bkFilterTouched, setBkFilterTouched] = useState(false);
   const [calendarDay, setCalendarDay] = useState<number | null>(null);
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel' | 'dispute'; priceCents?: number } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel' | 'dispute' | 'accept_price'; priceCents?: number } | null>(null);
   const [confirmSubmitting, setConfirmSubmitting] = useState(false);
+  const [confirmAcknowledge, setConfirmAcknowledge] = useState(false);
+  const [completeAcknowledge, setCompleteAcknowledge] = useState(false);
+  const [completeSubmitting, setCompleteSubmitting] = useState(false);
+  const [actionDone, setActionDone] = useState<{ title: string; message: string } | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const didAutoTabRef = useRef(false);
 
@@ -752,6 +756,14 @@ const BusinessDashboard: NextPage = () => {
     }
     didAutoTabRef.current = true;
   }, [bookings, bkFilterTouched]);
+
+  useEffect(() => {
+    setConfirmAcknowledge(false);
+  }, [confirmAction?.booking?.id, confirmAction?.action]);
+
+  useEffect(() => {
+    setCompleteAcknowledge(false);
+  }, [confirmComplete?.id]);
 
   // Messages state
   const [threads, setThreads] = useState<any[]>([]);
@@ -1422,8 +1434,10 @@ const BusinessDashboard: NextPage = () => {
       showToast(status === 'cancelled' ? 'Booking cancelled' : 'Booking updated', true);
       // Refresh from server to ensure filters + counts update
       try { await loadData(); } catch {}
+      return true;
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to update booking. Please try again.', false);
+      return false;
     }
   }
 
@@ -1550,26 +1564,43 @@ const BusinessDashboard: NextPage = () => {
 
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
 
-  // While loading, render a friendly splash instead of a black screen
+  // While loading, render the existing provider-branded splash
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#0b0d12' }}>
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="flex flex-col leading-none items-center mb-4">
-              <span className="text-2xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
-              <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">for Providers</span>
-            </div>
-            <p className="text-sm text-neutral-400">Loading your dashboard</p>
-          </div>
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <div className="flex items-center justify-center gap-3">
-              <div className="relative h-7 w-7">
-                <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
-                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
-              </div>
-              <span className="text-xs font-semibold tracking-wide text-neutral-300">Preparing your workspace…</span>
-            </div>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          position: 'relative',
+          background: '#0a0a0a',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage:
+              'linear-gradient(to right,rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.02) 1px,transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
+        <div style={{ position: 'relative', textAlign: 'center' }}>
+          <p style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', marginBottom: 4 }}>
+            ScheduleMe
+          </p>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#007e6d', marginBottom: 20 }}>
+            for Providers
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                border: '2px solid rgba(10,132,255,0.25)',
+                borderTopColor: '#007e6d',
+                animation: 'spin 0.7s linear infinite',
+              }}
+            />
           </div>
         </div>
       </div>
@@ -2132,12 +2163,12 @@ const BusinessDashboard: NextPage = () => {
                               Your set price {fmt(b.amount_cents)}
                             </div>
                           )}
-                          {isPricingDisputedFlow && waitingOnCustomerPriceDecision && (
+                              {isPricingDisputedFlow && waitingOnCustomerPriceDecision && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
                               <p className="mb-2">Waiting for customer response to your price {fmt(inferredProviderProposedCents ?? 0)}.</p>
                               {b.customer_proposed_price_cents != null && (
                                 <button
-                                  onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents)}
+                                  onClick={() => setConfirmAction({ booking: b, action: 'accept_price', priceCents: b.customer_proposed_price_cents })}
                                   className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white"
                                   style={{ background: '#0f766e' }}
                                 >
@@ -2158,7 +2189,7 @@ const BusinessDashboard: NextPage = () => {
                                       Customer proposed {fmt(b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
                                     </div>
                                     <button
-                                      onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
+                                      onClick={() => setConfirmAction({ booking: b, action: 'accept_price', priceCents: b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? 0 })}
                                       className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white hover:opacity-95 transition-colors">
                                       Accept price
                                     </button>
@@ -3380,7 +3411,9 @@ const BusinessDashboard: NextPage = () => {
                       ? (confirmAction.booking.status === 'price_disputed' ? 'Send price to customer?' : 'Confirm booking?')
                       : confirmAction.action === 'dispute'
                         ? 'Dispute price?'
-                      : 'Cancel booking?'}
+                        : confirmAction.action === 'accept_price'
+                          ? 'Accept customer price?'
+                          : 'Cancel booking?'}
                   </p>
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                     {confirmAction.action === 'confirm'
@@ -3389,7 +3422,9 @@ const BusinessDashboard: NextPage = () => {
                         : 'This will move the request into confirmed.')
                       : confirmAction.action === 'dispute'
                         ? 'This keeps the booking pending and sends your counter price for customer approval.'
-                      : 'This will notify the customer and mark it cancelled.'}
+                        : confirmAction.action === 'accept_price'
+                          ? 'This accepts the customer price and keeps the request moving forward immediately.'
+                          : 'This will notify the customer and mark it cancelled. Refunds can be triggered automatically for paid bookings.'}
                   </p>
                 </div>
                 <button onClick={() => setConfirmAction(null)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
@@ -3397,42 +3432,85 @@ const BusinessDashboard: NextPage = () => {
               <div className="text-xs mb-4" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                 {b.service || 'Custom Request'}{b.scheduled_start ? ` • ${fmtTime(b.scheduled_start)}` : ''}
               </div>
-              {(confirmAction.action === 'confirm' || confirmAction.action === 'dispute') && isCustom && (
+              {(confirmAction.action === 'confirm' || confirmAction.action === 'dispute' || confirmAction.action === 'accept_price') && isCustom && (
                 <div className="text-xs mb-4" style={{ color: needsPrice ? '#ef4444' : (dm ? '#9ca3af' : '#6b7280') }}>
                   {needsPrice ? 'Set a price before confirming.' : `Price: ${fmt(priceCents)}`}
                 </div>
               )}
+              {(confirmAction.action === 'confirm' || confirmAction.action === 'cancel') && (
+                <label className="flex items-start gap-2 mb-4 text-xs" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={confirmAcknowledge}
+                    onChange={(e) => setConfirmAcknowledge(e.target.checked)}
+                  />
+                  <span>
+                    {confirmAction.action === 'confirm'
+                      ? 'I understand confirming this booking starts the service workflow and may trigger immediate customer charges.'
+                      : 'I understand cancelling this booking notifies the customer and may trigger an automatic refund.'}
+                  </span>
+                </label>
+              )}
               <div className="flex gap-2">
                 <button onClick={() => setConfirmAction(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Back</button>
                 <button
-                  disabled={needsPrice || confirmSubmitting}
+                  disabled={needsPrice || confirmSubmitting || ((confirmAction.action === 'confirm' || confirmAction.action === 'cancel') && !confirmAcknowledge)}
                   onClick={async () => {
                     if (confirmSubmitting) return;
                     setConfirmSubmitting(true);
                     const action = confirmAction.action;
                     const booking = confirmAction.booking;
+                    let ok = true;
                     if (action === 'confirm') {
                       if (isCustom) {
-                        const ok = await handleSetPrice(booking.id, priceCents);
+                        ok = await handleSetPrice(booking.id, priceCents);
                         if (!ok) { setConfirmSubmitting(false); return; }
                       }
                       if (booking.status !== 'price_disputed') {
-                        await handleUpdateBooking(booking.id, 'confirmed');
+                        ok = await handleUpdateBooking(booking.id, 'confirmed');
                       }
+                    } else if (action === 'accept_price') {
+                      ok = await handleSetPrice(booking.id, priceCents);
                     } else if (action === 'dispute') {
                       if (isCustom) {
-                        const ok = await handleDisputePrice(booking.id, priceCents);
+                        ok = await handleDisputePrice(booking.id, priceCents);
                         if (!ok) { setConfirmSubmitting(false); return; }
                       }
                     } else {
-                      await handleUpdateBooking(booking.id, 'cancelled');
+                      ok = await handleUpdateBooking(booking.id, 'cancelled');
+                    }
+                    if (ok) {
+                      if (action === 'confirm') {
+                        setActionDone({
+                          title: booking.status === 'price_disputed' ? 'Price sent' : 'Booking confirmed',
+                          message: booking.status === 'price_disputed'
+                            ? 'Your price was sent to the customer. They must accept it before this booking can continue.'
+                            : 'Booking confirmed successfully.',
+                        });
+                      } else if (action === 'accept_price') {
+                        setActionDone({
+                          title: 'Price accepted',
+                          message: 'You accepted the customer price. The booking can now continue to payment/confirmation.',
+                        });
+                      } else if (action === 'dispute') {
+                        setActionDone({
+                          title: 'Price disputed',
+                          message: 'Your counter price was sent to the customer. You can update once they respond.',
+                        });
+                      } else {
+                        setActionDone({
+                          title: 'Booking cancelled',
+                          message: 'The booking was cancelled and the customer has been notified.',
+                        });
+                      }
                     }
                     setConfirmAction(null);
                     setConfirmSubmitting(false);
                   }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-40"
-                  style={{ background: confirmAction.action === 'confirm' ? '#10b981' : (confirmAction.action === 'dispute' ? '#f59e0b' : '#ef4444') }}>
-                  {confirmSubmitting ? 'Working…' : (confirmAction.action === 'confirm' ? 'Confirm' : (confirmAction.action === 'dispute' ? 'Dispute Price' : 'Cancel Booking'))}
+                  style={{ background: confirmAction.action === 'confirm' || confirmAction.action === 'accept_price' ? '#10b981' : (confirmAction.action === 'dispute' ? '#f59e0b' : '#ef4444') }}>
+                  {confirmSubmitting ? 'Working…' : (confirmAction.action === 'confirm' ? 'Confirm' : (confirmAction.action === 'dispute' ? 'Dispute Price' : (confirmAction.action === 'accept_price' ? 'Accept Price' : 'Cancel Booking')))}
                 </button>
               </div>
             </div>
@@ -3445,7 +3523,7 @@ const BusinessDashboard: NextPage = () => {
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Mark booking complete?</p>
-                <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>This will notify the customer and move it to completed.</p>
+                <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>This will notify the customer, release payout, and cannot be undone.</p>
               </div>
               <button onClick={() => setConfirmComplete(null)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
             </div>
@@ -3454,10 +3532,57 @@ const BusinessDashboard: NextPage = () => {
                 Scheduled for {fmtTime(confirmComplete.scheduled_start)}
               </div>
             )}
+            <label className="flex items-start gap-2 mb-4 text-xs" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={completeAcknowledge}
+                onChange={(e) => setCompleteAcknowledge(e.target.checked)}
+              />
+              <span>I understand this completion action cannot be undone.</span>
+            </label>
             <div className="flex gap-2">
               <button onClick={() => setConfirmComplete(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}>Cancel</button>
-              <button onClick={() => { handleUpdateBooking(confirmComplete.id, 'completed'); setConfirmComplete(null); }} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">Mark Complete</button>
+              <button
+                onClick={async () => {
+                  if (completeSubmitting) return;
+                  setCompleteSubmitting(true);
+                  const ok = await handleUpdateBooking(confirmComplete.id, 'completed');
+                  if (ok) {
+                    setActionDone({
+                      title: 'Booking completed',
+                      message: 'This booking is now marked complete and payout release has started.',
+                    });
+                    setConfirmComplete(null);
+                  }
+                  setCompleteSubmitting(false);
+                }}
+                disabled={!completeAcknowledge || completeSubmitting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-40"
+              >
+                {completeSubmitting ? 'Working…' : 'Mark Complete'}
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+      {actionDone && (
+        <div className="fixed inset-0 z-[650] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>{actionDone.title}</p>
+                <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{actionDone.message}</p>
+              </div>
+              <button onClick={() => setActionDone(null)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+            </div>
+            <button
+              onClick={() => setActionDone(null)}
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-white"
+              style={{ background: '#10b981' }}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
