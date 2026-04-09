@@ -8,6 +8,9 @@ alter table public.bookings enable row level security;
 alter table public.messages enable row level security;
 alter table public.profiles enable row level security;
 
+-- Ensure owner_id exists before owner-based policies are created.
+alter table public.businesses add column if not exists owner_id uuid;
+
 -- RLS status helper (used by admin panel)
 create or replace function public.get_rls_status(p_tables text[])
 returns table (tablename text, rowsecurity boolean)

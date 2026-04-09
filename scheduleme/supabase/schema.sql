@@ -392,8 +392,14 @@ $$;
 grant execute on function search_businesses_geo to anon, authenticated;
 
 -- Allow service_role to write users (for lead capture)
-create policy if not exists "users_service_insert"
-  on users for insert using (auth.role() = 'service_role');
+do $$
+begin
+  if to_regclass('public.users') is not null then
+    execute 'alter table public.users enable row level security';
+    execute 'drop policy if exists "users_service_insert" on public.users';
+    execute 'create policy "users_service_insert" on public.users for insert to authenticated with check (auth.role() = ''service_role'')';
+  end if;
+end $$;
 
 
 -- ============================================================

@@ -18,13 +18,20 @@ where b.owner_id is null
   and b.owner_email is not null
   and lower(p.email) = lower(b.owner_email);
 
--- 3) Backfill remaining from legacy users table by owner_email.
-update public.businesses b
-set owner_id = u.id
-from public.users u
-where b.owner_id is null
-  and b.owner_email is not null
-  and lower(u.email) = lower(b.owner_email);
+-- 3) Backfill remaining from legacy users table by owner_email (if table exists).
+do $$
+begin
+  if to_regclass('public.users') is not null then
+    execute $sql$
+      update public.businesses b
+      set owner_id = u.id
+      from public.users u
+      where b.owner_id is null
+        and b.owner_email is not null
+        and lower(u.email) = lower(b.owner_email)
+    $sql$;
+  end if;
+end $$;
 
 -- 4) Add FK to auth.users if missing.
 do $$
