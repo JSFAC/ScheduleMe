@@ -775,6 +775,18 @@ export default function BizPage() {
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
 
   const requiresTime = isCustom ? (biz?.custom_requires_time !== false) : (selectedSvc?.requires_time !== false);
+  const customProposedCents = isCustom && customProposedPrice
+    ? Number.parseInt(customProposedPrice, 10)
+    : 0;
+  const customPriceTooLow = isCustom && customProposedPrice.length > 0 && (!Number.isFinite(customProposedCents) || customProposedCents < 500);
+  const bookingDisabled =
+    !date
+    || (requiresTime && !slot)
+    || submitting
+    || done
+    || (isCustom && (!customServiceName.trim() || !note.trim() || customPriceTooLow))
+    || isPreview;
+
   const availableSlots = date && requiresTime ? (() => {
     const dk = localDateKey(date);
     const dh = getHoursForDate(biz.hours, date);
@@ -1296,6 +1308,11 @@ export default function BizPage() {
                       </div>
                       <span className="text-[11px]" style={{ color: mu }}>Leave blank to let the provider set the price.</span>
                     </div>
+                    {customPriceTooLow && (
+                      <p className="text-[11px] mt-2 text-red-500 font-semibold">
+                        Minimum custom proposed price is $5.00.
+                      </p>
+                    )}
                     <p className="text-[11px] mt-2" style={{color:mu}}>This name appears in your messages and bookings.</p>
                   </div>
                 )}
@@ -1417,9 +1434,9 @@ export default function BizPage() {
 
         </div>
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={book} disabled={!date || (requiresTime && !slot) || submitting || done || (isCustom && (!customServiceName.trim() || !note.trim())) || isPreview}
+          <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background:(!date || (requiresTime && !slot) || submitting || done || isPreview) ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            style={{background: bookingDisabled ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment')}
           </button>
         </div>
