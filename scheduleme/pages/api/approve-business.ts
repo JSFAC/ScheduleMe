@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { sendBusinessApprovalEmail } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
+import { isFounder50CampusAllowed } from '../../lib/founder50Policy';
 
 function getSupabase() {
   return createClient(
@@ -56,8 +57,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatePayload.edu_verified = false; // explicitly false until they self-verify
     }
 
-    // Founder50 assignment happens at approval time (if campus-linked and under 50)
-    if (!business.founder50 && business.campus_provider && business.campus_school_name) {
+    // Founder50 assignment happens at approval time (if campus-linked, campus is allowed, and under 50).
+    // Default policy is UCSC-only unless FOUNDER50_ALLOWED_CAMPUSES includes additional campuses.
+    const founder50CampusAllowed = isFounder50CampusAllowed({
+      campusKey: business.campus_key,
+      campusSchoolName: business.campus_school_name,
+    });
+    if (!business.founder50 && business.campus_provider && business.campus_school_name && founder50CampusAllowed) {
       const campusKey = business.campus_key || normalizeCampusKey(business.campus_school_name);
       if (campusKey) {
         updatePayload.campus_key = campusKey;
