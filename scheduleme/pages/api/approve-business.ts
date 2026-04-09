@@ -5,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { sendBusinessApprovalEmail } from '../../lib/email';
 import { setSecurityHeaders, rateLimit, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
-import { isFounder50CampusAllowed } from '../../lib/founder50Policy';
+import { assignFounder50IfEligible } from '../../lib/founder50Assign';
 
 function getSupabase() {
   return createClient(
@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get business details
     const { data: business, error: fetchError } = await supabase
       .from('businesses')
-      .select('id, name, owner_name, owner_email, is_onboarded, campus_provider, campus_school_name, campus_key, founder50')
+      .select('id, name, owner_name, owner_email, is_onboarded, campus_provider, campus_school_name, campus_key, founder50, founder50_status, edu_verified')
       .eq('id', businessId)
       .single();
 
@@ -57,39 +57,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatePayload.edu_verified = false; // explicitly false until they self-verify
     }
 
-    // Founder50 assignment happens at approval time (if campus-linked, campus is allowed, and under 50).
-    // Campus allowlist is stored in Supabase table founder50_allowed_campuses.
-    const founder50CampusAllowed = await isFounder50CampusAllowed(supabase, {
-      campusKey: business.campus_key,
-      campusSchoolName: business.campus_school_name,
-    });
-    if (!business.founder50 && business.campus_provider && business.campus_school_name && founder50CampusAllowed) {
-      const campusKey = business.campus_key || normalizeCampusKey(business.campus_school_name);
-      if (campusKey) {
-        updatePayload.campus_key = campusKey;
-        try {
-          const { data: founderRow, error: founderErr } = await supabase
-            .from('campus_founder50')
-            .select('founder_count')
-            .eq('campus_key', campusKey)
-            .maybeSingle();
-          if (!founderErr) {
-            const currentCount = founderRow?.founder_count ?? 0;
-            if (currentCount < 50) {
-              updatePayload.founder50 = true;
-              updatePayload.founder50_status = 'active';
-              await supabase.from('campus_founder50').upsert({
-                campus_key: campusKey,
-                founder_count: currentCount + 1,
-              }, { onConflict: 'campus_key' });
-            }
-          }
-        } catch (err) {
-          console.warn('[approve-business] founder50 assignment failed', err);
-        }
-      }
+    // Normalize campus key on approval (Founder50 assignment happens at EDU verification).
+    if (!business.campus_key && business.campus_school_name) {
+      const normalizedCampusKey = normalizeCampusKey(business.campus_school_name);
+      if (normalizedCampusKey) updatePayload.campus_key = normalizedCampusKey;
     }
     await supabase.from('businesses').update(updatePayload).eq('id', businessId);
+
+    // Best-effort assignment in case admin approves an already EDU-verified provider.
+    try {
+      await assignFounder50IfEligible(supabase, {
+        ...business,
+        campus_key: updatePayload.campus_key || business.campus_key,
+        edu_verified: business.edu_verified === true,
+      });
+    } catch (err) {
+      console.warn('[approve-business] founder50 assignment check failed', err);
+    }
     await logAuditEvent(req, 'admin_approve_business', {
       entity_type: 'business',
       entity_id: businessId,

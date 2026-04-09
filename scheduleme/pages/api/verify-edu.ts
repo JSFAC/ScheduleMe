@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidEmail, logAuditEvent } from '../../lib/apiSecurity';
+import { assignFounder50IfEligible } from '../../lib/founder50Assign';
 
 function getSupabase() {
   return createClient(
@@ -41,6 +42,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (new Date(biz.edu_code_expires_at) < new Date()) return res.status(400).json({ error: 'Code expired. Request a new one.' });
       if (biz.edu_code !== code.trim()) return res.status(400).json({ error: 'Incorrect code. Try again.' });
       await supabase.from('businesses').update({ edu_verified: true, edu_code: null, edu_code_expires_at: null }).eq('id', biz.id);
+      const { data: refreshedBiz } = await supabase
+        .from('businesses')
+        .select('id, founder50, founder50_status, campus_provider, campus_key, campus_school_name, edu_verified')
+        .eq('id', biz.id)
+        .maybeSingle();
+      try {
+        if (refreshedBiz) {
+          await assignFounder50IfEligible(supabase, refreshedBiz as any);
+        }
+      } catch (err) {
+        console.warn('[verify-edu] founder50 assignment failed', err);
+      }
       await logAuditEvent(req, 'edu_verify_business', {
         entity_type: 'business',
         entity_id: biz.id,
