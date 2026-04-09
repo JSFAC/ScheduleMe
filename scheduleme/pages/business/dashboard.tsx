@@ -2142,53 +2142,63 @@ const BusinessDashboard: NextPage = () => {
                           )}
                           
                           {(['pending', 'confirmed', 'active', 'payment_pending', 'price_disputed'].includes(b.status)) && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-start gap-2">
                               {/* Price setting — required before confirm */}
                               {(b.status === 'pending') && isCustom && (
-                                <div className={`w-full mb-2 ${b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider ? 'hidden' : ''}`}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
-                                      <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
-                                      <input
-                                        type="text" inputMode="numeric" placeholder="0.00"
-                                        className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
-                                        style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
-                                        value={bookingPrices[b.id] ? digitsToDollars(bookingPrices[b.id]) : (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
-                                        onChange={e => setBookingPrices(p => ({ ...p, [b.id]: onlyDigits(e.target.value) }))}
-                                      />
+                                <div className={`w-full ${b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider ? 'hidden' : ''}`}>
+                                  <div className="flex items-start gap-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => {
+                                            const rawDigits = onlyDigits(bookingPrices[b.id] || '');
+                                            const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
+                                            const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                            const cents = typedCents > 0 ? typedCents : fallbackCents;
+                                            if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
+                                            setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
+                                          }}
+                                          disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
+                                          className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 bg-accent text-white disabled:opacity-40">
+                                          {b.status === 'price_disputed' ? 'Send Price' : 'Confirm & Set Price'}
+                                        </button>
+                                        <span className="text-[10px] font-semibold uppercase text-neutral-400">or</span>
+                                        <div className="w-32 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: dm ? '#404040' : '#e5e7eb' }}>
+                                          <span className="px-2.5 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+                                          <input
+                                            type="text" inputMode="numeric" placeholder="0.00"
+                                            className="flex-1 py-1.5 pr-2 text-sm bg-transparent focus:outline-none"
+                                            style={{ color: dm ? '#f2f2f7' : '#1c1c1e' }}
+                                            value={bookingPrices[b.id] ? digitsToDollars(bookingPrices[b.id]) : (b.customer_proposed_price_cents ? (b.customer_proposed_price_cents / 100).toFixed(2) : (b.dispute_amount_cents ? (b.dispute_amount_cents / 100).toFixed(2) : (b.amount_cents ? (b.amount_cents / 100).toFixed(2) : '')))}
+                                            onChange={e => setBookingPrices(p => ({ ...p, [b.id]: onlyDigits(e.target.value) }))}
+                                          />
+                                        </div>
+                                        {!!(b.customer_proposed_price_cents || b.dispute_amount_cents) && (
+                                          <button
+                                            onClick={() => {
+                                              const rawDigits = onlyDigits(bookingPrices[b.id] || '');
+                                              const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
+                                              const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                              const cents = typedCents > 0 ? typedCents : fallbackCents;
+                                              if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
+                                              setConfirmAction({ booking: b, action: 'dispute', priceCents: cents });
+                                            }}
+                                            disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
+                                            className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 text-white disabled:opacity-40"
+                                            style={{ background: '#f59e0b' }}>
+                                            Dispute price
+                                          </button>
+                                        )}
+                                      </div>
+                                      <p className="text-[10px] mt-1" style={{ color: dm ? '#636366' : '#9ca3af' }}>Set the price — customer will be prompted to pay after confirmation</p>
                                     </div>
-                                    <span className="text-[10px] font-semibold uppercase text-neutral-400">or</span>
                                     <button
-                                      onClick={() => {
-                                        const rawDigits = onlyDigits(bookingPrices[b.id] || '');
-                                        const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
-                                        const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
-                                        const cents = typedCents > 0 ? typedCents : fallbackCents;
-                                        if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
-                                        setConfirmAction({ booking: b, action: 'confirm', priceCents: cents });
-                                      }}
-                                      disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
-                                      className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 bg-accent text-white disabled:opacity-40">
-                                      {b.status === 'price_disputed' ? 'Send Price' : 'Confirm & Set Price'}
+                                      onClick={() => setConfirmAction({ booking: b, action: 'cancel' })}
+                                      className="text-xs font-bold px-3.5 py-2 rounded-xl h-9"
+                                      style={{ background: dm ? '#2c2c2e' : '#f5f5f5', color: dm ? '#8e8e93' : '#6b7280' }}>
+                                      Cancel
                                     </button>
-                                    {!!(b.customer_proposed_price_cents || b.dispute_amount_cents) && (
-                                      <button
-                                        onClick={() => {
-                                          const rawDigits = onlyDigits(bookingPrices[b.id] || '');
-                                          const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
-                                          const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
-                                          const cents = typedCents > 0 ? typedCents : fallbackCents;
-                                          if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
-                                          setConfirmAction({ booking: b, action: 'dispute', priceCents: cents });
-                                        }}
-                                        disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
-                                        className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 text-white disabled:opacity-40"
-                                        style={{ background: '#f59e0b' }}>
-                                        Dispute price
-                                      </button>
-                                    )}
                                   </div>
-                                  <p className="text-[10px] mt-1" style={{ color: dm ? '#636366' : '#9ca3af' }}>Set the price — customer will be prompted to pay after confirmation</p>
                                 </div>
                               )}
                               {b.status === 'pending' && !isCustom && (
@@ -2224,7 +2234,7 @@ const BusinessDashboard: NextPage = () => {
                                   {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
                                 </span>
                               )}
-                              {(b.status !== 'price_disputed' || !isCustom) && (
+                              {(b.status !== 'price_disputed' || !isCustom) && !(b.status === 'pending' && isCustom) && (
                                 <button
                                   onClick={() => setConfirmAction({ booking: b, action: 'cancel' })}
                                   className="text-xs font-bold px-3.5 py-2 rounded-xl h-9 ml-auto"
