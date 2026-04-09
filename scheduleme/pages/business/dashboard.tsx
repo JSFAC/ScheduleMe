@@ -709,6 +709,10 @@ const BusinessDashboard: NextPage = () => {
   const [disconnectStripeText, setDisconnectStripeText] = useState('');
   const [disconnectStripeLoading, setDisconnectStripeLoading] = useState(false);
   const [disconnectStripeError, setDisconnectStripeError] = useState('');
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteAccountText, setDeleteAccountText] = useState('');
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState('');
   const [payoutBalance, setPayoutBalance] = useState<{ available: number; pending: number } | null>(null);
   const stripeSuccess = router.query.stripe === 'success';
   const stripeCta = business?.stripe_account_id ? 'Continue Stripe setup →' : 'Connect bank & get paid →';
@@ -1563,6 +1567,27 @@ const BusinessDashboard: NextPage = () => {
   }
 
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
+  async function handleDeleteProviderAccount() {
+    setDeleteAccountError('');
+    setDeleteAccountLoading(true);
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + session.access_token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to delete account');
+      setSigningOut(true);
+      await supabase.auth.signOut();
+      router.push('/?deleted=1');
+    } catch (err) {
+      setDeleteAccountLoading(false);
+      setDeleteAccountError(err instanceof Error ? err.message : 'Failed to delete account.');
+    }
+  }
 
   // While loading, render the existing provider-branded splash
   if (loading) {
@@ -3219,7 +3244,16 @@ const BusinessDashboard: NextPage = () => {
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Session</h2>
                     <p className="text-xs text-neutral-400 mb-4">Signed in as {business?.owner_email}</p>
-                    <button onClick={handleSignOut} className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 transition-colors">Sign Out</button>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button onClick={handleSignOut} className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 transition-colors">Sign Out</button>
+                      <button
+                        type="button"
+                        onClick={() => { setDeleteAccountText(''); setDeleteAccountError(''); setShowDeleteAccount(true); }}
+                        className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                      >
+                        Delete Account
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3362,6 +3396,51 @@ const BusinessDashboard: NextPage = () => {
                 {disconnectStripeLoading ? 'Disconnecting…' : 'Disconnect Stripe'}
               </button>
               <button type="button" onClick={() => setShowDisconnectStripe(false)} className="w-full text-xs text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDeleteAccount && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="relative w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <button onClick={() => { if (!deleteAccountLoading) setShowDeleteAccount(false); }} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+            <span className="sm-eyebrow mb-2 block">Danger Zone</span>
+            <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#111' }}>Delete Provider Account</h2>
+            <p className="text-xs mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              This permanently deletes your provider account, business listing, and sign-in access. This action cannot be undone.
+            </p>
+            <div className="mt-4 space-y-3">
+              <p className="text-xs" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                Type <strong>DELETE</strong> to continue.
+              </p>
+              <input
+                type="text"
+                value={deleteAccountText}
+                onChange={(e) => setDeleteAccountText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                disabled={deleteAccountLoading}
+              />
+              {deleteAccountError && <p className="text-xs text-red-500">{deleteAccountError}</p>}
+              <button
+                type="button"
+                disabled={deleteAccountText.trim().toUpperCase() !== 'DELETE' || deleteAccountLoading}
+                onClick={handleDeleteProviderAccount}
+                className="w-full py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-40"
+                style={{ background: '#ef4444' }}
+              >
+                {deleteAccountLoading ? 'Deleting…' : 'Delete My Account'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteAccount(false)}
+                disabled={deleteAccountLoading}
+                className="w-full text-xs text-center"
+                style={{ color: dm ? '#9ca3af' : '#6b7280' }}
+              >
                 Cancel
               </button>
             </div>

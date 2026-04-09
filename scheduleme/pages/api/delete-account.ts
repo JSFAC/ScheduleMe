@@ -23,6 +23,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (userError || !user) return res.status(401).json({ error: 'Invalid or expired session' });
 
   const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  // Cleanup provider/business-side data first so deleted auth users don't leave stale listings.
+  // Best-effort: these deletions should not block auth deletion if a table doesn't exist.
+  try {
+    if (user.email) {
+      await adminClient.from('businesses').delete().eq('owner_email', user.email);
+      await adminClient.from('users').delete().eq('email', user.email);
+    }
+    await adminClient.from('profiles').delete().eq('id', user.id);
+  } catch {
+    // Ignore cleanup errors and proceed to auth deletion.
+  }
+
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
   if (deleteError) return res.status(500).json({ error: deleteError.message });
 
