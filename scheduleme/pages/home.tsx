@@ -188,11 +188,51 @@ const QUICK_CATS = [
   { label: 'Painting',   d: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
 ];
 
-const CAMPUS_PULSE = [
-  { title: 'Trending on campus', value: 'Haircuts + tutoring', sub: 'Updated today' },
-  { title: 'Avg response time', value: '~18 minutes', sub: 'Last 7 days' },
-  { title: 'New pros nearby', value: '12 this week', sub: 'Verified students' },
-];
+function toTitleCase(value: string): string {
+  return String(value || '')
+    .split(/[\s_/-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function buildCampusPulse(list: Business[]) {
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const safeList = Array.isArray(list) ? list : [];
+
+  const categoryCounts = new Map<string, number>();
+  for (const biz of safeList) {
+    const cat = toTitleCase((biz as any)?.category || '');
+    if (!cat) continue;
+    categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+  }
+  const topCategories = Array.from(categoryCounts.entries()).sort((a, b) => b[1] - a[1]);
+  const trendingPrimary = topCategories[0]?.[0] || 'No trend yet';
+  const trendingSecondary = topCategories[1]?.[0] || '';
+  const trendingValue = trendingSecondary ? `${trendingPrimary} + ${trendingSecondary}` : trendingPrimary;
+  const trendingSub = topCategories[0] ? `${topCategories[0][1]} nearby listings` : 'Collecting activity';
+
+  const rated = safeList.filter((b: any) => typeof b?.rating === 'number' && (b?.reviews || 0) > 0);
+  const avgRating = rated.length > 0
+    ? rated.reduce((sum: number, b: any) => sum + Number(b.rating || 0), 0) / rated.length
+    : null;
+  const avgRatingValue = avgRating != null ? `${avgRating.toFixed(1)}★ nearby` : 'No ratings yet';
+  const avgRatingSub = rated.length > 0 ? `${rated.length} rated providers` : 'Waiting for reviews';
+
+  const newProsThisWeek = safeList.filter((b: any) => {
+    const created = b?.created_at ? new Date(b.created_at).getTime() : NaN;
+    return Number.isFinite(created) && created >= weekAgo;
+  }).length;
+  const newProsValue = `${newProsThisWeek} this week`;
+  const newProsSub = newProsThisWeek > 0 ? 'Newly joined providers' : 'No new providers yet';
+
+  return [
+    { title: 'Trending on campus', value: trendingValue, sub: trendingSub },
+    { title: 'Avg rating nearby', value: avgRatingValue, sub: avgRatingSub },
+    { title: 'New pros nearby', value: newProsValue, sub: newProsSub },
+  ];
+}
 
 
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {
@@ -743,6 +783,7 @@ const HomePage: NextPage = () => {
   const sectionBg = dm ? '#0a0a0a' : '#FCFAF6';
   const matchPool = realBizList.length > 0 ? realBizList : [];
   const matchKeywords = useMemo(() => expandKeywords(tokenizeQuery(matchQuery)), [matchQuery]);
+  const campusPulse = useMemo(() => buildCampusPulse(realBizList), [realBizList]);
 
   function runMatch(q: string) {
     const trimmed = q.trim();
@@ -1095,12 +1136,12 @@ async function togglePinned(bizId: string) {
                 Campus Pulse
               </p>
               <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#8a7f74' }}>
-                Updated daily
+                Updated live
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {CAMPUS_PULSE.map((p) => (
+              {campusPulse.map((p) => (
                 <div
                   key={p.title}
                   className="rounded-2xl px-4 py-3"

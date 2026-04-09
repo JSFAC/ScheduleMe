@@ -80,6 +80,8 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     badges: [],
     preview_locked: previewLocked,
     public_visibility: b.public_visibility,
+    campus_provider: b.campus_provider === true,
+    created_at: b.created_at || null,
   } as Business;
 }
 
