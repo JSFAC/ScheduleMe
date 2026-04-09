@@ -2038,13 +2038,10 @@ const BusinessDashboard: NextPage = () => {
                   : <div className="space-y-3">
                       {filteredBookings.map((b, i) => {
                         const isCustom = isCustomPricingBooking(b);
-                        const currentDisputeCents = b.dispute_amount_cents ?? b.customer_proposed_price_cents ?? null;
                         const waitingOnCustomerPriceDecision =
                           b.status === 'price_disputed'
                           && !!b.provider_proposed_price_cents
-                          && !b.price_accepted_by_customer
-                          && !!currentDisputeCents
-                          && b.provider_proposed_price_cents === currentDisputeCents;
+                          && !b.price_accepted_by_customer;
                         const payoutFeeRate = business?.founder50 ? 0.06 : 0.12;
                         const providerNetPayoutCents = b.amount_cents ? Math.max(0, Math.round(b.amount_cents * (1 - payoutFeeRate))) : 0;
                         const scheduledSource = b.scheduled_start || b.scheduled_end || null;
