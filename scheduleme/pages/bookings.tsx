@@ -863,15 +863,16 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                     <button
                       onClick={handleAcceptPrice}
                       disabled={acceptingPrice}
-                      className="w-full py-3 rounded-xl border-2 border-emerald-200 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-colors disabled:opacity-50">
+                      className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-50"
+                      style={{ background: acceptingPrice ? '#6fb2a7' : '#0f766e' }}>
                       {acceptingPrice ? 'Confirming…' : `Confirm price $${(inferredProviderPriceCents! / 100).toFixed(2)}`}
                     </button>
                   )}
                   <button
                     onClick={() => setDisputeOpen(true)}
                     disabled={disputeDisabled}
-                    className="w-full py-3 rounded-xl border-2 text-sm font-semibold transition-colors disabled:opacity-60"
-                    style={disputeDisabled ? { borderColor: '#e5e7eb', color: '#9ca3af', background: '#f9fafb' } : { borderColor: '#f59e0b', color: '#b45309' }}>
+                    className="w-full py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                    style={disputeDisabled ? { color: '#9ca3af', background: '#f9fafb' } : { color: 'white', background: '#d97706' }}>
                     {disputeDisabled ? 'Dispute in process' : 'Dispute price'}
                   </button>
                 </div>
