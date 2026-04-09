@@ -103,26 +103,28 @@ export default async function handler(req, res) {
   const acceptsCustomerPrice = Number.isFinite(booking.customer_proposed_price_cents)
     && booking.customer_proposed_price_cents > 0
     && cents === booking.customer_proposed_price_cents;
+  const nextStatus = acceptsCustomerPrice ? 'payment_pending' : 'price_disputed';
+  const acceptedAt = acceptsCustomerPrice ? new Date().toISOString() : null;
   const { error: uErr } = await sb
     .from('bookings')
     .update({
       amount_cents: cents,
       protection_fee_cents: PROTECTION_FEE_CENTS,
-      status: 'payment_pending',
-      dispute_amount_cents: null,
+      status: nextStatus,
+      dispute_amount_cents: acceptsCustomerPrice ? null : cents,
       dispute_note: null,
       dispute_at: null,
       provider_proposed_price_cents: acceptsCustomerPrice ? null : cents,
       price_accepted_by_provider: !!acceptsCustomerPrice,
       price_accepted_by_customer: false,
-      price_accepted_at: acceptsCustomerPrice ? new Date().toISOString() : null,
+      price_accepted_at: acceptedAt,
     })
     .eq('id', bookingId);
 
   if (uErr) {
     const msg = uErr.message || '';
     if (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_at') || msg.includes('protection_fee_cents')) {
-      const fallbackPayload: any = { amount_cents: cents, status: 'payment_pending' };
+      const fallbackPayload: any = { amount_cents: cents, status: nextStatus };
       if (!msg.includes('protection_fee_cents')) fallbackPayload.protection_fee_cents = PROTECTION_FEE_CENTS;
       const { error: fbErr } = await sb
         .from('bookings')
@@ -154,20 +156,33 @@ export default async function handler(req, res) {
             bookingId: booking.id,
           }),
         }).catch(() => {});
+        await fetch(siteUrl + '/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+          body: JSON.stringify({
+            type: 'payment_request_customer',
+            to: profile.email,
+            name: profile.name || 'there',
+            service: 'Custom Request',
+            businessName: biz?.name || 'Your provider',
+            amountDollars: (cents / 100).toFixed(2),
+            bookingId: booking.id,
+          }),
+        });
+      } else {
+        await fetch(siteUrl + '/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+          body: JSON.stringify({
+            type: 'status_update',
+            to: profile.email,
+            name: profile.name || 'there',
+            service: 'Custom Request',
+            status: 'price_disputed',
+            businessName: biz?.name || 'Your provider',
+          }),
+        }).catch(() => {});
       }
-      await fetch(siteUrl + '/api/notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
-        body: JSON.stringify({
-          type: 'payment_request_customer',
-          to: profile.email,
-          name: profile.name || 'there',
-          service: 'Custom Request',
-          businessName: biz?.name || 'Your provider',
-          amountDollars: (cents / 100).toFixed(2),
-          bookingId: booking.id,
-        }),
-      });
     }
   } catch (e) {
     // Non-fatal
@@ -175,10 +190,10 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     ok: true,
-    status: 'payment_pending',
+    status: nextStatus,
     amount_cents: cents,
     price_accepted_by_provider: !!acceptsCustomerPrice,
     provider_proposed_price_cents: acceptsCustomerPrice ? null : cents,
-    price_accepted_at: acceptsCustomerPrice ? new Date().toISOString() : null,
+    price_accepted_at: acceptedAt,
   });
 }
