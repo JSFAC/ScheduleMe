@@ -30,6 +30,28 @@ for select
 to anon, authenticated
 using (true);
 
+drop policy if exists "Businesses insert by owner_id" on public.businesses;
+create policy "Businesses insert by owner_id"
+on public.businesses
+for insert
+to authenticated
+with check (owner_id::text = auth.uid()::text);
+
+drop policy if exists "Businesses update by owner_id" on public.businesses;
+create policy "Businesses update by owner_id"
+on public.businesses
+for update
+to authenticated
+using (owner_id::text = auth.uid()::text)
+with check (owner_id::text = auth.uid()::text);
+
+drop policy if exists "Businesses delete by owner_id" on public.businesses;
+create policy "Businesses delete by owner_id"
+on public.businesses
+for delete
+to authenticated
+using (owner_id::text = auth.uid()::text);
+
 -- Services: public read
 drop policy if exists "Public can read services" on public.services;
 create policy "Public can read services"
@@ -68,7 +90,7 @@ for delete
 to authenticated
 using (auth.uid()::text = user_id::text);
 
--- Messages: participants read/write (via booking + business owner email)
+-- Messages: participants read/write (via booking + business owner_id)
 
 drop policy if exists "Messages read by participants" on public.messages;
 create policy "Messages read by participants"
@@ -83,7 +105,7 @@ using (
     where b.id = messages.booking_id
       and (
         b.user_id::text = auth.uid()::text
-        or biz.owner_email = (auth.jwt() ->> 'email')
+        or biz.owner_id::text = auth.uid()::text
       )
   )
 );
@@ -123,7 +145,7 @@ with check (
     where b.id = messages.booking_id
       and (
         b.user_id::text = auth.uid()::text
-        or biz.owner_email = (auth.jwt() ->> 'email')
+        or biz.owner_id::text = auth.uid()::text
       )
   )
 );
@@ -141,7 +163,7 @@ using (
     where b.id = messages.booking_id
       and (
         b.user_id::text = auth.uid()::text
-        or biz.owner_email = (auth.jwt() ->> 'email')
+        or biz.owner_id::text = auth.uid()::text
       )
   )
 );
@@ -159,7 +181,7 @@ using (
     where b.id = messages.booking_id
       and (
         b.user_id::text = auth.uid()::text
-        or biz.owner_email = (auth.jwt() ->> 'email')
+        or biz.owner_id::text = auth.uid()::text
       )
   )
 );

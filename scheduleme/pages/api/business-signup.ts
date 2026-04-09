@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
-import { setSecurityHeaders, rateLimit, isValidEmail, isValidPhone, getUnknownFields, getClientIp } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidEmail, isValidPhone, getUnknownFields, getClientIp } from '../../lib/apiSecurity';
 import { requireCaptcha } from '../../lib/captcha';
 import { sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail } from '../../lib/email';
 
@@ -134,6 +134,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = getSupabase();
+    const authUser = req.headers.authorization ? await requireAuth(req, res) : null;
+    if (req.headers.authorization && !authUser) return;
+    const normalizedEmail = email.toLowerCase().trim();
+    let ownerId: string | null = authUser?.id || null;
+    if (authUser?.email && authUser.email.toLowerCase() !== normalizedEmail) {
+      return res.status(403).json({ error: 'Authenticated email does not match application email' });
+    }
+    if (!ownerId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+      ownerId = profile?.id || null;
+    }
+    if (!ownerId) {
+      try {
+        const { data: legacyUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+        ownerId = legacyUser?.id || null;
+      } catch {}
+    }
+    if (!ownerId) {
+      return res.status(400).json({ error: 'Please create your account first, then submit provider signup.' });
+    }
+
     const geo = await geocodeLocation(cleanAddress);
     const category = serviceCategory === 'Other' ? (otherCategory?.slice(0, 60) ?? 'Other') : serviceCategory;
     const slug = slugify(cleanName) + '-' + Date.now().toString(36);
@@ -155,7 +184,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       instagram: typeof instagram === 'string' ? instagram.slice(0, 200) : null,
       phone: phone || null,
       owner_name: cleanOwner,
-      owner_email: email.toLowerCase().trim(),
+      owner_email: normalizedEmail,
+      owner_id: ownerId,
       is_onboarded: false,
       campus_provider: campusProvider === true,
       campus_school_name: campusProvider && schoolName ? schoolName.slice(0, 100) : null,

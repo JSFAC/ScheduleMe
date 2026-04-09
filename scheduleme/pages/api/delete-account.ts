@@ -27,8 +27,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Cleanup provider/business-side data first so deleted auth users don't leave stale listings.
   // Best-effort: these deletions should not block auth deletion if a table doesn't exist.
   try {
+    if (user.id) {
+      await adminClient.from('businesses').delete().eq('owner_id', user.id);
+    }
     if (user.email) {
-      await adminClient.from('businesses').delete().eq('owner_email', user.email);
       await adminClient.from('users').delete().eq('email', user.email);
     }
     await adminClient.from('profiles').delete().eq('id', user.id);

@@ -171,9 +171,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Verify caller owns this business
       const { data: biz } = await supabase.from('businesses')
-        .select('owner_email').eq('id', business_id).maybeSingle();
+        .select('owner_id').eq('id', business_id).maybeSingle();
       if (!biz) return res.status(404).json({ error: 'Business not found' });
-      if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+      if (biz.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
       const resq = await supabase
         .from('bookings')
@@ -220,14 +220,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Verify caller is party to this booking
       const { data: booking } = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, user_id, business_id, businesses(id, name, phone, owner_email)')
+        .select('id, service, status, created_at, user_id, business_id, businesses(id, name, phone, owner_id)')
         .eq('id', booking_id)
         .maybeSingle();
 
       if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
       let isUser = booking.user_id === user.id;
-      const isBiz = (booking.businesses as any)?.owner_email === user.email;
+      const isBiz = (booking.businesses as any)?.owner_id === user.id;
       if (!isUser && user.email) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -352,9 +352,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Verify caller owns this business
       const { data: biz } = await supabase.from('businesses')
-        .select('owner_email').eq('id', business_id).maybeSingle();
+        .select('owner_id').eq('id', business_id).maybeSingle();
       if (!biz) return res.status(404).json({ error: 'Business not found' });
-      if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+      if (biz.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
       let bookings: any[] = [];
       const resq = await supabase
@@ -458,14 +458,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller is party to this booking
     const { data: booking } = await supabase
       .from('bookings')
-      .select('user_id, business_id, businesses(owner_email)')
+      .select('user_id, business_id, businesses(owner_id)')
       .eq('id', booking_id)
       .maybeSingle();
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
     let isUser = booking.user_id === user.id && sender_type === 'user';
-    const isBiz = (booking.businesses as any)?.owner_email === user.email && sender_type === 'business';
+    const isBiz = (booking.businesses as any)?.owner_id === user.id && sender_type === 'business';
     if (!isUser && sender_type === 'user' && user.email) {
       const { data: profile } = await supabase
         .from('profiles')

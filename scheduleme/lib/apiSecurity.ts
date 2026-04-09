@@ -18,40 +18,7 @@ export function setSecurityHeaders(res: NextApiResponse) {
 }
 
 // ─── Rate Limiter ─────────────────────────────────────────────────────────────
-// In-memory store — replace with Upstash Redis for multi-instance production
-const rlStore = new Map<string, { count: number; resetAt: number }>();
-
-// Clean up expired entries every 5 minutes
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [k, v] of rlStore.entries()) {
-      if (now > v.resetAt) rlStore.delete(k);
-    }
-  }, 5 * 60_000);
-}
-
-export function checkRateLimit(
-  key: string,
-  maxRequests: number,
-  windowMs: number
-): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  const entry = rlStore.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    const resetAt = now + windowMs;
-    rlStore.set(key, { count: 1, resetAt });
-    return { allowed: true, remaining: maxRequests - 1, resetAt };
-  }
-
-  if (entry.count >= maxRequests) {
-    return { allowed: false, remaining: 0, resetAt: entry.resetAt };
-  }
-
-  entry.count++;
-  return { allowed: true, remaining: maxRequests - entry.count, resetAt: entry.resetAt };
-}
+// Upstash-only limiter for production-safe multi-instance behavior.
 
 export function getClientIp(req: NextApiRequest): string {
   return (
@@ -91,37 +58,26 @@ export async function rateLimit(
   const ip = getClientIp(req);
   const key = `${opts.keyPrefix ?? 'rl'}:${ip}`;
   const upstash = getUpstashLimiter(opts.max, opts.windowMs);
-  if (upstash) {
-    try {
-      const result = await upstash.limit(key);
-      res.setHeader('X-RateLimit-Limit', String(opts.max));
-      res.setHeader('X-RateLimit-Remaining', String(result.remaining));
-      res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
-      if (!result.success) {
-        res.status(429).json({
-          error: 'Too many requests. Please slow down and try again shortly.',
-        });
-        return false;
-      }
-      return true;
-    } catch {
-      // fall back to in-memory on Upstash failure
-    }
-  }
-
-  const result = checkRateLimit(key, opts.max, opts.windowMs);
-
-  res.setHeader('X-RateLimit-Limit', String(opts.max));
-  res.setHeader('X-RateLimit-Remaining', String(result.remaining));
-  res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
-
-  if (!result.allowed) {
-    res.status(429).json({
-      error: 'Too many requests. Please slow down and try again shortly.',
-    });
+  if (!upstash) {
+    res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
     return false;
   }
-  return true;
+  try {
+    const result = await upstash.limit(key);
+    res.setHeader('X-RateLimit-Limit', String(opts.max));
+    res.setHeader('X-RateLimit-Remaining', String(result.remaining));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
+    if (!result.success) {
+      res.status(429).json({
+        error: 'Too many requests. Please slow down and try again shortly.',
+      });
+      return false;
+    }
+    return true;
+  } catch {
+    res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
+    return false;
+  }
 }
 
 // ─── Auth Verification ────────────────────────────────────────────────────────

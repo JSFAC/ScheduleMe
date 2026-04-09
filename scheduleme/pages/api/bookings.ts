@@ -257,12 +257,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
       if (email) {
+        const requesterId = authUser?.id || user_id || null;
         const { data: owner } = await supabase
           .from('businesses')
-          .select('owner_email')
+          .select('owner_id')
           .eq('id', business_id)
           .maybeSingle();
-        if (owner?.owner_email && owner.owner_email.toLowerCase() === email.toLowerCase()) {
+        if (requesterId && owner?.owner_id && owner.owner_id === requesterId) {
           return res.status(403).json({ error: 'You cannot book your own business.' });
         }
       }
@@ -419,7 +420,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller owns the business for this booking
     const { data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+      .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -429,12 +430,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!biz && booking.business_id) {
       const { data: fallbackBiz } = await supabase
         .from('businesses')
-      .select('id, owner_email, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
+      .select('id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
         .eq('id', booking.business_id)
         .maybeSingle();
       biz = fallbackBiz || null;
     }
-    const isBusinessOwner = biz?.owner_email === user.email;
+    const isBusinessOwner = biz?.owner_id === user.id;
     let canCancelAsConsumer = false;
     let canDisputeAsConsumer = false;
     let canCompleteAsConsumer = false;
@@ -923,9 +924,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const supabase = getSupabase();
       const { data: biz } = await supabase.from('businesses')
-        .select('owner_email').eq('id', business_id).maybeSingle();
+        .select('owner_id').eq('id', business_id).maybeSingle();
       if (!biz) return res.status(404).json({ error: 'Business not found' });
-      if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+      if (biz.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
       try {
       const { data, error } = await supabase

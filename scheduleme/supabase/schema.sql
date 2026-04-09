@@ -110,6 +110,7 @@ create trigger businesses_updated_at
 -- Add EDU verification columns (if not exists)
 alter table businesses add column if not exists school_domain text;
 alter table businesses add column if not exists school_email text;
+alter table businesses add column if not exists owner_id uuid references auth.users(id) on delete restrict;
 alter table businesses add column if not exists edu_verified boolean default false;
 alter table businesses add column if not exists edu_code text;
 alter table businesses add column if not exists edu_code_expires_at timestamptz;
@@ -128,6 +129,7 @@ alter table businesses add column if not exists featured_on_notified_at timestam
 alter table businesses add column if not exists featured_off_notified_at timestamptz;
 
 create index if not exists businesses_campus_key_idx on businesses (campus_key);
+create index if not exists businesses_owner_id_idx on businesses (owner_id);
 create index if not exists businesses_founder50_status_idx on businesses (founder50_status);
 create index if not exists businesses_featured_until_idx on businesses (featured_until);
 
