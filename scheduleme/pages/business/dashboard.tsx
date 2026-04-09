@@ -2104,7 +2104,16 @@ const BusinessDashboard: NextPage = () => {
                           )}
                           {b.status === 'price_disputed' && waitingOnCustomerPriceDecision && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
-                              Waiting for customer response to your price {fmt(inferredProviderProposedCents ?? 0)}.
+                              <p className="mb-2">Waiting for customer response to your price {fmt(inferredProviderProposedCents ?? 0)}.</p>
+                              {b.customer_proposed_price_cents != null && (
+                                <button
+                                  onClick={() => handleSetPrice(b.id, b.customer_proposed_price_cents)}
+                                  className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white"
+                                  style={{ background: '#0f766e' }}
+                                >
+                                  Accept customer price {fmt(b.customer_proposed_price_cents)}
+                                </button>
+                              )}
                             </div>
                           )}
                           {b.status === 'price_disputed' && (b.customer_proposed_price_cents || b.dispute_amount_cents) && !b.price_accepted_by_provider && !waitingOnCustomerPriceDecision && (
