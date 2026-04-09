@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
+import { issuePaymentAccessTicket } from '../lib/paymentAccess';
 
 function getSupabase() {
   return getSupabaseClient();
@@ -142,6 +143,7 @@ const BookPage: NextPage = () => {
       }
 
       if (data?.booking?.id && bookingAmountCents > 0) {
+        issuePaymentAccessTicket(data.booking.id);
         router.push(`/pay/${data.booking.id}`);
         return;
       }

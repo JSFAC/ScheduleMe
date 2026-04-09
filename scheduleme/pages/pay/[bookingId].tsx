@@ -10,6 +10,7 @@ import Nav from '../../components/Nav';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
 import { PROTECTION_FEE_CENTS } from '../../lib/fees';
+import { consumePaymentAccessTicket } from '../../lib/paymentAccess';
 
 function getSupabase() {
   return getSupabaseClient();
@@ -158,6 +159,11 @@ const PayPage: NextPage = () => {
       setLoading(true);
       setErr('');
       try {
+        const ticketOk = consumePaymentAccessTicket(bookingId);
+        if (!ticketOk) {
+          setErr('Payment session expired. Please return to your booking and tap Pay now again.');
+          return;
+        }
         const { data: { session } } = await getSupabase().auth.getSession();
         if (!session) { setErr('Please sign in to continue.'); return; }
         const res = await fetch('/api/bookings?include_unpaid=1', { headers: { Authorization: 'Bearer ' + session.access_token } });

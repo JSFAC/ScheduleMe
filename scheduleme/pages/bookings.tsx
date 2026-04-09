@@ -13,6 +13,7 @@ import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import { PROTECTION_FEE_CENTS } from '../lib/fees';
+import { issuePaymentAccessTicket } from '../lib/paymentAccess';
 
 
 function getSupabase() {
@@ -705,9 +706,17 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
                   <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#0f1f1c' : '#ecfdf3', border: `1px solid ${panelBorder}` }}>
                     <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Ready to pay</p>
                     <p className="text-xs" style={{ color: panelText }}>Your payment method is saved. Complete payment now to secure this booking.</p>
-                    <a href={`/pay/${booking.id}`} className="mt-3 inline-flex items-center text-xs font-semibold" style={{ color: accent }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        issuePaymentAccessTicket(booking.id);
+                        window.location.href = `/pay/${booking.id}`;
+                      }}
+                      className="mt-3 inline-flex items-center text-xs font-semibold"
+                      style={{ color: accent }}
+                    >
                       Pay now →
-                    </a>
+                    </button>
                   </div>
                 ) : (
                   <div className="rounded-2xl p-4 mb-4" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}>

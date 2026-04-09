@@ -7,6 +7,7 @@ import { getSupabaseClient } from '../../lib/supabaseClient';
 import Nav from '../../components/Nav';
 import { useDm } from '../../lib/DarkModeContext';
 import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
+import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
 
 function getSB() {
   return getSupabaseClient();
@@ -712,6 +713,7 @@ export default function BizPage() {
     }
 
     setSubmitting(false);
+    issuePaymentAccessTicket(bookingId);
     router.push(`/pay/${bookingId}`);
     return;
   }
