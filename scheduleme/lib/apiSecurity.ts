@@ -58,9 +58,14 @@ export async function rateLimit(
   const ip = getClientIp(req);
   const key = `${opts.keyPrefix ?? 'rl'}:${ip}`;
   const upstash = getUpstashLimiter(opts.max, opts.windowMs);
+  const strict = process.env.RATE_LIMIT_STRICT === 'true';
   if (!upstash) {
-    res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
-    return false;
+    if (strict) {
+      res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
+      return false;
+    }
+    res.setHeader('X-RateLimit-Bypass', 'upstash_not_configured');
+    return true;
   }
   try {
     const result = await upstash.limit(key);
@@ -75,8 +80,12 @@ export async function rateLimit(
     }
     return true;
   } catch {
-    res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
-    return false;
+    if (strict) {
+      res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
+      return false;
+    }
+    res.setHeader('X-RateLimit-Bypass', 'upstash_unavailable');
+    return true;
   }
 }
 
