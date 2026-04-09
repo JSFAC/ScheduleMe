@@ -548,7 +548,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatePayload.dispute_note = dispute_note || null;
       updatePayload.dispute_at = new Date().toISOString();
       updatePayload.price_accepted_by_customer = false;
+      updatePayload.price_accepted_by_provider = false;
       updatePayload.price_accepted_at = null;
+      if (isBusinessOwner) {
+        // Provider has sent a counter price; persist so dashboard can lock controls while waiting.
+        updatePayload.provider_proposed_price_cents = Math.round(dispute_amount_cents);
+      } else {
+        // Consumer has sent a counter price; persist for provider review context.
+        updatePayload.customer_proposed_price_cents = Math.round(dispute_amount_cents);
+      }
     }
 
     // If cancelling a booking with a Stripe payment intent, issue a full refund.
@@ -696,14 +704,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (updErr) {
       const msg = updErr.message || '';
       const isDisputeFieldMissing = status === 'price_disputed' && (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at'));
-      const isPriceAcceptMissing = status === 'price_disputed' && (msg.includes('price_accepted_at') || msg.includes('price_accepted_by_customer'));
-      if (isDisputeFieldMissing || isPriceAcceptMissing) {
+      const isPriceAcceptMissing = status === 'price_disputed' && (msg.includes('price_accepted_at') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider'));
+      const isPriceProposalMissing = status === 'price_disputed' && (msg.includes('provider_proposed_price_cents') || msg.includes('customer_proposed_price_cents'));
+      if (isDisputeFieldMissing || isPriceAcceptMissing || isPriceProposalMissing) {
         const fallbackPayload: any = { status };
         if (!isDisputeFieldMissing) {
           // If dispute columns exist but price-accepted columns don't, keep dispute fields
           fallbackPayload.dispute_amount_cents = updatePayload.dispute_amount_cents;
           fallbackPayload.dispute_note = updatePayload.dispute_note;
           fallbackPayload.dispute_at = updatePayload.dispute_at;
+        }
+        if (!isPriceAcceptMissing) {
+          fallbackPayload.price_accepted_by_customer = updatePayload.price_accepted_by_customer;
+          fallbackPayload.price_accepted_by_provider = updatePayload.price_accepted_by_provider;
+          fallbackPayload.price_accepted_at = updatePayload.price_accepted_at;
+        }
+        if (!isPriceProposalMissing) {
+          if (typeof updatePayload.provider_proposed_price_cents !== 'undefined') {
+            fallbackPayload.provider_proposed_price_cents = updatePayload.provider_proposed_price_cents;
+          }
+          if (typeof updatePayload.customer_proposed_price_cents !== 'undefined') {
+            fallbackPayload.customer_proposed_price_cents = updatePayload.customer_proposed_price_cents;
+          }
         }
         const { error: fallbackErr } = await supabase.from('bookings').update(fallbackPayload).eq('id', booking_id);
         if (fallbackErr) return res.status(500).json({ error: fallbackErr.message || 'Failed to update booking' });
