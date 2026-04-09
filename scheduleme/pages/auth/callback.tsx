@@ -40,9 +40,15 @@ const AuthCallback: NextPage = () => {
             .maybeSingle();
 
           if (biz) {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', userId)
+              .maybeSingle();
+            const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
             // Mark as business role in profiles
             await supabase.from('profiles').upsert({
-              id: userId, email, name, role: 'business', has_seen_welcome: true,
+              id: userId, email, name, role: nextRole, has_seen_welcome: true,
             }, { onConflict: 'id', ignoreDuplicates: false });
             router.replace('/business/dashboard');
           } else {

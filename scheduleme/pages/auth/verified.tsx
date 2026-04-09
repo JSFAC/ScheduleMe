@@ -53,11 +53,17 @@ const VerifiedPage: NextPage = () => {
             .maybeSingle();
 
           if (biz) {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', userId)
+              .maybeSingle();
+            const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
             await supabase.from('profiles').upsert({
               id: userId,
               email,
               name,
-              role: 'business',
+              role: nextRole,
               has_seen_welcome: true,
             }, { onConflict: 'id', ignoreDuplicates: false });
             target = '/business/dashboard';

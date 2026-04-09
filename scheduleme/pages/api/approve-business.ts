@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get business details
     const { data: business, error: fetchError } = await supabase
       .from('businesses')
-      .select('id, name, owner_name, owner_email, is_onboarded, campus_provider, campus_school_name, campus_key, founder50, founder50_status, edu_verified')
+      .select('id, name, owner_name, owner_email, owner_id, is_onboarded, campus_provider, campus_school_name, campus_key, founder50, founder50_status, edu_verified')
       .eq('id', businessId)
       .single();
 
@@ -51,7 +51,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Mark as onboarded — store school_domain but do NOT set edu_verified yet.
     // The business owner must self-verify with their actual .edu email from the dashboard.
     // This prevents fake campus listings where someone just typed a school name on the form.
-    const updatePayload: any = { is_onboarded: true, approved_at: new Date().toISOString() };
+    const updatePayload: any = {
+      is_onboarded: true,
+      approved_at: new Date().toISOString(),
+      status: 'approved',
+      review_notes: null,
+    };
     if (schoolDomain && typeof schoolDomain === 'string' && schoolDomain.endsWith('.edu')) {
       updatePayload.school_domain = schoolDomain.toLowerCase().trim();
       updatePayload.edu_verified = false; // explicitly false until they self-verify
@@ -62,7 +67,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const normalizedCampusKey = normalizeCampusKey(business.campus_school_name);
       if (normalizedCampusKey) updatePayload.campus_key = normalizedCampusKey;
     }
-    await supabase.from('businesses').update(updatePayload).eq('id', businessId);
+    let { error: updateError } = await supabase.from('businesses').update(updatePayload).eq('id', businessId);
+    if (updateError) {
+      // Backward-compatible fallback for environments missing status/review_notes.
+      const fallbackPayload: any = {
+        is_onboarded: true,
+        approved_at: updatePayload.approved_at,
+      };
+      if (updatePayload.school_domain) fallbackPayload.school_domain = updatePayload.school_domain;
+      if (typeof updatePayload.edu_verified === 'boolean') fallbackPayload.edu_verified = updatePayload.edu_verified;
+      if (updatePayload.campus_key) fallbackPayload.campus_key = updatePayload.campus_key;
+      const fallback = await supabase.from('businesses').update(fallbackPayload).eq('id', businessId);
+      updateError = fallback.error || null;
+    }
+    if (updateError) throw updateError;
 
     // Best-effort assignment in case admin approves an already EDU-verified provider.
     try {
@@ -81,11 +99,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       meta: { campus_key: updatePayload.campus_key || null, founder50: updatePayload.founder50 || false },
     });
 
-    // Set role=business in profiles so dashboard auth gate works
-    await supabase
-      .from('profiles')
-      .update({ role: 'business' })
-      .eq('email', business.owner_email);
+    // Never downgrade admins; only upgrade non-admin users to business role.
+    if (business.owner_id) {
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('id, role, email')
+        .eq('id', business.owner_id)
+        .maybeSingle();
+      if (ownerProfile) {
+        if (ownerProfile.role !== 'admin' && ownerProfile.role !== 'business') {
+          await supabase.from('profiles').update({ role: 'business' }).eq('id', ownerProfile.id);
+        }
+      } else {
+        const { data: ownerByEmail } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .eq('email', business.owner_email)
+          .maybeSingle();
+        if (ownerByEmail && ownerByEmail.role !== 'admin' && ownerByEmail.role !== 'business') {
+          await supabase.from('profiles').update({ role: 'business' }).eq('id', ownerByEmail.id);
+        }
+      }
+    } else {
+      const { data: ownerByEmail } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('email', business.owner_email)
+        .maybeSingle();
+      if (ownerByEmail && ownerByEmail.role !== 'admin' && ownerByEmail.role !== 'business') {
+        await supabase.from('profiles').update({ role: 'business' }).eq('id', ownerByEmail.id);
+      }
+    }
 
     // Generate a magic link for them to set up their account
     const { data: magicLinkData, error: magicError } = await supabase.auth.admin.generateLink({

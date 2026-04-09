@@ -846,10 +846,16 @@ const BusinessDashboard: NextPage = () => {
 
     // Ensure profile is marked as business
     try {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
       await supabase.from('profiles').upsert({
         id: session.user.id,
         email,
-        role: 'business',
+        role: nextRole,
         has_seen_welcome: true,
       }, { onConflict: 'id', ignoreDuplicates: false });
     } catch {}

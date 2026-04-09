@@ -16,6 +16,13 @@ interface Business {
   campus_key?: string | null;
   founder50?: boolean | null;
   founder50_status?: string | null;
+  status?: string | null;
+  review_notes?: string | null;
+  approved_at?: string | null;
+  city?: string | null;
+  zip?: string | null;
+  website?: string | null;
+  instagram?: string | null;
 }
 
 interface ChangeRequest {
@@ -42,6 +49,9 @@ const AdminPage: NextPage = () => {
   const [allBusinesses, setAllBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectModalFor, setRejectModalFor] = useState<Business | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [schoolDomains, setSchoolDomains] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
@@ -130,7 +140,7 @@ const AdminPage: NextPage = () => {
         setStripeHealth(stripeData);
       }
     } catch {
-      showToast('Failed to load businesses', false);
+      showToast('Failed to load providers', false);
     } finally {
       setLoading(false);
       setStripeLoading(false);
@@ -400,11 +410,37 @@ const AdminPage: NextPage = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       showToast(data.message, true);
-      setBusinesses(bs => bs.map(b => b.id === id ? { ...b, is_onboarded: true } : b));
+      setBusinesses(bs => bs.map(b => b.id === id ? { ...b, is_onboarded: true, status: 'approved', review_notes: null } : b));
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to approve', false);
+      showToast(err instanceof Error ? err.message : 'Failed to approve provider', false);
     } finally {
       setApprovingId(null);
+    }
+  }
+
+  async function rejectBusiness(id: string, reason: string) {
+    setRejectingId(id);
+    try {
+      const res = await fetch('/api/reject-business', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ businessId: id, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reject provider');
+      showToast(data.message || 'Provider rejected', true);
+      setBusinesses(bs => bs.map(b => b.id === id ? {
+        ...b,
+        is_onboarded: false,
+        status: 'rejected',
+        review_notes: reason,
+      } : b));
+      setRejectModalFor(null);
+      setRejectReason('');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to reject provider', false);
+    } finally {
+      setRejectingId(null);
     }
   }
 
@@ -537,14 +573,14 @@ const AdminPage: NextPage = () => {
       const key = getBusinessCampusKey(b);
       if (key !== campusFilter) return false;
     }
-    if (filter === 'pending') return !b.is_onboarded;
+    if (filter === 'pending') return !b.is_onboarded && b.status !== 'rejected';
     if (filter === 'approved') return b.is_onboarded;
     return true;
   });
   const visibleFeaturedRows = featuredCampusKey === 'all'
     ? featuredRows
     : featuredRows.filter(row => normalizeCampusKey(row.campus_key) === featuredCampusKey);
-  const pendingCount = businesses.filter(b => !b.is_onboarded).length;
+  const pendingCount = businesses.filter(b => !b.is_onboarded && b.status !== 'rejected').length;
   const pendingRequests = requests.filter(r => r.status === 'pending').length;
 
   const filteredRequests = requests.filter(r => {
@@ -629,6 +665,42 @@ const AdminPage: NextPage = () => {
           {toast.msg}
         </div>
       )}
+      {rejectModalFor && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-neutral-700 bg-neutral-900 p-5">
+            <h3 className="text-lg font-bold text-white">Reject Provider Application</h3>
+            <p className="text-sm text-neutral-400 mt-1">
+              Send a clear reason to <span className="text-neutral-200">{rejectModalFor.owner_email}</span>.
+            </p>
+            <div className="mt-4">
+              <label className="text-xs text-neutral-400 uppercase tracking-wide">Reason (required)</label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={5}
+                placeholder="Explain exactly why this provider was rejected and what needs to be fixed."
+                className="mt-2 w-full rounded-xl bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                onClick={() => { if (!rejectingId) { setRejectModalFor(null); setRejectReason(''); } }}
+                className="px-4 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                disabled={Boolean(rejectingId)}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => rejectBusiness(rejectModalFor.id, rejectReason.trim())}
+                disabled={Boolean(rejectingId) || !rejectReason.trim()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
+              >
+                {rejectingId === rejectModalFor.id ? 'Rejecting…' : 'Reject & Send Email'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen bg-neutral-950">
         <div className="border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -648,9 +720,9 @@ const AdminPage: NextPage = () => {
         <main className="mx-auto max-w-6xl px-6 py-8">
           <div className="grid grid-cols-3 gap-4 mb-8">
             {[
-              { label: 'Total', value: businesses.length },
+              { label: 'Total Providers', value: businesses.length },
               { label: 'Pending', value: pendingCount },
-              { label: 'Live', value: businesses.filter(b => b.is_onboarded).length },
+              { label: 'Live Providers', value: businesses.filter(b => b.is_onboarded).length },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
                 <p className="text-2xl font-bold text-white">{value}</p>
@@ -719,7 +791,7 @@ const AdminPage: NextPage = () => {
                 onChange={e => setFeaturedBusinessId(e.target.value)}
                 className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
               >
-                <option value="">Select business</option>
+                <option value="">Select provider</option>
                 {allBusinesses.filter(b => {
                   if (!b.campus_provider) return false;
                   if (!b.is_onboarded) return false;
@@ -879,7 +951,7 @@ const AdminPage: NextPage = () => {
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${activeTab === tab ? 'bg-neutral-700 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
                 >
-                  {tab === 'businesses' ? 'New businesses' : 'Edit requests'}
+                  {tab === 'businesses' ? 'New providers' : 'Edit requests'}
                   {tab === 'requests' && pendingRequests > 0 && (
                     <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingRequests}</span>
                   )}
@@ -941,7 +1013,7 @@ const AdminPage: NextPage = () => {
           ) : activeTab === 'businesses' && filtered.length === 0 ? (
             <div className="text-center py-20 text-neutral-500">
               <p className="text-3xl mb-3">🎉</p>
-              <p>No {filter === 'pending' ? 'pending' : ''} businesses</p>
+              <p>No {filter === 'pending' ? 'pending' : ''} providers</p>
             </div>
           ) : activeTab === 'businesses' ? (
             <div className="space-y-3">
@@ -951,8 +1023,14 @@ const AdminPage: NextPage = () => {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 mb-3 flex-wrap">
                         <h2 className="text-base font-bold text-white">{b.name}</h2>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${b.is_onboarded ? 'bg-green-500/15 text-green-400 border-green-500/20' : 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20'}`}>
-                          {b.is_onboarded ? 'Approved' : 'Pending'}
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                          b.status === 'rejected'
+                            ? 'bg-red-500/15 text-red-400 border-red-500/20'
+                            : b.is_onboarded
+                              ? 'bg-green-500/15 text-green-400 border-green-500/20'
+                              : 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20'
+                        }`}>
+                          {b.status === 'rejected' ? 'Rejected' : b.is_onboarded ? 'Approved' : 'Pending'}
                         </span>
                         {b.stripe_onboarded && <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-500/15 text-blue-400 border-blue-500/20">Stripe ✓</span>}
                         {b.campus_provider && <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/20">🎓 Campus</span>}
@@ -964,9 +1042,16 @@ const AdminPage: NextPage = () => {
                           { label: 'Email', value: b.owner_email, link: `mailto:${b.owner_email}` },
                           { label: 'Phone', value: b.phone ?? '—' },
                           { label: 'Location', value: b.address ?? '—' },
+                          { label: 'City', value: b.city ?? '—' },
+                          { label: 'ZIP', value: b.zip ?? '—' },
+                          { label: 'Website', value: b.website ?? '—', link: b.website || undefined },
+                          { label: 'Instagram', value: b.instagram ?? '—', link: b.instagram ? (String(b.instagram).startsWith('http') ? String(b.instagram) : `https://instagram.com/${String(b.instagram).replace(/^@/, '')}`) : undefined },
                           { label: 'Services', value: b.service_tags?.join(', ') ?? '—' },
                           { label: 'Applied', value: formatDate(b.created_at) },
+                          { label: 'Approved', value: b.approved_at ? formatDate(b.approved_at) : '—' },
+                          { label: 'Founder50', value: b.founder50_status || (b.founder50 ? 'active' : 'standard') },
                           ...(b.campus_provider ? [{ label: 'School', value: b.campus_school_name ?? '—' }] : []),
+                          ...(b.campus_provider ? [{ label: 'School domain', value: b.school_domain ?? '—' }] : []),
                         ].map(({ label, value, link }) => (
                           <div key={label}>
                             <p className="text-xs text-neutral-500">{label}</p>
@@ -974,8 +1059,14 @@ const AdminPage: NextPage = () => {
                           </div>
                         ))}
                       </div>
+                      {b.review_notes ? (
+                        <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+                          <p className="text-[11px] text-red-300 uppercase tracking-wide">Last rejection reason</p>
+                          <p className="text-xs text-red-200 mt-1 whitespace-pre-wrap">{b.review_notes}</p>
+                        </div>
+                      ) : null}
                     </div>
-                    {!b.is_onboarded && (
+                    {!b.is_onboarded && b.status !== 'rejected' && (
                       <div className="flex flex-col gap-2 items-end flex-shrink-0">
                         {b.campus_provider && (
                           <div className="flex flex-col gap-1">
@@ -992,6 +1083,12 @@ const AdminPage: NextPage = () => {
                         <button onClick={() => approveBusiness(b.id)} disabled={approvingId === b.id}
                           className="btn-primary text-sm px-5 py-2.5">
                           {approvingId === b.id ? 'Approving…' : 'Approve & Send Email'}
+                        </button>
+                        <button
+                          onClick={() => { setRejectModalFor(b); setRejectReason(''); }}
+                          className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-red-500/40 text-red-300 hover:bg-red-500/15"
+                        >
+                          Reject with Reason
                         </button>
                       </div>
                     )}
@@ -1018,7 +1115,7 @@ const AdminPage: NextPage = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 mb-3 flex-wrap">
-                        <h2 className="text-base font-bold text-white">{r.businesses?.name || 'Business'}</h2>
+                        <h2 className="text-base font-bold text-white">{r.businesses?.name || 'Provider'}</h2>
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${r.status === 'pending' ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20' : r.status === 'approved' ? 'bg-green-500/15 text-green-400 border-green-500/20' : 'bg-red-500/15 text-red-400 border-red-500/20'}`}>
                           {r.status}
                         </span>

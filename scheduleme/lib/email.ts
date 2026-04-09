@@ -603,6 +603,37 @@ export function businessApplicationReceivedHtml(opts: {
   return layout(`We received your application`, body, `Thanks for applying to ScheduleMe, ${opts.ownerName}`);
 }
 
+// ─── Template: provider application rejected (applicant) ────────────────────
+export function businessApplicationRejectedHtml(opts: {
+  ownerName: string;
+  businessName: string;
+  reason: string;
+}) {
+  const body = `
+    <tr><td bgcolor="#7f1d1d" style="background:#7f1d1d;padding:32px 32px;text-align:center;">
+      <div style="width:56px;height:56px;background:rgba(255,255,255,0.12);border-radius:50%;margin:0 auto 14px;text-align:center;line-height:56px;">
+        <span style="font-size:24px;color:#ffffff;">!</span>
+      </div>
+      <p style="margin:0;font-size:12px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:0.18em;text-transform:uppercase;">Application Update</p>
+      <h1 style="margin:8px 0 0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Action needed for ${opts.businessName}</h1>
+      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.78);">Hi ${opts.ownerName}, we could not approve your provider application yet.</p>
+    </td></tr>
+    <tr><td style="padding:28px 32px;">
+      <p style="margin:0 0 10px;font-size:14px;color:#64748b;">Reason from review team:</p>
+      <div style="background:#fef2f2;border-radius:10px;border:1px solid #fecaca;padding:14px 18px;font-size:13px;color:#7f1d1d;line-height:1.6;">
+        ${opts.reason}
+      </div>
+      <p style="margin:14px 0 0;font-size:13px;color:#94a3b8;">You can fix this and re-apply from the provider signup page.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px auto 0;width:100%;max-width:320px;">
+        <tr><td bgcolor="#111827" style="background:#111827;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/business/signup" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">Re-apply as provider →</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  `;
+  return layout('Provider application update', body, `Your provider application for ${opts.businessName} needs changes.`);
+}
+
 // ─── Template: featured on ──────────────────────────────────────────────────
 export function featuredOnHtml(opts: { businessName: string; durationDays: number }) {
   const body = `
@@ -781,6 +812,18 @@ export async function sendBusinessApplicationReceivedEmail(opts: {
       category: opts.category,
       city: opts.city,
     }),
+  });
+}
+
+export async function sendBusinessApplicationRejectedEmail(opts: {
+  to: string; ownerName: string; businessName: string; reason: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Provider application update: ${opts.businessName}`,
+    html: businessApplicationRejectedHtml(opts),
   });
 }
 
