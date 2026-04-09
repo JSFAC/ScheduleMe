@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
-import Link from 'next/link';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 
@@ -153,9 +152,6 @@ const SupportPage: NextPage = () => {
             </div>
           </form>
 
-          <div className="mt-6 text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-            App Review Support URL: <Link href="/support" className="text-[#007e6d] font-semibold">https://www.usescheduleme.com/support</Link>
-          </div>
         </div>
       </main>
     </>
