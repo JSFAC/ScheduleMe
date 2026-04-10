@@ -417,7 +417,7 @@ struct BookingCreationView: View {
                             .foregroundColor(ScheduleMeTheme.accent)
                     }
 
-                    Text("The total above includes the required $0.99 ScheduleMe Protection Fee.")
+                    Text("The total above includes the required $0.99 ScheduleMe Protection Fee. The $0.99 Protection Fee is non-refundable, including when a booking is cancelled.")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.mutedText)
                 }

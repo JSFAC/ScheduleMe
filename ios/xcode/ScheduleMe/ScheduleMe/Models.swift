@@ -405,11 +405,24 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        if let absolute = URL(string: trimmed), absolute.scheme != nil {
+        func parseURL(_ value: String) -> URL? {
+            if let direct = URL(string: value) {
+                return direct
+            }
+            // Some rows contain unescaped spaces/special chars in storage URLs.
+            let encoded = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+            if let encoded, let parsed = URL(string: encoded) {
+                return parsed
+            }
+            let spaceEncoded = value.replacingOccurrences(of: " ", with: "%20")
+            return URL(string: spaceEncoded)
+        }
+
+        if let absolute = parseURL(trimmed), absolute.scheme != nil {
             return absolute
         }
 
-        if trimmed.hasPrefix("//"), let protocolRelative = URL(string: "https:\(trimmed)") {
+        if trimmed.hasPrefix("//"), let protocolRelative = parseURL("https:\(trimmed)") {
             return protocolRelative
         }
 
@@ -422,7 +435,7 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
 
         let supabaseBase = "https://imfrlykibvjdbijegdky.supabase.co"
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return URL(string: "\(supabaseBase)\(normalizedPath)")
+        return parseURL("\(supabaseBase)\(normalizedPath)")
     }
 
     var primaryCategory: String {

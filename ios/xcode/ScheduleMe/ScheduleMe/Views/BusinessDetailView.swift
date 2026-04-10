@@ -378,15 +378,16 @@ struct BusinessDetailView: View {
                                 minimumDate: Calendar.current.startOfDay(for: Date()),
                                 maximumDate: Calendar.current.date(byAdding: .month, value: 6, to: Date()) ?? Date(),
                                 isDateEnabled: { date in
-                                    if didFinishProfileLoad == false {
-                                        return false
-                                    }
+                                    // Keep dates interactive while profile hours load,
+                                    // then enforce actual open/closed days once available.
+                                    if didFinishProfileLoad == false { return true }
                                     if shouldEnforceHours {
                                         return isDateOpen(date)
                                     }
                                     return true
                                 }
                             )
+                            .id("calendar-\(business.id)-\(didFinishProfileLoad)-\((profile?.hours ?? [:]).count)")
 
                             if requiresExactTime {
                                 if timeIntervalForSelectedDate() != nil {
@@ -778,10 +779,6 @@ struct BusinessDetailView: View {
 
     /// True only when the selected day has explicit open hours.
     private func isDateOpen(_ date: Date) -> Bool {
-        // Avoid briefly showing days as open before profile hours finish loading.
-        if didFinishProfileLoad == false {
-            return false
-        }
         let entries = hourEntries
         if !entries.isEmpty {
             for entry in entries {

@@ -451,10 +451,10 @@ struct AccountView: View {
                         .foregroundColor(ScheduleMeTheme.titleText)
 
                     SecurityInfoRow(systemImage: "envelope.badge.shield.half.filled", label: "Email verified", value: appState.userEmail ?? "—")
-                    SecurityInfoRow(systemImage: "person.badge.shield.checkmark", label: "Auth provider", value: "Google OAuth")
+                    SecurityInfoRow(systemImage: "person.badge.shield.checkmark", label: "Auth method", value: "Apple, Google, or Email")
                     SecurityInfoRow(systemImage: "lock.shield", label: "Session", value: "Active")
 
-                    Text("Your account is secured through Google. Password management and two-factor authentication are handled by Google.")
+                    Text("Your account can be secured through Apple, Google, or email/password depending on how you signed in.")
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.mutedText)
                 }

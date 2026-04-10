@@ -108,6 +108,9 @@ struct BookingDetailView: View {
                                      : "Complete payment to keep this booking in the provider queue.")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
+                                Text("Note: The $0.99 ScheduleMe Protection Fee is non-refundable, including when a booking is cancelled.")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
                                 if let actionTitle = pendingPriceActionTitle {
                                     Button(actionTitle) {
                                         showingPaymentReview = true
@@ -124,6 +127,9 @@ struct BookingDetailView: View {
                                     .foregroundColor(ScheduleMeTheme.titleText)
                                 Text("Save a card to secure this booking.")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                                Text("Note: The $0.99 ScheduleMe Protection Fee is non-refundable, including when a booking is cancelled.")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
                                 if let actionTitle = pendingPriceActionTitle {
                                     Button(actionTitle) {
@@ -199,7 +205,7 @@ struct BookingDetailView: View {
                 Task { await cancelBooking() }
             }
         } message: {
-            Text("Are you sure you want to cancel this booking? The provider will be notified.")
+            Text("Are you sure you want to cancel this booking? The provider will be notified. The $0.99 ScheduleMe Protection Fee is non-refundable.")
         }
         .sheet(isPresented: $showingPayment) {
             PaymentSetupWebView(bookingID: booking.id)
@@ -274,6 +280,11 @@ private struct BookingPaymentReviewSheet: View {
                         .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.mutedText)
 
+                    Text("The $0.99 ScheduleMe Protection Fee is non-refundable, including when a booking is cancelled.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                        .multilineTextAlignment(.center)
+
                     Button(primaryActionTitle) {
                         onContinue()
                     }
@@ -299,16 +310,25 @@ private struct PaymentSetupWebView: View {
 
     var body: some View {
         NavigationStack {
-            PaymentWebView(url: URL(string: "https://usescheduleme.com/pay/\(bookingID)"))
-                .navigationTitle("Payment")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") { dismiss() }
-                            .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                            .foregroundColor(ScheduleMeTheme.accent)
-                    }
+            VStack(spacing: 10) {
+                PaymentWebView(url: URL(string: "https://usescheduleme.com/pay/\(bookingID)"))
+
+                Text("The $0.99 ScheduleMe Protection Fee is non-refundable, including when a booking is cancelled.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
+            }
+            .navigationTitle("Payment")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.accent)
                 }
+            }
         }
     }
 }

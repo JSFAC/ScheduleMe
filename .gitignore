@@ -1,0 +1,4 @@
+.DS_Store
+
+# Local untracked secrets for iOS build config
+ios/xcode/ScheduleMe/ScheduleMe/Config.local.xcconfig

@@ -21,8 +21,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>GOOGLE_IOS_CLIENT_ID</key>
-	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
 	<key>STRIPE_PUBLISHABLE_KEY</key>
 	<string>$(STRIPE_PUBLISHABLE_KEY)</string>
 	<key>SUPABASE_ANON_KEY</key>
