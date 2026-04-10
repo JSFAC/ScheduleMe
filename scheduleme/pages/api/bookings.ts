@@ -267,16 +267,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(403).json({ error: 'You cannot book your own business.' });
         }
       }
-      // Block paid bookings if business hasn't connected Stripe
-      if (typeof service_price_cents === 'number') {
-        const { data: biz } = await supabase
-          .from('businesses')
-          .select('stripe_onboarded, stripe_account_id')
-          .eq('id', business_id)
-          .maybeSingle();
-        if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
-          return res.status(400).json({ error: 'Business has not connected their bank account yet' });
-        }
+      // Block all new bookings if business has not completed Stripe onboarding.
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('stripe_onboarded, stripe_account_id')
+        .eq('id', business_id)
+        .maybeSingle();
+      if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
+        return res.status(400).json({ error: 'This provider cannot accept payments yet.' });
       }
 
       let scheduledStart: string | null = null;

@@ -659,11 +659,9 @@ export default function BizPage() {
       proposedPriceCents = parsedCents;
     }
 
+    if (!biz?.stripe_onboarded || !biz?.stripe_account_id) { setErr('This provider can’t accept payments yet.'); return; }
     const isPaidService = !isCustom;
-    if (isPaidService) {
-      if (!biz?.stripe_onboarded || !biz?.stripe_account_id) { setErr('This business is not accepting online payments yet.'); return; }
-      if (!selectedSvc?.price_cents) { setErr('Please select a priced service to book.'); return; }
-    }
+    if (isPaidService && !selectedSvc?.price_cents) { setErr('Please select a priced service to book.'); return; }
 
     setSubmitting(true); setErr('');
     const scheduled_start = requiresTime ? buildScheduledStart(date, slot) : null;
@@ -780,13 +778,15 @@ export default function BizPage() {
     ? Number.parseInt(customProposedPrice, 10)
     : 0;
   const customPriceTooLow = isCustom && customProposedPrice.length > 0 && (!Number.isFinite(customProposedCents) || customProposedCents < 500);
+  const providerCannotAcceptPayments = !biz?.stripe_onboarded || !biz?.stripe_account_id;
   const bookingDisabled =
     !date
     || (requiresTime && !slot)
     || submitting
     || done
     || (isCustom && (!customServiceName.trim() || !note.trim() || customPriceTooLow))
-    || isPreview;
+    || isPreview
+    || providerCannotAcceptPayments;
 
   const availableSlots = date && requiresTime ? (() => {
     const dk = localDateKey(date);
@@ -1382,6 +1382,11 @@ export default function BizPage() {
               Exit edit mode to book this service.
             </div>
           )}
+          {providerCannotAcceptPayments && (
+            <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(156,163,175,0.18)' : 'rgba(156,163,175,0.16)', color: dm ? '#d1d5db' : '#4b5563', border: '1px solid ' + (dm ? '#4b5563' : '#d1d5db') }}>
+              This provider can&apos;t accept payments yet, so booking is temporarily unavailable.
+            </div>
+          )}
           <div className="space-y-4" style={{ opacity: (editMode || isPreview) ? 0.5 : 1, pointerEvents: (editMode || isPreview) ? 'none' : 'auto' }}>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>{requiresTime ? 'Preferred date' : 'Due date'}</p>
@@ -1437,9 +1442,14 @@ export default function BizPage() {
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
           <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background: bookingDisabled ? '#9ca3af' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment')}
           </button>
+          {providerCannotAcceptPayments && (
+            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
+              Provider can&apos;t accept payments yet.
+            </p>
+          )}
         </div>
         {showConfirm && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>

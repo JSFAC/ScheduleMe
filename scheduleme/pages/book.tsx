@@ -26,6 +26,8 @@ interface Provider {
   phone: string;
   calendly_url?: string;
   from_db?: boolean;
+  stripe_onboarded?: boolean;
+  stripe_account_id?: string | null;
 }
 
 type BookingStep = 'details' | 'calendly' | 'done';
@@ -45,6 +47,7 @@ const BookPage: NextPage = () => {
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [providerAcceptsPayments, setProviderAcceptsPayments] = useState(true);
 
   useEffect(() => {
     // Load provider from query or sessionStorage
@@ -82,10 +85,47 @@ const BookPage: NextPage = () => {
     });
   }, [router.query]);
 
+  useEffect(() => {
+    if (!provider?.id || !isUUID(provider.id)) {
+      setProviderAcceptsPayments(true);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const stripeReadyFromProvider =
+        provider.stripe_onboarded === true && !!provider.stripe_account_id;
+      if (stripeReadyFromProvider) {
+        if (!cancelled) setProviderAcceptsPayments(true);
+        return;
+      }
+
+      const { data, error } = await getSupabase()
+        .from('businesses')
+        .select('stripe_onboarded, stripe_account_id')
+        .eq('id', provider.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setProviderAcceptsPayments(true);
+        return;
+      }
+      setProviderAcceptsPayments(!!data?.stripe_onboarded && !!data?.stripe_account_id);
+    })();
+
+    return () => { cancelled = true; };
+  }, [provider?.id, provider?.stripe_onboarded, provider?.stripe_account_id]);
+
   async function createBooking() {
     setLoading(true);
     setError(null);
     try {
+      if (!providerAcceptsPayments) {
+        setError('This provider can’t accept payments yet.');
+        setLoading(false);
+        return;
+      }
+
       // If this is a mock provider (non-UUID id), skip the DB insert and go straight to done
       if (!provider?.id || !isUUID(provider.id)) {
         // Still send confirmation email
@@ -228,12 +268,17 @@ const BookPage: NextPage = () => {
                     onChange={e => setForm(f => ({ ...f, service: e.target.value }))} />
                 </div>
                 <button
-                  className="btn-primary w-full py-3 mt-2"
+                  className={`btn-primary w-full py-3 mt-2 ${!providerAcceptsPayments ? 'opacity-60 cursor-not-allowed' : ''}`}
                   onClick={createBooking}
-                  disabled={loading || !form.name || !form.phone}
+                  disabled={loading || !form.name || !form.phone || !providerAcceptsPayments}
                 >
                   {loading ? 'Booking…' : provider.calendly_url ? 'Continue to Schedule →' : 'Request Booking →'}
                 </button>
+                {!providerAcceptsPayments && (
+                  <p className="text-xs font-semibold mt-2" style={{ color: textMuted }}>
+                    Provider can&apos;t accept payments yet.
+                  </p>
+                )}
 
               </div>
             </div>
