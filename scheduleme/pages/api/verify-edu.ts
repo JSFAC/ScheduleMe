@@ -88,12 +88,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // ─── STEP 1: Send verification code ──────────────────────────────────────
   if (!school_email || !isValidEmail(school_email)) return res.status(400).json({ error: 'Valid .edu email required' });
-  if (!school_email.toLowerCase().endsWith('.edu')) return res.status(400).json({ error: 'Must be a .edu email address' });
-  const { data: _existEdu } = await supabase.from('profiles').select('id').eq('school_email', school_email.toLowerCase()).eq('edu_verified', true).neq('id', user.id).maybeSingle();
+  const normalizedSchoolEmail = String(school_email).trim().toLowerCase();
+  if (!normalizedSchoolEmail.endsWith('.edu')) return res.status(400).json({ error: 'Must be a .edu email address' });
+  const { data: _existEdu, error: existEduError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('school_email', normalizedSchoolEmail)
+    .eq('edu_verified', true)
+    .neq('id', user.id)
+    .limit(1)
+    .maybeSingle();
+  if (existEduError) return res.status(500).json({ error: 'Unable to validate EDU uniqueness right now. Please try again.' });
   if (_existEdu) return res.status(409).json({ error: 'This .edu email is already linked to another account.' });
-  const { data: _existBiz } = await supabase.from('businesses').select('id').eq('school_email', school_email.toLowerCase()).eq('edu_verified', true).maybeSingle();
+  const { data: _existBiz, error: existBizError } = await supabase
+    .from('businesses')
+    .select('id')
+    .eq('school_email', normalizedSchoolEmail)
+    .eq('edu_verified', true)
+    .limit(1)
+    .maybeSingle();
+  if (existBizError) return res.status(500).json({ error: 'Unable to validate EDU uniqueness right now. Please try again.' });
   if (_existBiz) return res.status(409).json({ error: 'This .edu email is already linked to a business account.' });
-  const submittedDomain = extractDomain(school_email.toLowerCase());
+  const submittedDomain = extractDomain(normalizedSchoolEmail);
 
   if (account_type === 'business') {
     const bizQuery = supabase.from('businesses').select('id, owner_email, school_domain');
@@ -111,7 +127,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       edu_code: verifyCode,
       edu_code_expires_at: expiresAt,
       school_domain: biz.school_domain || submittedDomain,
-      school_email: school_email.toLowerCase(),
+      school_email: normalizedSchoolEmail,
       campus_provider: true,
     }).eq('id', biz.id);
     await logAuditEvent(req, 'edu_send_code_business', {
@@ -120,24 +136,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       actor_id: user.id,
       actor_email: user.email,
       actor_role: 'business',
-      meta: { school_email: school_email.toLowerCase() },
+      meta: { school_email: normalizedSchoolEmail },
     });
-    await sendVerificationEmail(school_email, verifyCode, getResend());
-    return res.status(200).json({ success: true, message: `Code sent to ${school_email}` });
+    await sendVerificationEmail(normalizedSchoolEmail, verifyCode, getResend());
+    return res.status(200).json({ success: true, message: `Code sent to ${normalizedSchoolEmail}` });
   } else {
     const verifyCode = generate6DigitCode();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    await supabase.from('profiles').update({ school_email: school_email.toLowerCase(), edu_code: verifyCode, edu_code_expires_at: expiresAt }).eq('id', user.id);
+    await supabase.from('profiles').update({ school_email: normalizedSchoolEmail, edu_code: verifyCode, edu_code_expires_at: expiresAt }).eq('id', user.id);
     await logAuditEvent(req, 'edu_send_code_consumer', {
       entity_type: 'profile',
       entity_id: user.id,
       actor_id: user.id,
       actor_email: user.email,
       actor_role: 'consumer',
-      meta: { school_email: school_email.toLowerCase() },
+      meta: { school_email: normalizedSchoolEmail },
     });
-    await sendVerificationEmail(school_email, verifyCode, getResend());
-    return res.status(200).json({ success: true, message: `Code sent to ${school_email}` });
+    await sendVerificationEmail(normalizedSchoolEmail, verifyCode, getResend());
+    return res.status(200).json({ success: true, message: `Code sent to ${normalizedSchoolEmail}` });
   }
 }
 
