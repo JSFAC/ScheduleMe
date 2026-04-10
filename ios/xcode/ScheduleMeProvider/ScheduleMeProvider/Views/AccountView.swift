@@ -609,7 +609,7 @@ struct AccountView: View {
             if let phone = response.value.phone {
                 phoneNumber = formatPhoneForDisplay(phone)
             }
-            if let avatar = response.value.avatarURL, !avatar.isEmpty {
+            if let avatar = appState.normalizeRemoteImageURLString(response.value.avatarURL), !avatar.isEmpty {
                 appState.avatarURL = avatar
             }
         } catch {
@@ -694,7 +694,7 @@ struct AccountView: View {
                 ),
                 requiresAuth: true
             )
-            appState.avatarURL = response.url
+            appState.avatarURL = appState.normalizeRemoteImageURLString(response.url)
         } catch {
             avatarError = "Unable to upload avatar. Please try again."
         }
@@ -729,7 +729,7 @@ struct AccountView: View {
 
     @ViewBuilder
     private var avatarView: some View {
-        if let avatarURL = appState.avatarURL, let url = URL(string: avatarURL) {
+        if let url = appState.resolvedAvatarURL {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):

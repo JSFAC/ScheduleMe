@@ -403,7 +403,7 @@ struct ScheduleMeTopBar: View {
 
     @ViewBuilder
     private var avatarView: some View {
-        if let avatarURL = appState.avatarURL, let url = URL(string: avatarURL) {
+        if let url = appState.resolvedAvatarURL {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):

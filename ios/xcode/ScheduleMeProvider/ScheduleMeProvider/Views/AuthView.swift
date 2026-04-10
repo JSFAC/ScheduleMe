@@ -85,10 +85,36 @@ struct AuthView: View {
         Task {
             defer { isLoading = false }
             do {
+                let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 if isLogin {
-                    try await SupabaseManager.shared.client.auth.signIn(email: email, password: password)
+                    do {
+                        try await SupabaseManager.shared.client.auth.signIn(email: normalizedEmail, password: password)
+                    } catch {
+                        if shouldUseMobileEmailFallback(for: error) {
+                            try await SupabaseManager.shared.signInViaMobileEmailAuth(
+                                email: normalizedEmail,
+                                password: password,
+                                isSignup: false
+                            )
+                        } else {
+                            throw error
+                        }
+                    }
+                    try await assertSignedInEmailMatches(normalizedEmail)
                 } else {
-                    try await SupabaseManager.shared.client.auth.signUp(email: email, password: password)
+                    do {
+                        try await SupabaseManager.shared.client.auth.signUp(email: normalizedEmail, password: password)
+                    } catch {
+                        if shouldUseMobileEmailFallback(for: error) {
+                            try await SupabaseManager.shared.signInViaMobileEmailAuth(
+                                email: normalizedEmail,
+                                password: password,
+                                isSignup: true
+                            )
+                        } else {
+                            throw error
+                        }
+                    }
                 }
                 await appState.bootstrap()
             } catch {
@@ -104,6 +130,10 @@ struct AuthView: View {
         Task {
             defer { isLoading = false }
             do {
+                let providerEnabled = await SupabaseManager.shared.isOAuthProviderEnabled(provider)
+                if !providerEnabled {
+                    throw DataStoreError.server("\(providerDisplayName(provider)) sign-in is not enabled right now. Please try email login or contact support.")
+                }
                 guard let callbackScheme = SupabaseManager.shared.redirectURL.scheme else {
                     throw DataStoreError.invalidConfiguration("SUPABASE_REDIRECT_URL is missing a URL scheme.")
                 }
@@ -163,8 +193,40 @@ struct AuthView: View {
         if raw.localizedCaseInsensitiveContains("redirect") && raw.localizedCaseInsensitiveContains("not allowed") {
             return "OAuth sign-in is temporarily unavailable. Please try again shortly."
         }
+        if raw.localizedCaseInsensitiveContains("unsupported provider")
+            || raw.localizedCaseInsensitiveContains("provider is not enabled") {
+            return "This sign-in provider is temporarily unavailable. Please use another sign-in method."
+        }
+        if raw.localizedCaseInsensitiveContains("captcha") {
+            return "Email sign-in is temporarily retrying due to security checks. Please try again."
+        }
 
         return raw
+    }
+
+    private func shouldUseMobileEmailFallback(for error: Error) -> Bool {
+        let raw = (error as NSError).localizedDescription.lowercased()
+        return raw.contains("captcha")
+    }
+
+    private func assertSignedInEmailMatches(_ normalizedEmail: String) async throws {
+        let session = try await SupabaseManager.shared.client.auth.session
+        let activeEmail = (session.user.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !activeEmail.isEmpty, activeEmail == normalizedEmail else {
+            try? await SupabaseManager.shared.client.auth.signOut()
+            throw DataStoreError.server("Sign-in safety check failed. Please sign in again.")
+        }
+    }
+
+    private func providerDisplayName(_ provider: Provider) -> String {
+        switch provider {
+        case .apple:
+            return "Apple"
+        case .google:
+            return "Google"
+        default:
+            return "OAuth"
+        }
     }
 }
 

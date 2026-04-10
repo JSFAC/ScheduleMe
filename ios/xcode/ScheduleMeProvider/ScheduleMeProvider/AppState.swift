@@ -24,6 +24,12 @@ final class AppState: ObservableObject {
     @Published var pendingBusinessLookupKey: String? = nil
     @Published var isSigningOut: Bool = false
 
+    /// Resolved absolute URL for rendering the signed-in user's avatar.
+    var resolvedAvatarURL: URL? {
+        guard let normalized = normalizeRemoteImageURLString(avatarURL) else { return nil }
+        return URL(string: normalized)
+    }
+
     /// Prefer the verified school domain from the API, fallback to .edu email.
     var resolvedSchoolDomain: String? {
         if let schoolDomain, !schoolDomain.isEmpty { return schoolDomain }
@@ -219,10 +225,28 @@ final class AppState: ObservableObject {
                 .eq("id", value: userID)
                 .single()
                 .execute()
-            avatarURL = response.value.avatarURL
+            avatarURL = normalizeRemoteImageURLString(response.value.avatarURL)
         } catch {
             avatarURL = nil
         }
+    }
+
+    /// Normalizes host-only/relative image paths into absolute https URLs.
+    func normalizeRemoteImageURLString(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") { return trimmed }
+        if trimmed.hasPrefix("//") { return "https:\(trimmed)" }
+        if trimmed.hasPrefix("/") {
+            let apiBase = (Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !apiBase.isEmpty, let baseURL = URL(string: apiBase) {
+                return URL(string: trimmed, relativeTo: baseURL)?.absoluteURL.absoluteString
+            }
+            return nil
+        }
+        return "https://\(trimmed)"
     }
 
     deinit {

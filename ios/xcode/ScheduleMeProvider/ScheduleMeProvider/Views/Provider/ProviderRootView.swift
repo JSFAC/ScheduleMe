@@ -35,6 +35,10 @@ struct ProviderRootView: View {
                                 subtitle: "Syncing bookings, messages, services, payouts, and profile...",
                                 icon: "briefcase.fill"
                             )
+                        } else if providerStore.profile == nil {
+                            ProviderAccessDeniedView(
+                                message: providerStore.errorMessage ?? "This account is not linked to an approved provider profile."
+                            )
                         } else {
                             ProviderMainTabView()
                         }
@@ -50,6 +54,86 @@ struct ProviderRootView: View {
         .onChange(of: appState.isAuthenticated) { _, isAuthenticated in
             if !isAuthenticated {
                 providerStore.reset()
+            }
+        }
+    }
+}
+
+private struct ProviderAccessDeniedView: View {
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var providerStore: ProviderDataStore
+    @Environment(\.openURL) private var openURL
+    @State private var showingProviderApplication = false
+    let message: String
+
+    private var consumerAppURL: URL {
+        let configured = (Bundle.main.object(forInfoDictionaryKey: "CONSUMER_APP_STORE_URL") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return URL(string: configured?.isEmpty == false ? configured! : "https://apps.apple.com")!
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundStyle(Color(hex: "F59E0B"))
+
+                Text("Provider Access Required")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 22).weight(.bold))
+                    .foregroundStyle(Color.white)
+
+                Text(message)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+
+                Button("Apply as Provider") {
+                    showingProviderApplication = true
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+
+                HStack(spacing: 16) {
+                    Button("Back") {
+                        Task {
+                            await appState.signOut()
+                            providerStore.reset()
+                        }
+                    }
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .buttonStyle(.plain)
+
+                    Text("•")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
+                        .foregroundStyle(Color(hex: "4B5563"))
+
+                    Button("Open Consumer App") {
+                        openURL(consumerAppURL)
+                    }
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundStyle(Color(hex: "33C8B5"))
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 2)
+            }
+            .padding(22)
+            .background(Color(hex: "11161F"))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "273141")))
+            .padding(.horizontal, 24)
+        }
+        .fullScreenCover(isPresented: $showingProviderApplication) {
+            NavigationStack {
+                ProviderApplicationView()
             }
         }
     }

@@ -144,7 +144,7 @@ struct BrowseView: View {
                 ScheduleMeScreen(scrolls: false) {
                     VStack(alignment: .leading, spacing: 12) {
                         browseHeaderAndSearch
-                        browseResults
+                        mapModeContent
                             .frame(maxHeight: .infinity)
                     }
                     .padding(.bottom, 8)
@@ -264,6 +264,41 @@ struct BrowseView: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: selectedViewMode)
+    }
+
+    private var mapModeContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            BrowseMapView(
+                position: $mapPosition,
+                businesses: mapBusinesses,
+                selectedBusiness: $selectedMapBusiness
+            )
+            .padding(.horizontal, 12)
+
+            HStack {
+                Text("Nearby providers")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                Spacer()
+                Text("\(filteredBusinesses.count)")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+            }
+            .padding(.horizontal, 20)
+
+            ScrollView(showsIndicators: true) {
+                VStack(spacing: 12) {
+                    ForEach(filteredBusinesses) { business in
+                        NavigationLink(destination: BusinessDetailView(business: business)) {
+                            BusinessListRow(business: business)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 20)
+                    }
+                }
+                .padding(.bottom, 24)
+            }
+        }
     }
 
     /// Distance filter gate using user-selected radius.

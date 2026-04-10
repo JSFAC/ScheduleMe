@@ -91,8 +91,14 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     private func registerForRemoteNotificationsIfNeeded() {
         guard !hasRegisteredRemoteNotifications else { return }
+        guard hasAPNsEntitlement else { return }
         hasRegisteredRemoteNotifications = true
         UIApplication.shared.registerForRemoteNotifications()
+    }
+
+    private var hasAPNsEntitlement: Bool {
+        guard let entitlements = Bundle.main.entitlements else { return false }
+        return entitlements["aps-environment"] != nil
     }
 }
 
@@ -102,5 +108,25 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .badge]
+    }
+}
+
+private extension Bundle {
+    var entitlements: [String: Any]? {
+        guard let url = url(forResource: "embedded", withExtension: "mobileprovision"),
+              let data = try? Data(contentsOf: url),
+              let raw = String(data: data, encoding: .isoLatin1),
+              let plistStart = raw.range(of: "<plist"),
+              let plistEnd = raw.range(of: "</plist>") else {
+            return nil
+        }
+        let plistString = String(raw[plistStart.lowerBound...plistEnd.upperBound])
+        guard let plistData = plistString.data(using: .utf8),
+              let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil),
+              let root = plist as? [String: Any],
+              let ents = root["Entitlements"] as? [String: Any] else {
+            return nil
+        }
+        return ents
     }
 }

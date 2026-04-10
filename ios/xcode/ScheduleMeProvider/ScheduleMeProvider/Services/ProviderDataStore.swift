@@ -379,7 +379,7 @@ final class ProviderDataStore: ObservableObject {
     @Published private(set) var lastLoadedAt: Date?
     private var ownerEmailForFallback: String?
     private var ownerIDForFallback: String?
-    private let cachedBusinessIDKey = "provider.cachedBusinessID"
+    private var activeAuthFingerprint: String?
     private let refreshThrottleSeconds: TimeInterval = 20
 
     var pendingBookingsCount: Int {
@@ -478,6 +478,12 @@ final class ProviderDataStore: ObservableObject {
             reset()
             return
         }
+        let currentFingerprint = "\(trimmedUserID ?? "")|\(trimmedEmail?.lowercased() ?? "")"
+        if let activeAuthFingerprint, activeAuthFingerprint != currentFingerprint {
+            // Security boundary: never allow stale provider data to survive account switches.
+            reset()
+        }
+        activeAuthFingerprint = currentFingerprint
         ownerEmailForFallback = trimmedEmail
         ownerIDForFallback = trimmedUserID
 
@@ -488,13 +494,12 @@ final class ProviderDataStore: ObservableObject {
             try await loadBusinessProfile(ownerEmail: trimmedEmail, userID: trimmedUserID)
             errorMessage = nil
         } catch {
-            // Keep last known local state so transient network/profile errors don't "unlink" the app UI.
-            if businessID == nil,
-               let cachedBusinessID = UserDefaults.standard.string(forKey: cachedBusinessIDKey),
-               !cachedBusinessID.isEmpty {
-                businessID = cachedBusinessID
-            }
-            errorMessage = error.localizedDescription
+            let message = error.localizedDescription
+            reset()
+            activeAuthFingerprint = currentFingerprint
+            ownerEmailForFallback = trimmedEmail
+            ownerIDForFallback = trimmedUserID
+            errorMessage = message
         }
         await refreshAll(force: true, prioritizeFastLoad: true)
     }
@@ -507,11 +512,6 @@ final class ProviderDataStore: ObservableObject {
             let fallbackEmail = ownerEmailForFallback?.isEmpty == false ? ownerEmailForFallback : nil
             let fallbackUserID = ownerIDForFallback?.isEmpty == false ? ownerIDForFallback : nil
             try? await loadBusinessProfile(ownerEmail: fallbackEmail, userID: fallbackUserID)
-            if businessID == nil,
-               let cachedBusinessID = UserDefaults.standard.string(forKey: cachedBusinessIDKey),
-               !cachedBusinessID.isEmpty {
-                businessID = cachedBusinessID
-            }
         }
         guard businessID != nil else {
             lastLoadedAt = Date()
@@ -549,7 +549,7 @@ final class ProviderDataStore: ObservableObject {
         errorMessage = nil
         ownerEmailForFallback = nil
         ownerIDForFallback = nil
-        UserDefaults.standard.removeObject(forKey: cachedBusinessIDKey)
+        activeAuthFingerprint = nil
     }
 
     func loadBookings() async {
@@ -1263,47 +1263,46 @@ final class ProviderDataStore: ObservableObject {
     private func loadBusinessProfile(ownerEmail: String?, userID: String?) async throws {
         let selectFields = try await resolveBusinessSelectFields()
 
-        let row: BusinessRow
         let resolvedUserID = userID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             ? userID?.trimmingCharacters(in: .whitespacesAndNewlines)
             : (try? await SupabaseManager.shared.client.auth.session.user.id.uuidString)
-        let sessionEmail = try? await SupabaseManager.shared.client.auth.session.user.email
-        let profileEmail = try? await resolveProfileEmail(forUserID: resolvedUserID)
 
+        guard let resolvedUserID, !resolvedUserID.isEmpty else {
+            throw DataStoreError.server("No authenticated provider session found.")
+        }
+
+        let sessionEmail = try? await SupabaseManager.shared.client.auth.session.user.email
+        if let ownerRow = try? await fetchBusinessRow(
+            selectFields: selectFields,
+            column: "owner_id",
+            value: resolvedUserID
+        ) {
+            applyBusinessRow(ownerRow, ownerEmailFallback: ownerEmail ?? sessionEmail ?? "")
+            return
+        }
+
+        // Legacy fallback: older rows may not have owner_id populated yet. We only allow this
+        // path when owner_id on the matched row is empty and email matches authenticated user.
         var emailCandidates: [String] = []
-        for raw in [ownerEmail, sessionEmail, profileEmail] {
+        for raw in [ownerEmail, sessionEmail] {
             let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !trimmed.isEmpty else { continue }
-            if !emailCandidates.contains(trimmed) {
-                emailCandidates.append(trimmed)
-            }
+            if !emailCandidates.contains(trimmed) { emailCandidates.append(trimmed) }
             let lowered = trimmed.lowercased()
-            if !emailCandidates.contains(lowered) {
-                emailCandidates.append(lowered)
+            if !emailCandidates.contains(lowered) { emailCandidates.append(lowered) }
+        }
+
+        for email in emailCandidates {
+            if let row = try? await fetchBusinessRow(selectFields: selectFields, column: "owner_email", value: email) {
+                let rowOwnerID = row.ownerID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if rowOwnerID.isEmpty {
+                    applyBusinessRow(row, ownerEmailFallback: ownerEmail ?? sessionEmail ?? "")
+                    return
+                }
             }
         }
 
-        if let resolvedUserID, !resolvedUserID.isEmpty,
-           let byOwnerID = try? await fetchBusinessRow(
-                selectFields: selectFields,
-                column: "owner_id",
-                value: resolvedUserID
-           ) {
-            row = byOwnerID
-        } else if let byEmail = try? await fetchFirstBusinessRow(
-            selectFields: selectFields,
-            ownerEmails: emailCandidates
-        ) {
-            row = byEmail
-        } else if let firstVisibleRow = try? await fetchVisibleBusinessRows(selectFields: selectFields).first {
-            // RLS usually scopes this query to owned businesses; this is a safe fallback when
-            // email casing/owner_id shape differs from expectations.
-            row = firstVisibleRow
-        } else {
-            throw DataStoreError.server("Provider business profile not found for this account.")
-        }
-
-        applyBusinessRow(row, ownerEmailFallback: ownerEmail ?? sessionEmail ?? profileEmail ?? "")
+        throw DataStoreError.server("Provider business profile not found for this account.")
     }
 
     private func fetchBusinessRow(selectFields: String, column: String, value: String) async throws -> BusinessRow {
@@ -1317,41 +1316,6 @@ final class ProviderDataStore: ObservableObject {
             return first
         }
         throw DataStoreError.server("Provider business profile not found for this account.")
-    }
-
-    private func fetchFirstBusinessRow(selectFields: String, ownerEmails: [String]) async throws -> BusinessRow {
-        guard !ownerEmails.isEmpty else {
-            throw DataStoreError.server("Provider business profile not found for this account.")
-        }
-        for email in ownerEmails {
-            if let row = try? await fetchBusinessRow(selectFields: selectFields, column: "owner_email", value: email) {
-                return row
-            }
-        }
-        throw DataStoreError.server("Provider business profile not found for this account.")
-    }
-
-    private func fetchVisibleBusinessRows(selectFields: String) async throws -> [BusinessRow] {
-        let response: PostgrestResponse<[BusinessRow]> = try await SupabaseManager.shared.client
-            .from("businesses")
-            .select(selectFields)
-            .limit(10)
-            .execute()
-        return response.value
-    }
-
-    private func resolveProfileEmail(forUserID userID: String?) async throws -> String? {
-        guard let userID, !userID.isEmpty else { return nil }
-        struct ProfileEmailRow: Decodable {
-            let email: String?
-        }
-        let response: PostgrestResponse<[ProfileEmailRow]> = try await SupabaseManager.shared.client
-            .from("profiles")
-            .select("email")
-            .eq("id", value: userID)
-            .limit(1)
-            .execute()
-        return response.value.first?.email
     }
 
     private func refreshBusinessProfileByID() async throws {
@@ -1404,7 +1368,6 @@ final class ProviderDataStore: ObservableObject {
 
     private func applyBusinessRow(_ row: BusinessRow, ownerEmailFallback: String) {
         businessID = row.id
-        UserDefaults.standard.set(row.id, forKey: cachedBusinessIDKey)
         let normalizedHours = normalizedBusinessHours(row.hours ?? [:])
         profile = ProviderProfile(
             id: row.id,

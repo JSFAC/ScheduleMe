@@ -302,6 +302,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ScheduleMeProvider/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ScheduleMe - Provider";
 				INFOPLIST_KEY_NSCameraUsageDescription = "ScheduleMe uses your camera so you can add profile photos and upload images for bookings and messages.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to show nearby professionals.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -341,6 +342,7 @@
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ScheduleMeProvider/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ScheduleMe - Provider";
 				INFOPLIST_KEY_NSCameraUsageDescription = "ScheduleMe uses your camera so you can add profile photos and upload images for bookings and messages.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to show nearby professionals.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

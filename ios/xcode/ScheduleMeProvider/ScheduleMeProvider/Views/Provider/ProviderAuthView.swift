@@ -292,7 +292,7 @@ struct ProviderAuthView: View {
     }
 }
 
-private struct ProviderApplicationView: View {
+struct ProviderApplicationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
