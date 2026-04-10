@@ -26,11 +26,14 @@ final class SupabaseManager {
             ? (configuredRedirect ?? defaultRedirect)
             : defaultRedirect
 
-        let supabaseURL = URL(string: urlString) ?? URL(string: "https://imfrlykibvjdbijegdky.supabase.co")!
-        if URL(string: urlString) == nil {
-            #if DEBUG
-            assertionFailure("SUPABASE_URL is invalid. Falling back to default project URL.")
-            #endif
+        let trimmedURLString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedURLString.isEmpty, let supabaseURL = URL(string: trimmedURLString) else {
+            preconditionFailure("Missing or invalid SUPABASE_URL. Set it in Config.local.xcconfig.")
+        }
+
+        let trimmedAnonKey = anonKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAnonKey.isEmpty else {
+            preconditionFailure("Missing SUPABASE_ANON_KEY. Set it in Config.local.xcconfig.")
         }
 
         let redirectURL = URL(string: redirectString) ?? URL(string: defaultRedirect)!
@@ -43,7 +46,7 @@ final class SupabaseManager {
         self.redirectURL = redirectURL
         client = SupabaseClient(
             supabaseURL: supabaseURL,
-            supabaseKey: anonKey,
+            supabaseKey: trimmedAnonKey,
             options: .init(
                 auth: .init(
                     redirectToURL: redirectURL,

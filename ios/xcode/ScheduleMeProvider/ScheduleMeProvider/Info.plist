@@ -38,7 +38,7 @@
 	<key>SUPABASE_REDIRECT_URL</key>
 	<string>schedulemeprovider://auth/callback</string>
 	<key>SUPABASE_URL</key>
-	<string>https://imfrlykibvjdbijegdky.supabase.co</string>
+	<string>$(SUPABASE_URL)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Resources/Fonts/PlusJakartaSans-VariableFont_wght.ttf</string>

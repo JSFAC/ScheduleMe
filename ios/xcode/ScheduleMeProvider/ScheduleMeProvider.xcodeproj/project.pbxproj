@@ -297,7 +297,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BUB3AJ6JWZ;
-					ENABLE_PREVIEWS = YES;
+				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ScheduleMeProvider/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "ScheduleMe uses your camera so you can add profile photos and upload images for bookings and messages.";

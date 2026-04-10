@@ -4,3 +4,4 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 .build/
+ios/xcode/ScheduleMeProvider/ScheduleMeProvider/Config.local.xcconfig
