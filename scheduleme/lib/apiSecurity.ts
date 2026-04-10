@@ -6,6 +6,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import { sendWelcomeEmail } from './email';
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
 // Apply to every API response to prevent common attacks
@@ -116,10 +117,57 @@ export async function requireAuth(
       return null;
     }
 
+    void maybeSendFirstLoginWelcome({ id: user.id, email: user.email ?? '' });
+
     return { id: user.id, email: user.email ?? '' };
   } catch {
     res.status(401).json({ error: 'Authentication failed.' });
     return null;
+  }
+}
+
+const welcomeEmailInFlight = new Set<string>();
+
+async function maybeSendFirstLoginWelcome(user: { id: string; email: string }) {
+  if (!user?.id || welcomeEmailInFlight.has(user.id)) return;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return;
+
+  welcomeEmailInFlight.add(user.id);
+  try {
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('id, email, name, role, has_seen_welcome')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile?.has_seen_welcome === true) return;
+    if (profile?.role === 'business') return;
+
+    const normalizedEmail = String(profile?.email || user.email || '').trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) return;
+    const normalizedName = String(profile?.name || normalizedEmail.split('@')[0] || 'there').trim() || 'there';
+
+    if (process.env.RESEND_API_KEY) {
+      await sendWelcomeEmail({ to: normalizedEmail, name: normalizedName });
+    }
+
+    await admin.from('profiles').upsert(
+      {
+        id: user.id,
+        email: normalizedEmail,
+        name: normalizedName,
+        has_seen_welcome: true,
+      },
+      { onConflict: 'id', ignoreDuplicates: false }
+    );
+  } catch (err) {
+    console.error('[welcome-first-login]', err);
+  } finally {
+    welcomeEmailInFlight.delete(user.id);
   }
 }
 

@@ -881,7 +881,7 @@ async function togglePinned(bizId: string) {
       if (isFirstVisit) {
         setWelcomePhase('welcome');
         if (session.user.email && !cachedEmailSent) {
-          maybeSendWelcomeEmail(session.user.email, fullName, session.user.id);
+          maybeSendWelcomeEmail(session.user.email, fullName, session.user.id, session.access_token);
           if (typeof window !== 'undefined') localStorage.setItem(emailCacheKey, 'true');
         }
       } else {
