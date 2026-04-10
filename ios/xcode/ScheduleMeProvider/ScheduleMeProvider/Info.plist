@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_BASE_URL</key>
+	<string>https://www.usescheduleme.com</string>
+	<key>APPLE_PAY_MERCHANT_ID</key>
+	<string>$(APPLE_PAY_MERCHANT_ID)</string>
+	<key>APP_URL_SCHEME</key>
+	<string>schedulemeprovider</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>schedulemeprovider</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>schedulemeprovider</string>
+			</array>
+		</dict>
+	</array>
+	<key>GOOGLE_IOS_CLIENT_ID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ScheduleMe uses your camera so you can capture and send photos in provider messages and update listing images.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ScheduleMe uses your location to show nearby activity, improve local provider/booking context, and support location-based features.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ScheduleMe needs photo library write access to save or export media you create in the app.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ScheduleMe uses your photo library so you can select images to send in messages and for your provider listing.</string>
+	<key>STRIPE_PUBLISHABLE_KEY</key>
+	<string>$(STRIPE_PUBLISHABLE_KEY)</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>SUPABASE_REDIRECT_URL</key>
+	<string>schedulemeprovider://auth/callback</string>
+	<key>SUPABASE_URL</key>
+	<string>https://imfrlykibvjdbijegdky.supabase.co</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Resources/Fonts/PlusJakartaSans-VariableFont_wght.ttf</string>
+		<string>Resources/Fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+</dict>
+</plist>
