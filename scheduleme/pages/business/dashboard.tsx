@@ -838,7 +838,47 @@ const BusinessDashboard: NextPage = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.push('/business/auth/login'); return; }
     const email = session.user.email || '';
-    const { data: biz, error: bizErr } = await supabase.from('businesses').select('*').eq('owner_email', email).maybeSingle();
+    // Check profile role first — fastest gate, no extra table query needed
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (profile?.role !== 'business') {
+      // Consumer account — sign out and redirect, do NOT delete their account
+      await supabase.auth.signOut();
+      router.replace('/business/auth/login?error=not_a_business');
+      return;
+    }
+
+    let biz: any = null;
+    let bizErr: any = null;
+
+    const byOwnerID = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('owner_id', session.user.id)
+      .maybeSingle();
+    biz = byOwnerID.data;
+    bizErr = byOwnerID.error;
+
+    // Legacy safety fallback: if owner_id is missing but owner_email matches this account,
+    // self-heal by linking owner_id for future strict ownership checks.
+    if (!biz && session.user.email) {
+      const byLegacyEmail = await supabase
+        .from('businesses')
+        .select('*')
+        .is('owner_id', null)
+        .eq('owner_email', session.user.email)
+        .maybeSingle();
+      if (byLegacyEmail.data) {
+        await supabase.from('businesses').update({ owner_id: session.user.id }).eq('id', byLegacyEmail.data.id);
+        biz = { ...byLegacyEmail.data, owner_id: session.user.id };
+      } else if (byLegacyEmail.error) {
+        bizErr = byLegacyEmail.error;
+      }
+    }
     if (bizErr || !biz) {
       await supabase.auth.signOut();
       router.replace('/business/auth/login?error=not_a_business');
