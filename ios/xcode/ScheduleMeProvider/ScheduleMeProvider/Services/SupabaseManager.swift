@@ -27,8 +27,17 @@ final class SupabaseManager {
             : defaultRedirect
 
         let trimmedURLString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedURLString.isEmpty, let supabaseURL = URL(string: trimmedURLString) else {
-            preconditionFailure("Missing or invalid SUPABASE_URL. Set it in Config.local.xcconfig.")
+        let normalizedURLString: String
+        if trimmedURLString.hasPrefix("http://") || trimmedURLString.hasPrefix("https://") {
+            normalizedURLString = trimmedURLString
+        } else if !trimmedURLString.isEmpty {
+            // xcconfig treats '//' as comments, so host-only values are supported here.
+            normalizedURLString = "https://\(trimmedURLString)"
+        } else {
+            normalizedURLString = ""
+        }
+        guard !normalizedURLString.isEmpty, let supabaseURL = URL(string: normalizedURLString) else {
+            preconditionFailure("Missing or invalid SUPABASE_URL. Set it in Config.local.xcconfig (host or full URL).")
         }
 
         let trimmedAnonKey = anonKey.trimmingCharacters(in: .whitespacesAndNewlines)
