@@ -381,7 +381,7 @@ export function bookingCancelledConsumerHtml(opts: {
 }) {
   const bookingsUrl = `${SITE_URL}/bookings`;
   const refundLine = opts.refundInProgress
-    ? 'Your payment refund is now processing and should appear back on your original payment method shortly.'
+    ? 'Your service amount refund is now processing and should appear back on your original payment method shortly. The $0.99 protection fee is non-refundable.'
     : 'No payment refund was required for this cancellation.';
 
   const body = `

@@ -1030,12 +1030,12 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
             </div>
             <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
               {booking.paid_at
-                ? 'Your booking has been cancelled and your refund is now processing to your original payment method.'
+                ? 'Your booking has been cancelled. Your service amount refund is now processing to your original payment method.'
                 : 'Your booking request has been cancelled. No charge was made, so no refund was needed.'}
             </p>
             {booking.paid_at && (
               <p className="text-[11px] mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                Refund timing depends on your bank and card network.
+                The $0.99 protection fee is non-refundable. Refund timing depends on your bank and card network.
               </p>
             )}
             <button

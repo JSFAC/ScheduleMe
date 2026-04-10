@@ -560,20 +560,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // If cancelling a booking with a Stripe payment intent, issue a full refund.
-    // Try destination-charge reversal first, then fall back to a standard platform refund.
+    // If cancelling a paid booking, refund only the service amount.
+    // The protection fee is non-refundable and therefore excluded from refund amount.
     if (status === 'cancelled' && booking.stripe_payment_intent_id) {
+      const serviceRefundCents = Number(booking.amount_cents || 0);
       try {
-        await stripe.refunds.create({
-          payment_intent: booking.stripe_payment_intent_id,
-          reverse_transfer: true,
-          refund_application_fee: true,
-        });
-      } catch (e: any) {
-        try {
+        if (serviceRefundCents > 0) {
           await stripe.refunds.create({
             payment_intent: booking.stripe_payment_intent_id,
+            amount: serviceRefundCents,
+            reverse_transfer: true,
+            refund_application_fee: true,
           });
+        } else {
+          // Safety fallback for legacy records without amount_cents.
+          await stripe.refunds.create({
+            payment_intent: booking.stripe_payment_intent_id,
+            reverse_transfer: true,
+            refund_application_fee: true,
+          });
+        }
+      } catch (e: any) {
+        try {
+          if (serviceRefundCents > 0) {
+            await stripe.refunds.create({
+              payment_intent: booking.stripe_payment_intent_id,
+              amount: serviceRefundCents,
+            });
+          } else {
+            await stripe.refunds.create({
+              payment_intent: booking.stripe_payment_intent_id,
+            });
+          }
         } catch (fallbackErr: any) {
           console.error('[booking] refund failed', fallbackErr);
           return res.status(500).json({ error: fallbackErr?.message || 'Refund failed' });

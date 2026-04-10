@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { setSecurityHeaders, rateLimit, isValidUuid, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
+import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
@@ -23,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select('id, status, stripe_payment_intent_id, paid_at')
+    .select('id, status, stripe_payment_intent_id, paid_at, amount_cents, protection_fee_cents')
     .eq('id', bookingId)
     .maybeSingle();
 
@@ -31,11 +32,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!booking.stripe_payment_intent_id) return res.status(400).json({ error: 'No payment to refund for this booking' });
 
   try {
-    await stripe.refunds.create({
-      payment_intent: booking.stripe_payment_intent_id,
-      reverse_transfer: true,
-      refund_application_fee: true,
-    });
+    const serviceRefundCents = Math.max(0, Number(booking.amount_cents || 0));
+    if (serviceRefundCents > 0) {
+      await stripe.refunds.create({
+        payment_intent: booking.stripe_payment_intent_id,
+        amount: serviceRefundCents,
+        reverse_transfer: true,
+        refund_application_fee: true,
+      });
+    } else {
+      // Safety fallback for legacy records without service amount.
+      await stripe.refunds.create({
+        payment_intent: booking.stripe_payment_intent_id,
+        reverse_transfer: true,
+        refund_application_fee: true,
+      });
+    }
   } catch (err: any) {
     console.error('[admin-refund-booking]', err);
     return res.status(500).json({ error: err?.message || 'Refund failed' });
@@ -46,6 +58,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     entity_type: 'booking',
     entity_id: bookingId,
     actor_role: 'admin',
+    meta: {
+      policy: 'service_amount_only_refund',
+      refunded_service_cents: Math.max(0, Number(booking.amount_cents || 0)),
+      retained_protection_fee_cents: typeof booking.protection_fee_cents === 'number'
+        ? booking.protection_fee_cents
+        : PROTECTION_FEE_CENTS,
+    },
   });
-  return res.status(200).json({ ok: true, message: 'Refund issued and booking cancelled' });
+  return res.status(200).json({ ok: true, message: 'Service amount refund issued and booking cancelled' });
 }

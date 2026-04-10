@@ -39,7 +39,7 @@ const sections = [
       },
       {
         subtitle: 'Payments and payouts',
-        body: 'To collect payment, hold funds, process refunds, compute platform fees (including Founder50 rules), and support provider payout workflows.',
+        body: 'To collect payment, hold funds, process refunds, compute platform fees (including Founder50 rules), apply the non-refundable $0.99 protection fee policy for standard bookings, and support provider payout workflows.',
       },
       {
         subtitle: 'Notifications and support',

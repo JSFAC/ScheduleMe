@@ -35,7 +35,7 @@ const sections = [
   },
   {
     title: '7. Payments and Fees',
-    body: 'Consumers pay on-platform when required by the booking flow, including a $0.99 protection fee for standard bookings. Funds are processed by Stripe. ScheduleMe may hold funds in-platform and release provider payouts according to booking state. Standard provider platform fee is 12%; Founder50 providers are 6% unless explicitly revoked per platform policy. Platform fee and protection fee amounts are disclosed in product UI and metadata. Off-platform payment to avoid platform fees may result in account penalties.',
+    body: 'Consumers pay on-platform when required by the booking flow, including a $0.99 protection fee for standard bookings. Funds are processed by Stripe. ScheduleMe may hold funds in-platform and release provider payouts according to booking state. Standard provider platform fee is 12%; Founder50 providers are 6% unless explicitly revoked per platform policy. Platform fee and protection fee amounts are disclosed in product UI and metadata. The $0.99 protection fee is a platform service fee earned at booking and is non-refundable, including when a booking is cancelled; service amount refunds are handled per booking status and platform policy. Off-platform payment to avoid platform fees may result in account penalties.',
   },
   {
     title: '8. Disputes Between Users',
