@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 import { computeFounder50Status } from '../../lib/founder50';
+import { normalizeServiceTag } from '../../lib/categoryNormalization';
 
 function normalizeDomain(domain?: string | null): string | null {
   if (!domain) return null;
@@ -127,7 +128,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (error || !rows) return res.status(200).json({ businesses: [], error: error?.message || String(error || '') });
 
-    const cat = typeof category === 'string' && category.trim() ? category.toLowerCase() : null;
+    const cat = typeof category === 'string' && category.trim()
+      ? normalizeServiceTag(category)
+      : null;
 
     const businessIds = (rows as any[]).map((b) => b.id).filter(Boolean);
     const serviceMap: Record<string, number[]> = {};
@@ -145,7 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const filtered = (rows as any[]).map((b) => {
       const d = haversineMiles(latNum, lngNum, b.lat, b.lng);
-      const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
+      const tags = (b.service_tags || []).map((t: string) => normalizeServiceTag(t)).filter(Boolean);
       const primaryTag = tags[0] || null;
       const avgCents = averagePriceCents(serviceMap[b.id] || []);
       const priceTier = computePriceTier(avgCents, primaryTag);
@@ -190,7 +193,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }).filter((b) => {
       if (b.distance_miles > radiusNum) return false;
       if (!cat) return true;
-      const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
+      const tags = (b.service_tags || []).map((t: string) => normalizeServiceTag(t)).filter(Boolean);
       return tags.includes(cat);
     }).sort((a, b) => a.distance_miles - b.distance_miles).slice(0, limitNum);
 

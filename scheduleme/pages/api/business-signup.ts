@@ -6,6 +6,7 @@ import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidEmail, isValidPhone, getUnknownFields, getClientIp } from '../../lib/apiSecurity';
 import { requireCaptcha } from '../../lib/captcha';
 import { sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail } from '../../lib/email';
+import { normalizeServiceTag } from '../../lib/categoryNormalization';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -165,6 +166,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const geo = await geocodeLocation(cleanAddress);
     const category = serviceCategory === 'Other' ? (otherCategory?.slice(0, 60) ?? 'Other') : serviceCategory;
+    const normalizedCategoryTag = normalizeServiceTag(category);
     const slug = slugify(cleanName) + '-' + Date.now().toString(36);
     const campusKey = campusProvider ? normalizeCampusKey(schoolName) : null;
 
@@ -177,7 +179,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       zip: cleanZip,
       lat: geo?.lat ?? null,
       lng: geo?.lng ?? null,
-      service_tags: [category.toLowerCase().replace(/\s+/g, '_')],
+      service_tags: [normalizedCategoryTag || 'other'],
       keywords: [category.toLowerCase(), cleanOwner.toLowerCase()].filter(Boolean),
       rating: 0,
       website: website || null,

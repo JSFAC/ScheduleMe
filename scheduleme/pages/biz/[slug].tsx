@@ -8,6 +8,7 @@ import Nav from '../../components/Nav';
 import { useDm } from '../../lib/DarkModeContext';
 import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
 import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
+import { shouldShowNewBadge } from '../../lib/newBadge';
 
 function getSB() {
   return getSupabaseClient();
@@ -1037,7 +1038,7 @@ export default function BizPage() {
                   {'$'.repeat(computedPriceTier ?? biz.price_tier)}
                 </span>
               ) : null}
-              {(biz.review_count ?? 0) === 0 && (
+              {shouldShowNewBadge({ createdAt: biz.created_at, reviewCount: biz.review_count }) && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
               )}
               {(biz.review_count ?? 0) > 0 && biz.rating && <span className="text-xs font-semibold" style={{color:mu}}>{parseFloat(biz.rating).toFixed(1)} stars</span>}

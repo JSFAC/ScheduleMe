@@ -5,6 +5,7 @@ import { setSecurityHeaders, rateLimit, requireAuth, getUnknownFields, logAuditE
 import { containsProfanity, containsThreat } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 import { sendChangeRequestAdminEmail, sendChangeRequestReceiptEmail } from '../../lib/email';
+import { normalizeServiceTags } from '../../lib/categoryNormalization';
 
 const ADMIN_EMAIL = 'usescheduleme@gmail.com';
 const APPROVAL_FIELDS = new Set(['name', 'category', 'address', 'description', 'cover_url', 'media_urls', 'video_url']);
@@ -51,7 +52,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (bizErr || !biz) return res.status(404).json({ error: 'Business not found' });
   if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
 
-  const changesObj: Record<string, any> = changes || {};
+  const changesObj: Record<string, any> = { ...(changes || {}) };
+  if ('service_tags' in changesObj) {
+    const raw = Array.isArray(changesObj.service_tags)
+      ? changesObj.service_tags
+      : String(changesObj.service_tags || '')
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+    changesObj.service_tags = normalizeServiceTags(raw);
+  }
   const keys = Object.keys(changesObj);
   if (keys.length === 0) return res.status(400).json({ error: 'No changes provided' });
 

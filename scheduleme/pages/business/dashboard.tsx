@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
+import { normalizeServiceTags, serviceTagToLabel } from '../../lib/categoryNormalization';
 
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
 
@@ -502,7 +503,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
           {(business?.service_tags?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {(business!.service_tags ?? []).map((tag: string) => (
-                <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{tag.replace(/_/g, ' ')}</span>
+                <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{serviceTagToLabel(tag)}</span>
               ))}
               {business?.price_tier ? (
                 <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{'$'.repeat(business.price_tier)}</span>
@@ -572,7 +573,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
         {(business?.service_tags?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {(business!.service_tags ?? []).map((tag: string) => (
-              <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{tag.replace(/_/g, ' ')}</span>
+              <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{serviceTagToLabel(tag)}</span>
             ))}
             {business?.price_tier ? (
               <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: dm ? 'rgba(10,132,255,0.15)' : '#e8f0fe', color: '#007e6d' }}>{'$'.repeat(business.price_tier)}</span>
@@ -868,7 +869,7 @@ const BusinessDashboard: NextPage = () => {
     loadBlockedCustomers(biz.id);
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
     setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
-    setEditServices((biz.service_tags || []).join(', '));
+    setEditServices((biz.service_tags || []).map((tag: string) => serviceTagToLabel(tag)).join(', '));
     setEditHours(hoursToMap(biz.hours));
     setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
     setMediaVideo(biz.video_url || null);
@@ -1485,7 +1486,7 @@ const BusinessDashboard: NextPage = () => {
   async function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault(); if (!business) return;
     setSettingsSaving(true); setSettingsError(''); setSettingsNotice('');
-    const tags = editServices.split(',').map(s => s.trim().toLowerCase().replace(/\s+/g, '_')).filter(Boolean);
+    const tags = normalizeServiceTags(editServices.split(',').map(s => s.trim()).filter(Boolean));
 
     // Auto-approve low-risk fields
     const breakUntilIso = editBreakUntil ? new Date(editBreakUntil + 'T23:59:59').toISOString() : null;

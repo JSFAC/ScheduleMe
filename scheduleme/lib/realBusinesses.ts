@@ -5,6 +5,7 @@
 
 import { getSupabaseClient } from './supabaseClient';
 import type { Business } from './mockBusinesses';
+import { normalizeServiceTag, serviceTagToLabel } from './categoryNormalization';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
@@ -33,9 +34,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     ? b.service_tags
     : (b.service_tags ? [String(b.service_tags)] : []);
   const tags = rawTags.filter(Boolean).map((t: any) => String(t));
-  const category = tags.length > 0
-    ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g, ' ')
-    : 'General';
+  const category = tags.length > 0 ? serviceTagToLabel(tags[0]) : 'General';
   const dist = distanceMiles != null
     ? (distanceMiles < 0.1 ? 'Nearby' : distanceMiles.toFixed(1) + ' mi away')
     : b.address || 'Local';
@@ -102,7 +101,8 @@ export async function fetchNearbyBusinesses(
         radius: String(opts.radius ?? 25),
         limit: String(opts.limit ?? 40),
       });
-      if (opts.category) params.set('category', opts.category.toLowerCase());
+      const normalizedCategory = opts.category ? normalizeServiceTag(opts.category) : '';
+      if (normalizedCategory) params.set('category', normalizedCategory);
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
       if (session?.access_token) {
@@ -127,7 +127,7 @@ export async function fetchNearbyBusinesses(
     // Fallback to RPC (if API unavailable)
     const { data, error } = await supabase.rpc('search_businesses_geo', {
       p_lat: lat, p_lng: lng,
-      p_service: opts.category ? opts.category.toLowerCase() : null,
+      p_service: opts.category ? normalizeServiceTag(opts.category) : null,
       p_term: null, p_price_max: null,
       p_radius: opts.radius ?? 25,
       p_limit: opts.limit ?? 40,

@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, getUnknownFields, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
 import { sendChangeRequestDecisionEmail } from '../../lib/email';
+import { normalizeServiceTags } from '../../lib/categoryNormalization';
 
 const ALLOWED_FIELDS = new Set(['name', 'address', 'description', 'cover_url', 'media_urls', 'video_url', 'service_tags', 'phone', 'website', 'hours', 'calendly_url']);
 
@@ -40,6 +41,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     Object.entries(reqRow.changes || {}).forEach(([k, v]) => {
       if (ALLOWED_FIELDS.has(k)) updates[k] = v;
     });
+    if ('service_tags' in updates) {
+      const raw = Array.isArray(updates.service_tags)
+        ? updates.service_tags
+        : String(updates.service_tags || '')
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
+      updates.service_tags = normalizeServiceTags(raw);
+    }
     if (Object.keys(updates).length > 0) {
       const { error: upErr } = await supabase.from('businesses').update(updates).eq('id', reqRow.business_id);
       if (upErr) return res.status(500).json({ error: 'Failed to apply changes' });

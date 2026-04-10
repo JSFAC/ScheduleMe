@@ -3,6 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAdmin } from '../../lib/apiSecurity';
+import { normalizeServiceTags } from '../../lib/categoryNormalization';
 
 function getSupabase() {
   return createClient(
@@ -10,17 +11,6 @@ function getSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
-}
-
-function normalizeTag(tag: string): string {
-  return String(tag || '')
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[/,+]/g, ' ')
-    .replace(/[^a-z0-9 ]/g, '')
-    .replace(/\s+/g, '_')
-    .replace(/^_+|_+$/g, '');
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -42,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? row.service_tags
       : (row.service_tags ? [String(row.service_tags)] : []);
     if (raw.length === 0) continue;
-    const normalized = raw.map(normalizeTag).filter(Boolean);
+    const normalized = normalizeServiceTags(raw);
     if (normalized.length === 0) continue;
     const same = normalized.length === raw.length && normalized.every((t, i) => t === String(raw[i]));
     if (same) continue;

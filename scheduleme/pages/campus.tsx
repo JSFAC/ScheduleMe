@@ -11,6 +11,8 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import { SkeletonCard } from '../components/SkeletonCard';
 import type { Business } from '../lib/mockBusinesses';
+import { serviceTagToLabel } from '../lib/categoryNormalization';
+import { shouldShowNewBadge } from '../lib/newBadge';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
@@ -47,9 +49,7 @@ function mapCampusBusiness(b: any): Business {
     ? b.service_tags
     : (b.service_tags ? [String(b.service_tags)] : []);
   const tags = rawTags.filter(Boolean).map((t: any) => String(t));
-  const category = tags.length > 0
-    ? tags[0].charAt(0).toUpperCase() + tags[0].slice(1).replace(/_/g, ' ')
-    : 'General';
+  const category = tags.length > 0 ? serviceTagToLabel(tags[0]) : 'General';
   const dist = b.address || 'Local';
   const cover = getCover(b.cover_url, b.media_urls);
   const availability = b.availability_status ?? 'open';
@@ -684,7 +684,7 @@ const CampusPage: NextPage = () => {
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
             {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
-            {(biz.reviews ?? 0) === 0 && (
+            {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
             )}
             <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
