@@ -25,11 +25,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
 
   const { data: business } = await supabase.from('businesses')
-    .select('stripe_account_id, name, owner_email').eq('id', businessId).single();
+    .select('id, stripe_account_id, name, owner_email, owner_id').eq('id', businessId).single();
 
   if (!business) return res.status(404).json({ error: 'Business not found' });
+
+  const normalizedUserEmail = (user.email || '').toLowerCase().trim();
+  const normalizedOwnerEmail = (business.owner_email || '').toLowerCase().trim();
+  const hasOwnerId = !!business.owner_id;
+
+  // Legacy records may have owner_email set but owner_id missing.
+  // Safely self-heal by linking owner_id to the authenticated user when emails match.
+  if (!hasOwnerId && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+    const { error: linkError } = await supabase
+      .from('businesses')
+      .update({ owner_id: user.id })
+      .eq('id', businessId);
+    if (linkError) {
+      console.error('[stripe-connect] failed to link legacy owner_id', {
+        businessId,
+        userId: user.id,
+        ownerEmail: business.owner_email || null,
+      });
+      return res.status(500).json({ error: 'Failed to link business owner. Please try again.' });
+    }
+    business.owner_id = user.id;
+  }
+
   // Must own this business
-  if (business.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+  if (business.owner_id !== user.id) {
+    console.warn('[stripe-connect] ownership mismatch', {
+      businessId,
+      ownerId: business.owner_id || null,
+      userId: user.id,
+      ownerEmail: business.owner_email || null,
+      userEmail: user.email || null,
+      userAgent: req.headers['user-agent'] || null,
+    });
+    return res.status(403).json({
+      error: 'This signed-in account is not linked to this provider business.',
+      code: 'OWNER_MISMATCH',
+      ownerEmail: business.owner_email || null,
+    });
+  }
 
   try {
     let stripeAccountId = business.stripe_account_id;
@@ -37,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
         type: 'express',
-        email: business.owner_email,
+        email: business.owner_email || user.email || undefined,
         capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
         business_profile: { name: business.name },
       });
