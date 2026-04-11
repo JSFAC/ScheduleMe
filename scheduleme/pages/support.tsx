@@ -6,7 +6,6 @@ import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 
 const SUPPORT_EMAIL = 'usescheduleme@gmail.com';
-const BACKUP_SUPPORT_EMAIL = 'support@usescheduleme.com';
 const LAST_UPDATED = 'April 11, 2026';
 
 const SupportPage: NextPage = () => {
@@ -73,12 +72,6 @@ const SupportPage: NextPage = () => {
               Primary email:{' '}
               <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-[#007e6d] hover:opacity-80">
                 {SUPPORT_EMAIL}
-              </a>
-            </p>
-            <p className="text-sm mb-1.5" style={{ color: dm ? '#d4d4d8' : '#404040' }}>
-              Backup email:{' '}
-              <a href={`mailto:${BACKUP_SUPPORT_EMAIL}`} className="font-semibold text-[#007e6d] hover:opacity-80">
-                {BACKUP_SUPPORT_EMAIL}
               </a>
             </p>
             <p className="text-sm mb-0.5" style={{ color: dm ? '#a1a1aa' : '#525252' }}>
