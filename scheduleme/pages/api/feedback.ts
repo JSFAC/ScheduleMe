@@ -1,7 +1,16 @@
 // @ts-nocheck
-// pages/api/feedback.ts — receive user feedback and email it to usescheduleme@gmail.com
+// pages/api/feedback.ts — receive user feedback and email it to hello@usescheduleme.com
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
@@ -14,15 +23,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) return res.status(200).json({ success: true });
 
-  const subject = topic ? `Feedback: ${topic}` : 'New feedback from ScheduleMe';
+  const normalizedTopic = (topic || '').toString().trim();
+  const normalizedMessage = (message || '').toString().trim();
+  const normalizedEmail = (email || '').toString().trim();
+
+  const subject = normalizedTopic ? `Feedback: ${normalizedTopic}` : 'New feedback from ScheduleMe';
+  const safeSubject = escapeHtml(subject);
+  const safeTopic = escapeHtml(normalizedTopic);
+  const safeMessage = escapeHtml(normalizedMessage);
+  const safeEmail = escapeHtml(normalizedEmail);
+
   const html = `
-    <div style="font-family:system-ui;max-width:600px;margin:0 auto;padding:32px;">
-      <h2 style="margin:0 0 8px;font-size:18px;font-weight:800;color:#0f172a;">{'$'}{subject}</h2>
-      ${topic ? `<p style="margin:0 0 16px;font-size:12px;font-weight:600;color:#0A84FF;text-transform:uppercase;letter-spacing:0.08em;">{'$'}{topic}</p>` : ''}
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:16px;">
-        <p style="margin:0;font-size:15px;color:#0f172a;line-height:1.6;white-space:pre-wrap;">{'$'}{message.trim()}</p>
+    <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:#f8fafc;">
+      <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:22px;">
+        <h2 style="margin:0 0 10px;font-size:20px;font-weight:800;color:#0f172a;">${safeSubject}</h2>
+        ${normalizedTopic ? `<p style="margin:0 0 16px;font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:0.08em;">${safeTopic}</p>` : ''}
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:14px;">
+          <p style="margin:0;font-size:15px;color:#0f172a;line-height:1.6;white-space:pre-wrap;">${safeMessage}</p>
+        </div>
+        <p style="margin:0;font-size:12px;color:#64748b;">
+          ${normalizedEmail ? `Reply to: <a href="mailto:${safeEmail}" style="color:#0f766e;text-decoration:none;">${safeEmail}</a>` : 'No reply email provided'}
+        </p>
       </div>
-      ${email ? `<p style="margin:0;font-size:13px;color:#64748b;">Reply to: <a href="mailto:${email}" style="color:#0A84FF;">{'$'}{email}</a></p>` : '<p style="font-size:13px;color:#94a3b8;margin:0;">No reply email provided</p>'}
     </div>`;
 
   try {
@@ -31,8 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'ScheduleMe Feedback <notifications@usescheduleme.com>',
-        to: 'usescheduleme@gmail.com',
-        reply_to: email || undefined,
+        to: 'hello@usescheduleme.com',
+        reply_to: normalizedEmail || undefined,
         subject,
         html,
       }),
