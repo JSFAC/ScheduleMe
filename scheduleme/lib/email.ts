@@ -266,6 +266,36 @@ export function welcomeHtml(opts: { name: string }) {
     `Your account is set up. Here is how to find a trusted local professional in minutes.`);
 }
 
+// ─── Template: password reset ───────────────────────────────────────────────
+export function passwordResetHtml(opts: { name: string; resetUrl: string }) {
+  const body = `
+    <tr><td bgcolor="#1d4ed8" style="background:#1d4ed8;padding:36px 32px;text-align:center;">
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">Reset your password</h1>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.82);">Use the secure link below to set a new password.</p>
+    </td></tr>
+    <tr><td style="padding:32px;">
+      <p style="margin:0 0 14px;font-size:15px;color:#0f172a;">Hi <strong>${opts.name}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">
+        We received a request to reset your ScheduleMe password. If this was you, continue below.
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+        <tr><td align="center">
+          <a href="${opts.resetUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 30px;border-radius:10px;">
+            Reset Password →
+          </a>
+        </td></tr>
+      </table>
+      <p style="margin:0 0 10px;font-size:13px;color:#64748b;line-height:1.7;">
+        If the button does not work, copy and paste this link into your browser:
+      </p>
+      <p style="margin:0 0 18px;font-size:12px;color:#334155;word-break:break-all;">${opts.resetUrl}</p>
+      <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.7;">
+        If you did not request this, you can ignore this email. Your password will remain unchanged.
+      </p>
+    </td></tr>`;
+  return layout('Reset your ScheduleMe password', body, 'Reset your password using this secure link.');
+}
+
 // ─── Template: new booking notification to business ──────────────────────────
 export function newBookingBusinessHtml(opts: {
   businessName: string;
@@ -899,6 +929,16 @@ export async function sendBookingCancelledConsumerEmail(opts: {
 export async function sendWelcomeEmail(opts: { to: string; name: string }) {
   const resend = getResend();
   return resend.emails.send({ from: FROM, to: opts.to, subject: `Your ScheduleMe account is ready`, html: welcomeHtml({ name: opts.name }) });
+}
+
+export async function sendPasswordResetEmail(opts: { to: string; name: string; resetUrl: string }) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: 'Reset your ScheduleMe password',
+    html: passwordResetHtml({ name: opts.name, resetUrl: opts.resetUrl }),
+  });
 }
 
 // ─── Payment Receipt — Customer ──────────────────────────────────────────────

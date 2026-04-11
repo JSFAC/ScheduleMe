@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, checkRateLimit, getClientIp, isValidEmail, clampString } from '../../lib/apiSecurity';
+import { sendPasswordResetEmail } from '../../lib/email';
 
 type MobilePasswordResetBody = {
   email?: string;
@@ -8,16 +10,15 @@ type MobilePasswordResetBody = {
   captcha_token?: string;
 };
 
-function getSupabaseAuthBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const trimmed = raw.trim();
-  if (!trimmed) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-  return `https://${trimmed}`;
-}
-
 function isAllowedMobileClient(client: string): boolean {
   return client === 'ios-consumer' || client === 'ios-provider';
+}
+
+function getRedirectUrlForClient(client: string): string {
+  if (client === 'ios-provider') {
+    return process.env.MOBILE_PROVIDER_REDIRECT_URL || 'schedulemeprovider://auth/callback';
+  }
+  return process.env.MOBILE_CONSUMER_REDIRECT_URL || 'scheduleme://auth/callback';
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -46,57 +47,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!isAllowedMobileClient(client)) return res.status(403).json({ error: 'Unsupported mobile client' });
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email address' });
 
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!anonKey) return res.status(500).json({ error: 'Server auth anon config missing' });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  if (!serviceRole || !supabaseUrl) return res.status(500).json({ error: 'Server auth config missing' });
+  if (!process.env.RESEND_API_KEY) return res.status(500).json({ error: 'Email service is not configured' });
 
   try {
-    const authBase = getSupabaseAuthBaseUrl();
-    const endpoint = `${authBase}/auth/v1/recover`;
+    const supabase = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } });
+    const redirectTo = getRedirectUrlForClient(client);
 
-    const payload: Record<string, unknown> = {
+    const generatePayload: Record<string, unknown> = {
+      type: 'recovery',
       email,
-      // Mobile route doesn't require redirect resolution inside app.
-      // Supabase still accepts this and sends reset mail to configured templates.
-      redirect_to: 'schedulemeprovider://auth/callback',
+      options: { redirectTo },
     };
     if (captchaToken) {
-      payload.gotrue_meta_security = { captcha_token: captchaToken };
+      (generatePayload as any).options.captchaToken = captchaToken;
     }
 
-    let upstream = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: anonKey,
-      },
-      body: JSON.stringify(payload),
+    const { data, error } = await (supabase.auth.admin as any).generateLink(generatePayload);
+    if (error) {
+      // Do not reveal account existence for reset requests.
+      const msg = String(error.message || '');
+      const notFoundLike = /not found|no user|email/i.test(msg);
+      if (!notFoundLike) {
+        console.error('[mobile-password-reset][generate-link]', msg);
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    const resetUrl =
+      (data as any)?.properties?.action_link ||
+      (data as any)?.action_link ||
+      '';
+    if (!resetUrl) return res.status(200).json({ ok: true });
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('email', email)
+      .maybeSingle();
+    const firstName = String((profile as any)?.name || email.split('@')[0] || 'there').trim() || 'there';
+
+    await sendPasswordResetEmail({
+      to: email,
+      name: firstName,
+      resetUrl,
     });
-    let response = await upstream.json().catch(() => ({}));
-
-    // Fallback for projects that enforce CAPTCHA on recover for anon callers.
-    if (!upstream.ok && serviceRole) {
-      upstream = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: serviceRole,
-          Authorization: `Bearer ${serviceRole}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      response = await upstream.json().catch(() => ({}));
-    }
-
-    if (!upstream.ok) {
-      const msg =
-        (response as any)?.msg ||
-        (response as any)?.message ||
-        (response as any)?.error_description ||
-        (response as any)?.error ||
-        'Unable to send reset email right now.';
-      return res.status(upstream.status).json({ error: String(msg) });
-    }
 
     return res.status(200).json({ ok: true });
   } catch (error) {
