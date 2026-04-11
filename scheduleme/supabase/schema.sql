@@ -154,6 +154,100 @@ insert into founder50_allowed_campuses (campus_key, active, notes)
 values ('ucsc', true, 'Launch campus')
 on conflict (campus_key) do nothing;
 
+-- Atomic Founder50 assignment.
+-- Enforces eligibility + 50-cap in the database to prevent race conditions.
+create or replace function assign_founder50_if_eligible(p_business_id uuid)
+returns table (assigned boolean, reason text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  b record;
+  normalized_key text;
+  founder_count integer;
+  updated_count integer;
+begin
+  if p_business_id is null then
+    return query select false, 'missing_business_id';
+    return;
+  end if;
+
+  select id, founder50, campus_provider, campus_key, campus_school_name, edu_verified
+  into b
+  from businesses
+  where id = p_business_id
+  for update;
+
+  if not found then
+    return query select false, 'missing_business';
+    return;
+  end if;
+
+  if coalesce(b.founder50, false) then
+    return query select false, 'already_founder50';
+    return;
+  end if;
+  if not coalesce(b.campus_provider, false) then
+    return query select false, 'not_campus_provider';
+    return;
+  end if;
+  if not coalesce(b.edu_verified, false) then
+    return query select false, 'not_edu_verified';
+    return;
+  end if;
+
+  normalized_key := lower(trim(coalesce(b.campus_key, b.campus_school_name, '')));
+  normalized_key := regexp_replace(normalized_key, '[^a-z0-9.]+', '_', 'g');
+  normalized_key := regexp_replace(normalized_key, '^_+|_+$', '', 'g');
+  if normalized_key in ('ucsc', 'ucsc.edu', 'uc_santa_cruz', 'university_of_california_santa_cruz') then
+    normalized_key := 'ucsc';
+  end if;
+  if normalized_key = '' then
+    return query select false, 'missing_campus_key';
+    return;
+  end if;
+
+  if not exists (
+    select 1 from founder50_allowed_campuses
+    where campus_key = normalized_key and active = true
+  ) then
+    return query select false, 'campus_not_allowlisted';
+    return;
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('founder50:' || normalized_key));
+
+  select count(*)
+  into founder_count
+  from businesses
+  where campus_provider = true
+    and campus_key = normalized_key
+    and founder50 = true;
+
+  if founder_count >= 50 then
+    return query select false, 'campus_full';
+    return;
+  end if;
+
+  update businesses
+  set campus_key = normalized_key,
+      founder50 = true,
+      founder50_status = 'active'
+  where id = p_business_id
+    and founder50 = false;
+
+  get diagnostics updated_count = row_count;
+  if updated_count = 1 then
+    return query select true, null::text;
+  else
+    return query select false, 'update_failed';
+  end if;
+end;
+$$;
+
+grant execute on function assign_founder50_if_eligible(uuid) to service_role;
+
 
 -- ============================================================
 -- 2. USERS
