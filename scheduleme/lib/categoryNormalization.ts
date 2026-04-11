@@ -16,16 +16,30 @@ const CATEGORY_DEFS: CategoryDef[] = [
       'hair_and_beauty',
       'hair and beauty',
       'hair & beauty',
+      'hair beauty',
+      'hair salon',
+      'beauty salon',
       'haircuts',
       'haircut',
       'barber',
       'barbershop',
       'salon',
       'salon_beauty',
+      'salon/beauty',
       'salon / beauty',
+      'salon beauty',
       'beauty',
+      'cosmetology',
+      'cosmetologist',
+      'esthetician',
+      'esthetics',
+      'lashes',
+      'lash',
+      'brows',
+      'makeup',
+      'nails',
     ],
-    keywords: ['hair', 'beauty', 'cut', 'cuts', 'barber', 'salon', 'stylist'],
+    keywords: ['hair', 'beauty', 'cut', 'cuts', 'barber', 'salon', 'stylist', 'cosmet', 'esthetic', 'lash', 'brow', 'makeup', 'nail'],
   },
   {
     key: 'design_and_3d_printing',
@@ -186,4 +200,3 @@ export function serviceTagToLabel(tag?: string | null): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
 }
-
