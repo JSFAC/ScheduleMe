@@ -3,7 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAdmin } from '../../lib/apiSecurity';
-import { normalizeServiceTags } from '../../lib/categoryNormalization';
+import { normalizeKnownServiceTag, normalizeServiceTags } from '../../lib/categoryNormalization';
 
 function getSupabase() {
   return createClient(
@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, service_tags');
+    .select('id, service_tags, keywords');
   if (error) return res.status(500).json({ error: error.message });
 
   let updated = 0;
@@ -34,11 +34,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (raw.length === 0) continue;
     const normalized = normalizeServiceTags(raw);
     if (normalized.length === 0) continue;
-    const same = normalized.length === raw.length && normalized.every((t, i) => t === String(raw[i]));
-    if (same) continue;
+
+    const rawKeywords = Array.isArray(row.keywords)
+      ? row.keywords.map((k: unknown) => String(k || '').trim()).filter(Boolean)
+      : [];
+    const normalizedKeywords: string[] = [];
+    const pushUnique = (value: string) => {
+      if (!value) return;
+      if (!normalizedKeywords.includes(value)) normalizedKeywords.push(value);
+    };
+
+    // Keep canonical categories in keywords aligned with normalized service tags.
+    for (const tag of normalized) pushUnique(tag);
+
+    // Preserve non-category free text (e.g., owner names), but normalize known categories.
+    for (const kw of rawKeywords) {
+      const known = normalizeKnownServiceTag(kw);
+      if (known) pushUnique(known);
+      else pushUnique(kw.toLowerCase());
+    }
+
+    const sameTags = normalized.length === raw.length && normalized.every((t, i) => t === String(raw[i]));
+    const sameKeywords = normalizedKeywords.length === rawKeywords.length
+      && normalizedKeywords.every((k, i) => k === rawKeywords[i]);
+    if (sameTags && sameKeywords) continue;
+
     const { error: upErr } = await supabase
       .from('businesses')
-      .update({ service_tags: normalized })
+      .update({ service_tags: normalized, keywords: normalizedKeywords })
       .eq('id', row.id);
     if (!upErr) updated += 1;
   }

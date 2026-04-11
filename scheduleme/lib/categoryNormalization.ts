@@ -291,7 +291,8 @@ function keyFromText(input: string): string {
   return baseNormalize(input).replace(/\s+/g, '_');
 }
 
-export function normalizeServiceTag(input?: string | null): string {
+function normalizeServiceTagInternal(input: string | null | undefined, opts?: { allowFallback?: boolean }): string {
+  const allowFallback = opts?.allowFallback !== false;
   const raw = String(input || '').trim();
   if (!raw) return '';
   const normalized = baseNormalize(raw);
@@ -315,7 +316,18 @@ export function normalizeServiceTag(input?: string | null): string {
   }
   if (bestKey && bestScore > 0) return bestKey;
 
+  if (!allowFallback) return '';
   return keyFromText(raw);
+}
+
+export function normalizeServiceTag(input?: string | null): string {
+  return normalizeServiceTagInternal(input, { allowFallback: true });
+}
+
+// Normalizes only when input maps to a known category.
+// Returns empty string for unknown free text (e.g. owner names).
+export function normalizeKnownServiceTag(input?: string | null): string {
+  return normalizeServiceTagInternal(input, { allowFallback: false });
 }
 
 export function normalizeServiceTags(inputs: Array<string | null | undefined>): string[] {

@@ -180,7 +180,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       lat: geo?.lat ?? null,
       lng: geo?.lng ?? null,
       service_tags: [normalizedCategoryTag || 'other'],
-      keywords: [category.toLowerCase(), cleanOwner.toLowerCase()].filter(Boolean),
+      keywords: [normalizedCategoryTag || 'other', cleanOwner.toLowerCase()].filter(Boolean),
       rating: 0,
       website: website || null,
       instagram: typeof instagram === 'string' ? instagram.slice(0, 200) : null,
