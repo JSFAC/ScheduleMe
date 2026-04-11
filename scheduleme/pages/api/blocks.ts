@@ -14,6 +14,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   const supabase = getSupabase();
 
+  async function resolveBusinessOwnership(businessId: string, user: { id: string; email: string }) {
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('id, owner_id, owner_email')
+      .eq('id', businessId)
+      .maybeSingle();
+    if (!biz) return { biz: null, isOwner: false };
+
+    const normalizedOwnerEmail = String((biz as any).owner_email || '').toLowerCase().trim();
+    const normalizedUserEmail = String(user.email || '').toLowerCase().trim();
+    if (!(biz as any).owner_id && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+      await supabase.from('businesses').update({ owner_id: user.id }).eq('id', businessId);
+      (biz as any).owner_id = user.id;
+    }
+    const isOwner = (biz as any).owner_id === user.id;
+    return { biz, isOwner };
+  }
+
   if (req.method === 'GET') {
     if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'blocks-get' }))) return;
     const user = await requireAuth(req, res);
@@ -23,9 +41,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (business_id) {
       if (!isValidUuid(business_id as string)) return res.status(400).json({ error: 'Valid business_id required' });
       // Verify business ownership
-      const { data: biz } = await supabase.from('businesses').select('owner_email').eq('id', business_id).maybeSingle();
+      const { biz, isOwner } = await resolveBusinessOwnership(String(business_id), user);
       if (!biz) return res.status(404).json({ error: 'Business not found' });
-      if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+      if (!isOwner) return res.status(403).json({ error: 'Access denied' });
       const { data } = await supabase
         .from('blocks')
         .select('id, user_id, business_id, blocked_by, created_at')
@@ -57,8 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!user_id || !isValidUuid(user_id)) return res.status(400).json({ error: 'Valid user_id required' });
 
     // Determine who is blocking
-    const { data: biz } = await supabase.from('businesses').select('owner_email').eq('id', business_id).maybeSingle();
-    const isBusinessOwner = biz?.owner_email === user.email;
+    const { isOwner: isBusinessOwner } = await resolveBusinessOwnership(String(business_id), user);
     const isUser = user.id === user_id;
     if (!isBusinessOwner && !isUser) return res.status(403).json({ error: 'Access denied' });
 

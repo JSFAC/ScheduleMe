@@ -18,8 +18,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!business_id || !isValidUuid(business_id)) return res.status(400).json({ error: 'Valid business_id required' });
 
   const supabase = getSupabase();
-  const { data: biz } = await supabase.from('businesses').select('id, owner_email, media_urls, video_url').eq('id', business_id).maybeSingle();
-  if (!biz || biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+  const { data: biz } = await supabase
+    .from('businesses')
+    .select('id, owner_id, owner_email, media_urls, video_url')
+    .eq('id', business_id)
+    .maybeSingle();
+  if (!biz) return res.status(403).json({ error: 'Access denied' });
+
+  const normalizedOwnerEmail = String((biz as any).owner_email || '').toLowerCase().trim();
+  const normalizedUserEmail = String(user.email || '').toLowerCase().trim();
+  if (!(biz as any).owner_id && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+    await supabase.from('businesses').update({ owner_id: user.id }).eq('id', business_id);
+    (biz as any).owner_id = user.id;
+  }
+  if ((biz as any).owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
   // Extract storage path from URL
   const bucketUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/business-media/`;

@@ -32,12 +32,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (account_type === 'business') {
       const bizQuery = supabase
         .from('businesses')
-        .select('id, owner_email, school_domain, edu_code, edu_code_expires_at, school_email');
-      const { data: biz } = business_id
-        ? await bizQuery.eq('id', business_id).maybeSingle()
-        : await bizQuery.eq('owner_email', user.email).maybeSingle();
+        .select('id, owner_id, owner_email, school_domain, edu_code, edu_code_expires_at, school_email');
+      let biz: any = null;
+      if (business_id) {
+        const { data } = await bizQuery.eq('id', business_id).maybeSingle();
+        biz = data;
+      } else {
+        const { data } = await bizQuery.eq('owner_id', user.id).maybeSingle();
+        biz = data;
+        if (!biz) {
+          const { data: legacyBiz } = await supabase
+            .from('businesses')
+            .select('id, owner_id, owner_email, school_domain, edu_code, edu_code_expires_at, school_email')
+            .eq('owner_email', user.email)
+            .maybeSingle();
+          biz = legacyBiz;
+        }
+      }
       if (!biz) return res.status(404).json({ error: 'Business account not found. Please refresh and try again.' });
-      if (biz.owner_email && biz.owner_email !== user.email) return res.status(403).json({ error: 'Not authorized for this business.' });
+      const normalizedOwnerEmail = String((biz as any).owner_email || '').toLowerCase().trim();
+      const normalizedUserEmail = String(user.email || '').toLowerCase().trim();
+      if (!(biz as any).owner_id && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+        await supabase.from('businesses').update({ owner_id: user.id }).eq('id', biz.id);
+        (biz as any).owner_id = user.id;
+      }
+      if ((biz as any).owner_id !== user.id) return res.status(403).json({ error: 'Not authorized for this business.' });
       if (!biz?.edu_code) return res.status(400).json({ error: 'No pending verification. Request a new code.' });
       if (new Date(biz.edu_code_expires_at) < new Date()) return res.status(400).json({ error: 'Code expired. Request a new one.' });
       if (biz.edu_code !== code.trim()) return res.status(400).json({ error: 'Incorrect code. Try again.' });
@@ -112,12 +131,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const submittedDomain = extractDomain(normalizedSchoolEmail);
 
   if (account_type === 'business') {
-    const bizQuery = supabase.from('businesses').select('id, owner_email, school_domain');
-    const { data: biz } = business_id
-      ? await bizQuery.eq('id', business_id).maybeSingle()
-      : await bizQuery.eq('owner_email', user.email).maybeSingle();
+    const bizQuery = supabase.from('businesses').select('id, owner_id, owner_email, school_domain');
+    let biz: any = null;
+    if (business_id) {
+      const { data } = await bizQuery.eq('id', business_id).maybeSingle();
+      biz = data;
+    } else {
+      const { data } = await bizQuery.eq('owner_id', user.id).maybeSingle();
+      biz = data;
+      if (!biz) {
+        const { data: legacyBiz } = await supabase
+          .from('businesses')
+          .select('id, owner_id, owner_email, school_domain')
+          .eq('owner_email', user.email)
+          .maybeSingle();
+        biz = legacyBiz;
+      }
+    }
     if (!biz) return res.status(404).json({ error: 'Business account not found' });
-    if (biz.owner_email && biz.owner_email !== user.email) return res.status(403).json({ error: 'Not authorized for this business.' });
+    const normalizedOwnerEmail = String((biz as any).owner_email || '').toLowerCase().trim();
+    const normalizedUserEmail = String(user.email || '').toLowerCase().trim();
+    if (!(biz as any).owner_id && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+      await supabase.from('businesses').update({ owner_id: user.id }).eq('id', biz.id);
+      (biz as any).owner_id = user.id;
+    }
+    if ((biz as any).owner_id !== user.id) return res.status(403).json({ error: 'Not authorized for this business.' });
     if (biz.school_domain && submittedDomain !== biz.school_domain) {
       return res.status(400).json({ error: `This email doesn't match your approved school (${biz.school_domain}). Use your ${biz.school_domain} email address.` });
     }

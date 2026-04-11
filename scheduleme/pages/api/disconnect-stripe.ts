@@ -24,12 +24,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: business } = await supabase
     .from('businesses')
-    .select('id, owner_email, stripe_account_id')
+    .select('id, owner_id, owner_email, stripe_account_id')
     .eq('id', businessId)
     .single();
 
   if (!business) return res.status(404).json({ error: 'Business not found' });
-  if (business.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+  const normalizedOwnerEmail = String((business as any).owner_email || '').toLowerCase().trim();
+  const normalizedUserEmail = String(user.email || '').toLowerCase().trim();
+  if (!(business as any).owner_id && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+    await supabase.from('businesses').update({ owner_id: user.id }).eq('id', businessId);
+    (business as any).owner_id = user.id;
+  }
+  if ((business as any).owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
   try {
     await supabase

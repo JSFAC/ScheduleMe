@@ -45,12 +45,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: biz, error: bizErr } = await supabase
     .from('businesses')
-    .select('id, name, owner_email, owner_name, address, description, phone, website, service_tags, cover_url, media_urls, video_url, hours')
+    .select('id, name, owner_id, owner_email, owner_name, address, description, phone, website, service_tags, cover_url, media_urls, video_url, hours')
     .eq('id', business_id)
     .maybeSingle();
 
   if (bizErr || !biz) return res.status(404).json({ error: 'Business not found' });
-  if (biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+  const normalizedOwnerEmail = String((biz as any).owner_email || '').toLowerCase().trim();
+  const normalizedUserEmail = String(user.email || '').toLowerCase().trim();
+  if (!(biz as any).owner_id && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+    await supabase.from('businesses').update({ owner_id: user.id }).eq('id', business_id);
+    (biz as any).owner_id = user.id;
+  }
+  if ((biz as any).owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
   const changesObj: Record<string, any> = { ...(changes || {}) };
   if ('service_tags' in changesObj) {
