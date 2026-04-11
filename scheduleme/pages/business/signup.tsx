@@ -5,6 +5,15 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import BusinessNav from '../../components/BusinessNav';
 
+function PendingIcon() {
+  return (
+    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v5m0 8v5m0-13a4 4 0 014 4c0 .97-.35 1.85-.94 2.53L12 18l-3.06-3.47A3.99 3.99 0 018 12a4 4 0 014-4z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75v2.75" />
+    </svg>
+  );
+}
+
 type Step = 'form' | 'submitting' | 'success';
 interface FormData {
   businessName: string; ownerName: string; email: string; phone: string;
@@ -126,7 +135,9 @@ const SignupPage: NextPage = () => {
       <BusinessNav />
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-24">
         <div className="w-full max-w-lg rounded-2xl border border-neutral-800 bg-neutral-900 p-8 text-center">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent text-xl mb-4">⏳</div>
+          <div className="mx-auto h-12 w-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent mb-4">
+            <PendingIcon />
+          </div>
           <h1 className="text-2xl font-bold text-white mb-2">Application under review</h1>
           <p className="text-sm text-neutral-400">
             You’ve already submitted a provider application. We’re reviewing it now and will email you once it’s approved.

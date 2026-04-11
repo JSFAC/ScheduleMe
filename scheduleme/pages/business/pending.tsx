@@ -11,6 +11,15 @@ function getSupabase() {
   return getSupabaseClient();
 }
 
+function PendingIcon() {
+  return (
+    <svg className="h-11 w-11 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v5m0 8v5m0-13a4 4 0 014 4c0 .97-.35 1.85-.94 2.53L12 18l-3.06-3.47A3.99 3.99 0 018 12a4 4 0 014-4z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75v2.75" />
+    </svg>
+  );
+}
+
 export default function BusinessPending() {
   const router = useRouter();
 
@@ -36,7 +45,9 @@ export default function BusinessPending() {
       </Head>
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: '#f9fafb' }}>
         <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-neutral-100 p-10 text-center">
-          <div className="text-5xl mb-4">⏳</div>
+          <div className="mb-4 flex justify-center">
+            <PendingIcon />
+          </div>
           <h1 className="text-2xl font-bold text-neutral-900 mb-2">Application Under Review</h1>
           <p className="text-neutral-500 text-sm leading-relaxed mb-6">
             Thank you for applying to ScheduleMe! Our team is reviewing your application.
