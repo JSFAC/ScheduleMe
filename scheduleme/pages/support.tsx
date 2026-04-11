@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
+import Link from 'next/link';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
+
+const SUPPORT_EMAIL = 'usescheduleme@gmail.com';
+const BACKUP_SUPPORT_EMAIL = 'support@usescheduleme.com';
+const LAST_UPDATED = 'April 11, 2026';
 
 const SupportPage: NextPage = () => {
   const { dm } = useDm();
@@ -43,17 +48,46 @@ const SupportPage: NextPage = () => {
     <>
       <Head>
         <title>Support — ScheduleMe</title>
-        <meta name="description" content="ScheduleMe support page for App Store review and user support requests." />
+        <meta name="description" content="ScheduleMe support page with direct contact information and support request form for app and website users." />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav />
       <main className="min-h-screen pt-28 pb-16" style={{ background: dm ? '#0a0a0a' : '#FCFAF6' }}>
         <div className="mx-auto max-w-3xl px-6">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#007e6d] mb-3">Support</p>
           <h1 className="text-4xl font-black mb-3" style={{ letterSpacing: '-0.03em', color: dm ? '#f3f4f6' : '#171717' }}>Need help?</h1>
-          <p className="text-sm mb-8" style={{ color: dm ? '#9ca3af' : '#525252' }}>
+          <p className="text-sm mb-2" style={{ color: dm ? '#9ca3af' : '#525252' }}>
             Use this page for account, booking, payment, or app review support requests. Messages are sent to
-            {' '}<span className="font-semibold">usescheduleme@gmail.com</span>.
+            {' '}<span className="font-semibold">{SUPPORT_EMAIL}</span>.
           </p>
+          <p className="text-xs mb-8" style={{ color: dm ? '#71717a' : '#737373' }}>
+            Last updated: {LAST_UPDATED}
+          </p>
+
+          <section
+            className="rounded-3xl border p-5 md:p-6 mb-6"
+            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}
+          >
+            <h2 className="text-base font-bold mb-3" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Direct Support Contact</h2>
+            <p className="text-sm mb-1.5" style={{ color: dm ? '#d4d4d8' : '#404040' }}>
+              Primary email:{' '}
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-[#007e6d] hover:opacity-80">
+                {SUPPORT_EMAIL}
+              </a>
+            </p>
+            <p className="text-sm mb-1.5" style={{ color: dm ? '#d4d4d8' : '#404040' }}>
+              Backup email:{' '}
+              <a href={`mailto:${BACKUP_SUPPORT_EMAIL}`} className="font-semibold text-[#007e6d] hover:opacity-80">
+                {BACKUP_SUPPORT_EMAIL}
+              </a>
+            </p>
+            <p className="text-sm mb-0.5" style={{ color: dm ? '#a1a1aa' : '#525252' }}>
+              Typical response time: within 1 business day.
+            </p>
+            <p className="text-sm" style={{ color: dm ? '#a1a1aa' : '#525252' }}>
+              For urgent safety or account-access issues, include <span className="font-semibold">Urgent Security</span> in the subject.
+            </p>
+          </section>
 
           <form
             onSubmit={submit}
@@ -146,11 +180,20 @@ const SupportPage: NextPage = () => {
               >
                 {loading ? 'Sending…' : 'Send support request'}
               </button>
-              <a href="mailto:usescheduleme@gmail.com" className="text-sm font-semibold text-[#007e6d] hover:opacity-80">
-                Or email usescheduleme@gmail.com directly
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sm font-semibold text-[#007e6d] hover:opacity-80">
+                Or email {SUPPORT_EMAIL} directly
               </a>
             </div>
           </form>
+
+          <section className="mt-8 pb-4">
+            <h2 className="text-base font-bold mb-2.5" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Helpful Links</h2>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <Link href="/privacy" className="font-semibold text-[#007e6d] hover:opacity-80">Privacy Policy</Link>
+              <Link href="/terms" className="font-semibold text-[#007e6d] hover:opacity-80">Terms of Service</Link>
+              <Link href="/" className="font-semibold text-[#007e6d] hover:opacity-80">Back to Home</Link>
+            </div>
+          </section>
 
         </div>
       </main>
