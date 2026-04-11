@@ -4,8 +4,6 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import { sendWelcomeEmail } from './email';
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
@@ -19,7 +17,92 @@ export function setSecurityHeaders(res: NextApiResponse) {
 }
 
 // ─── Rate Limiter ─────────────────────────────────────────────────────────────
-// Upstash-only limiter for production-safe multi-instance behavior.
+// In-memory fallback store.
+const rlStore = new Map<string, { count: number; resetAt: number }>();
+
+// Clean up expired entries every 5 minutes
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of rlStore.entries()) {
+      if (now > v.resetAt) rlStore.delete(k);
+    }
+  }, 5 * 60_000);
+}
+
+export function checkRateLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number
+): { allowed: boolean; remaining: number; resetAt: number } {
+  const now = Date.now();
+  const entry = rlStore.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    const resetAt = now + windowMs;
+    rlStore.set(key, { count: 1, resetAt });
+    return { allowed: true, remaining: maxRequests - 1, resetAt };
+  }
+
+  if (entry.count >= maxRequests) {
+    return { allowed: false, remaining: 0, resetAt: entry.resetAt };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: maxRequests - entry.count, resetAt: entry.resetAt };
+}
+
+async function checkRateLimitUpstash(
+  key: string,
+  maxRequests: number,
+  windowMs: number
+): Promise<{ allowed: boolean; remaining: number; resetAt: number } | null> {
+  const baseURL = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/+$/, '');
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!baseURL || !token) return null;
+
+  const now = Date.now();
+  const fallbackResetAt = now + windowMs;
+  const encodedKey = encodeURIComponent(key);
+  const authHeaders = { Authorization: `Bearer ${token}` };
+
+  try {
+    const incrRes = await fetch(`${baseURL}/incr/${encodedKey}`, { headers: authHeaders });
+    if (!incrRes.ok) return null;
+    const incrPayload = await incrRes.json();
+    const count = Number(incrPayload?.result ?? 0);
+    if (!Number.isFinite(count) || count <= 0) return null;
+
+    if (count === 1) {
+      // First hit in window sets TTL.
+      await fetch(`${baseURL}/expire/${encodedKey}/${Math.max(1, Math.ceil(windowMs / 1000))}`, {
+        headers: authHeaders,
+      });
+    }
+
+    let resetAt = fallbackResetAt;
+    try {
+      const ttlRes = await fetch(`${baseURL}/pttl/${encodedKey}`, { headers: authHeaders });
+      if (ttlRes.ok) {
+        const ttlPayload = await ttlRes.json();
+        const ttlMs = Number(ttlPayload?.result ?? -1);
+        if (Number.isFinite(ttlMs) && ttlMs > 0) {
+          resetAt = now + ttlMs;
+        }
+      }
+    } catch {
+      // keep fallback resetAt
+    }
+
+    return {
+      allowed: count <= maxRequests,
+      remaining: Math.max(0, maxRequests - count),
+      resetAt,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function getClientIp(req: NextApiRequest): string {
   return (
@@ -30,102 +113,113 @@ export function getClientIp(req: NextApiRequest): string {
 }
 
 // Rate limit helper that sends the 429 response automatically
-const upstashLimiters = new Map<string, Ratelimit>();
-const inProcessLimiters = new Map<string, { count: number; resetAt: number }>();
-
-function getUpstashLimiter(max: number, windowMs: number): Ratelimit | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  const key = `${max}:${windowMs}`;
-  let limiter = upstashLimiters.get(key);
-  if (!limiter) {
-    const redis = new Redis({ url, token });
-    limiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.fixedWindow(max, `${windowMs} ms`),
-      analytics: true,
-      prefix: 'sm',
-    });
-    upstashLimiters.set(key, limiter);
-  }
-  return limiter;
-}
-
 export async function rateLimit(
   req: NextApiRequest,
   res: NextApiResponse,
-  opts: { max: number; windowMs: number; keyPrefix?: string; allowInProcessFallback?: boolean }
+  opts: { max: number; windowMs: number; keyPrefix?: string }
 ): Promise<boolean> {
   const ip = getClientIp(req);
   const key = `${opts.keyPrefix ?? 'rl'}:${ip}`;
-  const upstash = getUpstashLimiter(opts.max, opts.windowMs);
-  const strict = process.env.RATE_LIMIT_STRICT
-    ? process.env.RATE_LIMIT_STRICT === 'true'
-    : process.env.NODE_ENV === 'production';
-  const applyInProcessFallback = () => {
-    const now = Date.now();
-    const current = inProcessLimiters.get(key);
-    if (!current || current.resetAt <= now) {
-      const resetAt = now + opts.windowMs;
-      inProcessLimiters.set(key, { count: 1, resetAt });
-      res.setHeader('X-RateLimit-Limit', String(opts.max));
-      res.setHeader('X-RateLimit-Remaining', String(Math.max(0, opts.max - 1)));
-      res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)));
-      res.setHeader('X-RateLimit-Bypass', 'in_process_fallback');
-      return true;
-    }
-    current.count += 1;
-    inProcessLimiters.set(key, current);
-    const remaining = Math.max(0, opts.max - current.count);
-    res.setHeader('X-RateLimit-Limit', String(opts.max));
-    res.setHeader('X-RateLimit-Remaining', String(remaining));
-    res.setHeader('X-RateLimit-Reset', String(Math.ceil(current.resetAt / 1000)));
-    res.setHeader('X-RateLimit-Bypass', 'in_process_fallback');
-    if (current.count > opts.max) {
-      res.status(429).json({
-        error: 'Too many requests. Please slow down and try again shortly.',
-      });
-      return false;
-    }
-    return true;
-  };
+  const result =
+    (await checkRateLimitUpstash(key, opts.max, opts.windowMs)) ??
+    checkRateLimit(key, opts.max, opts.windowMs);
 
-  if (!upstash) {
-    if (strict && !opts.allowInProcessFallback) {
-      res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
-      return false;
-    }
-    if (opts.allowInProcessFallback) return applyInProcessFallback();
-    res.setHeader('X-RateLimit-Bypass', 'upstash_not_configured');
-    return true;
+  res.setHeader('X-RateLimit-Limit', String(opts.max));
+  res.setHeader('X-RateLimit-Remaining', String(result.remaining));
+  res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
+
+  if (!result.allowed) {
+    res.status(429).json({
+      error: 'Too many requests. Please slow down and try again shortly.',
+    });
+    return false;
   }
-  try {
-    const result = await upstash.limit(key);
-    res.setHeader('X-RateLimit-Limit', String(opts.max));
-    res.setHeader('X-RateLimit-Remaining', String(result.remaining));
-    res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
-    if (!result.success) {
-      res.status(429).json({
-        error: 'Too many requests. Please slow down and try again shortly.',
-      });
-      return false;
-    }
-    return true;
-  } catch {
-    if (strict && !opts.allowInProcessFallback) {
-      res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
-      return false;
-    }
-    if (opts.allowInProcessFallback) return applyInProcessFallback();
-    res.setHeader('X-RateLimit-Bypass', 'upstash_unavailable');
-    return true;
+  return true;
+}
+
+// Per-user/principal rate limit helper for authenticated routes.
+export async function rateLimitByPrincipal(
+  res: NextApiResponse,
+  principal: string,
+  opts: { max: number; windowMs: number; keyPrefix?: string }
+): Promise<boolean> {
+  const normalizedPrincipal = principal?.trim() || 'unknown';
+  const key = `${opts.keyPrefix ?? 'rl-user'}:${normalizedPrincipal}`;
+  const result =
+    (await checkRateLimitUpstash(key, opts.max, opts.windowMs)) ??
+    checkRateLimit(key, opts.max, opts.windowMs);
+
+  res.setHeader('X-User-RateLimit-Limit', String(opts.max));
+  res.setHeader('X-User-RateLimit-Remaining', String(result.remaining));
+  res.setHeader('X-User-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
+
+  if (!result.allowed) {
+    res.status(429).json({
+      error: 'Too many requests for this account. Please try again shortly.',
+    });
+    return false;
   }
+  return true;
 }
 
 // ─── Auth Verification ────────────────────────────────────────────────────────
 // Verifies the Bearer token and returns the authenticated user
 // Returns null and sends 401 if invalid
+const welcomeEmailInFlight = new Set<string>();
+
+async function maybeSendFirstLoginWelcome(user: any) {
+  const userId = user?.id;
+  const email = (user?.email || '').toString().trim().toLowerCase();
+  if (!userId || !email) return;
+  if (welcomeEmailInFlight.has(userId)) return;
+  if (!process.env.RESEND_API_KEY) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+
+  welcomeEmailInFlight.add(userId);
+  try {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('has_seen_welcome, name, role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    // Provider/business accounts follow a separate onboarding and should not get consumer welcome.
+    if ((profile as any)?.role === 'business') return;
+    if ((profile as any)?.has_seen_welcome === true) return;
+
+    const derivedName =
+      (profile as any)?.name ||
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      email.split('@')[0] ||
+      'there';
+
+    await sendWelcomeEmail({ to: email, name: derivedName });
+
+    await admin
+      .from('profiles')
+      .upsert(
+        {
+          id: userId,
+          email,
+          name: derivedName,
+          has_seen_welcome: true,
+        },
+        { onConflict: 'id', ignoreDuplicates: false }
+      );
+  } catch (err) {
+    console.error('[welcome-email][requireAuth]', err);
+  } finally {
+    welcomeEmailInFlight.delete(userId);
+  }
+}
+
 export async function requireAuth(
   req: NextApiRequest,
   res: NextApiResponse
@@ -139,9 +233,24 @@ export async function requireAuth(
   }
 
   try {
+    const supabaseURL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const verifyKey =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseURL || !verifyKey) {
+      console.error('[requireAuth] Missing Supabase auth env vars', {
+        hasURL: !!supabaseURL,
+        hasAnon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      });
+      res.status(500).json({ error: 'Server auth configuration is missing.' });
+      return null;
+    }
+
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      supabaseURL,
+      verifyKey
     );
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
@@ -150,7 +259,9 @@ export async function requireAuth(
       return null;
     }
 
-    void maybeSendFirstLoginWelcome({ id: user.id, email: user.email ?? '' });
+    // Fire-and-forget first-login welcome email for consumer accounts.
+    // This makes welcome delivery independent of any specific page (web/mobile parity).
+    void maybeSendFirstLoginWelcome(user);
 
     return { id: user.id, email: user.email ?? '' };
   } catch {
@@ -159,53 +270,11 @@ export async function requireAuth(
   }
 }
 
-const welcomeEmailInFlight = new Set<string>();
-
-async function maybeSendFirstLoginWelcome(user: { id: string; email: string }) {
-  if (!user?.id || welcomeEmailInFlight.has(user.id)) return;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return;
-
-  welcomeEmailInFlight.add(user.id);
-  try {
-    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('id, email, name, role, has_seen_welcome')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (profile?.has_seen_welcome === true) return;
-    if (profile?.role === 'business') return;
-
-    const normalizedEmail = String(profile?.email || user.email || '').trim().toLowerCase();
-    if (!isValidEmail(normalizedEmail)) return;
-    const normalizedName = String(profile?.name || normalizedEmail.split('@')[0] || 'there').trim() || 'there';
-
-    if (process.env.RESEND_API_KEY) {
-      await sendWelcomeEmail({ to: normalizedEmail, name: normalizedName });
-    }
-
-    await admin.from('profiles').upsert(
-      {
-        id: user.id,
-        email: normalizedEmail,
-        name: normalizedName,
-        has_seen_welcome: true,
-      },
-      { onConflict: 'id', ignoreDuplicates: false }
-    );
-  } catch (err) {
-    console.error('[welcome-first-login]', err);
-  } finally {
-    welcomeEmailInFlight.delete(user.id);
-  }
-}
-
-// ─── Admin Verification ─────────────────────────────────────────────────────
-// Requires authenticated user + admin role (or email allowlist)
+// ─── Admin Verification ──────────────────────────────────────────────────────
+// Verifies Bearer token belongs to an allowed admin user.
+// Admin is determined by:
+// 1) ADMIN_EMAIL_ALLOWLIST env (comma-separated), OR
+// 2) profiles.role = 'admin'
 export async function requireAdmin(
   req: NextApiRequest,
   res: NextApiResponse
@@ -213,63 +282,30 @@ export async function requireAdmin(
   const user = await requireAuth(req, res);
   if (!user) return null;
 
+  const email = (user.email || '').toLowerCase().trim();
   const allowlist = (process.env.ADMIN_EMAIL_ALLOWLIST || '')
     .split(',')
-    .map(v => v.trim().toLowerCase())
+    .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
-  if (allowlist.includes(user.email.toLowerCase())) {
-    await logAuditEvent(req, 'admin_access', {
-      entity_type: 'admin',
-      entity_id: null,
-      actor_id: user.id,
-      actor_email: user.email,
-      actor_role: 'admin',
-      meta: { method: req.method, path: req.url },
-    });
+
+  if (email && allowlist.includes(email)) {
     return user;
   }
 
+  // Fallback: explicit admin role in profiles
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !serviceKey) {
-      res.status(500).json({ error: 'Server misconfigured' });
-      return null;
-    }
-    const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
-    const { data: profile } = await supabase
+    const adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+    const { data: profile } = await adminClient
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .maybeSingle();
-    if (profile?.role === 'admin') {
-      await logAuditEvent(req, 'admin_access', {
-        entity_type: 'admin',
-        entity_id: null,
-        actor_id: user.id,
-        actor_email: user.email,
-        actor_role: 'admin',
-        meta: { method: req.method, path: req.url },
-      });
-      return user;
-    }
-    // fallback: check by email in case profile row differs from auth id
-    const { data: profileByEmail } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('email', user.email)
-      .maybeSingle();
-    if (profileByEmail?.role === 'admin') {
-      await logAuditEvent(req, 'admin_access', {
-        entity_type: 'admin',
-        entity_id: null,
-        actor_id: user.id,
-        actor_email: user.email,
-        actor_role: 'admin',
-        meta: { method: req.method, path: req.url, via: 'email_fallback' },
-      });
-      return user;
-    }
+
+    if ((profile as any)?.role === 'admin') return user;
   } catch {}
 
   res.status(403).json({ error: 'Admin access required.' });
@@ -308,50 +344,4 @@ export function pickFields<T extends object>(
     }
   }
   return result;
-}
-
-// Return unknown fields in a request body (for strict allowlisting)
-export function getUnknownFields(
-  body: unknown,
-  allowed: string[]
-): string[] {
-  if (!body || typeof body !== 'object') return [];
-  return Object.keys(body as object).filter((key) => !allowed.includes(key));
-}
-
-// ─── Audit Logging ───────────────────────────────────────────────────────────
-// Writes a lightweight audit log for sensitive mutations (best-effort).
-export async function logAuditEvent(
-  req: NextApiRequest,
-  action: string,
-  details: {
-    entity_type?: string;
-    entity_id?: string | null;
-    actor_id?: string | null;
-    actor_email?: string | null;
-    actor_role?: string | null;
-    meta?: Record<string, any>;
-  } = {}
-) {
-  try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !serviceKey) return;
-    const sb = createClient(url, serviceKey, { auth: { persistSession: false } });
-    const ip = getClientIp(req);
-    const ua = (req.headers['user-agent'] as string) || '';
-    await sb.from('audit_logs').insert({
-      action,
-      entity_type: details.entity_type || null,
-      entity_id: details.entity_id || null,
-      actor_id: details.actor_id || null,
-      actor_email: details.actor_email || null,
-      actor_role: details.actor_role || null,
-      ip,
-      user_agent: ua.slice(0, 512),
-      meta: details.meta || null,
-    });
-  } catch {
-    // Never block the request on audit logging failures.
-  }
 }

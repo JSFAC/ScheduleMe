@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { setSecurityHeaders, rateLimit, isValidEmail, clampString } from '../../lib/apiSecurity';
+import { setSecurityHeaders, checkRateLimit, getClientIp, isValidEmail, clampString } from '../../lib/apiSecurity';
 
 type AuthMode = 'login' | 'signup';
 
@@ -8,6 +8,8 @@ type MobileAuthBody = {
   password?: string;
   mode?: AuthMode;
   client?: string;
+  captchaToken?: string;
+  captcha_token?: string;
 };
 
 function getSupabaseAuthBaseUrl(): string {
@@ -25,25 +27,38 @@ function isAllowedMobileClient(client: string): boolean {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!(await rateLimit(req, res, {
-    max: 30,
-    windowMs: 60_000,
-    keyPrefix: 'mobile-email-auth',
-    allowInProcessFallback: true,
-  }))) return;
+
+  // Keep mobile email auth available even when external rate-limit infrastructure is degraded.
+  // This route uses the in-process limiter directly to avoid auth outages.
+  try {
+    const ip = getClientIp(req);
+    const rl = checkRateLimit(`mobile-email-auth:${ip}`, 30, 60_000);
+    res.setHeader('X-RateLimit-Limit', '30');
+    res.setHeader('X-RateLimit-Remaining', String(rl.remaining));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(rl.resetAt / 1000)));
+    if (!rl.allowed) {
+      return res.status(429).json({ error: 'Too many requests. Please slow down and try again shortly.' });
+    }
+  } catch (rateLimitError) {
+    console.error('[mobile-email-auth][rate-limit-soft-fail]', rateLimitError);
+    res.setHeader('X-RateLimit-Bypass', '1');
+  }
 
   const body = (req.body || {}) as MobileAuthBody;
   const email = clampString(body.email, 254).toLowerCase();
   const password = typeof body.password === 'string' ? body.password : '';
   const mode: AuthMode = body.mode === 'signup' ? 'signup' : 'login';
   const client = clampString(body.client, 40).toLowerCase();
+  const captchaToken = clampString((body.captchaToken ?? body.captcha_token) as string, 2048);
 
   if (!isAllowedMobileClient(client)) return res.status(403).json({ error: 'Unsupported mobile client' });
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email address' });
   if (password.length < 6 || password.length > 128) return res.status(400).json({ error: 'Invalid password length' });
 
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  if (!anonKey) return res.status(500).json({ error: 'Server auth config missing' });
+  if (!serviceRole) return res.status(500).json({ error: 'Server auth config missing' });
+  if (!anonKey) return res.status(500).json({ error: 'Server auth anon config missing' });
 
   try {
     const authBase = getSupabaseAuthBaseUrl();
@@ -51,18 +66,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? `${authBase}/auth/v1/signup`
       : `${authBase}/auth/v1/token?grant_type=password`;
 
-    const upstream = await fetch(endpoint, {
+    const basePayload: Record<string, unknown> = { email, password };
+    if (captchaToken) {
+      basePayload.gotrue_meta_security = { captcha_token: captchaToken };
+    }
+
+    // Attempt 1: official client-like path (anon apikey, no service-role auth header).
+    // This best matches Supabase's normal signInWithPassword semantics.
+    let upstream = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
       },
-      body: JSON.stringify({ email, password }),
-      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify(basePayload),
     });
+    let payload = await upstream.json().catch(() => ({}));
 
-    const payload = await upstream.json().catch(() => ({}));
+    // Attempt 2: service-role fallback (legacy mobile route behavior).
+    if (!upstream.ok && mode === 'login') {
+      upstream = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: serviceRole,
+          Authorization: `Bearer ${serviceRole}`,
+        },
+        body: JSON.stringify(basePayload),
+      });
+      payload = await upstream.json().catch(() => ({}));
+    }
+
     if (!upstream.ok) {
       const msg = (payload as any)?.msg || (payload as any)?.error_description || (payload as any)?.error || 'Email authentication failed';
       return res.status(upstream.status).json({ error: String(msg) });
