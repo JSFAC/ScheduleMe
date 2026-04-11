@@ -340,6 +340,34 @@ export function normalizeServiceTags(inputs: Array<string | null | undefined>): 
   return out;
 }
 
+function formatKeywordToken(token: string): string {
+  const t = String(token || '').trim();
+  if (!t) return '';
+  if (t.toLowerCase() === 'and') return '';
+  if (t.toLowerCase() === '3d') return '3D';
+  return t.toLowerCase();
+}
+
+export function serviceTagToTopicKeywords(tag?: string | null): string[] {
+  const key = normalizeServiceTag(tag);
+  if (!key) return [];
+  return key
+    .split('_')
+    .map(formatKeywordToken)
+    .filter(Boolean);
+}
+
+export function serviceTagsToTopicKeywords(tags: Array<string | null | undefined>): string[] {
+  const out: string[] = [];
+  for (const tag of tags || []) {
+    const tokens = serviceTagToTopicKeywords(tag);
+    for (const token of tokens) {
+      if (!out.includes(token)) out.push(token);
+    }
+  }
+  return out;
+}
+
 export function serviceTagToLabel(tag?: string | null): string {
   const key = normalizeServiceTag(tag);
   if (!key) return 'General';

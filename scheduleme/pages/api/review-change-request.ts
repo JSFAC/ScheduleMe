@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, getUnknownFields, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
 import { sendChangeRequestDecisionEmail } from '../../lib/email';
-import { normalizeServiceTags } from '../../lib/categoryNormalization';
+import { normalizeServiceTags, serviceTagsToTopicKeywords } from '../../lib/categoryNormalization';
 
 const ALLOWED_FIELDS = new Set(['name', 'address', 'description', 'cover_url', 'media_urls', 'video_url', 'service_tags', 'phone', 'website', 'hours', 'calendly_url']);
 
@@ -49,6 +49,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .map((t) => t.trim())
             .filter(Boolean);
       updates.service_tags = normalizeServiceTags(raw);
+      updates.keywords = [
+        ...serviceTagsToTopicKeywords(updates.service_tags),
+        String(reqRow.businesses?.owner_name || '').toLowerCase().trim(),
+      ].filter(Boolean);
     }
     if (Object.keys(updates).length > 0) {
       const { error: upErr } = await supabase.from('businesses').update(updates).eq('id', reqRow.business_id);

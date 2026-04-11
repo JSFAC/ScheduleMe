@@ -3,7 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAdmin } from '../../lib/apiSecurity';
-import { normalizeKnownServiceTag, normalizeServiceTags } from '../../lib/categoryNormalization';
+import { normalizeKnownServiceTag, normalizeServiceTags, serviceTagToTopicKeywords, serviceTagsToTopicKeywords } from '../../lib/categoryNormalization';
 
 function getSupabase() {
   return createClient(
@@ -44,14 +44,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!normalizedKeywords.includes(value)) normalizedKeywords.push(value);
     };
 
-    // Keep canonical categories in keywords aligned with normalized service tags.
-    for (const tag of normalized) pushUnique(tag);
+    // Keep category topics in keywords aligned with normalized service tags.
+    for (const topic of serviceTagsToTopicKeywords(normalized)) pushUnique(topic);
 
     // Preserve non-category free text (e.g., owner names), but normalize known categories.
     for (const kw of rawKeywords) {
       const known = normalizeKnownServiceTag(kw);
-      if (known) pushUnique(known);
-      else pushUnique(kw.toLowerCase());
+      if (known) {
+        for (const topic of serviceTagToTopicKeywords(known)) pushUnique(topic);
+      } else if (kw.toLowerCase() === 'and') {
+        continue;
+      } else if (kw.toLowerCase() === '3d') {
+        pushUnique('3D');
+      } else {
+        pushUnique(kw.toLowerCase());
+      }
     }
 
     const sameTags = normalized.length === raw.length && normalized.every((t, i) => t === String(raw[i]));

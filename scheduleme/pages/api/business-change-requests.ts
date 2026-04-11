@@ -5,7 +5,7 @@ import { setSecurityHeaders, rateLimit, requireAuth, getUnknownFields, logAuditE
 import { containsProfanity, containsThreat } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 import { sendChangeRequestAdminEmail, sendChangeRequestReceiptEmail } from '../../lib/email';
-import { normalizeServiceTags } from '../../lib/categoryNormalization';
+import { normalizeServiceTags, serviceTagsToTopicKeywords } from '../../lib/categoryNormalization';
 
 const ADMIN_EMAIL = 'usescheduleme@gmail.com';
 const APPROVAL_FIELDS = new Set(['name', 'category', 'address', 'description', 'cover_url', 'media_urls', 'video_url']);
@@ -104,6 +104,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (AUTO_FIELDS.has(k)) updates[k] = changesObj[k];
     }
     if (Object.keys(updates).length > 0) {
+      if ('service_tags' in updates) {
+        updates.keywords = [...serviceTagsToTopicKeywords(updates.service_tags), String(biz.owner_name || '').toLowerCase().trim()].filter(Boolean);
+      }
       const { error } = await supabase.from('businesses').update(updates).eq('id', business_id);
       if (error) return res.status(500).json({ error: 'Failed to apply changes' });
     }

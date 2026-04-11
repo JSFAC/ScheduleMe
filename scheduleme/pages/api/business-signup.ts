@@ -6,7 +6,7 @@ import { moderateText } from '../../lib/moderation';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidEmail, isValidPhone, getUnknownFields, getClientIp } from '../../lib/apiSecurity';
 import { requireCaptcha } from '../../lib/captcha';
 import { sendNewBusinessApplicationEmail, sendBusinessApplicationReceivedEmail } from '../../lib/email';
-import { normalizeServiceTag } from '../../lib/categoryNormalization';
+import { normalizeServiceTag, serviceTagToTopicKeywords } from '../../lib/categoryNormalization';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -180,7 +180,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       lat: geo?.lat ?? null,
       lng: geo?.lng ?? null,
       service_tags: [normalizedCategoryTag || 'other'],
-      keywords: [normalizedCategoryTag || 'other', cleanOwner.toLowerCase()].filter(Boolean),
+      keywords: [...serviceTagToTopicKeywords(normalizedCategoryTag || 'other'), cleanOwner.toLowerCase()].filter(Boolean),
       rating: 0,
       website: website || null,
       instagram: typeof instagram === 'string' ? instagram.slice(0, 200) : null,
