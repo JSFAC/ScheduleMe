@@ -79,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const ext = (String(file_name).split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const safeName = cleanFileName(String(file_name));
   const stamped = `${Date.now()}_${safeName}`;
-  const bucket = process.env.MESSAGE_MEDIA_BUCKET || 'business-media';
+  const bucket = process.env.MESSAGE_MEDIA_BUCKET || 'message-media';
   const objectPath = `messages/${booking_id}/${stamped}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
@@ -87,6 +87,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .upload(objectPath, buffer, { contentType: file_type, upsert: false });
 
   if (uploadError) return res.status(500).json({ error: `Storage failed: ${uploadError.message}` });
-  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(objectPath);
-  return res.status(200).json({ url: publicUrl });
+  const { data: signed, error: signError } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(objectPath, 15 * 60);
+  if (signError || !signed?.signedUrl) {
+    return res.status(500).json({ error: 'Failed to create signed URL' });
+  }
+
+  return res.status(200).json({
+    url: signed.signedUrl,
+    storage_ref: `storage://${bucket}/${objectPath}`,
+    expires_in: 15 * 60,
+  });
 }

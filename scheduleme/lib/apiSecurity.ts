@@ -59,7 +59,9 @@ export async function rateLimit(
   const ip = getClientIp(req);
   const key = `${opts.keyPrefix ?? 'rl'}:${ip}`;
   const upstash = getUpstashLimiter(opts.max, opts.windowMs);
-  const strict = process.env.RATE_LIMIT_STRICT === 'true';
+  const strict = process.env.RATE_LIMIT_STRICT
+    ? process.env.RATE_LIMIT_STRICT === 'true'
+    : process.env.NODE_ENV === 'production';
   if (!upstash) {
     if (strict) {
       res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });

@@ -12,6 +12,66 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+const MESSAGE_MEDIA_BUCKET = process.env.MESSAGE_MEDIA_BUCKET || 'message-media';
+
+function parseStorageRef(input: string): { bucket: string; path: string } | null {
+  const value = String(input || '').trim();
+  if (!value) return null;
+
+  if (value.startsWith('storage://')) {
+    const rest = value.slice('storage://'.length);
+    const slash = rest.indexOf('/');
+    if (slash <= 0) return null;
+    return { bucket: rest.slice(0, slash), path: rest.slice(slash + 1) };
+  }
+
+  try {
+    const u = new URL(value);
+    const marker = '/storage/v1/object/';
+    const idx = u.pathname.indexOf(marker);
+    if (idx === -1) return null;
+    const suffix = u.pathname.slice(idx + marker.length);
+    if (suffix.startsWith('public/')) {
+      const body = suffix.slice('public/'.length);
+      const slash = body.indexOf('/');
+      if (slash <= 0) return null;
+      return { bucket: body.slice(0, slash), path: body.slice(slash + 1) };
+    }
+    if (suffix.startsWith('sign/')) {
+      const body = suffix.slice('sign/'.length);
+      const slash = body.indexOf('/');
+      if (slash <= 0) return null;
+      return { bucket: body.slice(0, slash), path: body.slice(slash + 1) };
+    }
+  } catch {}
+
+  return null;
+}
+
+async function hydrateMessageMediaUrls(
+  supabase: ReturnType<typeof getSupabase>,
+  rows: any[],
+  cache: Map<string, string>
+) {
+  for (const row of rows || []) {
+    const raw = String(row?.image_url || '').trim();
+    if (!raw) continue;
+    const parsed = parseStorageRef(raw);
+    if (!parsed) continue;
+    const key = `${parsed.bucket}/${parsed.path}`;
+    const cached = cache.get(key);
+    if (cached) {
+      row.image_url = cached;
+      continue;
+    }
+    const { data } = await supabase.storage.from(parsed.bucket).createSignedUrl(parsed.path, 15 * 60);
+    if (data?.signedUrl) {
+      row.image_url = data.signedUrl;
+      cache.set(key, data.signedUrl);
+    }
+  }
+}
+
 async function hydrateProfileFromAuth(
   supabase: ReturnType<typeof getSupabase>,
   userId: string | null | undefined,
@@ -61,6 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { booking_id, user_id, business_id } = req.query;
     const supabase = getSupabase();
+    const mediaUrlCache = new Map<string, string>();
 
     const { thread_business_id, thread_customer_id } = req.query;
     const limitNum = Math.min(Number(req.query.limit ?? 40), 200);
@@ -80,7 +141,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .order('created_at', { ascending: true })
           .limit(limitNum);
         if (error) throw error;
-        return { messages: data || [], hasMore: false };
+        const rows = data || [];
+        await hydrateMessageMediaUrls(supabase, rows, mediaUrlCache);
+        return { messages: rows, hasMore: false };
       }
 
       if (before) query = query.lt('created_at', before);
@@ -91,7 +154,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const rows = data || [];
       const hasMore = rows.length > limitNum;
       const trimmed = hasMore ? rows.slice(0, limitNum) : rows;
-      return { messages: trimmed.reverse(), hasMore };
+      const ordered = trimmed.reverse();
+      await hydrateMessageMediaUrls(supabase, ordered, mediaUrlCache);
+      return { messages: ordered, hasMore };
     }
 
     if (thread_business_id) {
@@ -329,6 +394,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { data: msgs } = await supabase.from('messages')
           .select('id, sender_type, content, image_url, message_type, created_at')
           .in('booking_id', bookingIds).order('created_at', { ascending: false }).limit(1);
+        await hydrateMessageMediaUrls(supabase, msgs || [], mediaUrlCache);
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
           .in('booking_id', bookingIds).eq('read', false).eq('sender_type', 'business');
@@ -408,6 +474,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { data: msgs } = await supabase.from('messages')
           .select('id, sender_type, content, image_url, message_type, created_at')
           .in('booking_id', bookingIds).order('created_at', { ascending: false }).limit(1);
+        await hydrateMessageMediaUrls(supabase, msgs || [], mediaUrlCache);
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
           .in('booking_id', bookingIds).eq('read', false).eq('sender_type', 'user');
@@ -487,6 +554,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
+    let normalizedImageUrl: string | null = null;
+    if (image_url) {
+      const parsed = parseStorageRef(image_url);
+      if (!parsed) return res.status(400).json({ error: 'Invalid image_url' });
+      if (parsed.bucket !== MESSAGE_MEDIA_BUCKET) return res.status(400).json({ error: 'Invalid media bucket' });
+      if (!parsed.path.startsWith(`messages/${booking_id}/`)) return res.status(400).json({ error: 'Invalid media path' });
+      normalizedImageUrl = `storage://${parsed.bucket}/${parsed.path}`;
+    }
+
     // Blocked check
     const { data: block } = await supabase
       .from('blocks')
@@ -510,14 +586,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
     }
-    const message_type = image_url ? (filteredContent ? 'mixed' : 'image') : 'text';
+    const message_type = normalizedImageUrl ? (filteredContent ? 'mixed' : 'image') : 'text';
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({ booking_id, sender_type, content: filteredContent, image_url: image_url || null, message_type, read: false })
+      .insert({ booking_id, sender_type, content: filteredContent, image_url: normalizedImageUrl, message_type, read: false })
       .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
       .single();
     if (error) return res.status(500).json({ error: 'Failed to send message' });
+    await hydrateMessageMediaUrls(supabase, data ? [data] : [], new Map<string, string>());
     return res.status(200).json({ message: data });
   }
 

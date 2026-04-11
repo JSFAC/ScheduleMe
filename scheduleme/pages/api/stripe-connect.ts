@@ -64,7 +64,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({
       error: 'This signed-in account is not linked to this provider business.',
       code: 'OWNER_MISMATCH',
-      ownerEmail: business.owner_email || null,
     });
   }
 

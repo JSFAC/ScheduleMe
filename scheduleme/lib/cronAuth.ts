@@ -12,11 +12,8 @@ function safeEqual(a?: string | null, b?: string | null) {
 
 export function isCronAuthorized(req: NextApiRequest): boolean {
   const headerSecret = req.headers['x-notify-secret'];
-  const token = typeof req.query.token === 'string' ? req.query.token : null;
   const notifySecret = process.env.NOTIFY_SECRET || '';
-  const cronSecret = process.env.CRON_SECRET || '';
 
   if (safeEqual(typeof headerSecret === 'string' ? headerSecret : null, notifySecret)) return true;
-  if (safeEqual(token, cronSecret)) return true;
   return false;
 }

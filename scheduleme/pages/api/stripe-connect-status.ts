@@ -24,12 +24,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: business } = await supabase
     .from('businesses')
-    .select('stripe_account_id, owner_email, stripe_onboarded')
+    .select('id, stripe_account_id, owner_id, owner_email, stripe_onboarded')
     .eq('id', businessId)
     .single();
 
   if (!business) return res.status(404).json({ error: 'Business not found' });
-  if (business.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+
+  const normalizedUserEmail = (user.email || '').toLowerCase().trim();
+  const normalizedOwnerEmail = (business.owner_email || '').toLowerCase().trim();
+  if (!business.owner_id && normalizedOwnerEmail && normalizedOwnerEmail === normalizedUserEmail) {
+    await supabase.from('businesses').update({ owner_id: user.id }).eq('id', businessId);
+    business.owner_id = user.id;
+  }
+  if (business.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
   if (!business.stripe_account_id) {
     return res.status(200).json({ onboarded: false, account_missing: true });
