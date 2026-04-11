@@ -31,6 +31,7 @@ export function getClientIp(req: NextApiRequest): string {
 
 // Rate limit helper that sends the 429 response automatically
 const upstashLimiters = new Map<string, Ratelimit>();
+const inProcessLimiters = new Map<string, { count: number; resetAt: number }>();
 
 function getUpstashLimiter(max: number, windowMs: number): Ratelimit | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -54,7 +55,7 @@ function getUpstashLimiter(max: number, windowMs: number): Ratelimit | null {
 export async function rateLimit(
   req: NextApiRequest,
   res: NextApiResponse,
-  opts: { max: number; windowMs: number; keyPrefix?: string }
+  opts: { max: number; windowMs: number; keyPrefix?: string; allowInProcessFallback?: boolean }
 ): Promise<boolean> {
   const ip = getClientIp(req);
   const key = `${opts.keyPrefix ?? 'rl'}:${ip}`;
@@ -62,11 +63,40 @@ export async function rateLimit(
   const strict = process.env.RATE_LIMIT_STRICT
     ? process.env.RATE_LIMIT_STRICT === 'true'
     : process.env.NODE_ENV === 'production';
+  const applyInProcessFallback = () => {
+    const now = Date.now();
+    const current = inProcessLimiters.get(key);
+    if (!current || current.resetAt <= now) {
+      const resetAt = now + opts.windowMs;
+      inProcessLimiters.set(key, { count: 1, resetAt });
+      res.setHeader('X-RateLimit-Limit', String(opts.max));
+      res.setHeader('X-RateLimit-Remaining', String(Math.max(0, opts.max - 1)));
+      res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)));
+      res.setHeader('X-RateLimit-Bypass', 'in_process_fallback');
+      return true;
+    }
+    current.count += 1;
+    inProcessLimiters.set(key, current);
+    const remaining = Math.max(0, opts.max - current.count);
+    res.setHeader('X-RateLimit-Limit', String(opts.max));
+    res.setHeader('X-RateLimit-Remaining', String(remaining));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(current.resetAt / 1000)));
+    res.setHeader('X-RateLimit-Bypass', 'in_process_fallback');
+    if (current.count > opts.max) {
+      res.status(429).json({
+        error: 'Too many requests. Please slow down and try again shortly.',
+      });
+      return false;
+    }
+    return true;
+  };
+
   if (!upstash) {
-    if (strict) {
+    if (strict && !opts.allowInProcessFallback) {
       res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
       return false;
     }
+    if (opts.allowInProcessFallback) return applyInProcessFallback();
     res.setHeader('X-RateLimit-Bypass', 'upstash_not_configured');
     return true;
   }
@@ -83,10 +113,11 @@ export async function rateLimit(
     }
     return true;
   } catch {
-    if (strict) {
+    if (strict && !opts.allowInProcessFallback) {
       res.status(503).json({ error: 'Rate limiting service unavailable. Please try again shortly.' });
       return false;
     }
+    if (opts.allowInProcessFallback) return applyInProcessFallback();
     res.setHeader('X-RateLimit-Bypass', 'upstash_unavailable');
     return true;
   }

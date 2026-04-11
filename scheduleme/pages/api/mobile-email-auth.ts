@@ -25,7 +25,12 @@ function isAllowedMobileClient(client: string): boolean {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'mobile-email-auth' }))) return;
+  if (!(await rateLimit(req, res, {
+    max: 30,
+    windowMs: 60_000,
+    keyPrefix: 'mobile-email-auth',
+    allowInProcessFallback: true,
+  }))) return;
 
   const body = (req.body || {}) as MobileAuthBody;
   const email = clampString(body.email, 254).toLowerCase();
@@ -54,6 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         Authorization: `Bearer ${anonKey}`,
       },
       body: JSON.stringify({ email, password }),
+      signal: AbortSignal.timeout(10_000),
     });
 
     const payload = await upstream.json().catch(() => ({}));
