@@ -6,6 +6,7 @@ import Stripe from 'stripe';
 import stripe from '../../lib/stripe';
 import { setSecurityHeaders } from '../../lib/apiSecurity';
 import { createClient } from '@supabase/supabase-js';
+import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 
 // Must disable body parsing for Stripe webhooks
 export const config = { api: { bodyParser: false } };
@@ -105,6 +106,19 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
   } catch {}
 }
 
+function parsePositiveCents(value: unknown, fallback = 0): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return Math.round(parsed);
+}
+
+function normalizeIsoOrNull(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -167,6 +181,108 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 stripe_customer_id: session.customer as string | null,
               })
               .eq('id', bookingId);
+          }
+        }
+        if (session.mode === 'payment' && session.metadata?.source === 'ios-apple-pay') {
+          const paymentIntentId = typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : (session.payment_intent as any)?.id || null;
+          const businessId = String(session.metadata?.business_id || '').trim();
+          const userIdRaw = String(session.metadata?.user_id || '').trim();
+          const userId = userIdRaw || null;
+          const service = String(session.metadata?.service || 'Service').slice(0, 120);
+          const userEmail = String(session.metadata?.user_email || session.customer_details?.email || '').trim().toLowerCase();
+          const userName = String(session.metadata?.user_name || '').slice(0, 100);
+          const userPhone = String(session.metadata?.user_phone || '').slice(0, 40);
+          const note = String(session.metadata?.note || '').slice(0, 500);
+          const scheduledStart = normalizeIsoOrNull(session.metadata?.scheduled_start);
+          const scheduledEnd = normalizeIsoOrNull(session.metadata?.scheduled_end);
+          const timezone = String(session.metadata?.timezone || 'America/Los_Angeles').slice(0, 60);
+          const protectionFeeCents = parsePositiveCents(session.metadata?.protection_fee_cents, PROTECTION_FEE_CENTS);
+          const servicePriceFallback = Math.max(0, (session.amount_total || 0) - protectionFeeCents);
+          const servicePriceCents = parsePositiveCents(session.metadata?.service_price_cents, servicePriceFallback);
+
+          if (!paymentIntentId || !businessId) {
+            await alertAdmin(
+              'Apple Pay webhook missing required metadata',
+              `sessionId: ${session.id}\npaymentIntentId: ${paymentIntentId || 'missing'}\nbusinessId: ${businessId || 'missing'}`
+            );
+            break;
+          }
+
+          const { data: existingByPi } = await supabase
+            .from('bookings')
+            .select('id')
+            .eq('stripe_payment_intent_id', paymentIntentId)
+            .maybeSingle();
+          if (existingByPi?.id) {
+            break;
+          }
+
+          let resolvedUserId: string | null = userId;
+          if (!resolvedUserId && userEmail) {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('email', userEmail)
+              .maybeSingle();
+            if (existingProfile?.id) resolvedUserId = existingProfile.id;
+          }
+          if (resolvedUserId && userEmail) {
+            await supabase.from('profiles').upsert({
+              id: resolvedUserId,
+              email: userEmail,
+              name: userName || undefined,
+              phone: userPhone || undefined,
+            }, { onConflict: 'id' });
+          }
+
+          const bookingPayload: any = {
+            business_id: businessId,
+            user_id: resolvedUserId,
+            service: service || 'Service',
+            amount_cents: servicePriceCents,
+            protection_fee_cents: protectionFeeCents,
+            note: note || null,
+            scheduled_start: scheduledStart,
+            scheduled_end: scheduledEnd,
+            timezone,
+            status: 'pending',
+            requires_manual_action: false,
+            paid_at: new Date().toISOString(),
+            stripe_payment_intent_id: paymentIntentId,
+            stripe_customer_id: (session.customer as string) || null,
+          };
+
+          const { data: inserted, error: insertErr } = await supabase
+            .from('bookings')
+            .insert(bookingPayload)
+            .select('id')
+            .single();
+
+          if (insertErr) {
+            const { data: afterInsertExisting } = await supabase
+              .from('bookings')
+              .select('id')
+              .eq('stripe_payment_intent_id', paymentIntentId)
+              .maybeSingle();
+            if (!afterInsertExisting?.id) {
+              await alertAdmin(
+                'Apple Pay booking create failed',
+                `sessionId: ${session.id}\npaymentIntentId: ${paymentIntentId}\nerror: ${insertErr.message || insertErr}`
+              );
+            }
+            break;
+          }
+
+          if (inserted?.id) {
+            await notifyNewBooking(inserted.id, supabase);
+            await triggerN8n('payment_succeeded', {
+              bookingId: inserted.id,
+              businessId,
+              amountCents: session.amount_total || 0,
+              platformFeeCents: null,
+            });
           }
         }
         break;
