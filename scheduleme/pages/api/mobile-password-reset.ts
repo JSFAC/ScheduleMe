@@ -14,11 +14,11 @@ function isAllowedMobileClient(client: string): boolean {
   return client === 'ios-consumer' || client === 'ios-provider';
 }
 
-function getRedirectUrlForClient(client: string): string {
-  if (client === 'ios-provider') {
-    return process.env.MOBILE_PROVIDER_REDIRECT_URL || 'schedulemeprovider://auth/callback';
-  }
-  return process.env.MOBILE_CONSUMER_REDIRECT_URL || 'scheduleme://auth/callback';
+function getWebResetRedirectUrl(): string {
+  const explicit = String(process.env.MOBILE_PASSWORD_RESET_WEB_URL || '').trim();
+  if (explicit) return explicit;
+  const base = String(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.usescheduleme.com').trim().replace(/\/+$/, '');
+  return `${base}/auth/reset-password`;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } });
-    const redirectTo = getRedirectUrlForClient(client);
+    const redirectTo = getWebResetRedirectUrl();
 
     const generatePayload: Record<string, unknown> = {
       type: 'recovery',
