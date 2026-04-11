@@ -22,9 +22,12 @@ struct RootView: View {
                     OnboardingView()
                 } else if appState.isLoading {
                     VStack(spacing: 16) {
-                        ProgressView()
-                            .tint(ScheduleMeTheme.accent)
-                            .scaleEffect(1.2)
+                        ScheduleMeLoadingBar(
+                            tint: ScheduleMeTheme.accent,
+                            track: ScheduleMeTheme.cardBorder,
+                            width: 180,
+                            height: 4
+                        )
                         Text("Loading ScheduleMe")
                             .font(.custom(ScheduleMeTheme.fontName, size: 16)).fontWeight(.semibold)
                             .foregroundStyle(ScheduleMeTheme.mutedText)

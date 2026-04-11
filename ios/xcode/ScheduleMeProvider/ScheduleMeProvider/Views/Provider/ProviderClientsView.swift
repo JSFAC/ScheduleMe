@@ -75,12 +75,8 @@ struct ProviderClientsView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
@@ -110,7 +106,7 @@ struct ProviderClientsView: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(client.name)
                                         .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(ScheduleMeTheme.titleText)
                                     Text(client.email)
                                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                                         .foregroundStyle(ScheduleMeTheme.mutedText)
@@ -148,12 +144,13 @@ struct ProviderClientsView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(isEnabled ? Color.white : Color(hex: "64748B"))
+                .foregroundStyle(isEnabled ? ScheduleMeTheme.titleText : ScheduleMeTheme.mutedText)
                 .frame(width: 28, height: 28)
                 .background(ScheduleMeTheme.surface)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .disabled(!isEnabled)
     }

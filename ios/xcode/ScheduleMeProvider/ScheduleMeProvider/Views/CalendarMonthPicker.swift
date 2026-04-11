@@ -87,7 +87,8 @@ struct CalendarMonthPicker: View {
                                         .fill(isSelected ? ScheduleMeTheme.accent : Color.clear)
                                 )
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         .disabled(isDisabled)
                     } else {
                         Color.clear.frame(height: 34)

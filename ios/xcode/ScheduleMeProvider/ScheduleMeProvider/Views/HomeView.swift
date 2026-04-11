@@ -62,7 +62,8 @@ struct HomeView: View {
                                             .clipShape(Circle())
                                             .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 }
                             }
 
@@ -102,7 +103,8 @@ struct HomeView: View {
                                                 }
                                                 .padding(.vertical, 4)
                                             }
-                                            .buttonStyle(.plain)
+                                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                         }
                                     }
 
@@ -303,7 +305,8 @@ struct HomeView: View {
                                         NavigationLink(destination: BusinessDetailView(business: business)) {
                                             HomeBusinessCard(business: business)
                                         }
-                                        .buttonStyle(.plain)
+                                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                     }
                                     // See all arrow card
                                     Button { tabRouter.selected = .browse } label: {
@@ -324,7 +327,8 @@ struct HomeView: View {
                                         .frame(width: 80)
                                         .padding(.vertical, 40)
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -573,7 +577,8 @@ private struct StudentVerifyBanner: View {
                     .clipShape(Circle())
                     .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+        .buttonStyle(.plain)
         }
         .padding(12)
         .background(Color(hex: "E8F6F3"))
@@ -687,6 +692,7 @@ private struct HomeCategoryPill: View {
                 )
                 .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }

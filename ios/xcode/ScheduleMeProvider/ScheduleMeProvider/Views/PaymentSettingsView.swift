@@ -592,7 +592,8 @@ private struct PaymentCardRow: View {
                             .background(Color.red.opacity(0.08))
                             .clipShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 }
             }
         }

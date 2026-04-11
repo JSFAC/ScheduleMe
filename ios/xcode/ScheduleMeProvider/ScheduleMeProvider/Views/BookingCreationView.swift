@@ -321,7 +321,8 @@ struct BookingCreationView: View {
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             }
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         }
                     }
 
@@ -402,8 +403,12 @@ struct BookingCreationView: View {
                 Task { await submitBooking() }
             } label: {
                 if dataStore.isCreatingBooking {
-                    ProgressView()
-                        .tint(.white)
+                    ScheduleMeLoadingBar(
+                        tint: .white,
+                        track: Color.white.opacity(0.28),
+                        width: 110,
+                        height: 3
+                    )
                 } else {
                     Text("Confirm Booking →")
                 }

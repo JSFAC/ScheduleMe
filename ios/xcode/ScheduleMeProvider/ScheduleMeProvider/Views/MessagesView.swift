@@ -207,7 +207,8 @@ struct MessagesView: View {
                         } label: {
                             ThreadRow(thread: thread)
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                     }
                 }
             }
@@ -408,6 +409,7 @@ private struct ThreadRow: View {
                 }
             }
         }
+        .contentShape(Rectangle())
     }
 }
 
@@ -504,7 +506,13 @@ private struct FullscreenImageView: View {
                 switch phase {
                 case .success(let image): image.resizable().scaledToFit()
                 case .failure: Text("Unable to load image").foregroundColor(.white)
-                default: ProgressView().tint(.white)
+                default:
+                    ScheduleMeLoadingBar(
+                        tint: .white,
+                        track: Color.white.opacity(0.26),
+                        width: 180,
+                        height: 4
+                    )
                 }
             }
             .padding(20)

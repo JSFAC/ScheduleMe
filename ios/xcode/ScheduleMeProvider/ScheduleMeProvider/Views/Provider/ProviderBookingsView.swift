@@ -72,12 +72,8 @@ struct ProviderBookingsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                ScheduleMeBackground()
+                    .ignoresSafeArea()
 
                 GeometryReader { proxy in
                     ScrollView(showsIndicators: false) {
@@ -104,7 +100,6 @@ struct ProviderBookingsView: View {
                                         message: "Bookings in this category will appear here.",
                                         systemImage: "calendar.badge.clock"
                                     )
-                                    .environment(\.colorScheme, .dark)
                                     .frame(maxWidth: .infinity)
                                     Spacer(minLength: 0)
                                 }
@@ -143,7 +138,7 @@ struct ProviderBookingsView: View {
                 if let successToast {
                     Text(successToast)
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(ScheduleMeTheme.titleText)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
                         .background(ScheduleMeTheme.surface)
@@ -173,11 +168,12 @@ struct ProviderBookingsView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(filter == item ? ScheduleMeTheme.accent : ScheduleMeTheme.surface)
-                            .foregroundStyle(filter == item ? Color.white : Color(hex: "D1D5DB"))
+                            .foregroundStyle(filter == item ? Color.white : ScheduleMeTheme.titleText)
                             .clipShape(Capsule())
                             .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 }
             }
         }
@@ -190,29 +186,31 @@ struct ProviderBookingsView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(pageIndex == 0 ? Color(hex: "64748B") : Color.white)
+                    .foregroundStyle(pageIndex == 0 ? ScheduleMeTheme.mutedText : ScheduleMeTheme.titleText)
                     .frame(width: 30, height: 30)
                     .background(ScheduleMeTheme.surface)
                     .clipShape(Circle())
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+        .buttonStyle(.plain)
             .disabled(pageIndex == 0)
 
             Text("Page \(min(pageIndex + 1, pageCount)) of \(pageCount)")
                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                .foregroundStyle(Color(hex: "94A3B8"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
 
             Button {
                 pageIndex = min(pageCount - 1, pageIndex + 1)
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(pageIndex >= pageCount - 1 ? Color(hex: "64748B") : Color.white)
+                    .foregroundStyle(pageIndex >= pageCount - 1 ? ScheduleMeTheme.mutedText : ScheduleMeTheme.titleText)
                     .frame(width: 30, height: 30)
                     .background(ScheduleMeTheme.surface)
                     .clipShape(Circle())
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+        .buttonStyle(.plain)
             .disabled(pageIndex >= pageCount - 1)
         }
         .frame(maxWidth: .infinity)
@@ -228,17 +226,17 @@ struct ProviderBookingsView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(booking.service)
                             .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.bold))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(ScheduleMeTheme.titleText)
                         Text(booking.customerDisplayName)
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                            .foregroundStyle(Color(hex: "94A3B8"))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
                         Text((booking.scheduledStart ?? booking.createdAt).formatted(date: .abbreviated, time: .shortened))
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                            .foregroundStyle(Color(hex: "64748B"))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
                         if let notes = booking.notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Text(notes)
                                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                                .foregroundStyle(Color(hex: "64748B"))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
                                 .lineLimit(2)
                         }
                     }
@@ -246,7 +244,7 @@ struct ProviderBookingsView: View {
                     VStack(alignment: .trailing, spacing: 3) {
                         Text(booking.amountLabel)
                             .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.bold))
-                            .foregroundStyle(Color.white)
+                            .foregroundColor(amountColor(for: booking))
                         Text(booking.statusLabel)
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                             .foregroundStyle(statusColor(for: booking))
@@ -268,10 +266,11 @@ struct ProviderBookingsView: View {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 12, weight: .semibold))
                     }
-                    .foregroundStyle(Color(hex: "D1D5DB"))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
                     .padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                 if isExpanded {
                     VStack(spacing: 8) {
@@ -290,7 +289,8 @@ struct ProviderBookingsView: View {
                                 .padding(.vertical, 9)
                                 .background(Color(hex: "16A34A"))
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .buttonStyle(.plain)
+                                .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                                 if shouldAllowPendingSetPrice(booking) {
                                     Button("Set Price") {
@@ -302,13 +302,14 @@ struct ProviderBookingsView: View {
                                         }
                                     }
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundStyle(Color(hex: "D1D5DB"))
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 9)
                                     .background(ScheduleMeTheme.surface)
                                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -325,13 +326,14 @@ struct ProviderBookingsView: View {
                                         }
                                     }
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundStyle(Color(hex: "D1D5DB"))
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 9)
                                     .background(ScheduleMeTheme.surface)
                                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 }
 
                                 Button("Accept Customer Price (\(booking.customerCounterAmountLabel))") {
@@ -347,12 +349,13 @@ struct ProviderBookingsView: View {
                                 .padding(.vertical, 9)
                                 .background(ScheduleMeTheme.accent)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .buttonStyle(.plain)
+                                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                             }
                             if booking.isDerivedPricePending {
                                 Text("Waiting for customer to accept your proposed price.")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                                    .foregroundStyle(Color(hex: "94A3B8"))
+                                    .foregroundStyle(ScheduleMeTheme.mutedText)
                             }
                         }
 
@@ -372,7 +375,8 @@ struct ProviderBookingsView: View {
                             .padding(.vertical, 9)
                             .background(ScheduleMeTheme.accent)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         }
 
                         if !["cancelled", "completed", "paid"].contains(booking.status.lowercased()) {
@@ -392,14 +396,15 @@ struct ProviderBookingsView: View {
                             .background(ScheduleMeTheme.surface)
                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(ScheduleMeTheme.cardBorder))
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         }
 
                         if ["completed", "paid", "cancelled"].contains(booking.status.lowercased()) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Booking Details")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
                                 detailRow("Customer", booking.customerDisplayName)
                                 detailRow("Service", booking.service)
                                 detailRow("Requested", booking.createdAt.formatted(date: .abbreviated, time: .shortened))
@@ -580,15 +585,29 @@ struct ProviderBookingsView: View {
         }
     }
 
+    private func amountColor(for booking: ProviderBookingSummary) -> Color {
+        if booking.isDerivedPricePending {
+            return Color(hex: "F59E0B")
+        }
+        switch booking.status.lowercased() {
+        case "cancelled":
+            return ScheduleMeTheme.mutedText
+        case "price_disputed", "disputed", "price_pending":
+            return Color(hex: "F59E0B")
+        default:
+            return ScheduleMeTheme.accent
+        }
+    }
+
     private func detailRow(_ title: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(title)
                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                .foregroundStyle(Color(hex: "94A3B8"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
                 .frame(width: 70, alignment: .leading)
             Text(value)
                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                .foregroundStyle(Color(hex: "CBD5E1"))
+                .foregroundStyle(ScheduleMeTheme.titleText)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -611,13 +630,13 @@ struct ProviderBookingsView: View {
                         .foregroundStyle(confirmation.action == .cancel ? Color(hex: "FCA5A5") : ScheduleMeTheme.accent)
                     Text(confirmation.title)
                         .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.bold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(ScheduleMeTheme.titleText)
                     Spacer()
                 }
 
                 Text(confirmation.message)
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 8) {
@@ -627,7 +646,7 @@ struct ProviderBookingsView: View {
                         }
                     }
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                    .foregroundStyle(Color(hex: "D1D5DB"))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background(ScheduleMeTheme.surface)

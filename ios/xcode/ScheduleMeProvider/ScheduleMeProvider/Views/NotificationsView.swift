@@ -63,7 +63,8 @@ struct NotificationsView: View {
                                 NavigationLink(destination: NotificationDetailView(notification: notification)) {
                                     NotificationRow(notification: notification)
                                 }
-                                .buttonStyle(.plain)
+                                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         delete(notification)
@@ -199,7 +200,8 @@ private struct NotificationTabs: View {
                             .foregroundColor(selected == .all ? .white : ScheduleMeTheme.titleText)
                             .frame(width: width, height: 34)
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -211,7 +213,8 @@ private struct NotificationTabs: View {
                             .foregroundColor(selected == .archived ? .white : ScheduleMeTheme.titleText)
                             .frame(width: width, height: 34)
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 }
             }
         }

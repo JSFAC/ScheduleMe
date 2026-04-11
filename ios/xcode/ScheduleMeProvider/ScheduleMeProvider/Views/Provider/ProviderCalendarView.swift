@@ -59,19 +59,14 @@ struct ProviderCalendarView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 14) {
                     if isHydrating && providerStore.bookings.isEmpty {
                         calendarSkeleton
                     } else {
-                        monthControls
                         monthGrid
                         dayAgenda
                     }
@@ -81,40 +76,45 @@ struct ProviderCalendarView: View {
         }
         .navigationTitle("Calendar")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    month = Calendar.current.date(byAdding: .month, value: -1, to: month) ?? month
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+                        .padding(8)
+                }
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
+            }
+
+            ToolbarItem(placement: .principal) {
+                Text(month.formatted(.dateTime.month(.wide).year()))
+                    .font(.custom(ScheduleMeTheme.fontName, size: 17).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    month = Calendar.current.date(byAdding: .month, value: 1, to: month) ?? month
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+                        .padding(8)
+                }
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
+            }
+        }
         .task {
             if providerStore.bookings.isEmpty {
                 isHydrating = true
             }
             await providerStore.refreshAll(force: false)
             isHydrating = false
-        }
-    }
-
-    private var monthControls: some View {
-        HStack {
-            Button {
-                month = Calendar.current.date(byAdding: .month, value: -1, to: month) ?? month
-            } label: {
-                Image(systemName: "chevron.left")
-                    .foregroundStyle(ScheduleMeTheme.titleText)
-                    .padding(8)
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-            Text(month.formatted(.dateTime.month(.wide).year()))
-                .font(.custom(ScheduleMeTheme.fontName, size: 17).weight(.semibold))
-                .foregroundStyle(ScheduleMeTheme.titleText)
-            Spacer()
-
-            Button {
-                month = Calendar.current.date(byAdding: .month, value: 1, to: month) ?? month
-            } label: {
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(ScheduleMeTheme.titleText)
-                    .padding(8)
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -149,7 +149,8 @@ struct ProviderCalendarView: View {
                     .background(isSelected ? ScheduleMeTheme.accent : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
             }
         }
         .padding(10)
@@ -201,7 +202,7 @@ struct ProviderCalendarView: View {
                                 VStack(alignment: .trailing, spacing: 3) {
                                     Text(booking.amountLabel)
                                         .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.bold))
-                                        .foregroundStyle(Color.white)
+                                        .foregroundColor(amountColor(for: booking))
                                     Text(booking.statusLabel)
                                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                         .foregroundStyle(statusColor(for: booking))
@@ -225,7 +226,8 @@ struct ProviderCalendarView: View {
                                         .foregroundStyle(Color(hex: "94A3B8"))
                                 }
                             }
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                             if expandedBookingIDs.contains(booking.id) {
                                 VStack(alignment: .leading, spacing: 5) {
@@ -240,7 +242,6 @@ struct ProviderCalendarView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorder))
                             }
                         }
-                        .opacity(booking.status.lowercased() == "cancelled" ? 0.55 : 1)
                     }
                 }
             }
@@ -277,6 +278,20 @@ struct ProviderCalendarView: View {
             return Color(hex: "22C55E")
         case "completed", "paid":
             return Color(hex: "3B82F6")
+        default:
+            return ScheduleMeTheme.accent
+        }
+    }
+
+    private func amountColor(for booking: ProviderBookingSummary) -> Color {
+        if booking.isDerivedPricePending {
+            return Color(hex: "F59E0B")
+        }
+        switch booking.status.lowercased() {
+        case "cancelled":
+            return ScheduleMeTheme.mutedText
+        case "price_disputed", "disputed", "price_pending":
+            return Color(hex: "F59E0B")
         default:
             return ScheduleMeTheme.accent
         }
@@ -326,6 +341,7 @@ struct ProviderCalendarView: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .disabled(!isEnabled)
     }

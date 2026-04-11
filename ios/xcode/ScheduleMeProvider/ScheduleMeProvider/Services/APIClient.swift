@@ -90,6 +90,9 @@ final class APIClient {
         var request = URLRequest(url: finalURL)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("ios-provider", forHTTPHeaderField: "X-Client-Platform")
+        request.setValue(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown", forHTTPHeaderField: "X-Client-Version")
         if let bearer = bearer {
             request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
         }
@@ -105,11 +108,14 @@ final class APIClient {
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            if
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let message = json["error"] as? String
-            {
-                throw DataStoreError.server(message)
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let message =
+                    (json["error"] as? String) ??
+                    (json["message"] as? String) ??
+                    (json["error_description"] as? String)
+                if let message, !message.isEmpty {
+                    throw DataStoreError.server(message)
+                }
             }
             throw DataStoreError.server("Request failed with status \(httpResponse.statusCode).")
         }

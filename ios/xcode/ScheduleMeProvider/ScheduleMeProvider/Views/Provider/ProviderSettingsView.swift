@@ -17,23 +17,32 @@ struct ProviderSettingsView: View {
     @State private var statusMessage: String?
     @State private var isHydrating = true
     @State private var showingDeleteAccountConfirm = false
+    @State private var hydratedProfileID: String?
+    
+    private var destructiveTextColor: Color {
+        Color.dynamic(light: Color(hex: "B91C1C"), dark: Color(hex: "FCA5A5"))
+    }
+
+    private var destructiveBorderColor: Color {
+        Color.dynamic(light: Color(hex: "FCA5A5"), dark: Color(hex: "3B1B21"))
+    }
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
-            if isHydrating && providerStore.profile == nil {
+            if isHydrating {
                 VStack(spacing: 12) {
-                    ProgressView()
-                        .tint(ScheduleMeTheme.accent)
+                    ScheduleMeLoadingBar(
+                        tint: ScheduleMeTheme.accent,
+                        track: ScheduleMeTheme.cardBorder,
+                        width: 180,
+                        height: 4
+                    )
                     Text("Loading settings...")
                         .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                        .foregroundStyle(Color(hex: "94A3B8"))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
                 }
             } else {
                 ScrollView(showsIndicators: false) {
@@ -52,20 +61,26 @@ struct ProviderSettingsView: View {
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            isHydrating = true
-            await providerStore.refreshAll(force: false)
-            hydrateFromProfile()
+            isHydrating = providerStore.profile == nil
+            await providerStore.refreshAll(force: providerStore.profile == nil)
+            hydrateFromProfileIfNeeded(force: true)
             isHydrating = false
+        }
+        .onChange(of: providerStore.profile?.id) { _, _ in
+            hydrateFromProfileIfNeeded()
+            if providerStore.profile != nil {
+                isHydrating = false
+            }
         }
         .safeAreaInset(edge: .bottom) {
             if let statusMessage {
                 Text(statusMessage)
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(ScheduleMeTheme.surface)
-                    .overlay(Rectangle().frame(height: 1).foregroundStyle(Color(hex: "273141")), alignment: .top)
+                    .overlay(Rectangle().frame(height: 1).foregroundStyle(ScheduleMeTheme.cardBorder), alignment: .top)
             }
         }
     }
@@ -75,7 +90,7 @@ struct ProviderSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Availability")
                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
 
                 HStack(spacing: 8) {
                     availabilityChip("open", "Open")
@@ -101,13 +116,14 @@ struct ProviderSettingsView: View {
         } label: {
             Text(label)
                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                .foregroundStyle(status == value ? Color.white : Color(hex: "D1D5DB"))
+                .foregroundStyle(status == value ? Color.white : ScheduleMeTheme.titleText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(status == value ? ScheduleMeTheme.accent : ScheduleMeTheme.surface)
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 
@@ -116,7 +132,7 @@ struct ProviderSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Provider Profile")
                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
 
                 TextField("Provider name", text: $businessName)
                     .modifier(CompactSettingsFieldModifier())
@@ -157,11 +173,11 @@ struct ProviderSettingsView: View {
         HStack {
             Text(title)
                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                .foregroundStyle(Color(hex: "94A3B8"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
             Spacer()
             Text(value)
                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(ScheduleMeTheme.titleText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
         }
@@ -178,7 +194,7 @@ struct ProviderSettingsView: View {
                 HStack {
                     Text("Stripe Account")
                         .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(ScheduleMeTheme.titleText)
                     Spacer()
                     Text((providerStore.profile?.stripeOnboarded ?? false) ? "Connected" : "Not Connected")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.bold))
@@ -193,7 +209,7 @@ struct ProviderSettingsView: View {
                      ? "Bank account connected. Payouts usually arrive in 1–2 business days."
                      : "Connect Stripe to receive payouts.")
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
 
                 HStack {
                     Text("Available \(providerStore.stripeBalance.totalPayoutLabel)")
@@ -201,7 +217,7 @@ struct ProviderSettingsView: View {
                     Text("Pending payout \(providerStore.stripeBalance.pendingPayoutLabel)")
                 }
                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                .foregroundStyle(Color(hex: "64748B"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
 
                 Button((providerStore.profile?.stripeOnboarded ?? false) ? "Configure Stripe" : "Connect Stripe") {
                     Task {
@@ -217,7 +233,7 @@ struct ProviderSettingsView: View {
 
                 Text("New Stripe accounts may take up to 7 days for the first payout to arrive.")
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 2)
             }
@@ -229,7 +245,7 @@ struct ProviderSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Legal & Support")
                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
 
                 legalRow(title: "Terms of Service", icon: "doc.text") {
                     openURL(URL(string: "https://www.usescheduleme.com/terms")!)
@@ -254,11 +270,11 @@ struct ProviderSettingsView: View {
                     .foregroundStyle(ScheduleMeTheme.accent)
                 Text(title)
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
@@ -266,6 +282,7 @@ struct ProviderSettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 
@@ -274,13 +291,10 @@ struct ProviderSettingsView: View {
             showingDeleteAccountConfirm = true
         }
         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-        .foregroundStyle(Color(hex: "F87171"))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color(hex: "160E11"))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color(hex: "3B1B21")))
+        .foregroundStyle(destructiveTextColor)
+        .padding(.top, 2)
         .frame(maxWidth: .infinity, alignment: .center)
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .confirmationDialog("Delete your account?", isPresented: $showingDeleteAccountConfirm, titleVisibility: .visible) {
             Button("Delete Account", role: .destructive) {
@@ -307,13 +321,14 @@ struct ProviderSettingsView: View {
                 providerStore.reset()
             }
         }
-        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-        .foregroundStyle(Color(hex: "FCA5A5"))
-        .frame(maxWidth: .infinity)
+        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.bold))
+        .foregroundStyle(destructiveTextColor)
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding(.vertical, 12)
-        .background(Color(hex: "1A1114"))
+        .background(ScheduleMeTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "3B1B21")))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(destructiveBorderColor))
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 
@@ -335,6 +350,20 @@ struct ProviderSettingsView: View {
         address = providerStore.profile?.address ?? ""
         website = providerStore.profile?.website ?? ""
         servicesCSV = providerStore.profile?.serviceTags.joined(separator: ", ") ?? ""
+        hydratedProfileID = providerStore.profile?.id
+    }
+
+    private func hydrateFromProfileIfNeeded(force: Bool = false) {
+        guard let profile = providerStore.profile else { return }
+        let fieldsAreEmpty = businessName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            ownerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            website.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            servicesCSV.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let profileSwitched = hydratedProfileID != profile.id
+        guard force || profileSwitched || fieldsAreEmpty else { return }
+        hydrateFromProfile()
     }
 
     private func saveProfile() async {
@@ -365,7 +394,7 @@ private struct CompactSettingsFieldModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-            .foregroundStyle(Color.white)
+            .foregroundStyle(ScheduleMeTheme.titleText)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(ScheduleMeTheme.surface)

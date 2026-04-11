@@ -2,19 +2,41 @@ import SwiftUI
 import Foundation
 
 struct ProviderAuthView: View {
+    @Environment(\.openURL) private var openURL
     @Binding var step: AuthView.AuthStep
     @Binding var email: String
     @Binding var password: String
     @Binding var isLoading: Bool
     @Binding var errorText: String?
+    @Binding var noticeText: String?
 
     let onEmailAuth: () -> Void
+    let onForgotPassword: () -> Void
     let onApple: () -> Void
     let onGoogle: () -> Void
 
     @State private var page = 0
     @State private var hasUnlockedAuthButtons = false
     @State private var showingProviderApplication = false
+    @State private var isPasswordVisible = false
+
+    private var consumerAppDeepLinkURL: URL {
+        URL(string: "scheduleme://auth/callback")!
+    }
+
+    private var consumerAppFallbackURL: URL {
+        let configured = (Bundle.main.object(forInfoDictionaryKey: "CONSUMER_APP_STORE_URL") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return URL(string: configured?.isEmpty == false ? configured! : "https://apps.apple.com")!
+    }
+
+    private func openConsumerApp() {
+        openURL(consumerAppDeepLinkURL) { accepted in
+            if !accepted {
+                openURL(consumerAppFallbackURL)
+            }
+        }
+    }
 
     private struct Slide: Identifiable {
         let id = UUID()
@@ -47,6 +69,7 @@ struct ProviderAuthView: View {
                 ProviderApplicationView()
             }
         }
+        .preferredColorScheme(.dark)
         .animation(.spring(response: 0.35, dampingFraction: 0.86), value: step)
         .onChange(of: step) { _, _ in
             errorText = nil
@@ -118,10 +141,14 @@ struct ProviderAuthView: View {
             }
             .padding(.top, 16)
 
-            Text("Looking to book services? →")
-                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                .foregroundStyle(Color(hex: "71717A"))
-                .padding(.top, 14)
+            Button("Looking to book services? →") {
+                openConsumerApp()
+            }
+            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+            .foregroundStyle(Color(hex: "71717A"))
+            .padding(.top, 14)
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
 
             Spacer(minLength: 26)
         }
@@ -170,7 +197,8 @@ struct ProviderAuthView: View {
                         .background(Circle().fill(Color(hex: "1A1A1D")))
                         .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -203,7 +231,7 @@ struct ProviderAuthView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
-                    providerField("Password", text: $password, secure: true)
+                    providerField("Password", text: $password, secure: true, isPasswordVisible: $isPasswordVisible)
 
                     if let errorText {
                         Text(errorText)
@@ -211,6 +239,22 @@ struct ProviderAuthView: View {
                             .foregroundStyle(.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+
+                    if let noticeText {
+                        Text(noticeText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                            .foregroundStyle(Color(hex: "33C8B5"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Button("Forgot Password?") {
+                        onForgotPassword()
+                    }
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundStyle(Color(hex: "9CA3AF"))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
 
                     providerActionButton(label: isLoading ? "Please wait..." : "Continue", filled: true) {
                         onEmailAuth()
@@ -241,15 +285,42 @@ struct ProviderAuthView: View {
     }
 
     @ViewBuilder
-    private func providerField(_ placeholder: String, text: Binding<String>, secure: Bool = false) -> some View {
+    private func providerField(
+        _ placeholder: String,
+        text: Binding<String>,
+        secure: Bool = false,
+        isPasswordVisible: Binding<Bool>? = nil
+    ) -> some View {
         Group {
             if secure {
-                SecureField("", text: text, prompt: Text(placeholder).foregroundStyle(Color(hex: "71717A")))
+                HStack(spacing: 8) {
+                    Group {
+                        if isPasswordVisible?.wrappedValue == true {
+                            TextField("", text: text, prompt: Text(placeholder).foregroundStyle(Color(hex: "71717A")))
+                        } else {
+                            SecureField("", text: text, prompt: Text(placeholder).foregroundStyle(Color(hex: "71717A")))
+                        }
+                    }
+                    .scheduleMePasteMenu(text)
+
+                    if let isPasswordVisible {
+                        Button {
+                            isPasswordVisible.wrappedValue.toggle()
+                        } label: {
+                            Image(systemName: isPasswordVisible.wrappedValue ? "eye.slash" : "eye")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color(hex: "71717A"))
+                                .frame(width: 26, height: 26)
+                        }
+                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                    }
+                }
             } else {
                 TextField("", text: text, prompt: Text(placeholder).foregroundStyle(Color(hex: "71717A")))
+                    .scheduleMePasteMenu(text)
             }
         }
-        .scheduleMePasteMenu(text)
         .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
         .foregroundStyle(Color(hex: "E7EAF0"))
         .tint(Color(hex: "0C9182"))
@@ -288,6 +359,7 @@ struct ProviderAuthView: View {
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2A3038")))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }
@@ -379,6 +451,7 @@ struct ProviderApplicationView: View {
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(Color(hex: "0D0D0D"), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .preferredColorScheme(.dark)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
@@ -391,7 +464,8 @@ struct ProviderApplicationView: View {
                         .background(Circle().fill(Color(hex: "1A1A1D")))
                         .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
             }
         }
     }
@@ -465,9 +539,9 @@ struct ProviderApplicationView: View {
                 .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(Color(hex: "111317"))
+                .background(Color(hex: "121212"))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2A3038")))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2A2A2E")))
             }
 
             if serviceCategory == "Other" {
@@ -496,9 +570,9 @@ struct ProviderApplicationView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(Color(hex: "111317"))
+            .background(Color(hex: "121212"))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2A3038")))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2A2A2E")))
 
         }
     }
@@ -556,7 +630,8 @@ struct ProviderApplicationView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
             HStack(spacing: 4) {
                 termsLink("Terms of Service", url: "https://www.usescheduleme.com/terms")
@@ -572,9 +647,9 @@ struct ProviderApplicationView: View {
                 .foregroundStyle(Color(hex: "71717A"))
         }
         .padding(12)
-        .background(Color(hex: "16181C"))
+        .background(Color(hex: "151515"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "252B33")))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2C2C30")))
     }
 
     @ViewBuilder
@@ -587,6 +662,7 @@ struct ProviderApplicationView: View {
                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
                 .foregroundStyle(Color(hex: "0C9182"))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 
@@ -607,9 +683,9 @@ struct ProviderApplicationView: View {
             content()
         }
         .padding(12)
-        .background(Color(hex: "16181C"))
+        .background(Color(hex: "151515"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "252B33")))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2C2C30")))
     }
 
     private var paymentsInfoCard: some View {
@@ -633,9 +709,9 @@ struct ProviderApplicationView: View {
             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
         }
         .padding(12)
-        .background(Color(hex: "102321"))
+        .background(Color(hex: "151515"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "0C9182").opacity(0.5)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2C2C30")))
     }
 
     private var paymentsLineOne: AttributedString {
@@ -714,11 +790,11 @@ struct ProviderApplicationView: View {
             .tint(Color(hex: "0C9182"))
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color(hex: "111317"))
+            .background(Color(hex: "121212"))
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color(hex: "2A3038"))
+                    .stroke(Color(hex: "2A2A2E"))
                     .allowsHitTesting(false)
             )
     }
@@ -774,6 +850,9 @@ struct ProviderApplicationView: View {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("ios-provider", forHTTPHeaderField: "X-Client-Platform")
+        request.setValue(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown", forHTTPHeaderField: "X-Client-Version")
 
         let payload = ApplicationRequest(
             businessName: businessName.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -786,7 +865,7 @@ struct ProviderApplicationView: View {
             zipCode: zipCode.trimmingCharacters(in: .whitespacesAndNewlines),
             serviceRadiusMiles: "\(Int(serviceRadiusMiles.rounded()))",
             licenseNumber: licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines),
-            website: website.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : website.trimmingCharacters(in: .whitespacesAndNewlines),
+            website: normalizedWebsite(website),
             instagram: instagram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : instagram.trimmingCharacters(in: .whitespacesAndNewlines),
             campusProvider: campusProvider,
             schoolName: schoolName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : schoolName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -810,5 +889,14 @@ struct ProviderApplicationView: View {
         } catch {
             submissionError = error.localizedDescription
         }
+    }
+
+    private func normalizedWebsite(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
+            return trimmed
+        }
+        return "https://\(trimmed)"
     }
 }

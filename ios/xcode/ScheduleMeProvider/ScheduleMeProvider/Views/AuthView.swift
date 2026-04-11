@@ -29,6 +29,8 @@ struct AuthView: View {
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorText: String?
+    @State private var noticeText: String?
+    @State private var hasPrimedAuthWarmup = false
 
     enum AuthStep: Hashable { case welcome, login, signup }
 
@@ -41,7 +43,9 @@ struct AuthView: View {
                 password: $password,
                 isLoading: $isLoading,
                 errorText: $errorText,
+                noticeText: $noticeText,
                 onEmailAuth: { signInWithEmail(isLogin: step == .login) },
+                onForgotPassword: { sendPasswordReset() },
                 onApple: { signInWithOAuth(.apple) },
                 onGoogle: { signInWithOAuth(.google) }
             )
@@ -73,6 +77,19 @@ struct AuthView: View {
         .animation(.spring(response: 0.38, dampingFraction: 0.88), value: step)
         .onChange(of: step) { _, _ in
             errorText = nil
+            noticeText = nil
+            maybePrimeAuthPipeline()
+        }
+        .onChange(of: email) { _, _ in
+            noticeText = nil
+            maybePrimeAuthPipeline()
+        }
+        .onChange(of: password) { _, _ in
+            noticeText = nil
+            maybePrimeAuthPipeline()
+        }
+        .onAppear {
+            maybePrimeAuthPipeline()
         }
     }
 
@@ -81,26 +98,49 @@ struct AuthView: View {
     /// Handles email/password login or signup depending on current form mode.
     private func signInWithEmail(isLogin: Bool) {
         errorText = nil
+        noticeText = nil
         isLoading = true
         Task {
             defer { isLoading = false }
             do {
                 let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                await AuthPipelineWarmup.shared.warm(
+                    apiBaseURLString: Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
+                    supabaseURLString: Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String
+                )
                 if isLogin {
-                    do {
-                        try await SupabaseManager.shared.client.auth.signIn(email: normalizedEmail, password: password)
-                    } catch {
-                        if shouldUseMobileEmailFallback(for: error) {
-                            try await SupabaseManager.shared.signInViaMobileEmailAuth(
-                                email: normalizedEmail,
-                                password: password,
-                                isSignup: false
-                            )
-                        } else {
-                            throw error
+                    var lastLoginError: Error?
+                    for attempt in 0..<3 {
+                        do {
+                            // Mobile API path first to avoid native client security-check mismatches.
+                            // Backend route is the single source of truth for native email auth.
+                            do {
+                                try await SupabaseManager.shared.signInViaMobileEmailAuth(
+                                    email: normalizedEmail,
+                                    password: password,
+                                    isSignup: false
+                                )
+                            } catch {
+                                // Fallback for local/dev environments where mobile endpoint is unavailable.
+                                if shouldFallbackToNativeAuth(afterMobileError: error) {
+                                    try await SupabaseManager.shared.client.auth.signIn(email: normalizedEmail, password: password)
+                                } else {
+                                    throw error
+                                }
+                            }
+                            try await assertSignedInEmailMatches(normalizedEmail)
+                            lastLoginError = nil
+                            break
+                        } catch {
+                            lastLoginError = error
+                            guard attempt < 2, isTransientRateLimitServiceError(error) else { throw error }
+                            let backoffMs = 350 * (attempt + 1)
+                            try? await Task.sleep(for: .milliseconds(backoffMs))
                         }
                     }
-                    try await assertSignedInEmailMatches(normalizedEmail)
+                    if let lastLoginError {
+                        throw lastLoginError
+                    }
                 } else {
                     do {
                         try await SupabaseManager.shared.client.auth.signUp(email: normalizedEmail, password: password)
@@ -126,10 +166,15 @@ struct AuthView: View {
     /// Starts OAuth provider flow (Apple/Google) and reboots app session state on success.
     private func signInWithOAuth(_ provider: Provider) {
         errorText = nil
+        noticeText = nil
         isLoading = true
         Task {
             defer { isLoading = false }
             do {
+                await AuthPipelineWarmup.shared.warm(
+                    apiBaseURLString: Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
+                    supabaseURLString: Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String
+                )
                 let providerEnabled = await SupabaseManager.shared.isOAuthProviderEnabled(provider)
                 if !providerEnabled {
                     throw DataStoreError.server("\(providerDisplayName(provider)) sign-in is not enabled right now. Please try email login or contact support.")
@@ -198,15 +243,80 @@ struct AuthView: View {
             return "This sign-in provider is temporarily unavailable. Please use another sign-in method."
         }
         if raw.localizedCaseInsensitiveContains("captcha") {
-            return "Email sign-in is temporarily retrying due to security checks. Please try again."
+            return "Email sign-in is temporarily unavailable. Please try again."
+        }
+        if raw.localizedCaseInsensitiveContains("rate limiting service unavailable")
+            || raw.localizedCaseInsensitiveContains("rate limit service unavailable") {
+            return "Email sign-in is temporarily unavailable. Please try again in a moment."
+        }
+        if raw.localizedCaseInsensitiveContains("invalid login credentials") {
+            return "Invalid email or password."
         }
 
         return raw
     }
 
+    private func sendPasswordReset() {
+        errorText = nil
+        noticeText = nil
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalizedEmail.contains("@"), normalizedEmail.contains(".") else {
+            errorText = "Enter your email first, then tap Forgot Password."
+            return
+        }
+
+        isLoading = true
+        Task {
+            defer { isLoading = false }
+            do {
+                do {
+                    try await SupabaseManager.shared.sendPasswordResetViaMobileAPI(email: normalizedEmail)
+                } catch {
+                    if shouldFallbackToNativeAuth(afterMobileError: error) {
+                        try await SupabaseManager.shared.client.auth.resetPasswordForEmail(
+                            normalizedEmail,
+                            redirectTo: SupabaseManager.shared.redirectURL
+                        )
+                    } else {
+                        throw error
+                    }
+                }
+                noticeText = "Password reset email sent. Check your inbox."
+            } catch {
+                errorText = userFacingAuthError(error)
+            }
+        }
+    }
+
     private func shouldUseMobileEmailFallback(for error: Error) -> Bool {
         let raw = (error as NSError).localizedDescription.lowercased()
         return raw.contains("captcha")
+    }
+
+    private func isTransientRateLimitServiceError(_ error: Error) -> Bool {
+        let raw = (error as NSError).localizedDescription.lowercased()
+        return raw.contains("rate limiting service unavailable")
+            || raw.contains("rate limit service unavailable")
+            || raw.contains("please try again shortly")
+    }
+
+    private func isPotentialCredentialPathMismatch(_ error: Error) -> Bool {
+        let raw = (error as NSError).localizedDescription.lowercased()
+        return raw.contains("invalid login credentials")
+            || raw.contains("invalid credentials")
+    }
+
+    private func shouldFallbackToNativeAuth(afterMobileError error: Error) -> Bool {
+        let raw = (error as NSError).localizedDescription.lowercased()
+        // Only fallback when mobile endpoint path/transport is unavailable.
+        // Do not fallback for credential or policy errors; that creates misleading captcha loops.
+        return raw.contains("404")
+            || raw.contains("not found")
+            || raw.contains("timed out")
+            || raw.contains("network connection was lost")
+            || raw.contains("could not connect")
+            || raw.contains("temporarily unavailable")
     }
 
     private func assertSignedInEmailMatches(_ normalizedEmail: String) async throws {
@@ -215,6 +325,22 @@ struct AuthView: View {
         guard !activeEmail.isEmpty, activeEmail == normalizedEmail else {
             try? await SupabaseManager.shared.client.auth.signOut()
             throw DataStoreError.server("Sign-in safety check failed. Please sign in again.")
+        }
+    }
+
+    private func maybePrimeAuthPipeline() {
+        guard !hasPrimedAuthWarmup else { return }
+        guard step == .login || step == .signup else { return }
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let hasLikelyEmail = normalized.contains("@") && normalized.contains(".")
+        let hasIntent = !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard hasLikelyEmail || hasIntent else { return }
+        hasPrimedAuthWarmup = true
+        Task {
+            await AuthPipelineWarmup.shared.warm(
+                apiBaseURLString: Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
+                supabaseURLString: Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String
+            )
         }
     }
 
@@ -227,6 +353,32 @@ struct AuthView: View {
         default:
             return "OAuth"
         }
+    }
+}
+
+private actor AuthPipelineWarmup {
+    static let shared = AuthPipelineWarmup()
+    private var hasWarmed = false
+
+    func warm(apiBaseURLString: String?, supabaseURLString: String?) async {
+        guard !hasWarmed else { return }
+        hasWarmed = true
+        async let apiWarm: Void = warmURLString(apiBaseURLString)
+        async let supabaseWarm: Void = warmURLString(supabaseURLString)
+        _ = await (apiWarm, supabaseWarm)
+    }
+
+    private func warmURLString(_ raw: String?) async {
+        guard
+            let raw,
+            let url = URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines))
+        else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 4
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        _ = try? await URLSession.shared.data(for: request)
     }
 }
 
@@ -412,7 +564,8 @@ private struct ConsumerAuthForm: View {
                         .clipShape(Circle())
                         .overlay(Circle().stroke(ConsumerAuthTheme.border))
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 Spacer()
                 HStack(spacing: 0) {
                     Text("Schedule")
@@ -528,7 +681,8 @@ private struct ConsumerAuthForm: View {
                             }
                         )
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
             }
         }
         .padding(3)
@@ -542,11 +696,31 @@ private struct AuthField: View {
     let placeholder: String
     @Binding var text: String
     var isSecure: Bool = false
+    @State private var isPasswordVisible = false
 
     var body: some View {
         Group {
             if isSecure {
-                SecureField(placeholder, text: $text)
+                HStack(spacing: 8) {
+                    Group {
+                        if isPasswordVisible {
+                            TextField(placeholder, text: $text)
+                        } else {
+                            SecureField(placeholder, text: $text)
+                        }
+                    }
+
+                    Button {
+                        isPasswordVisible.toggle()
+                    } label: {
+                        Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(ConsumerAuthTheme.textSub)
+                            .frame(width: 26, height: 26)
+                    }
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                }
             } else {
                 TextField(placeholder, text: $text)
             }
@@ -595,6 +769,7 @@ private struct AuthActionButton: View {
                         .stroke(style == .outline ? ConsumerAuthTheme.border : Color.clear)
                 )
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }
@@ -629,6 +804,7 @@ private struct SocialAuthButton: View {
                     .stroke(style == .appleBlack ? Color.clear : ConsumerAuthTheme.border)
             )
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }

@@ -10,12 +10,8 @@ struct ProviderServicesView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
@@ -23,13 +19,13 @@ struct ProviderServicesView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Custom Request Scheduling")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
 
                             HStack(alignment: .center, spacing: 12) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(customRequestRequiresExactTime ? "Exact time required" : "Due date only")
                                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(ScheduleMeTheme.titleText)
                                     Text("Choose whether custom requests need an exact time or just a due date.")
                                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                                         .foregroundStyle(ScheduleMeTheme.mutedText)
@@ -70,11 +66,11 @@ struct ProviderServicesView: View {
                                     HStack {
                                         Text(service.name)
                                             .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                                            .foregroundStyle(Color.white)
+                                            .foregroundStyle(ScheduleMeTheme.titleText)
                                         Spacer()
                                         Text(service.priceLabel)
                                             .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.bold))
-                                            .foregroundStyle(Color.white)
+                                            .foregroundStyle(ScheduleMeTheme.titleText)
                                     }
                                     Text(service.description ?? "No description")
                                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
@@ -86,7 +82,8 @@ struct ProviderServicesView: View {
                                         Spacer()
                                         Button("Edit") { editingService = service }
                                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                            .buttonStyle(.plain)
+                                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                         Button("Delete", role: .destructive) {
                                             Task {
                                                 do {
@@ -99,7 +96,8 @@ struct ProviderServicesView: View {
                                         }
                                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                         .foregroundStyle(Color(hex: "F87171"))
-                                        .buttonStyle(.plain)
+                                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                     }
                                 }
                             }
@@ -164,12 +162,8 @@ private struct ProviderServiceEditorSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                ScheduleMeBackground()
+                    .ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 10) {
@@ -230,7 +224,7 @@ private struct ProviderServiceEditorSheet: View {
                         Toggle(isOn: $requiresExactTime) {
                             Text(requiresExactTime ? "Exact Time Required" : "Exact Time Optional")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
                         }
                         .toggleStyle(SwitchToggleStyle(tint: ScheduleMeTheme.accent))
                         .frame(maxWidth: .infinity, alignment: .leading)

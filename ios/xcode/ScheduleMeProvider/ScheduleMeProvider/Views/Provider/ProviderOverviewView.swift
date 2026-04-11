@@ -73,12 +73,8 @@ struct ProviderOverviewView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                LinearGradient(
-                    colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                ScheduleMeBackground()
+                    .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 14) {
@@ -125,10 +121,10 @@ struct ProviderOverviewView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(providerStore.profile?.name ?? "Your Business")
                 .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(ScheduleMeTheme.titleText)
             Text("Run your bookings, messages, services, and payouts from one place.")
                 .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
-                .foregroundStyle(Color(hex: "94A3B8"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -174,17 +170,17 @@ struct ProviderOverviewView: View {
 
                 Text(value)
                     .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
                 Text(title)
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                    .foregroundStyle(Color(hex: "E2E8F0"))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
 
                 Text(subtitle)
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundStyle(Color(hex: "64748B"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -196,7 +192,7 @@ struct ProviderOverviewView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Quick Actions")
                 .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(ScheduleMeTheme.titleText)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 actionButton(title: "Calendar", icon: "calendar", destination: .calendar)
@@ -218,7 +214,7 @@ struct ProviderOverviewView: View {
                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
                 Spacer()
             }
-            .foregroundStyle(Color.white)
+            .foregroundStyle(ScheduleMeTheme.titleText)
             .padding(12)
             .background(ScheduleMeTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -227,6 +223,7 @@ struct ProviderOverviewView: View {
                     .stroke(ScheduleMeTheme.cardBorder)
             )
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 
@@ -234,7 +231,7 @@ struct ProviderOverviewView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Recent Bookings")
                 .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(ScheduleMeTheme.titleText)
 
             if providerStore.bookings.isEmpty {
                 premiumCard {
@@ -244,10 +241,10 @@ struct ProviderOverviewView: View {
                             .foregroundStyle(Color(hex: "33C8B5"))
                         Text("No bookings yet")
                             .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(ScheduleMeTheme.titleText)
                         Text("Requests will show here once customers submit them.")
                             .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
-                            .foregroundStyle(Color(hex: "94A3B8"))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
@@ -260,19 +257,19 @@ struct ProviderOverviewView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(booking.customerDisplayName)
                                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
                                 Text(booking.service)
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                                    .foregroundStyle(Color(hex: "94A3B8"))
+                                    .foregroundStyle(ScheduleMeTheme.mutedText)
                                 Text((booking.scheduledStart ?? booking.createdAt).formatted(date: .abbreviated, time: .shortened))
                                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                                    .foregroundStyle(Color(hex: "64748B"))
+                                    .foregroundStyle(ScheduleMeTheme.mutedText)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 4) {
                                 Text(booking.amountLabel)
                                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.bold))
-                                    .foregroundStyle(Color.white)
+                                    .foregroundColor(amountColor(for: booking))
                                 Text(booking.statusLabel)
                                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                     .foregroundStyle(statusColor(for: booking))
@@ -289,7 +286,7 @@ struct ProviderOverviewView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Revenue")
                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
 
                 HStack(alignment: .bottom, spacing: 6) {
                     let maxValue = max(revenueBars.map(\.cents).max() ?? 1, 1)
@@ -298,11 +295,11 @@ struct ProviderOverviewView: View {
                         let ratio = cents > 0 ? max(Double(cents) / Double(maxValue), 0.18) : 0.02
                         VStack(spacing: 4) {
                             RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .fill(cents == 0 ? Color(hex: "202734") : (cents == maxValue ? ScheduleMeTheme.accent : Color(hex: "2A3342")))
+                                .fill(cents == 0 ? ScheduleMeTheme.cardBorder : (cents == maxValue ? ScheduleMeTheme.accent : ScheduleMeTheme.accentSoft))
                                 .frame(height: cents == 0 ? 5 : max(20, 76 * ratio))
                             Text(point.label ?? "")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.semibold))
-                                .foregroundStyle(Color(hex: "64748B"))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
                         }
                     }
                 }
@@ -312,12 +309,12 @@ struct ProviderOverviewView: View {
                    let label = maxPoint.label {
                     Text("Top day: \(label) \(NumberFormatter.currency.string(from: NSNumber(value: Double(maxPoint.cents) / 100.0)) ?? "$0")")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                        .foregroundStyle(Color(hex: "94A3B8"))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
                 }
 
                 Text("Top 8 days in the past 6 weeks")
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundStyle(Color(hex: "64748B"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
             }
         }
     }
@@ -328,7 +325,7 @@ struct ProviderOverviewView: View {
                 HStack {
                     Text("Stripe Account")
                         .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(ScheduleMeTheme.titleText)
                     Spacer()
                     Text((providerStore.profile?.stripeOnboarded ?? false) ? "Connected" : "Not Connected")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.bold))
@@ -343,7 +340,7 @@ struct ProviderOverviewView: View {
                      ? "Payouts are active. Standard payouts usually arrive in 1–2 business days."
                      : "Connect Stripe to receive payouts and track pending transfers.")
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
 
                 HStack {
                     Text("Available \(providerStore.stripeBalance.totalPayoutLabel)")
@@ -351,7 +348,7 @@ struct ProviderOverviewView: View {
                     Text("Pending payout \(providerStore.stripeBalance.pendingPayoutLabel)")
                 }
                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                .foregroundStyle(Color(hex: "64748B"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
 
                 if let stripeActionError {
                     Text(stripeActionError)
@@ -377,7 +374,7 @@ struct ProviderOverviewView: View {
 
                 Text("New Stripe accounts may take up to 7 days for the first payout to arrive.")
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 2)
             }
@@ -412,6 +409,20 @@ struct ProviderOverviewView: View {
             return Color(hex: "3B82F6")
         default:
             return Color(hex: "33C8B5")
+        }
+    }
+
+    private func amountColor(for booking: ProviderBookingSummary) -> Color {
+        if booking.isDerivedPricePending {
+            return Color(hex: "F59E0B")
+        }
+        switch booking.status.lowercased() {
+        case "cancelled":
+            return ScheduleMeTheme.mutedText
+        case "price_disputed", "disputed", "price_pending":
+            return Color(hex: "F59E0B")
+        default:
+            return ScheduleMeTheme.accent
         }
     }
 }

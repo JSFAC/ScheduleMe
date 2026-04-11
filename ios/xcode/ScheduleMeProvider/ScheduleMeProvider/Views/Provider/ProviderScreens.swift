@@ -12,23 +12,20 @@ enum ProviderMoreDestination: Hashable {
 
 struct ProviderMoreView: View {
     @State private var path: [ProviderMoreDestination] = []
+    @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = true
     private let moreItems: [(title: String, icon: String, destination: ProviderMoreDestination)] = [
-        ("Business Hours", "clock", .businessHours),
         ("Services", "briefcase", .services),
+        ("Business Hours", "clock", .businessHours),
+        ("Edit Listing", "square.and.pencil", .editListing),
         ("Clients", "person.2", .clients),
-        ("Settings", "gearshape", .settings),
-        ("Edit Listing", "square.and.pencil", .editListing)
+        ("Settings", "gearshape", .settings)
     ]
 
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                LinearGradient(
-                    colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                ScheduleMeBackground()
+                    .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 10) {
@@ -44,6 +41,8 @@ struct ProviderMoreView: View {
                         ForEach(moreItems, id: \.title) { item in
                             ProviderMoreRow(title: item.title, icon: item.icon) { path.append(item.destination) }
                         }
+
+                        ProviderMoreThemeToggleRow(isDarkMode: $darkModeEnabled)
                     }
                     .padding(16)
                 }
@@ -140,12 +139,8 @@ struct ProviderEditListingView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
@@ -153,7 +148,7 @@ struct ProviderEditListingView: View {
                         HStack(spacing: 8) {
                             Text("Listing Preview")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
                             Spacer()
                             Button(isEditMode ? "Done Editing" : "Edit Card") {
                                 withAnimation(.easeInOut(duration: 0.2)) { isEditMode.toggle() }
@@ -164,13 +159,14 @@ struct ProviderEditListingView: View {
                                 }
                             }
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                            .foregroundStyle(isEditMode ? Color.white : Color(hex: "D1D5DB"))
+                            .foregroundStyle(isEditMode ? Color.white : ScheduleMeTheme.titleText)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
-                            .background(isEditMode ? Color(hex: "0C9182") : Color(hex: "151A22"))
+                            .background(isEditMode ? ScheduleMeTheme.accent : ScheduleMeTheme.surface)
                             .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color(hex: "2E3746")))
-                            .buttonStyle(.plain)
+                            .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         }
 
                         previewModePicker
@@ -200,7 +196,7 @@ struct ProviderEditListingView: View {
                         if let message {
                             Text(message)
                                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                                .foregroundStyle(Color(hex: "94A3B8"))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
@@ -252,16 +248,16 @@ struct ProviderEditListingView: View {
                             AsyncImage(url: url) { phase in
                                 switch phase {
                                 case .success(let image): image.resizable().scaledToFill()
-                                default: Rectangle().fill(Color(hex: "0F172A"))
+                                default: Rectangle().fill(ScheduleMeTheme.pageBackground)
                                 }
                             }
                         } else {
                             Rectangle()
-                                .fill(Color(hex: "0F172A"))
+                                .fill(ScheduleMeTheme.pageBackground)
                                 .overlay(
                                     Image(systemName: "photo")
                                         .font(.system(size: 22, weight: .semibold))
-                                        .foregroundStyle(Color(hex: "64748B"))
+                                        .foregroundStyle(ScheduleMeTheme.mutedText)
                                 )
                         }
                     }
@@ -276,19 +272,19 @@ struct ProviderEditListingView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(providerName.isEmpty ? "Your Business Name" : providerName)
                         .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(ScheduleMeTheme.titleText)
                         .lineLimit(1)
 
                     Text(description.isEmpty ? "Add a short description about your business." : description)
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                        .foregroundStyle(Color(hex: "94A3B8"))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
                         .lineLimit(2)
 
                     HStack(spacing: 6) {
                         if services.isEmpty {
                             Text("No service tags yet")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))
-                                .foregroundStyle(Color(hex: "64748B"))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
                         } else {
                             ForEach(Array(services.prefix(3)), id: \.self) { tag in
                                 Text(tag)
@@ -304,10 +300,10 @@ struct ProviderEditListingView: View {
 
                     HStack(spacing: 6) {
                         openPill
-                        Text("•").foregroundStyle(Color(hex: "64748B"))
+                        Text("•").foregroundStyle(ScheduleMeTheme.mutedText)
                         Text(cityAddress.isEmpty ? "City not set" : cityAddress)
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                            .foregroundStyle(Color(hex: "94A3B8"))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
                             .lineLimit(1)
                     }
                 }
@@ -329,14 +325,15 @@ struct ProviderEditListingView: View {
                 } label: {
                     Text(mode.title)
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                        .foregroundStyle(previewMode == mode ? Color.white : Color(hex: "94A3B8"))
+                        .foregroundStyle(previewMode == mode ? Color.white : ScheduleMeTheme.titleText)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
                         .frame(maxWidth: .infinity)
-                        .background(previewMode == mode ? Color(hex: "0C9182") : Color(hex: "151A22"))
+                        .background(previewMode == mode ? ScheduleMeTheme.accent : ScheduleMeTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
             }
         }
     }
@@ -416,7 +413,7 @@ struct ProviderEditListingView: View {
                                 if services.isEmpty {
                                     Text("No service tags yet")
                                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                                        .foregroundStyle(Color(hex: "64748B"))
+                                        .foregroundStyle(ScheduleMeTheme.mutedText)
                                 } else {
                                     ForEach(Array(services.prefix(6)), id: \.self) { tag in
                                         Text(tag)
@@ -440,12 +437,12 @@ struct ProviderEditListingView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Services")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
 
                             if providerStore.services.isEmpty && services.isEmpty {
                                 Text("Add services below to see them here.")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                                    .foregroundStyle(Color(hex: "64748B"))
+                                    .foregroundStyle(ScheduleMeTheme.mutedText)
                             } else {
                                 ForEach(Array(providerStore.services.prefix(4))) { service in
                                     ScheduleMeCard {
@@ -495,7 +492,7 @@ struct ProviderEditListingView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Reviews")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
                             ScheduleMeCard {
                                 Text("No reviews yet")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
@@ -506,28 +503,28 @@ struct ProviderEditListingView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Calendar")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
                             ScheduleMeCard {
                                 VStack(alignment: .leading, spacing: 10) {
                                     HStack {
                                         Image(systemName: "chevron.left")
                                             .font(.system(size: 11, weight: .bold))
-                                            .foregroundStyle(Color(hex: "94A3B8"))
+                                            .foregroundStyle(ScheduleMeTheme.mutedText)
                                         Spacer()
                                         Text(Date().formatted(.dateTime.month(.wide).year()))
                                             .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                                            .foregroundStyle(Color.white)
+                                            .foregroundStyle(ScheduleMeTheme.titleText)
                                         Spacer()
                                         Image(systemName: "chevron.right")
                                             .font(.system(size: 11, weight: .bold))
-                                            .foregroundStyle(Color(hex: "94A3B8"))
+                                            .foregroundStyle(ScheduleMeTheme.mutedText)
                                     }
 
                                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
                                         ForEach(Array(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].enumerated()), id: \.offset) { _, day in
                                             Text(day)
                                                 .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.semibold))
-                                                .foregroundStyle(Color(hex: "64748B"))
+                                                .foregroundStyle(ScheduleMeTheme.mutedText)
                                         }
 
                                         ForEach(previewCalendarDays, id: \.self) { day in
@@ -537,7 +534,7 @@ struct ProviderEditListingView: View {
                                             Text(day.formatted(.dateTime.day()))
                                                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                                 .foregroundStyle(
-                                                    isOpenDay && isCurrentMonth ? Color.white : Color(hex: "64748B")
+                                                    isOpenDay && isCurrentMonth ? ScheduleMeTheme.titleText : ScheduleMeTheme.mutedText
                                                 )
                                                 .frame(maxWidth: .infinity, minHeight: 26)
                                                 .background(
@@ -553,16 +550,16 @@ struct ProviderEditListingView: View {
                 .padding(14)
                 }
         }
-        .background(Color(hex: "11161F"))
+        .background(ScheduleMeTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "273141")))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
     }
 
     private var editFieldsCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Business Info")
                 .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(ScheduleMeTheme.titleText)
 
             TextField("Provider name", text: $providerName).modifier(ScheduleMeFieldModifier())
             TextField("Description", text: $description, axis: .vertical).modifier(ScheduleMeFieldModifier())
@@ -588,18 +585,18 @@ struct ProviderEditListingView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Services")
                 .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(ScheduleMeTheme.titleText)
 
             if !providerStore.services.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Current service listings")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                        .foregroundStyle(Color(hex: "94A3B8"))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
                     ForEach(providerStore.services.prefix(5)) { service in
                         HStack {
                             Text(service.name)
                                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
                             Spacer()
                             Text(service.priceLabel)
                                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
@@ -626,20 +623,20 @@ struct ProviderEditListingView: View {
                     newService = ""
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(hex: "0C9182"))
+                .tint(ScheduleMeTheme.accent)
             }
 
             if services.isEmpty {
                 Text("No services yet")
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundStyle(Color(hex: "64748B"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
             } else {
                 FlowLayout(spacing: 8) {
                     ForEach(services, id: \.self) { service in
                         HStack(spacing: 6) {
                             Text(service)
                                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
                             Button {
                                 services.removeAll { $0 == service }
                             } label: {
@@ -647,7 +644,8 @@ struct ProviderEditListingView: View {
                                     .font(.system(size: 12))
                                     .foregroundStyle(Color(hex: "FCA5A5"))
                             }
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -669,7 +667,7 @@ struct ProviderEditListingView: View {
             HStack {
                 Text("Images")
                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
                 Spacer()
                 Button {
                     showAddImageSheet = true
@@ -678,17 +676,17 @@ struct ProviderEditListingView: View {
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(hex: "0C9182"))
+                .tint(ScheduleMeTheme.accent)
             }
 
             Text("Drag to reorder. First image is the cover.")
                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                .foregroundStyle(Color(hex: "64748B"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
 
             if images.isEmpty {
                 Text("No images yet")
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundStyle(Color(hex: "64748B"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
             } else {
                 VStack(spacing: 8) {
                     ForEach(Array(images.enumerated()), id: \.element.id) { index, image in
@@ -719,7 +717,7 @@ struct ProviderEditListingView: View {
                 case .success(let rendered):
                     rendered.resizable().scaledToFill()
                 default:
-                    Rectangle().fill(Color(hex: "0F172A"))
+                    Rectangle().fill(ScheduleMeTheme.pageBackground)
                 }
             }
             .frame(width: 72, height: 56)
@@ -732,10 +730,10 @@ struct ProviderEditListingView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(image.id == images.first?.id ? "Cover Image" : "Gallery Image")
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
                 Text("Drag to reorder")
                     .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
             }
             Spacer()
             VStack(spacing: 6) {
@@ -744,13 +742,14 @@ struct ProviderEditListingView: View {
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(index == 0 ? Color(hex: "64748B") : Color.white)
+                        .foregroundStyle(index == 0 ? ScheduleMeTheme.mutedText : ScheduleMeTheme.titleText)
                         .frame(width: 26, height: 22)
                         .background(ScheduleMeTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(ScheduleMeTheme.cardBorder))
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 .disabled(index == 0)
 
                 Button {
@@ -758,13 +757,14 @@ struct ProviderEditListingView: View {
                 } label: {
                     Image(systemName: "arrow.down")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(index >= images.count - 1 ? Color(hex: "64748B") : Color.white)
+                        .foregroundStyle(index >= images.count - 1 ? ScheduleMeTheme.mutedText : ScheduleMeTheme.titleText)
                         .frame(width: 26, height: 22)
                         .background(ScheduleMeTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(ScheduleMeTheme.cardBorder))
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 .disabled(index >= images.count - 1)
             }
             Button {
@@ -774,7 +774,8 @@ struct ProviderEditListingView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(Color(hex: "FCA5A5"))
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+        .buttonStyle(.plain)
         }
         .padding(8)
         .background(ScheduleMeTheme.surface)
@@ -1001,12 +1002,8 @@ struct ProviderBusinessHoursView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 12) {
@@ -1017,7 +1014,7 @@ struct ProviderBusinessHoursView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Business Hours")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.bold))
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
 
                                 VStack(spacing: 8) {
                                     ForEach($dayRows) { $row in
@@ -1025,21 +1022,21 @@ struct ProviderBusinessHoursView: View {
                                             HStack(spacing: 8) {
                                                 Text(row.day)
                                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                                    .foregroundStyle(Color.white)
+                                                    .foregroundStyle(ScheduleMeTheme.titleText)
                                                 Spacer(minLength: 6)
                                                 if row.isOpen {
                                                     Text("\(row.startTime.formatted(date: .omitted, time: .shortened)) - \(row.endTime.formatted(date: .omitted, time: .shortened))")
                                                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                                        .foregroundStyle(Color(hex: "94A3B8"))
+                                                        .foregroundStyle(ScheduleMeTheme.mutedText)
                                                 } else {
                                                     Text("Closed")
                                                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                                        .foregroundStyle(Color(hex: "64748B"))
+                                                        .foregroundStyle(ScheduleMeTheme.mutedText)
                                                 }
 
                                                 Toggle("", isOn: $row.isOpen)
                                                     .labelsHidden()
-                                                    .tint(Color(hex: "0C9182"))
+                                                    .tint(ScheduleMeTheme.accent)
                                                     .scaleEffect(0.76)
                                                     .onChange(of: row.isOpen) { _, isOpen in
                                                         if !isOpen {
@@ -1059,11 +1056,12 @@ struct ProviderBusinessHoursView: View {
                                                     } label: {
                                                         Image(systemName: expandedDays.contains(row.day) ? "chevron.up" : "chevron.down")
                                                             .font(.system(size: 12, weight: .bold))
-                                                            .foregroundStyle(Color(hex: "94A3B8"))
+                                                            .foregroundStyle(ScheduleMeTheme.mutedText)
                                                             .frame(width: 30, height: 30)
                                                             .contentShape(Rectangle())
                                                     }
-                                                    .buttonStyle(.plain)
+                                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                                 }
                                             }
                                             .contentShape(Rectangle())
@@ -1156,25 +1154,25 @@ struct ProviderBusinessHoursView: View {
     private var hoursSkeleton: some View {
         VStack(alignment: .leading, spacing: 8) {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color(hex: "2A2A2A"))
+                .fill(ScheduleMeTheme.cardBorder)
                 .frame(width: 130, height: 14)
             ForEach(0..<5, id: \.self) { _ in
                 VStack(spacing: 6) {
                     HStack {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color(hex: "2A2A2A"))
+                            .fill(ScheduleMeTheme.cardBorder)
                             .frame(width: 90, height: 12)
                         Spacer()
                         RoundedRectangle(cornerRadius: 999, style: .continuous)
-                            .fill(Color(hex: "2A2A2A"))
+                            .fill(ScheduleMeTheme.cardBorder)
                             .frame(width: 44, height: 24)
                     }
                     HStack(spacing: 8) {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(hex: "2A2A2A"))
+                            .fill(ScheduleMeTheme.cardBorder)
                             .frame(height: 34)
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(hex: "2A2A2A"))
+                            .fill(ScheduleMeTheme.cardBorder)
                             .frame(height: 34)
                     }
                 }
@@ -1192,7 +1190,7 @@ struct ProviderBusinessHoursView: View {
         HStack(spacing: 6) {
             Text(label)
                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                .foregroundStyle(Color(hex: "94A3B8"))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
             Spacer(minLength: 6)
             Menu {
                 ForEach(timeSlots, id: \.self) { slot in
@@ -1209,9 +1207,9 @@ struct ProviderBusinessHoursView: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 10, weight: .bold))
                 }
-                .foregroundStyle(Color.white)
+                .foregroundStyle(ScheduleMeTheme.titleText)
             }
-            .tint(Color.white)
+            .tint(ScheduleMeTheme.titleText)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 11)
@@ -1327,6 +1325,8 @@ struct ProviderMoreRow: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
             .background(ScheduleMeTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
@@ -1334,6 +1334,71 @@ struct ProviderMoreRow: View {
                     .stroke(ScheduleMeTheme.cardBorder)
             )
         }
+        .contentShape(Rectangle())
+        .buttonStyle(.plain)
+    }
+}
+
+struct ProviderMoreThemeToggleRow: View {
+    @Binding var isDarkMode: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isDarkMode ? "moon.fill" : "sun.max")
+                .frame(width: 20, height: 20)
+                .foregroundStyle(ScheduleMeTheme.accent)
+            Text("Dark Mode")
+                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                .foregroundStyle(ScheduleMeTheme.titleText)
+            Spacer()
+            Toggle("", isOn: $isDarkMode)
+                .labelsHidden()
+                .tint(ScheduleMeTheme.accent)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(ScheduleMeTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(ScheduleMeTheme.cardBorder)
+        )
+    }
+}
+
+// Legacy row retained for simple navigation items.
+struct ProviderMoreToggleRow: View {
+    let title: String
+    let icon: String
+    let detail: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .frame(width: 20, height: 20)
+                    .foregroundStyle(ScheduleMeTheme.accent)
+                Text(title)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+                Spacer()
+                Text(detail)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.accent)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(ScheduleMeTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(ScheduleMeTheme.cardBorder)
+            )
+        }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }

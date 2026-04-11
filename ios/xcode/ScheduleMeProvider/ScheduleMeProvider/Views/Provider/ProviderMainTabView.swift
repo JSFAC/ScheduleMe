@@ -35,9 +35,6 @@ struct ProviderMainTabView: View {
         .tint(ScheduleMeTheme.accent)
         .toolbarBackground(ScheduleMeTheme.pageBackground, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .overlay(alignment: .top) {
-            ScheduleMeStatusBarScrim()
-        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(45))

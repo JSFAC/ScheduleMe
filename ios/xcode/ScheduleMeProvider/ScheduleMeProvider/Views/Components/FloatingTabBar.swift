@@ -65,6 +65,7 @@ struct FloatingTabBar: View {
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 

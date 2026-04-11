@@ -44,11 +44,6 @@
 		<string>PlusJakartaSans-VariableFont_wght.ttf</string>
 		<string>PlusJakartaSans-Italic-VariableFont_wght.ttf</string>
 	</array>
-	<key>UILaunchScreen</key>
-	<dict>
-		<key>UIColorName</key>
-		<string>LaunchBackground</string>
-	</dict>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
 </dict>

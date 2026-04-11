@@ -54,13 +54,17 @@ struct AccountView: View {
                                     ZStack {
                                         avatarView
                                         if isUploadingAvatar {
-                                            ProgressView()
-                                                .tint(.white)
-                                                .scaleEffect(0.8)
+                                            ScheduleMeLoadingBar(
+                                                tint: .white,
+                                                track: Color.white.opacity(0.22),
+                                                width: 40,
+                                                height: 3
+                                            )
                                         }
                                     }
                                 }
-                                .buttonStyle(.plain)
+                                .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(fullName.isEmpty ? "ScheduleMe user" : fullName)
@@ -130,7 +134,8 @@ struct AccountView: View {
                         .background(ScheduleMeTheme.surface)
                         .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 .padding(.top, 14)
                 .padding(.trailing, 20)
             }
@@ -387,7 +392,8 @@ struct AccountView: View {
                                 .background(ScheduleMeTheme.accent)
                                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                     }
                 }
             }
@@ -419,7 +425,8 @@ struct AccountView: View {
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.accent)
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
             }
         }
     }
@@ -544,7 +551,8 @@ struct AccountView: View {
                             } label: {
                                 AddressRow(address: address)
                             }
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         }
                     }
                 }
@@ -849,6 +857,7 @@ private struct AccountTabButton: View {
             )
             .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }

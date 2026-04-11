@@ -11,30 +11,90 @@ import SwiftUI
 struct ProviderRootView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var providerStore: ProviderDataStore
+    @EnvironmentObject private var providerTabRouter: ProviderTabRouter
+    @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = true
+    @State private var loadingHoldUntil: Date = .distantPast
+    @State private var loadingHoldTick = false
+    @State private var loadingHoldTask: Task<Void, Never>?
+    @State private var lastLoadingKind: LoadingKind = .appLaunch
+    private let loadingSubtitle = "Syncing bookings, messages, services, payouts, and profile..."
+    private let minimumLoadingDisplaySeconds: TimeInterval = 1.2
+
+    private enum LoadingKind {
+        case appLaunch
+        case signedInData
+        case signOut
+    }
+
+    private var isProviderLoadingState: Bool {
+        if appState.isSigningOut || appState.isLoading { return true }
+        guard appState.isAuthenticated else { return false }
+        return providerStore.isBootstrapping
+            || !providerStore.hasResolvedAccessDecision
+            || !providerStore.hasCompletedInitialDataLoad
+    }
+
+    private var shouldShowLoading: Bool {
+        let _ = loadingHoldTick
+        return isProviderLoadingState || Date() < loadingHoldUntil
+    }
+
+    private func extendLoadingVisibility() {
+        let candidate = Date().addingTimeInterval(minimumLoadingDisplaySeconds)
+        if candidate > loadingHoldUntil {
+            loadingHoldUntil = candidate
+        }
+
+        loadingHoldTask?.cancel()
+        let target = loadingHoldUntil
+        loadingHoldTask = Task {
+            let wait = max(0, target.timeIntervalSinceNow)
+            if wait > 0 {
+                try? await Task.sleep(for: .milliseconds(Int(wait * 1000)))
+            }
+            if Task.isCancelled { return }
+            await MainActor.run {
+                loadingHoldTick.toggle()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var currentLoadingView: some View {
+        switch resolvedLoadingKind {
+        case .signOut:
+            ProviderSignOutLoadingView()
+        case .signedInData:
+            ProviderPremiumLoadingView(
+                title: "Loading Provider Dashboard",
+                subtitle: loadingSubtitle,
+                icon: "briefcase.fill"
+            )
+        case .appLaunch:
+            ProviderAppLaunchLoadingView()
+        }
+    }
+
+    private var liveLoadingKind: LoadingKind {
+        if appState.isSigningOut { return .signOut }
+        if appState.isAuthenticated { return .signedInData }
+        return .appLaunch
+    }
+
+    private var resolvedLoadingKind: LoadingKind {
+        if isProviderLoadingState {
+            return liveLoadingKind
+        }
+        return lastLoadingKind
+    }
 
     var body: some View {
         ScheduleMePage {
             Group {
-                if appState.isSigningOut {
-                    ProviderPremiumLoadingView(
-                        title: "Signing Out",
-                        subtitle: "Clearing local data and ending your secure session...",
-                        icon: "rectangle.portrait.and.arrow.right"
-                    )
-                } else if appState.isLoading {
-                    ProviderPremiumLoadingView(
-                        title: "Loading Provider Dashboard",
-                        subtitle: "Syncing bookings, messages, services, and payout data...",
-                        icon: "briefcase.fill"
-                    )
-                } else if appState.isAuthenticated {
+                if appState.isAuthenticated {
                     Group {
-                        if providerStore.lastLoadedAt == nil {
-                            ProviderPremiumLoadingView(
-                                title: "Loading Provider Dashboard",
-                                subtitle: "Syncing bookings, messages, services, payouts, and profile...",
-                                icon: "briefcase.fill"
-                            )
+                        if shouldShowLoading {
+                            currentLoadingView
                         } else if providerStore.profile == nil {
                             ProviderAccessDeniedView(
                                 message: providerStore.errorMessage ?? "This account is not linked to an approved provider profile."
@@ -44,17 +104,169 @@ struct ProviderRootView: View {
                         }
                     }
                     .task(id: "\(appState.userID ?? "nil")|\(appState.userEmail ?? "nil")") {
+                        // Every authenticated entry starts on Overview for consistency.
+                        providerTabRouter.selected = .overview
                         await providerStore.bootstrap(userEmail: appState.userEmail, userID: appState.userID)
+
+                        // Cold-start reliability: retry hydration a few times if backend/session
+                        // races cause an initial empty payload.
+                        var attempts = 0
+                        while !Task.isCancelled && appState.isAuthenticated && attempts < 2 {
+                            let needsHydration =
+                                !providerStore.hasCompletedInitialDataLoad ||
+                                (
+                                    providerStore.profile != nil &&
+                                    providerStore.bookings.isEmpty &&
+                                    providerStore.threads.isEmpty &&
+                                    providerStore.services.isEmpty
+                                )
+
+                            if !needsHydration { break }
+                            if !providerStore.isBootstrapping {
+                                await providerStore.refreshAll(force: true, prioritizeFastLoad: true)
+                            }
+
+                            attempts += 1
+                            if attempts < 2 {
+                                try? await Task.sleep(for: .milliseconds(350))
+                            }
+                        }
                     }
+                } else if shouldShowLoading {
+                    currentLoadingView
                 } else {
                     AuthView()
                 }
             }
         }
+        .onAppear {
+            if isProviderLoadingState {
+                lastLoadingKind = liveLoadingKind
+                extendLoadingVisibility()
+            }
+        }
+        .onChange(of: isProviderLoadingState) { _, loading in
+            if loading {
+                lastLoadingKind = liveLoadingKind
+                extendLoadingVisibility()
+            }
+        }
+        .onChange(of: appState.isSigningOut) { _, signingOut in
+            if signingOut {
+                lastLoadingKind = .signOut
+            }
+        }
+        // Landing/auth flow is always dark for brand consistency and legibility.
+        .preferredColorScheme(
+            appState.isAuthenticated
+                ? (darkModeEnabled ? .dark : .light)
+                : .dark
+        )
         .onChange(of: appState.isAuthenticated) { _, isAuthenticated in
             if !isAuthenticated {
                 providerStore.reset()
+                providerTabRouter.selected = .overview
             }
+        }
+        .onDisappear {
+            loadingHoldTask?.cancel()
+            loadingHoldTask = nil
+        }
+    }
+}
+
+private struct ProviderAppLaunchLoadingView: View {
+    var body: some View {
+        ZStack {
+            ScheduleMeBackground()
+                .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "0C9182").opacity(0.16))
+                        .frame(width: 84, height: 84)
+                    Image(systemName: "briefcase.fill")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundStyle(Color(hex: "33C8B5"))
+                }
+                .symbolEffect(.pulse.byLayer, options: .repeating, isActive: true)
+
+                Text("Loading ScheduleMe")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                    .foregroundStyle(Color.white)
+
+                Text("Preparing sign-in, secure session checks, and app services...")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .lineLimit(2)
+
+                ScheduleMeLoadingBar(
+                    tint: Color(hex: "33C8B5"),
+                    track: Color(hex: "2C2C30"),
+                    width: 180,
+                    height: 4,
+                    initialProgress: 0.08,
+                    animate: true
+                )
+                .padding(.top, 6)
+            }
+            .padding(26)
+            .frame(maxWidth: 340, minHeight: 240)
+            .background(Color(hex: "151515"))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "2C2C30")))
+            .padding(.horizontal, 24)
+        }
+    }
+}
+
+private struct ProviderSignOutLoadingView: View {
+    var body: some View {
+        ZStack {
+            ScheduleMeBackground()
+                .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "EF4444").opacity(0.14))
+                        .frame(width: 84, height: 84)
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundStyle(Color(hex: "F87171"))
+                }
+                .symbolEffect(.pulse.byLayer, options: .repeating, isActive: true)
+
+                Text("Signing Out")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                    .foregroundStyle(Color.white)
+
+                Text("Securing your account and clearing this device session...")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .lineLimit(2)
+
+                ScheduleMeLoadingBar(
+                    tint: Color(hex: "F87171"),
+                    track: Color(hex: "2C2C30"),
+                    width: 180,
+                    height: 4,
+                    initialProgress: 0.12,
+                    animate: true
+                )
+                .padding(.top, 6)
+            }
+            .padding(26)
+            .frame(maxWidth: 340, minHeight: 240)
+            .background(Color(hex: "151515"))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "2C2C30")))
+            .padding(.horizontal, 24)
         }
     }
 }
@@ -66,10 +278,22 @@ private struct ProviderAccessDeniedView: View {
     @State private var showingProviderApplication = false
     let message: String
 
-    private var consumerAppURL: URL {
+    private var consumerAppDeepLinkURL: URL {
+        URL(string: "scheduleme://auth/callback")!
+    }
+
+    private var consumerAppFallbackURL: URL {
         let configured = (Bundle.main.object(forInfoDictionaryKey: "CONSUMER_APP_STORE_URL") as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return URL(string: configured?.isEmpty == false ? configured! : "https://apps.apple.com")!
+    }
+
+    private func openConsumerApp() {
+        openURL(consumerAppDeepLinkURL) { accepted in
+            if !accepted {
+                openURL(consumerAppFallbackURL)
+            }
+        }
     }
 
     var body: some View {
@@ -110,18 +334,20 @@ private struct ProviderAccessDeniedView: View {
                     }
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
                     .foregroundStyle(Color(hex: "94A3B8"))
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                     Text("•")
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
                         .foregroundStyle(Color(hex: "4B5563"))
 
                     Button("Open Consumer App") {
-                        openURL(consumerAppURL)
+                        openConsumerApp()
                     }
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
                     .foregroundStyle(Color(hex: "33C8B5"))
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                 }
                 .padding(.top, 2)
             }
@@ -143,15 +369,13 @@ private struct ProviderPremiumLoadingView: View {
     let title: String
     let subtitle: String
     let icon: String
+    var animateBar: Bool = true
+    var initialBarProgress: Double = 0.03
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
             VStack(spacing: 14) {
                 ZStack {
@@ -170,19 +394,26 @@ private struct ProviderPremiumLoadingView: View {
 
                 Text(subtitle)
                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
-                    .foregroundStyle(Color(hex: "94A3B8"))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
+                    .lineLimit(2)
 
-                ProgressView()
-                    .tint(Color(hex: "33C8B5"))
-                    .scaleEffect(1.15)
-                    .padding(.top, 4)
+                ScheduleMeLoadingBar(
+                    tint: Color(hex: "33C8B5"),
+                    track: Color(hex: "2C2C30"),
+                    width: 180,
+                    height: 4,
+                    initialProgress: initialBarProgress,
+                    animate: animateBar
+                )
+                    .padding(.top, 6)
             }
             .padding(26)
-            .background(Color(hex: "11161F"))
+            .frame(maxWidth: 340, minHeight: 240)
+            .background(Color(hex: "151515"))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "273141")))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "2C2C30")))
             .padding(.horizontal, 24)
         }
     }

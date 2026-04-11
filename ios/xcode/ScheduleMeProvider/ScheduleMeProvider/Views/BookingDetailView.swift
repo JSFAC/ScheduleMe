@@ -329,6 +329,7 @@ private struct ContactActionRow: View {
                     .foregroundColor(ScheduleMeTheme.mutedText)
             }
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }

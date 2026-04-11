@@ -376,6 +376,8 @@ final class ProviderDataStore: ObservableObject {
     @Published private(set) var isLoadingThreads = false
     @Published private(set) var isLoadingServices = false
 
+    @Published private(set) var hasResolvedAccessDecision = false
+    @Published private(set) var hasCompletedInitialDataLoad = false
     @Published private(set) var lastLoadedAt: Date?
     private var ownerEmailForFallback: String?
     private var ownerIDForFallback: String?
@@ -488,11 +490,14 @@ final class ProviderDataStore: ObservableObject {
         ownerIDForFallback = trimmedUserID
 
         isBootstrapping = true
+        hasResolvedAccessDecision = false
+        hasCompletedInitialDataLoad = false
         defer { isBootstrapping = false }
 
         do {
             try await loadBusinessProfile(ownerEmail: trimmedEmail, userID: trimmedUserID)
             errorMessage = nil
+            hasResolvedAccessDecision = true
         } catch {
             let message = error.localizedDescription
             reset()
@@ -500,6 +505,14 @@ final class ProviderDataStore: ObservableObject {
             ownerEmailForFallback = trimmedEmail
             ownerIDForFallback = trimmedUserID
             errorMessage = message
+            // Never leave root routing in an unresolved loading state.
+            // If verification fails, surface a blocker/error view instead of spinning forever.
+            hasResolvedAccessDecision = true
+        }
+        if profile == nil {
+            lastLoadedAt = Date()
+            hasCompletedInitialDataLoad = true
+            return
         }
         await refreshAll(force: true, prioritizeFastLoad: true)
     }
@@ -515,19 +528,17 @@ final class ProviderDataStore: ObservableObject {
         }
         guard businessID != nil else {
             lastLoadedAt = Date()
+            hasCompletedInitialDataLoad = true
             return
         }
         if prioritizeFastLoad {
             async let profileTask: Void = safeRefreshBusinessProfileByID()
             async let bookingsTask: Void = loadBookings()
             _ = await (profileTask, bookingsTask)
+            async let threadsTask: Void = loadThreads()
+            async let servicesTask: Void = loadServices()
+            _ = await (threadsTask, servicesTask)
             lastLoadedAt = Date()
-            Task { [weak self] in
-                guard let self else { return }
-                await self.loadThreads()
-                await self.loadServices()
-                self.lastLoadedAt = Date()
-            }
         } else {
             async let profileTask: Void = safeRefreshBusinessProfileByID()
             async let bookingsTask: Void = loadBookings()
@@ -536,6 +547,7 @@ final class ProviderDataStore: ObservableObject {
             _ = await (profileTask, bookingsTask, threadsTask, servicesTask)
             lastLoadedAt = Date()
         }
+        hasCompletedInitialDataLoad = true
     }
 
     func reset() {
@@ -545,6 +557,8 @@ final class ProviderDataStore: ObservableObject {
         threads = []
         services = []
         messagesByThreadID = [:]
+        hasResolvedAccessDecision = false
+        hasCompletedInitialDataLoad = false
         lastLoadedAt = nil
         errorMessage = nil
         ownerEmailForFallback = nil
@@ -1369,6 +1383,7 @@ final class ProviderDataStore: ObservableObject {
     private func applyBusinessRow(_ row: BusinessRow, ownerEmailFallback: String) {
         businessID = row.id
         let normalizedHours = normalizedBusinessHours(row.hours ?? [:])
+        hasResolvedAccessDecision = true
         profile = ProviderProfile(
             id: row.id,
             name: row.name ?? "Business",
@@ -1418,6 +1433,12 @@ final class ProviderDataStore: ObservableObject {
     private func isDataFresh(maxAge: TimeInterval) -> Bool {
         guard let lastLoadedAt else { return false }
         return Date().timeIntervalSince(lastLoadedAt) < maxAge
+    }
+
+    private func isProviderAccessDenied(message: String) -> Bool {
+        let normalized = message.lowercased()
+        return normalized.contains("provider business profile not found") ||
+            normalized.contains("provider account ownership mismatch")
     }
 
 }

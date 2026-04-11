@@ -165,7 +165,8 @@ private struct BookingSectionView: View {
                             .foregroundColor(ScheduleMeTheme.mutedText)
                     }
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                 if expanded {
                     if bookings.isEmpty {
@@ -177,7 +178,8 @@ private struct BookingSectionView: View {
                             NavigationLink(destination: BookingDetailView(booking: booking)) {
                                 BookingRowCard(booking: booking)
                             }
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         }
 
                         if totalPages > 1 {
@@ -217,6 +219,7 @@ private struct BookingSectionView: View {
                 }
             }
         }
+        .contentShape(Rectangle())
     }
 }
 

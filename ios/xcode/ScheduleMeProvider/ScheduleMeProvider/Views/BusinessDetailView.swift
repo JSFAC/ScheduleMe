@@ -258,7 +258,8 @@ struct BusinessDetailView: View {
                                         .padding(18)
                                     }
                                 }
-                                .buttonStyle(.plain)
+                                .contentShape(Rectangle())
+        .buttonStyle(.plain)
                             }
                         }
 
@@ -290,7 +291,8 @@ struct BusinessDetailView: View {
                             }
                             .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
 
                         if isCustomServiceSelected {
                             VStack(alignment: .leading, spacing: 6) {
@@ -406,7 +408,8 @@ struct BusinessDetailView: View {
                                                 .stroke(ScheduleMeTheme.cardBorder)
                                         )
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 } else {
                                     Text("No times available for that day")
                                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
@@ -987,7 +990,12 @@ private struct FullscreenBusinessImageView: View {
                     Text("Unable to load image")
                         .foregroundColor(.white)
                 default:
-                    ProgressView().tint(.white)
+                    ScheduleMeLoadingBar(
+                        tint: .white,
+                        track: Color.white.opacity(0.26),
+                        width: 180,
+                        height: 4
+                    )
                 }
             }
             .padding(20)

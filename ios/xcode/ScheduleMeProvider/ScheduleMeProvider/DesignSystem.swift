@@ -18,21 +18,12 @@ enum ScheduleMeTheme {
     static let headerGreen = Color.dynamic(light: Color(hex: "2F6F63"), dark: Color(hex: "215B54"))
     static let sectionBlue = Color(hex: "EDF5FF")
     static let creamBackground = Color.dynamic(light: Color(hex: "F6F1EA"), dark: Color(hex: "0A0A0A"))
-    #if PROVIDER_APP
-    static let pageBackground = Color(hex: "0A0A0A")
-    static let surface = Color(hex: "171717")
-    static let cardBorder = Color.white.opacity(0.12)
-    static let cardBorderStrong = Color.white.opacity(0.24)
-    static let mutedText = Color(hex: "9CA3AF")
-    static let titleText = Color(hex: "F3F4F6")
-    #else
     static let pageBackground = Color.dynamic(light: Color(hex: "F9F7F2"), dark: Color(hex: "0A0A0A"))
     static let surface = Color.dynamic(light: .white, dark: Color(hex: "171717"))
     static let cardBorder = Color.dynamic(light: Color.black.opacity(0.09), dark: Color.white.opacity(0.12))
     static let cardBorderStrong = Color.dynamic(light: Color.black.opacity(0.2), dark: Color.white.opacity(0.24))
     static let mutedText = Color.dynamic(light: Color(hex: "6B7280"), dark: Color(hex: "9CA3AF"))
     static let titleText = Color.dynamic(light: Color(hex: "0F172A"), dark: Color(hex: "F3F4F6"))
-    #endif
     static let tagText = Color.dynamic(light: Color(hex: "0F766E"), dark: Color(hex: "9AE6D7"))
     static let tagBackground = Color.dynamic(light: Color(hex: "0F766E").opacity(0.12), dark: Color(hex: "0F766E").opacity(0.38))
     static let fontName = "PlusJakartaSans-Regular"
@@ -63,10 +54,10 @@ struct ScheduleMeStatusBarScrim: View {
         VStack(spacing: 0) {
             LinearGradient(
                 colors: [
-                    Color(hex: "090B10").opacity(1.0),
-                    Color(hex: "0B0F15").opacity(0.95),
-                    Color(hex: "0F141C").opacity(0.32),
-                    Color(hex: "10141B").opacity(0.0)
+                    ScheduleMeTheme.pageBackground.opacity(1.0),
+                    ScheduleMeTheme.pageBackground.opacity(0.96),
+                    ScheduleMeTheme.pageBackground.opacity(0.38),
+                    ScheduleMeTheme.pageBackground.opacity(0.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -84,7 +75,7 @@ struct ScheduleMeWordmark: View {
 
     var body: some View {
         Text("Schedule\(Text("Me").foregroundStyle(ScheduleMeTheme.accent))")
-            .foregroundStyle(Color(hex: "F3F4F6"))
+            .foregroundStyle(ScheduleMeTheme.titleText)
         .font(.custom(ScheduleMeTheme.fontName, size: size).weight(.bold))
         .lineLimit(1)
         .minimumScaleFactor(0.75)
@@ -158,15 +149,9 @@ struct CompactToggleStyle: ToggleStyle {
 struct ScheduleMeBackground: View {
     var body: some View {
         ZStack {
-            #if PROVIDER_APP
-            ScheduleMeTheme.pageBackground
-            DottedGrid(spacing: 20, dotSize: 1.6, color: Color(hex: "262626"))
-                .opacity(0.14)
-            #else
             ScheduleMeTheme.creamBackground
             DottedGrid(spacing: 20, dotSize: 1.6, color: Color.dynamic(light: Color(hex: "CBD5E1"), dark: Color(hex: "262626")))
                 .opacity(0.14)
-            #endif
         }
     }
 }
@@ -199,6 +184,7 @@ struct ScheduleMeCard<Content: View>: View {
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .padding(12)
         .background(ScheduleMeTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -216,6 +202,7 @@ struct ScheduleMePrimaryButtonStyle: ButtonStyle {
             .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
             .padding(.vertical, 14)
             .background(ScheduleMeTheme.accent.opacity(configuration.isPressed ? 0.85 : 1.0))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -229,6 +216,7 @@ struct ScheduleMeSecondaryButtonStyle: ButtonStyle {
             .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
             .foregroundStyle(ScheduleMeTheme.titleText)
             .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
             .padding(.vertical, 14)
             .background(ScheduleMeTheme.surface.opacity(configuration.isPressed ? 0.8 : 1.0))
             .overlay(

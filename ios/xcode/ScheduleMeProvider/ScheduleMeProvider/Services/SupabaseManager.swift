@@ -103,11 +103,7 @@ final class SupabaseManager {
             }
         }
 
-        let endpoint = apiBaseURL.appendingPathComponent("api/mobile-email-auth")
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder.scheduleMe.encode(
+        let payload = try JSONEncoder.scheduleMe.encode(
             MobileEmailAuthRequest(
                 email: email,
                 password: password,
@@ -116,26 +112,135 @@ final class SupabaseManager {
             )
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw DataStoreError.server("Invalid mobile auth response.")
-        }
+        let endpoints = mobileAuthEndpoints()
+        var lastError: Error?
 
-        let decoded = (try? JSONDecoder.scheduleMe.decode(MobileEmailAuthResponse.self, from: data))
-            ?? MobileEmailAuthResponse(accessToken: nil, refreshToken: nil, error: nil)
+        for endpoint in endpoints {
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("ios-provider", forHTTPHeaderField: "X-Client-Platform")
+            request.setValue(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown", forHTTPHeaderField: "X-Client-Version")
+            request.httpBody = payload
 
-        guard (200..<300).contains(http.statusCode) else {
-            if let error = decoded.error, !error.isEmpty {
-                throw DataStoreError.server(error)
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    throw DataStoreError.server("Invalid mobile auth response.")
+                }
+
+                let decoded = (try? JSONDecoder.scheduleMe.decode(MobileEmailAuthResponse.self, from: data))
+                    ?? MobileEmailAuthResponse(accessToken: nil, refreshToken: nil, error: nil)
+
+                guard (200..<300).contains(http.statusCode) else {
+                    if let error = decoded.error, !error.isEmpty {
+                        throw DataStoreError.server(error)
+                    }
+                    if
+                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                        let message = (json["message"] as? String) ?? (json["error_description"] as? String),
+                        !message.isEmpty
+                    {
+                        throw DataStoreError.server(message)
+                    }
+                    throw DataStoreError.server("Email login failed (\(http.statusCode)).")
+                }
+
+                guard let accessToken = decoded.accessToken, let refreshToken = decoded.refreshToken else {
+                    throw DataStoreError.server(decoded.error ?? "No auth session returned.")
+                }
+
+                _ = try await client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
+                return
+            } catch {
+                lastError = error
             }
-            throw DataStoreError.server("Email login failed (\(http.statusCode)).")
         }
 
-        guard let accessToken = decoded.accessToken, let refreshToken = decoded.refreshToken else {
-            throw DataStoreError.server(decoded.error ?? "No auth session returned.")
+        throw lastError ?? DataStoreError.server("Email login is temporarily unavailable.")
+    }
+
+    func sendPasswordResetViaMobileAPI(email: String) async throws {
+        struct MobilePasswordResetRequest: Encodable {
+            let email: String
+            let client: String
         }
 
-        _ = try await client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
+        struct MobilePasswordResetResponse: Decodable {
+            let ok: Bool?
+            let error: String?
+        }
+
+        let payload = try JSONEncoder.scheduleMe.encode(
+            MobilePasswordResetRequest(email: email, client: "ios-provider")
+        )
+
+        let endpoints = mobilePasswordResetEndpoints()
+        var lastError: Error?
+
+        for endpoint in endpoints {
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("ios-provider", forHTTPHeaderField: "X-Client-Platform")
+            request.httpBody = payload
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    throw DataStoreError.server("Invalid password reset response.")
+                }
+
+                let decoded = (try? JSONDecoder.scheduleMe.decode(MobilePasswordResetResponse.self, from: data))
+                    ?? MobilePasswordResetResponse(ok: nil, error: nil)
+
+                guard (200..<300).contains(http.statusCode) else {
+                    if let error = decoded.error, !error.isEmpty {
+                        throw DataStoreError.server(error)
+                    }
+                    if
+                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                        let message = (json["message"] as? String) ?? (json["error_description"] as? String) ?? (json["error"] as? String),
+                        !message.isEmpty
+                    {
+                        throw DataStoreError.server(message)
+                    }
+                    throw DataStoreError.server("Password reset failed (\(http.statusCode)).")
+                }
+
+                return
+            } catch {
+                lastError = error
+            }
+        }
+
+        throw lastError ?? DataStoreError.server("Unable to send password reset email right now.")
+    }
+
+    private func mobileAuthEndpoints() -> [URL] {
+        let primary = apiBaseURL.appendingPathComponent("api/mobile-email-auth")
+        guard let host = apiBaseURL.host?.lowercased() else { return [primary] }
+        if host == "www.usescheduleme.com" {
+            return [primary, URL(string: "https://usescheduleme.com/api/mobile-email-auth")!]
+        }
+        if host == "usescheduleme.com" {
+            return [primary, URL(string: "https://www.usescheduleme.com/api/mobile-email-auth")!]
+        }
+        return [primary]
+    }
+
+    private func mobilePasswordResetEndpoints() -> [URL] {
+        let primary = apiBaseURL.appendingPathComponent("api/mobile-password-reset")
+        guard let host = apiBaseURL.host?.lowercased() else { return [primary] }
+        if host == "www.usescheduleme.com" {
+            return [primary, URL(string: "https://usescheduleme.com/api/mobile-password-reset")!]
+        }
+        if host == "usescheduleme.com" {
+            return [primary, URL(string: "https://www.usescheduleme.com/api/mobile-password-reset")!]
+        }
+        return [primary]
     }
 
     /// Lightweight preflight so OAuth buttons can fail gracefully when a provider is disabled upstream.

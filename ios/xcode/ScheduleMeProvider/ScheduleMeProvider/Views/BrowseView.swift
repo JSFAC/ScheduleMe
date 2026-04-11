@@ -240,7 +240,8 @@ struct BrowseView: View {
                         NavigationLink(destination: BusinessDetailView(business: business)) {
                             BusinessListRow(business: business)
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         .padding(.horizontal, 20)
                     }
                 }
@@ -250,7 +251,8 @@ struct BrowseView: View {
                         NavigationLink(destination: BusinessDetailView(business: business)) {
                             BusinessGridCard(business: business)
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -292,7 +294,8 @@ struct BrowseView: View {
                         NavigationLink(destination: BusinessDetailView(business: business)) {
                             BusinessListRow(business: business)
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                         .padding(.horizontal, 20)
                     }
                 }
@@ -483,6 +486,7 @@ struct BusinessListRow: View {
                 }
             }
         }
+        .contentShape(Rectangle())
     }
 }
 
@@ -552,6 +556,7 @@ struct BusinessGridCard: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
     }
 }
 
@@ -627,6 +632,7 @@ struct PinButton: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }
@@ -662,7 +668,8 @@ private struct BrowseMapView: View {
                         } label: {
                             MapBusinessAvatar(business: business.business)
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                     }
                 }
             }
@@ -725,7 +732,8 @@ private struct BrowseMapView: View {
                             }
                         }
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                 }
@@ -783,6 +791,7 @@ struct BrowsePill: View {
                 .background(Capsule().fill(isSelected ? ScheduleMeTheme.accent : ScheduleMeTheme.surface))
                 .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }

@@ -15,9 +15,12 @@ struct DeepLinkBusinessLoader: View {
                     BusinessDetailView(business: loadedBusiness)
                 } else if isLoading {
                     VStack(spacing: 14) {
-                        ProgressView()
-                            .tint(ScheduleMeTheme.accent)
-                            .scaleEffect(1.2)
+                        ScheduleMeLoadingBar(
+                            tint: ScheduleMeTheme.accent,
+                            track: ScheduleMeTheme.cardBorder,
+                            width: 180,
+                            height: 4
+                        )
                         Text("Opening business...")
                             .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
                             .foregroundColor(ScheduleMeTheme.mutedText)

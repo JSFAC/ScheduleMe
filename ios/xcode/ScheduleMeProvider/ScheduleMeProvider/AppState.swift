@@ -50,6 +50,10 @@ final class AppState: ObservableObject {
                 }
             }
         }
+        // Eager bootstrap removes the long blank-launch gap before authStateChanges emits.
+        Task {
+            await bootstrap()
+        }
     }
 
     func bootstrap() async {

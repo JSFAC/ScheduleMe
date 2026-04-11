@@ -193,7 +193,8 @@ struct CampusView: View {
                                         NavigationLink(destination: BusinessDetailView(business: business)) {
                                             FeaturedCampusCard(business: business)
                                         }
-                                        .buttonStyle(.plain)
+                                        .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                         .tag(index)
                                     }
                                 }
@@ -279,7 +280,8 @@ struct CampusView: View {
                                     NavigationLink(destination: BusinessDetailView(business: business)) {
                                         BusinessGridCard(business: business)
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 }
                             }
                             .padding(.horizontal, 16)

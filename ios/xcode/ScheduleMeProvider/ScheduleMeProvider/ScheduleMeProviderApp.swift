@@ -5,7 +5,6 @@
 // Dark mode global behavior and startup bootstrapping are configured here.
 
 import SwiftUI
-import CoreText
 import UIKit
 #if canImport(StripePaymentSheet)
 import StripePaymentSheet
@@ -36,18 +35,6 @@ final class ScheduleMeProviderAppDelegate: NSObject, UIApplicationDelegate {
 
 // MARK: - App Entry
 
-private enum FontLoader {
-    static func registerFonts() {
-        ["PlusJakartaSans-VariableFont_wght", "PlusJakartaSans-Italic-VariableFont_wght"].forEach { name in
-            let directURL = Bundle.main.url(forResource: name, withExtension: "ttf")
-            let nestedURL = Bundle.main.url(forResource: name, withExtension: "ttf", subdirectory: "Resources/Fonts")
-            [directURL, nestedURL].compactMap { $0 }.forEach { url in
-                CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-            }
-        }
-    }
-}
-
 @main
 struct ScheduleMeProviderApp: App {
     @UIApplicationDelegateAdaptor(ScheduleMeProviderAppDelegate.self) private var appDelegate
@@ -59,10 +46,13 @@ struct ScheduleMeProviderApp: App {
     @StateObject private var tabRouter = TabRouter()
     @StateObject private var providerTabRouter = ProviderTabRouter()
     // Single persisted source of truth for user-selected appearance.
+#if PROVIDER_APP
+    @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = true
+#else
     @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = false
+#endif
 
     init() {
-        FontLoader.registerFonts()
 #if canImport(StripePaymentSheet)
         if let key = Bundle.main.object(forInfoDictionaryKey: "STRIPE_PUBLISHABLE_KEY") as? String,
            !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -85,7 +75,12 @@ struct ScheduleMeProviderApp: App {
         UITabBar.appearance().isTranslucent = true
         UITabBar.appearance().unselectedItemTintColor = UIColor(ScheduleMeTheme.mutedText)
         UITabBar.appearance().tintColor = UIColor(ScheduleMeTheme.accent)
-        UIWindow.appearance().backgroundColor = UIColor(ScheduleMeTheme.pageBackground)
+        UIWindow.appearance().backgroundColor = UIColor(
+            red: 17.0 / 255.0,
+            green: 17.0 / 255.0,
+            blue: 17.0 / 255.0,
+            alpha: 1.0
+        )
         if #available(iOS 15.0, *) {
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
@@ -106,17 +101,21 @@ struct ScheduleMeProviderApp: App {
                 .environmentObject(locationManager)
                 .environmentObject(tabRouter)
                 .environmentObject(providerTabRouter)
-                // SwiftUI-level scheme preference.
-                #if PROVIDER_APP
-                .preferredColorScheme(.dark)
-                #else
-                .preferredColorScheme(darkModeEnabled ? .dark : .light)
-                #endif
+                .preferredColorScheme(resolvedColorScheme)
+#if PROVIDER_APP
+                .progressViewStyle(.linear)
+#endif
                 .onAppear {
                     // UIKit-level forcing so sheets/fullScreenCover also swap instantly.
                     applyInterfaceStyle()
                 }
                 .onChange(of: darkModeEnabled) { _, _ in
+                    applyInterfaceStyle()
+                }
+                .onChange(of: appState.isAuthenticated) { _, _ in
+                    applyInterfaceStyle()
+                }
+                .onChange(of: appState.isSigningOut) { _, _ in
                     applyInterfaceStyle()
                 }
                 .onOpenURL { url in
@@ -134,11 +133,7 @@ struct ScheduleMeProviderApp: App {
     /// This is intentionally duplicated with SwiftUI `.preferredColorScheme`
     /// because some modal stacks lag if we only set one side.
     private func applyInterfaceStyle() {
-        #if PROVIDER_APP
-        let style: UIUserInterfaceStyle = .dark
-        #else
-        let style: UIUserInterfaceStyle = darkModeEnabled ? .dark : .light
-        #endif
+        let style: UIUserInterfaceStyle = resolvedColorScheme == .dark ? .dark : .light
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .forEach { scene in
@@ -146,5 +141,12 @@ struct ScheduleMeProviderApp: App {
                     window.overrideUserInterfaceStyle = style
                 }
             }
+    }
+
+    private var resolvedColorScheme: ColorScheme {
+        if !appState.isAuthenticated || appState.isSigningOut {
+            return .dark
+        }
+        return darkModeEnabled ? .dark : .light
     }
 }

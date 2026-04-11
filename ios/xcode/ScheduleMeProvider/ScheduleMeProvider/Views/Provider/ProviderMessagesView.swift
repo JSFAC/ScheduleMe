@@ -26,12 +26,8 @@ struct ProviderMessagesView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                ScheduleMeBackground()
+                    .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 14) {
@@ -87,7 +83,8 @@ struct ProviderMessagesView: View {
                                         .background(ScheduleMeTheme.accent)
                                         .clipShape(Capsule())
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                 }
 
                                 HStack(spacing: 7) {
@@ -108,8 +105,8 @@ struct ProviderMessagesView: View {
                                         HStack(spacing: 10) {
                                             Circle().fill(ScheduleMeTheme.surface.opacity(0.9)).frame(width: 30, height: 30)
                                             VStack(alignment: .leading, spacing: 6) {
-                                                RoundedRectangle(cornerRadius: 6).fill(Color(hex: "2A2A2A")).frame(width: 128, height: 10)
-                                                RoundedRectangle(cornerRadius: 6).fill(Color(hex: "2A2A2A")).frame(height: 9)
+                                                RoundedRectangle(cornerRadius: 6).fill(ScheduleMeTheme.cardBorder).frame(width: 128, height: 10)
+                                                RoundedRectangle(cornerRadius: 6).fill(ScheduleMeTheme.cardBorder).frame(height: 9)
                                             }
                                         }
                                         .redacted(reason: .placeholder)
@@ -144,7 +141,8 @@ struct ProviderMessagesView: View {
                                     } label: {
                                         threadRow(thread)
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                                     .contextMenu {
                                         Button {
                                             report(thread)
@@ -320,12 +318,8 @@ private struct ProviderConversationView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "090B10"), Color(hex: "10141B")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ScheduleMeBackground()
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollViewReader { proxy in
@@ -453,7 +447,8 @@ private struct ProviderConversationView: View {
                             .background(ScheduleMeTheme.accent)
                             .clipShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+        .buttonStyle(.plain)
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isUploadingAttachment)
                     .opacity(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isUploadingAttachment ? 0.5 : 1)
                 }
@@ -695,8 +690,12 @@ private struct ProviderMediaFullscreenView: View {
                             }
                             .foregroundStyle(Color.white.opacity(0.82))
                         default:
-                            ProgressView()
-                                .tint(.white)
+                            ScheduleMeLoadingBar(
+                                tint: .white,
+                                track: Color.white.opacity(0.26),
+                                width: 180,
+                                height: 4
+                            )
                         }
                     }
                     .padding(12)
