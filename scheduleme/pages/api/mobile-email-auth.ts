@@ -57,11 +57,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  if (!serviceRole) return res.status(500).json({ error: 'Server auth config missing' });
   if (!anonKey) return res.status(500).json({ error: 'Server auth anon config missing' });
 
   try {
     const authBase = getSupabaseAuthBaseUrl();
+    try {
+      const authHost = new URL(authBase).host;
+      res.setHeader('X-Auth-Project', authHost);
+    } catch {}
     const endpoint = mode === 'signup'
       ? `${authBase}/auth/v1/signup`
       : `${authBase}/auth/v1/token?grant_type=password`;
@@ -84,7 +87,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let payload = await upstream.json().catch(() => ({}));
 
     // Attempt 2: service-role fallback (legacy mobile route behavior).
-    if (!upstream.ok && mode === 'login') {
+    // This is optional so missing env config doesn't break mobile email auth.
+    if (!upstream.ok && mode === 'login' && serviceRole) {
       upstream = await fetch(endpoint, {
         method: 'POST',
         headers: {
