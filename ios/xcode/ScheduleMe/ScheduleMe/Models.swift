@@ -45,6 +45,10 @@ struct BusinessProfile: Decodable {
     let coverURL: URL?
     let mediaURLs: [URL]?
     let customRequiresTime: Bool?
+    let stripeOnboarded: Bool?
+    let stripeAccountID: String?
+    let chargesEnabled: Bool?
+    let payoutsEnabled: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -57,6 +61,10 @@ struct BusinessProfile: Decodable {
         case coverURL = "cover_url"
         case mediaURLs = "media_urls"
         case customRequiresTime = "custom_requires_time"
+        case stripeOnboarded = "stripe_onboarded"
+        case stripeAccountID = "stripe_account_id"
+        case chargesEnabled = "charges_enabled"
+        case payoutsEnabled = "payouts_enabled"
     }
 
     private enum AlternateKeys: String, CodingKey {
@@ -140,6 +148,11 @@ struct BusinessProfile: Decodable {
         } else {
             customRequiresTime = nil
         }
+
+        stripeOnboarded = try? container.decodeIfPresent(Bool.self, forKey: .stripeOnboarded)
+        stripeAccountID = try? container.decodeIfPresent(String.self, forKey: .stripeAccountID)
+        chargesEnabled = try? container.decodeIfPresent(Bool.self, forKey: .chargesEnabled)
+        payoutsEnabled = try? container.decodeIfPresent(Bool.self, forKey: .payoutsEnabled)
 
         var resolvedHours = (try? container.decodeIfPresent([String: String].self, forKey: .hours)) ?? nil
         if resolvedHours == nil,
@@ -269,6 +282,8 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
     let publicShowMedia: Bool?
     let schoolDomain: String?
     let campusSchoolName: String?
+    let stripeOnboarded: Bool?
+    let stripeAccountID: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -296,6 +311,8 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         case publicShowMedia = "public_show_media"
         case schoolDomain = "school_domain"
         case campusSchoolName = "campus_school_name"
+        case stripeOnboarded = "stripe_onboarded"
+        case stripeAccountID = "stripe_account_id"
     }
 
     private enum AlternateKeys: String, CodingKey {
@@ -327,7 +344,9 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         publicShowName: Bool?,
         publicShowMedia: Bool?,
         schoolDomain: String?,
-        campusSchoolName: String?
+        campusSchoolName: String?,
+        stripeOnboarded: Bool? = nil,
+        stripeAccountID: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -354,6 +373,8 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         self.publicShowMedia = publicShowMedia
         self.schoolDomain = schoolDomain
         self.campusSchoolName = campusSchoolName
+        self.stripeOnboarded = stripeOnboarded
+        self.stripeAccountID = stripeAccountID
     }
 
     init(from decoder: Decoder) throws {
@@ -398,6 +419,8 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
             ?? (try? alt?.decodeIfPresent(Bool.self, forKey: .publicShowPhotos))
         schoolDomain = try? container.decodeIfPresent(String.self, forKey: .schoolDomain)
         campusSchoolName = try? container.decodeIfPresent(String.self, forKey: .campusSchoolName)
+        stripeOnboarded = try? container.decodeIfPresent(Bool.self, forKey: .stripeOnboarded)
+        stripeAccountID = try? container.decodeIfPresent(String.self, forKey: .stripeAccountID)
     }
 
     nonisolated static func resolveRemoteURL(from raw: String?) -> URL? {
@@ -446,6 +469,43 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
             .joined(separator: " ")
     }
 
+    var categoryTags: [String] {
+        let formatted = serviceTags
+            .map(Self.formattedCategoryTag(from:))
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        var seen = Set<String>()
+        let unique = formatted.filter { seen.insert($0.lowercased()).inserted }
+        return unique.isEmpty ? [primaryCategory] : unique
+    }
+
+    func matchesCategory(_ category: String) -> Bool {
+        let normalized = category.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return categoryTags.contains { $0.lowercased() == normalized }
+    }
+
+    func preferredCategory(for selectedCategory: String?, searchText: String? = nil) -> String {
+        if let selectedCategory {
+            let normalized = selectedCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let isSystemFilter = ["all", "pinned", "new", "non-students", "quick response"].contains(normalized)
+            if !normalized.isEmpty, !isSystemFilter,
+               let selectedMatch = categoryTags.first(where: {
+                   $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalized
+               }) {
+                return selectedMatch
+            }
+        }
+
+        if let searchText {
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !query.isEmpty,
+               let queryMatch = categoryTags.first(where: { $0.localizedCaseInsensitiveContains(query) }) {
+                return queryMatch
+            }
+        }
+
+        return categoryTags.first ?? primaryCategory
+    }
+
     var distanceLabel: String {
         guard let distanceMiles else { return address ?? "Nearby" }
         if distanceMiles < 0.1 {
@@ -490,10 +550,27 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         }
     }
 
+    nonisolated private static func formattedCategoryTag(from raw: String) -> String {
+        raw
+            .split(separator: "_")
+            .map { $0.capitalized }
+            .joined(separator: " ")
+    }
+
     /// Campus providers should render as masked cards for non-verified viewers.
     /// Non-campus providers are always public on Home/Browse.
     var isPrivateUntilStudentVerification: Bool {
-        campusProvider == true
+        guard campusProvider == true else { return false }
+        // Only treat a provider as campus-locked when they actually have a verified
+        // school-domain identity. This prevents non-verified providers from being
+        // incorrectly hidden behind default "Student provider" cards.
+        guard
+            let providerSchoolDomain = schoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            !providerSchoolDomain.isEmpty
+        else {
+            return false
+        }
+        return providerSchoolDomain.hasSuffix(".edu")
     }
 
     /// Student-only cards should stay masked unless the viewer is EDU verified
@@ -1229,6 +1306,48 @@ struct PayBookingNowResponse: Decodable {
 struct CheckoutSessionResponse: Decodable {
     let url: String?
     let error: String?
+}
+
+struct ApplePayCheckoutIntentRequest: Encodable {
+    let businessID: String
+    let service: String
+    let userName: String
+    let userPhone: String
+    let userEmail: String
+    let note: String?
+    let scheduledStart: String?
+    let scheduledEnd: String?
+    let timezone: String
+    let servicePriceCents: Int?
+    let protectionFeeCents: Int?
+    let source: String?
+
+    enum CodingKeys: String, CodingKey {
+        case businessID = "business_id"
+        case service
+        case userName = "user_name"
+        case userPhone = "user_phone"
+        case userEmail = "user_email"
+        case note
+        case scheduledStart = "scheduled_start"
+        case scheduledEnd = "scheduled_end"
+        case timezone
+        case servicePriceCents = "service_price_cents"
+        case protectionFeeCents = "protection_fee_cents"
+        case source
+    }
+}
+
+struct NativeApplePayIntentResponse: Decodable {
+    let clientSecret: String?
+    let paymentIntentID: String?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case clientSecret = "client_secret"
+        case paymentIntentID = "payment_intent_id"
+        case error
+    }
 }
 
 struct PushTokenRequest: Encodable {

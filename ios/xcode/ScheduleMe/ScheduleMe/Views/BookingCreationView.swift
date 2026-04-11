@@ -6,11 +6,17 @@
 
 import SwiftUI
 import WebKit
+#if canImport(PassKit)
+import PassKit
+#endif
 #if canImport(StripePaymentSheet)
 import StripePaymentSheet
 #endif
 #if canImport(StripePayments)
 import StripePayments
+#endif
+#if canImport(StripeApplePay)
+import StripeApplePay
 #endif
 #if canImport(StripePaymentsUI)
 import StripePaymentsUI
@@ -51,12 +57,18 @@ struct BookingCreationView: View {
     @State private var checkoutBookingID: String?
     @State private var checkoutURL: URL?
     @State private var showingHostedCheckout = false
+    @State private var hostedCheckoutPurpose: HostedCheckoutPurpose = .bookingFallback
     @State private var showingBookingConfirmation = false
+    @State private var isLaunchingApplePayCheckout = false
+    @State private var isNativeApplePayFlow = false
 #if canImport(StripePaymentSheet)
     @State private var paymentSheet: PaymentSheet?
     @State private var isPreparingSheet = false
     @State private var isPresentingSheet = false
-    @State private var presenterRef: UIViewController?
+#endif
+#if canImport(StripePayments) && canImport(StripeApplePay)
+    @State private var directApplePayCoordinator: DirectApplePayCoordinator?
+    @State private var directApplePayContext: STPApplePayContext?
 #endif
 
     var body: some View {
@@ -171,10 +183,14 @@ struct BookingCreationView: View {
         }
         .sheet(isPresented: $showingHostedCheckout) {
             HostedCheckoutSheet(
-                url: checkoutURL ?? checkoutBookingID.flatMap { URL(string: "https://usescheduleme.com/pay/\($0)") }
+                url: checkoutURL
             ) {
                 Task { await dataStore.loadBookings() }
-                showingBookingConfirmation = true
+                if hostedCheckoutPurpose == .bookingFallback {
+                    showingBookingConfirmation = true
+                } else {
+                    paymentError = "Checkout closed. Complete payment to create your booking."
+                }
             }
         }
         .sheet(isPresented: $showingBookingConfirmation) {
@@ -189,6 +205,7 @@ struct BookingCreationView: View {
                 withAnimation(.easeInOut(duration: 0.22)) {
                     showingBookingConfirmation = false
                 }
+                hostedCheckoutPurpose = .bookingFallback
                 showingHostedCheckout = true
             }
         }
@@ -359,19 +376,17 @@ struct BookingCreationView: View {
                             .foregroundColor(.red)
                     }
 
-                    Button {
-                        #if canImport(StripePaymentSheet)
-                        Task { await prepareAndPresentPaymentSheet() }
-                        #else
-                        showingCardEntry = true
-                        #endif
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus")
-                            Text("Add Card / Apple Pay")
+                    HStack(spacing: 10) {
+                        Button {
+                            showingCardEntry = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus")
+                                Text("Add Card")
+                            }
                         }
+                        .buttonStyle(ScheduleMeSecondaryButtonStyle())
                     }
-                    .buttonStyle(ScheduleMeSecondaryButtonStyle())
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -426,19 +441,64 @@ struct BookingCreationView: View {
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity)
 
-            Button {
-                Task { await submitBooking() }
-            } label: {
-                if dataStore.isCreatingBooking {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Text("Confirm Booking →")
+            if showBottomApplePayCTA {
+                Button {
+                    Task { @MainActor in
+                        await startApplePayCheckout()
+                    }
+                } label: {
+                    if isLaunchingApplePayCheckout || isPreparingSheet || isPresentingSheet {
+                        ScheduleMeLoadingBar(
+                            width: 72,
+                            height: 6,
+                            tint: .white,
+                            track: Color.white.opacity(0.28)
+                        )
+                    } else {
+                        HStack(spacing: 8) {
+                            Image(systemName: "apple.logo")
+                            Text("Apple Pay")
+                        }
+                    }
                 }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                .padding(.horizontal, 20)
+                .disabled(!canTapApplePayCTA)
+
+                Button("Pay with Card") {
+                    if dataStore.paymentMethods.isEmpty {
+                        paymentError = "Add a card to continue."
+                        showingCardEntry = true
+                        return
+                    }
+                    guard selectedPaymentMethodID != nil else {
+                        paymentError = "Select a card to continue."
+                        return
+                    }
+                    Task { await submitBooking() }
+                }
+                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                .padding(.horizontal, 20)
+                .disabled(!canTapCardPaymentCTA)
+            } else {
+                Button {
+                    Task { await submitBooking() }
+                } label: {
+                    if dataStore.isCreatingBooking {
+                        ScheduleMeLoadingBar(
+                            width: 72,
+                            height: 6,
+                            tint: .white,
+                            track: Color.white.opacity(0.28)
+                        )
+                    } else {
+                        Text("Confirm Booking →")
+                    }
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                .padding(.horizontal, 20)
+                .disabled(dataStore.isCreatingBooking || name.isEmpty)
             }
-            .buttonStyle(ScheduleMePrimaryButtonStyle())
-            .padding(.horizontal, 20)
-            .disabled(dataStore.isCreatingBooking || name.isEmpty)
         }
     }
 
@@ -509,6 +569,7 @@ struct BookingCreationView: View {
                     if let checkoutBookingID {
                         Button("Continue to Secure Checkout") {
                             self.checkoutBookingID = checkoutBookingID
+                            hostedCheckoutPurpose = .bookingFallback
                             showingHostedCheckout = true
                         }
                         .buttonStyle(ScheduleMePrimaryButtonStyle())
@@ -610,6 +671,152 @@ struct BookingCreationView: View {
         }
     }
 
+    /// Starts native in-app Apple Pay via Stripe PaymentSheet using a backend-created PaymentIntent.
+    @MainActor
+    private func startApplePayCheckout() async {
+#if canImport(StripePaymentSheet)
+        guard !isLaunchingApplePayCheckout, !isPreparingSheet, !isPresentingSheet else { return }
+        isLaunchingApplePayCheckout = true
+        paymentError = nil
+        defer { isLaunchingApplePayCheckout = false }
+        if let issue = applePayAvailabilityIssue {
+            paymentError = issue
+            return
+        }
+        guard let amount = servicePriceCents, amount > 0 else {
+            paymentError = "Apple Pay is available after the provider sets a service price."
+            return
+        }
+        guard let key = Bundle.main.object(forInfoDictionaryKey: "STRIPE_PUBLISHABLE_KEY") as? String,
+              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            paymentError = "Stripe publishable key missing in this build."
+            return
+        }
+        StripeAPI.defaultPublishableKey = key
+
+        let trimmedService = service.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedService.isEmpty else {
+            error = "Please select a service before confirming."
+            return
+        }
+
+        let combinedDate: Date?
+        let endDate: Date?
+        if requiresExactTime {
+            combinedDate = Calendar.current.date(
+                bySettingHour: Calendar.current.component(.hour, from: selectedTime),
+                minute: Calendar.current.component(.minute, from: selectedTime),
+                second: 0,
+                of: selectedDate
+            )
+        } else {
+            combinedDate = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: selectedDate)
+        }
+        if requiresExactTime, let duration = serviceDurationMin {
+            endDate = Calendar.current.date(byAdding: .minute, value: duration, to: combinedDate ?? selectedDate)
+        } else {
+            endDate = nil
+        }
+
+        let formatter = ISO8601DateFormatter()
+        let request = ApplePayCheckoutIntentRequest(
+            businessID: business.id,
+            service: trimmedService.isEmpty ? business.primaryCategory : trimmedService,
+            userName: name,
+            userPhone: phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "N/A" : phone,
+            userEmail: email,
+            note: note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : note,
+            scheduledStart: formatter.string(from: combinedDate ?? selectedDate),
+            scheduledEnd: endDate.map { formatter.string(from: $0) },
+            timezone: TimeZone.current.identifier,
+            servicePriceCents: servicePriceCents,
+            protectionFeeCents: protectionFeeCents,
+            source: "ios-native-apple-pay"
+        )
+
+        do {
+            isPreparingSheet = true
+            defer { isPreparingSheet = false }
+            let response = try await dataStore.createNativeApplePayIntent(request: request)
+            guard let clientSecret = response.clientSecret else {
+                paymentError = response.error ?? "Secure checkout is temporarily unavailable. Please try again."
+                return
+            }
+
+            // Preferred path: open native Apple Wallet sheet immediately from the Apple Pay button.
+            if presentDirectApplePay(clientSecret: clientSecret, serviceLabel: trimmedService) {
+                return
+            }
+
+            // Fallback path: open Stripe PaymentSheet with Apple Pay option visible.
+            var config = PaymentSheet.Configuration()
+            config.merchantDisplayName = "ScheduleMe"
+            guard applyApplePayIfAvailable(config: &config) else {
+                paymentError = "Apple Pay is unavailable on this build/device."
+                return
+            }
+
+            isNativeApplePayFlow = true
+            paymentSheet = PaymentSheet(paymentIntentClientSecret: clientSecret, configuration: config)
+            presentPaymentSheet()
+        } catch {
+            paymentError = error.localizedDescription
+        }
+#else
+        paymentError = "Apple Pay is unavailable in this build."
+#endif
+    }
+
+#if canImport(StripePayments) && canImport(PassKit) && canImport(StripePaymentSheet) && canImport(StripeApplePay)
+    @MainActor
+    private func presentDirectApplePay(clientSecret: String, serviceLabel: String) -> Bool {
+        guard let rawMerchantId = Bundle.main.object(forInfoDictionaryKey: "APPLE_PAY_MERCHANT_ID") as? String else {
+            return false
+        }
+        let merchantId = rawMerchantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !merchantId.isEmpty else { return false }
+
+        let countryCode = normalizedMerchantCountryCode()
+        let paymentRequest = StripeAPI.paymentRequest(
+            withMerchantIdentifier: merchantId,
+            country: countryCode,
+            currency: "USD"
+        )
+        paymentRequest.supportedNetworks = [.visa, .masterCard, .amex, .discover]
+        if #available(iOS 17.0, *) {
+            paymentRequest.merchantCapabilities = .threeDSecure
+        } else {
+            paymentRequest.merchantCapabilities = .capability3DS
+        }
+
+        let totalAmount = NSDecimalNumber(value: Double(totalCents ?? 0) / 100.0)
+        let displayService = serviceLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Service" : serviceLabel
+        paymentRequest.paymentSummaryItems = [
+            PKPaymentSummaryItem(label: displayService, amount: totalAmount),
+            PKPaymentSummaryItem(label: "ScheduleMe", amount: totalAmount, type: .final),
+        ]
+
+        guard StripeAPI.canSubmitPaymentRequest(paymentRequest) else { return false }
+
+        let coordinator = DirectApplePayCoordinator(clientSecret: clientSecret) { result in
+            DispatchQueue.main.async {
+                handlePaymentSheetResult(result)
+                directApplePayContext = nil
+                directApplePayCoordinator = nil
+            }
+        }
+        guard let context = STPApplePayContext(paymentRequest: paymentRequest, delegate: coordinator) else {
+            return false
+        }
+
+        isNativeApplePayFlow = true
+        directApplePayCoordinator = coordinator
+        directApplePayContext = context
+        context.presentApplePay()
+        return true
+    }
+#endif
+
     private var protectionFeeCents: Int { 99 }
 
     /// Service price + required protection fee shown in review breakdown.
@@ -641,70 +848,96 @@ struct BookingCreationView: View {
         dismiss()
     }
 
-    // MARK: - Stripe / PaymentSheet
-
-    /// Builds and presents Stripe PaymentSheet for adding/updating saved card methods.
-    private func prepareAndPresentPaymentSheet() async {
+    private var canTapApplePayCTA: Bool {
 #if canImport(StripePaymentSheet)
-        guard !isPreparingSheet, !isPresentingSheet else { return }
-        paymentError = nil
-        guard let key = Bundle.main.object(forInfoDictionaryKey: "STRIPE_PUBLISHABLE_KEY") as? String,
-              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            paymentError = "Stripe publishable key missing in Info.plist."
-            return
-        }
-        StripeAPI.defaultPublishableKey = key
-        isPreparingSheet = true
-        defer { isPreparingSheet = false }
-
-        do {
-            let response = try await createSetupIntentWithTimeout()
-            guard let clientSecret = response.clientSecret else {
-                paymentError = response.error ?? "Unable to prepare payment sheet."
-                return
-            }
-            guard let customerId = response.customerId, let ephemeralKey = response.ephemeralKey else {
-                paymentError = "Stripe setup missing customer or ephemeral key."
-                return
-            }
-
-            var config = PaymentSheet.Configuration()
-            config.merchantDisplayName = "ScheduleMe"
-            let rawScheme = Bundle.main.object(forInfoDictionaryKey: "APP_URL_SCHEME") as? String
-            let scheme = rawScheme?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let resolvedScheme = (scheme?.isEmpty == false) ? (scheme ?? "scheduleme") : "scheduleme"
-            config.returnURL = "\(resolvedScheme)://stripe-redirect"
-            config.customer = .init(id: customerId, ephemeralKeySecret: ephemeralKey)
-            applyApplePayIfAvailable(config: &config)
-
-            paymentSheet = PaymentSheet(setupIntentClientSecret: clientSecret, configuration: config)
-            await MainActor.run {
-                presentPaymentSheet()
-            }
-        } catch {
-            paymentError = error.localizedDescription
-        }
+        return applePayButtonEnabled
+            && !dataStore.isCreatingBooking
+            && !isLaunchingApplePayCheckout
+            && !isPreparingSheet
+            && !isPresentingSheet
+            && !name.isEmpty
+            && ((servicePriceCents ?? 0) > 0)
 #else
-        showingCardEntry = true
+        return false
 #endif
     }
 
+    private var canTapCardPaymentCTA: Bool {
+        !dataStore.isCreatingBooking
+            && !name.isEmpty
+            && !dataStore.paymentMethods.isEmpty
+            && selectedPaymentMethodID != nil
+    }
+
+    private var showBottomApplePayCTA: Bool {
+#if canImport(StripePaymentSheet)
+#if !targetEnvironment(simulator)
+        return (servicePriceCents ?? 0) > 0
+#else
+        return false
+#endif
+#else
+        return false
+#endif
+    }
+
+    // MARK: - Stripe / PaymentSheet
+
     #if canImport(StripePaymentSheet)
     /// Enables Apple Pay inside PaymentSheet when device + merchant config are available.
-    private func applyApplePayIfAvailable(config: inout PaymentSheet.Configuration) {
-        guard StripeAPI.deviceSupportsApplePay() else { return }
-        guard let rawMerchantId = Bundle.main.object(forInfoDictionaryKey: "APPLE_PAY_MERCHANT_ID") as? String else { return }
+    private func applyApplePayIfAvailable(config: inout PaymentSheet.Configuration) -> Bool {
+        guard applePayButtonEnabled else { return false }
+        guard let rawMerchantId = Bundle.main.object(forInfoDictionaryKey: "APPLE_PAY_MERCHANT_ID") as? String else { return false }
         let merchantId = rawMerchantId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !merchantId.isEmpty else { return }
-        let countryCode: String
-        if #available(iOS 16.0, *) {
-            countryCode = Locale.current.region?.identifier ?? "US"
-        } else {
-            countryCode = Locale.current.regionCode ?? "US"
-        }
+        guard !merchantId.isEmpty else { return false }
+        let countryCode = normalizedMerchantCountryCode()
         config.applePay = .init(merchantId: merchantId, merchantCountryCode: countryCode)
+        return true
     }
     #endif
+
+    private var applePayButtonEnabled: Bool {
+        applePayAvailabilityIssue == nil
+    }
+
+    private var applePayAvailabilityIssue: String? {
+#if canImport(StripePaymentSheet) && canImport(StripePayments) && canImport(PassKit)
+        guard StripeAPI.deviceSupportsApplePay() else {
+            return "Apple Pay is not supported on this device."
+        }
+        guard PKPaymentAuthorizationController.canMakePayments() else {
+            return "Apple Pay is unavailable. Add a Wallet card first."
+        }
+        guard let rawMerchantId = Bundle.main.object(forInfoDictionaryKey: "APPLE_PAY_MERCHANT_ID") as? String else {
+            return "Apple Pay merchant ID is missing in this build."
+        }
+        let merchantId = rawMerchantId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !merchantId.isEmpty, merchantId.hasPrefix("merchant.") else {
+            return "Apple Pay merchant ID is invalid in this build."
+        }
+        let countryCode = normalizedMerchantCountryCode()
+        let request = StripeAPI.paymentRequest(
+            withMerchantIdentifier: merchantId,
+            country: countryCode,
+            currency: "USD"
+        )
+        request.supportedNetworks = [.visa, .masterCard, .amex, .discover]
+        if #available(iOS 17.0, *) {
+            request.merchantCapabilities = .threeDSecure
+        } else {
+            request.merchantCapabilities = .capability3DS
+        }
+        if !PKPaymentAuthorizationController.canMakePayments(usingNetworks: request.supportedNetworks, capabilities: request.merchantCapabilities) {
+            return "Apple Pay isn't available for this app build yet."
+        }
+        guard StripeAPI.canSubmitPaymentRequest(request) else {
+            return "Apple Pay can't be started on this device/build right now."
+        }
+        return nil
+#else
+        return "Apple Pay is unavailable in this build."
+#endif
+    }
 
     /// Presents PaymentSheet from the top-most visible UIKit controller.
     private func presentPaymentSheet() {
@@ -713,37 +946,71 @@ struct BookingCreationView: View {
             paymentError = "Unable to prepare payment sheet."
             return
         }
-        guard let root = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow })?.rootViewController else {
+        guard let presenter = findActivePresenter() else {
             paymentError = "Unable to present payment sheet."
             return
         }
-        let presenter = topMostViewController(root)
-        if presenter.isBeingPresented || presenter.presentedViewController != nil {
+        if presenter.isBeingPresented || presenter.isBeingDismissed {
             paymentError = "Payment sheet is already opening. Please wait."
             return
         }
         isPresentingSheet = true
-        presenterRef = presenter
-        scheduleSheetTimeout()
         paymentSheet.present(from: presenter) { result in
-            isPresentingSheet = false
-            presenterRef = nil
-            switch result {
-            case .completed:
-                Task {
-                    await dataStore.loadPaymentMethods()
-                    selectedPaymentMethodID = dataStore.paymentDefaultID ?? dataStore.paymentMethods.first?.id
-                }
-            case .failed(let error):
-                paymentError = error.localizedDescription
-            case .canceled:
-                break
+            DispatchQueue.main.async {
+                isPresentingSheet = false
+                handlePaymentSheetResult(result)
             }
         }
 #endif
+    }
+
+    @MainActor
+    private func handlePaymentSheetResult(_ result: PaymentSheetResult) {
+        switch result {
+        case .completed:
+            if isNativeApplePayFlow {
+                isNativeApplePayFlow = false
+                paymentError = nil
+                checkoutBookingID = nil
+                checkoutURL = nil
+                bookingResultMessage = "Payment received. Finalizing your booking..."
+                showingBookingConfirmation = true
+                refreshAfterNativeApplePaySuccess()
+            } else {
+                Task {
+                    await dataStore.loadPaymentMethods()
+                    await MainActor.run {
+                        selectedPaymentMethodID = dataStore.paymentDefaultID ?? dataStore.paymentMethods.first?.id
+                    }
+                }
+            }
+        case .failed(let error):
+            isNativeApplePayFlow = false
+            paymentError = error.localizedDescription
+        case .canceled:
+            isNativeApplePayFlow = false
+        }
+    }
+
+    /// Single post-success refresh to avoid aggressive multi-task churn after Apple Pay completion.
+    private func refreshAfterNativeApplePaySuccess() {
+        Task {
+            await dataStore.loadBookings()
+        }
+    }
+
+    private func findActivePresenter() -> UIViewController? {
+        let activeScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+        let candidateWindows = activeScenes
+            .flatMap { $0.windows }
+            .filter { !$0.isHidden && $0.alpha > 0 && $0.windowLevel == .normal }
+        let window = candidateWindows.first(where: { $0.isKeyWindow }) ?? candidateWindows.first
+        guard let root = window?.rootViewController else { return nil }
+        let top = topMostViewController(root)
+        guard top.viewIfLoaded?.window != nil else { return nil }
+        return top
     }
 
     private func topMostViewController(_ root: UIViewController) -> UIViewController {
@@ -754,36 +1021,56 @@ struct BookingCreationView: View {
         return top
     }
 
-    /// Hard timeout guard to recover if Stripe sheet presentation hangs.
-    private func scheduleSheetTimeout() {
-#if canImport(StripePaymentSheet)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
-            guard isPresentingSheet else { return }
-            if let presenter = presenterRef, presenter.presentedViewController != nil {
-                presenter.dismiss(animated: true)
-            }
-            isPresentingSheet = false
-            paymentError = "Payment sheet timed out. Please try again."
+    /// Normalizes device region to ISO-3166 alpha-2 country code expected by Apple Pay.
+    private func normalizedMerchantCountryCode() -> String {
+        let raw: String
+        if #available(iOS 16.0, *) {
+            raw = Locale.current.region?.identifier ?? "US"
+        } else {
+            raw = Locale.current.regionCode ?? "US"
         }
-#endif
+        let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return cleaned.count == 2 ? cleaned : "US"
     }
 
-    /// Wraps setup-intent call in timeout race so UI doesn't stall indefinitely.
-    private func createSetupIntentWithTimeout() async throws -> SetupIntentResponse {
-        try await withThrowingTaskGroup(of: SetupIntentResponse.self) { group in
-            group.addTask {
-                try await dataStore.createSetupIntentForAccount(apiVersion: nil)
-            }
-            group.addTask {
-                try await Task.sleep(for: .seconds(15))
-                throw BookingPaymentSheetError.timeout
-            }
-            let result = try await group.next()!
-            group.cancelAll()
-            return result
+}
+
+#if canImport(StripePayments) && canImport(PassKit) && canImport(StripePaymentSheet) && canImport(StripeApplePay)
+private final class DirectApplePayCoordinator: NSObject, ApplePayContextDelegate {
+    private let clientSecret: String
+    private let onResult: (PaymentSheetResult) -> Void
+
+    init(clientSecret: String, onResult: @escaping (PaymentSheetResult) -> Void) {
+        self.clientSecret = clientSecret
+        self.onResult = onResult
+    }
+
+    func applePayContext(
+        _ context: STPApplePayContext,
+        didCreatePaymentMethod paymentMethod: StripeAPI.PaymentMethod,
+        paymentInformation: PKPayment
+    ) async throws -> String {
+        clientSecret
+    }
+
+    func applePayContext(
+        _ context: STPApplePayContext,
+        didCompleteWith status: STPApplePayContext.PaymentStatus,
+        error: Error?
+    ) {
+        switch status {
+        case .success:
+            onResult(.completed)
+        case .error:
+            onResult(.failed(error: (error ?? NSError(domain: "ApplePay", code: -1, userInfo: nil))))
+        case .userCancellation:
+            onResult(.canceled)
+        @unknown default:
+            onResult(.canceled)
         }
     }
 }
+#endif
 
 private struct HostedCheckoutSheet: View {
     let url: URL?
@@ -910,6 +1197,11 @@ private enum BookingPaymentSheetError: LocalizedError {
             return "Payment sheet timed out. Please try again."
         }
     }
+}
+
+private enum HostedCheckoutPurpose {
+    case bookingFallback
+    case applePayIntent
 }
 
 // MARK: - Calendly WKWebView wrapper

@@ -5,9 +5,6 @@
 // Payment-method add/remove/default issues are primarily debugged here.
 
 import SwiftUI
-#if canImport(StripePaymentSheet)
-import StripePaymentSheet
-#endif
 #if canImport(StripePayments)
 import StripePayments
 #endif
@@ -20,12 +17,6 @@ struct PaymentSettingsView: View {
     @State private var toDelete: PaymentMethod?
     @State private var showingDeleteAlert = false
     @State private var isSyncing = false
-#if canImport(StripePaymentSheet)
-    @State private var paymentSheet: PaymentSheet?
-    @State private var isPreparingSheet = false
-    @State private var isPresentingSheet = false
-    @State private var presenterRef: UIViewController?
-#endif
     @State private var paymentError: String?
     @State private var showingCardEntry = false
     @State private var toastMessage: String?
@@ -92,18 +83,18 @@ struct PaymentSettingsView: View {
             }
             
             Button {
-#if canImport(StripePaymentSheet)
-                Task { await prepareAndPresentPaymentSheet() }
-#else
                 showingCardEntry = true
-#endif
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "plus")
-                    Text("Add Card / Apple Pay")
+                    Text("Add Card")
                 }
             }
             .buttonStyle(ScheduleMeSecondaryButtonStyle())
+
+            Text("Apple Pay is available during booking checkout.")
+                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                .foregroundColor(ScheduleMeTheme.mutedText)
         }
         .task {
             await dataStore.loadPaymentMethods()
@@ -166,148 +157,6 @@ struct PaymentSettingsView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 16)
             }
-        }
-    }
-
-    // MARK: - Stripe / PaymentSheet
-
-    /// Prepares setup intent and presents Stripe PaymentSheet for adding cards.
-    private func prepareAndPresentPaymentSheet() async {
-#if canImport(StripePaymentSheet)
-        guard !isPreparingSheet, !isPresentingSheet else { return }
-        paymentError = nil
-        guard let key = Bundle.main.object(forInfoDictionaryKey: "STRIPE_PUBLISHABLE_KEY") as? String,
-              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            paymentError = "Stripe publishable key missing in Info.plist."
-            return
-        }
-
-        StripeAPI.defaultPublishableKey = key
-        isPreparingSheet = true
-        defer { isPreparingSheet = false }
-
-        do {
-            let response = try await createSetupIntentWithTimeout()
-            guard let clientSecret = response.clientSecret else {
-                paymentError = response.error ?? "Unable to prepare payment sheet."
-                return
-            }
-
-            var config = PaymentSheet.Configuration()
-            config.merchantDisplayName = "ScheduleMe"
-            let rawScheme = Bundle.main.object(forInfoDictionaryKey: "APP_URL_SCHEME") as? String
-            let scheme = rawScheme?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let resolvedScheme = (scheme?.isEmpty == false) ? (scheme ?? "scheduleme") : "scheduleme"
-            config.returnURL = "\(resolvedScheme)://stripe-redirect"
-            applyApplePayIfAvailable(config: &config)
-            guard let customerId = response.customerId, let ephemeralKey = response.ephemeralKey else {
-                paymentError = "Stripe setup missing customer or ephemeral key."
-                return
-            }
-            config.customer = .init(id: customerId, ephemeralKeySecret: ephemeralKey)
-            paymentSheet = PaymentSheet(setupIntentClientSecret: clientSecret, configuration: config)
-            await MainActor.run {
-                presentPaymentSheet()
-            }
-        } catch {
-            paymentError = error.localizedDescription
-        }
-#else
-        paymentError = "Stripe is unavailable in this build."
-#endif
-    }
-
-    #if canImport(StripePaymentSheet)
-    /// Enables Apple Pay in the sheet when merchant config + device capability are present.
-    private func applyApplePayIfAvailable(config: inout PaymentSheet.Configuration) {
-        guard StripeAPI.deviceSupportsApplePay() else { return }
-        guard let rawMerchantId = Bundle.main.object(forInfoDictionaryKey: "APPLE_PAY_MERCHANT_ID") as? String else { return }
-        let merchantId = rawMerchantId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !merchantId.isEmpty else { return }
-        let countryCode: String
-        if #available(iOS 16.0, *) {
-            countryCode = Locale.current.region?.identifier ?? "US"
-        } else {
-            countryCode = Locale.current.regionCode ?? "US"
-        }
-        config.applePay = .init(merchantId: merchantId, merchantCountryCode: countryCode)
-    }
-    #endif
-
-    /// Presents PaymentSheet on the active top-most UIKit view controller.
-    private func presentPaymentSheet() {
-#if canImport(StripePaymentSheet)
-        guard let paymentSheet else {
-            paymentError = "Unable to prepare payment sheet."
-            return
-        }
-        guard let root = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow })?.rootViewController else {
-            paymentError = "Unable to present payment sheet."
-            return
-        }
-        let presenter = topMostViewController(root)
-        if presenter.isBeingPresented || presenter.presentedViewController != nil {
-            paymentError = "Payment sheet is already opening. Please wait."
-            return
-        }
-        isPresentingSheet = true
-        presenterRef = presenter
-        scheduleSheetTimeout()
-        paymentSheet.present(from: presenter) { result in
-            isPresentingSheet = false
-            presenterRef = nil
-            switch result {
-            case .completed:
-                Task {
-                    await dataStore.loadPaymentMethods()
-                }
-            case .failed(let error):
-                paymentError = error.localizedDescription
-            case .canceled:
-                break
-            }
-        }
-#else
-        paymentError = "Stripe is unavailable in this build."
-#endif
-    }
-
-    private func topMostViewController(_ root: UIViewController) -> UIViewController {
-        var top = root
-        while let presented = top.presentedViewController {
-            top = presented
-        }
-        return top
-    }
-
-    private func scheduleSheetTimeout() {
-#if canImport(StripePaymentSheet)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
-            guard isPresentingSheet else { return }
-            if let presenter = presenterRef, presenter.presentedViewController != nil {
-                presenter.dismiss(animated: true)
-            }
-            isPresentingSheet = false
-            paymentError = "Payment sheet timed out. Please try again."
-        }
-#endif
-    }
-
-    private func createSetupIntentWithTimeout() async throws -> SetupIntentResponse {
-        try await withThrowingTaskGroup(of: SetupIntentResponse.self) { group in
-            group.addTask {
-                try await dataStore.createSetupIntentForAccount(apiVersion: nil)
-            }
-            group.addTask {
-                try await Task.sleep(for: .seconds(15))
-                throw PaymentSheetError.timeout
-            }
-            let result = try await group.next()!
-            group.cancelAll()
-            return result
         }
     }
 

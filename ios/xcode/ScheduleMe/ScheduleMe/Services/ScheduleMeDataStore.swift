@@ -139,6 +139,7 @@ final class ScheduleMeDataStore: ObservableObject {
             )
             campusBusinesses = response.businesses
             campusFeatured = response.featured
+            prefetchBusinessImages(response.businesses + response.featured, limit: 60)
         } catch {
             campusBusinesses = []
             campusFeatured = []
@@ -240,7 +241,6 @@ final class ScheduleMeDataStore: ObservableObject {
         let resolvedCoordinate = coordinate
             ?? lastBusinessesCoordinate
             ?? LocationManager.simulatorFallbackCoordinate
-            ?? Self.defaultNearbyFallbackCoordinate
         guard let coordinate = resolvedCoordinate else {
             if businesses.isEmpty {
                 businessError = DataStoreError.missingLocation.localizedDescription
@@ -267,7 +267,9 @@ final class ScheduleMeDataStore: ObservableObject {
         let searchFallback = await loadNearbyBusinessesFallbackFromSearch(coordinate: coordinate)
 
         if let primary = primaryNearbyAuth ?? primaryNearbyPublic, !primary.isEmpty {
-            businesses = mergeNearbyBusinesses(primary: primary, supplement: supabaseFallback ?? [])
+            let merged = mergeNearbyBusinesses(primary: primary, supplement: supabaseFallback ?? [])
+            businesses = await enrichNearbyBusinessesWithProfileMedia(merged)
+            prefetchBusinessImages(businesses, limit: 60)
             businessError = nil
             lastBusinessesFetchAt = Date()
             lastBusinessesCoordinate = coordinate
@@ -275,7 +277,8 @@ final class ScheduleMeDataStore: ObservableObject {
         }
 
         if let supabaseFallback, !supabaseFallback.isEmpty {
-            businesses = supabaseFallback
+            businesses = await enrichNearbyBusinessesWithProfileMedia(supabaseFallback)
+            prefetchBusinessImages(businesses, limit: 60)
             businessError = nil
             lastBusinessesFetchAt = Date()
             lastBusinessesCoordinate = coordinate
@@ -283,7 +286,8 @@ final class ScheduleMeDataStore: ObservableObject {
         }
 
         if let searchFallback, !searchFallback.isEmpty {
-            businesses = searchFallback
+            businesses = await enrichNearbyBusinessesWithProfileMedia(searchFallback)
+            prefetchBusinessImages(businesses, limit: 60)
             businessError = nil
             lastBusinessesFetchAt = Date()
             lastBusinessesCoordinate = coordinate
@@ -297,6 +301,14 @@ final class ScheduleMeDataStore: ObservableObject {
             businessError = "Nearby providers are currently unavailable. Sources returned: nearby=\(nearbyCount), supabase=\(supabaseCount), search=\(searchCount). Pull to refresh and try again."
         } else {
             businessError = nil
+        }
+    }
+
+    private func prefetchBusinessImages(_ list: [BusinessSummary], limit: Int) {
+        guard !list.isEmpty else { return }
+        let urls = list.compactMap { $0.heroImageURL }
+        Task {
+            await ImagePrefetcher.shared.prefetch(urls: urls, limit: limit)
         }
     }
 
@@ -432,6 +444,7 @@ final class ScheduleMeDataStore: ObservableObject {
         )
         var responseAuthed: SearchResponse?
         var responsePublic: SearchResponse?
+        var shouldTryPublicFallback = true
 
         do {
             responseAuthed = try await APIClient.shared.send(
@@ -441,27 +454,40 @@ final class ScheduleMeDataStore: ObservableObject {
                 requiresAuth: true
             )
         } catch {
-            #if DEBUG
-            print("Nearby search fallback (auth) failed: \(error.localizedDescription)")
-            #endif
+            let message = ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription).lowercased()
+            // Only run unauthenticated fallback when auth truly failed because of auth.
+            shouldTryPublicFallback = message.contains("status 401") || message.contains("unauthorized")
         }
 
-        do {
-            responsePublic = try await APIClient.shared.send(
-                path: "/api/search",
-                method: "POST",
-                body: request,
-                requiresAuth: false
-            )
-        } catch {
-            #if DEBUG
-            print("Nearby search fallback (public) failed: \(error.localizedDescription)")
-            #endif
+        if shouldTryPublicFallback {
+            do {
+                responsePublic = try await APIClient.shared.send(
+                    path: "/api/search",
+                    method: "POST",
+                    body: request,
+                    requiresAuth: false
+                )
+            } catch {
+                // Intentionally swallow debug spam here; UI already handles empty-result fallback.
+            }
         }
 
         let rows = (responseAuthed?.data ?? []) + (responsePublic?.data ?? [])
         let mapped = rows.map { row in
-            BusinessSummary(
+            let distance: Double?
+            if let direct = row.distanceMiles {
+                distance = direct
+            } else if let lat = row.lat, let lng = row.lng {
+                distance = Self.distanceMiles(
+                    from: coordinate.latitude,
+                    fromLng: coordinate.longitude,
+                    to: lat,
+                    toLng: lng
+                )
+            } else {
+                distance = nil
+            }
+            return BusinessSummary(
                 id: row.id,
                 name: row.name ?? "Local provider",
                 slug: row.slug,
@@ -478,7 +504,7 @@ final class ScheduleMeDataStore: ObservableObject {
                 rating: row.rating,
                 reviewCount: row.reviewCount,
                 priceTier: row.priceTier,
-                distanceMiles: row.distanceMiles,
+                distanceMiles: distance,
                 founder50: nil,
                 availabilityStatus: nil,
                 campusProvider: nil,
@@ -489,7 +515,8 @@ final class ScheduleMeDataStore: ObservableObject {
                 campusSchoolName: nil
             )
         }
-        let deduped = Dictionary(uniqueKeysWithValues: mapped.map { ($0.id, $0) }).values
+        let nearbyOnly = mapped.filter { ($0.distanceMiles ?? .greatestFiniteMagnitude) <= 35 }
+        let deduped = Dictionary(uniqueKeysWithValues: nearbyOnly.map { ($0.id, $0) }).values
         if !deduped.isEmpty {
             return deduped.sorted {
                 ($0.distanceMiles ?? .greatestFiniteMagnitude) < ($1.distanceMiles ?? .greatestFiniteMagnitude)
@@ -580,40 +607,8 @@ final class ScheduleMeDataStore: ObservableObject {
                 return nearby
             }
 
-            // If nothing falls inside radius, still return recent public/campus inventory
-            // so Home/Browse never feel empty in low-density areas.
-            let fallbackAnyLocation = response.value.compactMap { row -> BusinessSummary? in
-                let mediaURLs = (row.mediaURLs ?? []).compactMap(BusinessSummary.resolveRemoteURL(from:))
-                let coverURL = BusinessSummary.resolveRemoteURL(from: row.coverURL)
-                return BusinessSummary(
-                    id: row.id,
-                    name: row.name ?? "Student provider",
-                    slug: row.slug,
-                    description: row.description,
-                    address: row.address,
-                    lat: row.lat,
-                    lng: row.lng,
-                    serviceTags: row.serviceTags ?? [],
-                    coverURL: coverURL,
-                    mediaURLs: mediaURLs,
-                    phone: row.phone,
-                    website: row.website,
-                    calendlyURL: row.calendlyURL,
-                    rating: row.rating,
-                    reviewCount: row.reviewCount,
-                    priceTier: row.priceTier,
-                    distanceMiles: nil,
-                    founder50: row.founder50,
-                    availabilityStatus: row.availabilityStatus,
-                    campusProvider: row.campusProvider,
-                    publicVisibility: row.publicVisibility,
-                    publicShowName: row.publicShowName,
-                    publicShowMedia: row.publicShowMedia,
-                    schoolDomain: row.schoolDomain,
-                    campusSchoolName: row.campusSchoolName
-                )
-            }
-            return Array(fallbackAnyLocation.prefix(60))
+            // Never fallback to arbitrary out-of-area inventory for Home/Browse.
+            return []
         } catch {
             #if DEBUG
             print("Nearby supabase fallback failed: \(error.localizedDescription)")
@@ -630,10 +625,6 @@ final class ScheduleMeDataStore: ObservableObject {
             + cos(lat1 * .pi / 180) * cos(lat2 * .pi / 180) * sin(dLng / 2) * sin(dLng / 2)
         let c = 2 * atan2(sqrt(a), sqrt(1 - a))
         return earthRadiusMiles * c
-    }
-
-    private static var defaultNearbyFallbackCoordinate: CLLocationCoordinate2D? {
-        CLLocationCoordinate2D(latitude: 36.9916, longitude: -122.0583)
     }
 
     /// Combines primary nearby API results with fallback Supabase rows so we can
@@ -684,6 +675,92 @@ final class ScheduleMeDataStore: ObservableObject {
         }
     }
 
+    /// Nearby endpoint may intentionally redact media for some rows.
+    /// Fill missing card images from `business-profile` so Home/Browse cards
+    /// can still render the provider's selected cover when available.
+    private func enrichNearbyBusinessesWithProfileMedia(_ input: [BusinessSummary]) async -> [BusinessSummary] {
+        let missingImageIDs = Array(
+            Set(
+                input
+                    .filter { $0.heroImageURL == nil }
+                    .map(\.id)
+            )
+        )
+        guard missingImageIDs.isEmpty == false else { return input }
+
+        var profileByBusinessID: [String: BusinessProfile] = [:]
+        for businessID in missingImageIDs.prefix(12) {
+            do {
+                let response: BusinessProfileResponse = try await APIClient.shared.get(
+                    path: "/api/business-profile",
+                    queryItems: [.init(name: "business_id", value: businessID)],
+                    requiresAuth: true
+                )
+                if let business = response.business {
+                    profileByBusinessID[businessID] = business
+                    continue
+                }
+            } catch {
+                // Try public fallback below.
+            }
+
+            do {
+                let response: BusinessProfileResponse = try await APIClient.shared.get(
+                    path: "/api/business-profile",
+                    queryItems: [.init(name: "business_id", value: businessID)],
+                    requiresAuth: false
+                )
+                if let business = response.business {
+                    profileByBusinessID[businessID] = business
+                }
+            } catch {
+                // Best-effort enrichment only.
+            }
+        }
+
+        guard profileByBusinessID.isEmpty == false else { return input }
+
+        return input.map { business in
+            guard business.heroImageURL == nil, let profile = profileByBusinessID[business.id] else {
+                return business
+            }
+
+            let profileMedia = profile.mediaURLs ?? []
+            let resolvedCover = business.coverURL ?? profile.coverURL ?? profileMedia.first
+            let resolvedMedia = business.mediaURLs.isEmpty ? profileMedia : business.mediaURLs
+
+            return BusinessSummary(
+                id: business.id,
+                name: business.name,
+                slug: business.slug,
+                description: business.description,
+                address: business.address,
+                lat: business.lat,
+                lng: business.lng,
+                serviceTags: business.serviceTags,
+                coverURL: resolvedCover,
+                mediaURLs: resolvedMedia,
+                phone: business.phone,
+                website: business.website,
+                calendlyURL: business.calendlyURL,
+                rating: business.rating,
+                reviewCount: business.reviewCount,
+                priceTier: business.priceTier,
+                distanceMiles: business.distanceMiles,
+                founder50: business.founder50,
+                availabilityStatus: business.availabilityStatus,
+                campusProvider: business.campusProvider,
+                publicVisibility: business.publicVisibility,
+                publicShowName: business.publicShowName,
+                publicShowMedia: business.publicShowMedia,
+                schoolDomain: business.schoolDomain,
+                campusSchoolName: business.campusSchoolName,
+                stripeOnboarded: business.stripeOnboarded,
+                stripeAccountID: business.stripeAccountID
+            )
+        }
+    }
+
     /// Loads bookings for the signed-in consumer.
     /// Uses short cache window to reduce flicker when tab switching.
     func loadBookings() async {
@@ -708,8 +785,16 @@ final class ScheduleMeDataStore: ObservableObject {
             bookingsError = nil
             lastBookingsFetchAt = Date()
         } catch {
-            bookings = []
-            bookingsError = error.localizedDescription
+            do {
+                let userID = try await currentUserID()
+                let fallback = try await fetchBookingsFromSupabase(userID: userID)
+                bookings = fallback
+                bookingsError = nil
+                lastBookingsFetchAt = Date()
+            } catch {
+                bookings = []
+                bookingsError = error.localizedDescription
+            }
         }
     }
 
@@ -726,21 +811,39 @@ final class ScheduleMeDataStore: ObservableObject {
                 path: "/api/notifications",
                 requiresAuth: true
             )
-            notifications = response.notifications.sorted { $0.createdAt > $1.createdAt }
+            let sorted = response.notifications.sorted { $0.createdAt > $1.createdAt }
+            if sorted.isEmpty {
+                notifications = await bookingDerivedNotificationsFallback()
+            } else {
+                notifications = sorted
+            }
         } catch {
             // Fallback path so notifications page still has useful content
             // even if notifications API is unavailable.
+            notifications = await bookingDerivedNotificationsFallback()
+        }
+    }
+
+    private func bookingDerivedNotificationsFallback() async -> [AppNotification] {
+        do {
+            let userID = try await currentUserID()
             do {
-                let userID = try await currentUserID()
                 let response: BookingsResponse = try await APIClient.shared.get(
                     path: "/api/bookings",
                     queryItems: [.init(name: "user_id", value: userID.lowercased())],
                     requiresAuth: true
                 )
-                notifications = response.bookings.map { AppNotification.fromBooking($0) }
+                return response.bookings
+                    .map { AppNotification.fromBooking($0) }
+                    .sorted { $0.createdAt > $1.createdAt }
             } catch {
-                notifications = []
+                let fallback = try await fetchBookingsFromSupabase(userID: userID)
+                return fallback
+                    .map { AppNotification.fromBooking($0) }
+                    .sorted { $0.createdAt > $1.createdAt }
             }
+        } catch {
+            return []
         }
     }
 
@@ -748,14 +851,22 @@ final class ScheduleMeDataStore: ObservableObject {
     /// Builds synthetic inbox rows from booking-linked thread fetches.
     private func fallbackThreadsFromBookings() async {
         do {
-            let userID = try await currentUserID()
-            let response: BookingsResponse = try await APIClient.shared.get(
-                path: "/api/bookings",
-                queryItems: [.init(name: "user_id", value: userID.lowercased())],
-                requiresAuth: true
-            )
-            let bookingsByID = Dictionary(uniqueKeysWithValues: response.bookings.map { ($0.id, $0) })
-            let bookingIDs = Array(Set(response.bookings.map(\.id)))
+            let sourceBookings: [BookingSummary]
+            do {
+                let userID = try await currentUserID()
+                let response: BookingsResponse = try await APIClient.shared.get(
+                    path: "/api/bookings",
+                    queryItems: [.init(name: "user_id", value: userID.lowercased())],
+                    requiresAuth: true
+                )
+                sourceBookings = response.bookings
+            } catch {
+                let userID = try await currentUserID()
+                sourceBookings = try await fetchBookingsFromSupabase(userID: userID)
+            }
+
+            let bookingsByID = Dictionary(uniqueKeysWithValues: sourceBookings.map { ($0.id, $0) })
+            let bookingIDs = Array(Set(sourceBookings.map(\.id)))
             var collected: [MessageThread] = []
             for bookingID in bookingIDs.prefix(30) {
                 let booking = bookingsByID[bookingID]
@@ -803,7 +914,7 @@ final class ScheduleMeDataStore: ObservableObject {
                 }
             }
             if collected.isEmpty {
-                collected = response.bookings.map { booking in
+                collected = sourceBookings.map { booking in
                     MessageThread(
                         id: booking.id,
                         businessID: booking.businessID,
@@ -825,6 +936,71 @@ final class ScheduleMeDataStore: ObservableObject {
         } catch {
             threads = []
             messagesError = error.localizedDescription
+        }
+    }
+
+    /// Direct Supabase fallback for bookings when API routing/rate-limit layers are unavailable.
+    private func fetchBookingsFromSupabase(userID: String) async throws -> [BookingSummary] {
+        struct BookingRow: Decodable {
+            let id: String
+            let service: String?
+            let status: String?
+            let createdAt: Date?
+            let scheduledStart: Date?
+            let amountCents: Int?
+            let paidAt: Date?
+            let note: String?
+            let notes: String?
+            let businessID: String?
+            let businessName: String?
+            let stripePaymentMethodID: String?
+            let stripeCustomerID: String?
+            let stripeSetupIntentID: String?
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case service
+                case status
+                case createdAt = "created_at"
+                case scheduledStart = "scheduled_start"
+                case amountCents = "amount_cents"
+                case paidAt = "paid_at"
+                case note
+                case notes
+                case businessID = "business_id"
+                case businessName = "business_name"
+                case stripePaymentMethodID = "stripe_payment_method_id"
+                case stripeCustomerID = "stripe_customer_id"
+                case stripeSetupIntentID = "stripe_setup_intent_id"
+            }
+        }
+
+        let response: PostgrestResponse<[BookingRow]> = try await SupabaseManager.shared.client
+            .from("bookings")
+            .select("id,service,status,created_at,scheduled_start,amount_cents,paid_at,note,notes,business_id,business_name,stripe_payment_method_id,stripe_customer_id,stripe_setup_intent_id")
+            .eq("user_id", value: userID)
+            .order("created_at", ascending: false)
+            .limit(120)
+            .execute()
+
+        return response.value.map { row in
+            BookingSummary(
+                id: row.id,
+                service: row.service ?? "Service",
+                status: row.status ?? "pending",
+                createdAt: row.createdAt ?? .distantPast,
+                scheduledAt: row.scheduledStart,
+                amountCents: row.amountCents,
+                paidAt: row.paidAt,
+                note: row.note ?? row.notes,
+                businessID: row.businessID,
+                businessName: row.businessName,
+                businessPhone: nil,
+                businessEmail: nil,
+                stripePaymentMethodID: row.stripePaymentMethodID,
+                stripeCustomerID: row.stripeCustomerID,
+                stripeSetupIntentID: row.stripeSetupIntentID
+            )
         }
     }
 
@@ -925,10 +1101,12 @@ final class ScheduleMeDataStore: ObservableObject {
             var collectedMessages: [ConversationMessage] = []
             var selectedThreadPayload: MessageThread?
             var resolvedBookingID: String?
+            var didFetchAtLeastOneThread = false
             var lastError: Error?
             for bookingID in candidateBookingIDs {
                 do {
                     let response = try await fetchMessages(bookingID: bookingID, limit: 40)
+                    didFetchAtLeastOneThread = true
                     if let serverThread = response.thread, selectedThreadPayload == nil {
                         selectedThreadPayload = serverThread
                     }
@@ -944,10 +1122,10 @@ final class ScheduleMeDataStore: ObservableObject {
                     lastError = error
                 }
             }
-            guard !collectedMessages.isEmpty else {
+            guard didFetchAtLeastOneThread || !collectedMessages.isEmpty else {
                 throw lastError ?? DataStoreError.server("Unable to load messages for this conversation.")
             }
-            activeThreadBookingID = resolvedBookingID
+            activeThreadBookingID = resolvedBookingID ?? candidateBookingIDs.first
             messages = deduplicatedMessages(collectedMessages)
             messageCursor = messages.first?.createdAt
             hasMoreMessages = false
@@ -996,14 +1174,10 @@ final class ScheduleMeDataStore: ObservableObject {
             guard let bookingID else {
                 return
             }
-            let response: MessagesResponse = try await APIClient.shared.get(
-                path: "/api/messages",
-                queryItems: [
-                    .init(name: "booking_id", value: bookingID),
-                    .init(name: "after", value: ISO8601DateFormatter().string(from: last)),
-                    .init(name: "limit", value: "40")
-                ],
-                requiresAuth: true
+            let response = try await fetchMessagesPage(
+                bookingID: bookingID,
+                limit: 40,
+                after: last
             )
             if !response.messages.isEmpty {
                 let existing = Set(messages.map(\.id))
@@ -1025,7 +1199,6 @@ final class ScheduleMeDataStore: ObservableObject {
         defer { isLoadingMoreMessages = false }
 
         do {
-            let before = ISO8601DateFormatter().string(from: cursor)
             let bookingID: String?
             if let activeThreadBookingID {
                 bookingID = activeThreadBookingID
@@ -1035,14 +1208,10 @@ final class ScheduleMeDataStore: ObservableObject {
             guard let bookingID else {
                 return
             }
-            let response: MessagesResponse = try await APIClient.shared.get(
-                path: "/api/messages",
-                queryItems: [
-                    .init(name: "booking_id", value: bookingID),
-                    .init(name: "before", value: before),
-                    .init(name: "limit", value: "40")
-                ],
-                requiresAuth: true
+            let response = try await fetchMessagesPage(
+                bookingID: bookingID,
+                limit: 40,
+                before: cursor
             )
             if !response.messages.isEmpty {
                 let existing = Set(messages.map(\.id))
@@ -1339,6 +1508,23 @@ final class ScheduleMeDataStore: ObservableObject {
         return url
     }
 
+    /// Creates a payment-first native PaymentIntent for Apple Pay (no booking row created yet).
+    func createNativeApplePayIntent(request: ApplePayCheckoutIntentRequest) async throws -> NativeApplePayIntentResponse {
+        let response: NativeApplePayIntentResponse = try await APIClient.shared.send(
+            path: "/api/mobile-native-checkout-intent",
+            method: "POST",
+            body: request,
+            requiresAuth: true
+        )
+        if let error = response.error, !error.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw DataStoreError.server(error)
+        }
+        guard response.clientSecret != nil else {
+            throw DataStoreError.server("Secure checkout is temporarily unavailable. Please try again.")
+        }
+        return response
+    }
+
     /// Marks booking as cancelled and mirrors that change in the local bookings array.
     func cancelBooking(bookingID: String) async throws {
         let _: GenericSuccessResponse = try await APIClient.shared.send(
@@ -1376,10 +1562,6 @@ final class ScheduleMeDataStore: ObservableObject {
     func sendMessage(_ content: String) async {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        if containsFilteredContent(trimmed) {
-            messagesError = "Your message includes language that is not allowed. Please edit and try again."
-            return
-        }
         if let activeThread, blockedThreadIDs.contains(activeThread.id) {
             messagesError = "This conversation is blocked."
             return
@@ -1437,14 +1619,72 @@ final class ScheduleMeDataStore: ObservableObject {
     }
 
     private func fetchMessages(bookingID: String, limit: Int) async throws -> MessagesResponse {
-        try await APIClient.shared.get(
-            path: "/api/messages",
-            queryItems: [
-                .init(name: "booking_id", value: bookingID),
-                .init(name: "limit", value: String(limit))
-            ],
-            requiresAuth: true
-        )
+        try await fetchMessagesPage(bookingID: bookingID, limit: limit)
+    }
+
+    private func fetchMessagesPage(
+        bookingID: String,
+        limit: Int,
+        before: Date? = nil,
+        after: Date? = nil
+    ) async throws -> MessagesResponse {
+        let formatter = ISO8601DateFormatter()
+        var queryItems: [URLQueryItem] = [
+            .init(name: "booking_id", value: bookingID),
+            .init(name: "limit", value: String(limit))
+        ]
+        if let before {
+            queryItems.append(.init(name: "before", value: formatter.string(from: before)))
+        }
+        if let after {
+            queryItems.append(.init(name: "after", value: formatter.string(from: after)))
+        }
+
+        do {
+            return try await APIClient.shared.get(
+                path: "/api/messages",
+                queryItems: queryItems,
+                requiresAuth: true
+            )
+        } catch {
+            let fallbackMessages = try await fetchMessagesFromSupabase(
+                bookingID: bookingID,
+                limit: limit,
+                before: before,
+                after: after
+            )
+            return MessagesResponse(
+                messages: fallbackMessages,
+                thread: nil,
+                hasMore: before != nil ? fallbackMessages.count >= limit : false
+            )
+        }
+    }
+
+    private func fetchMessagesFromSupabase(
+        bookingID: String,
+        limit: Int,
+        before: Date? = nil,
+        after: Date? = nil
+    ) async throws -> [ConversationMessage] {
+        var query = SupabaseManager.shared.client
+            .from("messages")
+            .select("id,booking_id,sender_type,content,image_url,message_type,read,created_at")
+            .eq("booking_id", value: bookingID)
+
+        let formatter = ISO8601DateFormatter()
+        if let before {
+            query = query.lt("created_at", value: formatter.string(from: before))
+        }
+        if let after {
+            query = query.gt("created_at", value: formatter.string(from: after))
+        }
+
+        let response: PostgrestResponse<[ConversationMessage]> = try await query
+            .order("created_at", ascending: false)
+            .limit(limit)
+            .execute()
+        return response.value.sorted { $0.createdAt < $1.createdAt }
     }
 
     private func bookingCandidateIDs(for thread: MessageThread) async -> [String] {
@@ -1620,26 +1860,43 @@ final class ScheduleMeDataStore: ObservableObject {
         }
     }
 
-    /// Basic local objectionable-content filter for UGC messaging.
-    private func containsFilteredContent(_ text: String) -> Bool {
-        let normalized = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else { return false }
-        let blockedPhrases = [
-            "kill yourself",
-            "kys",
-            "i will kill you",
-            "i am going to kill you",
-            "rape you",
-            "go die",
-            "you should die",
-            "nazi"
-        ]
-        return blockedPhrases.contains { normalized.contains($0) }
-    }
-
     /// Returns authenticated user UUID for endpoints that require explicit `user_id`.
     private func currentUserID() async throws -> String {
         let session = try await SupabaseManager.shared.client.auth.session
         return session.user.id.uuidString
+    }
+}
+
+// MARK: - Image Prefetching
+
+private actor ImagePrefetcher {
+    static let shared = ImagePrefetcher()
+
+    private var warmedURLs: Set<URL> = []
+    private let session: URLSession
+
+    private init() {
+        let configuration = URLSessionConfiguration.default
+        configuration.requestCachePolicy = .returnCacheDataElseLoad
+        configuration.waitsForConnectivity = true
+        configuration.httpMaximumConnectionsPerHost = 6
+        configuration.urlCache = URLCache.shared
+        session = URLSession(configuration: configuration)
+    }
+
+    func prefetch(urls: [URL], limit: Int = 48) {
+        guard !urls.isEmpty else { return }
+        let capped = max(0, limit)
+        guard capped > 0 else { return }
+
+        for url in urls.prefix(capped) {
+            guard warmedURLs.insert(url).inserted else { continue }
+
+            var request = URLRequest(url: url)
+            request.cachePolicy = .returnCacheDataElseLoad
+            session.dataTask(with: request) { _, _, _ in
+                // Prefetch only: intentionally ignore body/response.
+            }.resume()
+        }
     }
 }

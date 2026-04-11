@@ -10,6 +10,7 @@
 		423A28032F84E59800B7776B /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = 90A4C81031F3000000AA1001 /* StripePaymentSheet */; };
 		423A28042F84E59800B7776B /* StripePayments in Frameworks */ = {isa = PBXBuildFile; productRef = 90A4C81031F3000000AA1002 /* StripePayments */; };
 		423A28052F84E59800B7776B /* StripePaymentsUI in Frameworks */ = {isa = PBXBuildFile; productRef = 90A4C81031F3000000AA1003 /* StripePaymentsUI */; };
+		423A28062F84E59800B7776B /* StripeApplePay in Frameworks */ = {isa = PBXBuildFile; productRef = 90A4C81031F3000000AA1004 /* StripeApplePay */; };
 		429D1E702F7BA67E009489D4 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 429D1E6F2F7BA67E009489D4 /* Supabase */; };
 /* End PBXBuildFile section */
 
@@ -43,6 +44,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				423A28062F84E59800B7776B /* StripeApplePay in Frameworks */,
 				423A28052F84E59800B7776B /* StripePaymentsUI in Frameworks */,
 				423A28042F84E59800B7776B /* StripePayments in Frameworks */,
 				423A28032F84E59800B7776B /* StripePaymentSheet in Frameworks */,
@@ -101,6 +103,7 @@
 				90A4C81031F3000000AA1001 /* StripePaymentSheet */,
 				90A4C81031F3000000AA1002 /* StripePayments */,
 				90A4C81031F3000000AA1003 /* StripePaymentsUI */,
+				90A4C81031F3000000AA1004 /* StripeApplePay */,
 			);
 			productName = ScheduleMe;
 			productReference = 429D1E412F7BA5C8009489D4 /* ScheduleMe: Student Servicing.app */;
@@ -171,7 +174,7 @@
 			baseConfigurationReferenceRelativePath = Config.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-					ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -236,7 +239,7 @@
 			baseConfigurationReferenceRelativePath = Config.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-					ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -397,7 +400,7 @@
 			repositoryURL = "https://github.com/stripe/stripe-ios";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 24.19.0;
+				minimumVersion = 25.10.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -422,6 +425,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 90A4C81031F3000000AA1000 /* XCRemoteSwiftPackageReference "stripe-ios" */;
 			productName = StripePaymentsUI;
+		};
+		90A4C81031F3000000AA1004 /* StripeApplePay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 90A4C81031F3000000AA1000 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeApplePay;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

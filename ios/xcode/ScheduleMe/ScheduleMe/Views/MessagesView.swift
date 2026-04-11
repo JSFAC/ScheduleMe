@@ -390,8 +390,13 @@ struct MessagesView: View {
                 } label: {
                     Group {
                         if isUploadingAttachment {
-                            ProgressView()
-                                .tint(.white)
+                            ScheduleMeLoadingBar(
+                                width: 20,
+                                height: 4,
+                                tint: .white,
+                                track: Color.white.opacity(0.28),
+                                minimumFill: 0.2
+                            )
                         } else {
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 14, weight: .bold))
@@ -848,7 +853,12 @@ private struct FullscreenMediaView: View {
                         VideoPlayer(player: player)
                             .onAppear { player.play() }
                     } else {
-                        ProgressView().tint(.white)
+                        ScheduleMeLoadingBar(
+                            width: 120,
+                            height: 7,
+                            tint: .white,
+                            track: Color.white.opacity(0.28)
+                        )
                     }
                 } else {
                     AsyncImage(url: item.url) { phase in
@@ -859,7 +869,12 @@ private struct FullscreenMediaView: View {
                             Text("Unable to load image")
                                 .foregroundColor(.white)
                         default:
-                            ProgressView().tint(.white)
+                            ScheduleMeLoadingBar(
+                                width: 120,
+                                height: 7,
+                                tint: .white,
+                                track: Color.white.opacity(0.28)
+                            )
                         }
                     }
                 }

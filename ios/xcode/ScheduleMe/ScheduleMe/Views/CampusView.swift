@@ -25,14 +25,13 @@ struct CampusView: View {
         if selectedCategory == "Pinned" {
             list = list.filter { dataStore.favoriteIDs.contains($0.id) }
         } else if selectedCategory != "All" {
-            let normalized = selectedCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            list = list.filter { $0.primaryCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalized }
+            list = list.filter { $0.matchesCategory(selectedCategory) }
         }
         if !searchText.isEmpty {
             let q = searchText.lowercased()
             list = list.filter {
                 $0.name.lowercased().contains(q) ||
-                $0.primaryCategory.lowercased().contains(q) ||
+                $0.categoryTags.contains(where: { $0.lowercased().contains(q) }) ||
                 ($0.description ?? "").lowercased().contains(q)
             }
         }
@@ -45,7 +44,7 @@ struct CampusView: View {
     }
 
     private var campusCategories: [String] {
-        let cats = Array(Set(allCampusBusinesses.map(\.primaryCategory))).sorted()
+        let cats = Array(Set(allCampusBusinesses.flatMap(\.categoryTags))).sorted()
         return ["All", "Pinned"] + cats
     }
 
@@ -98,206 +97,7 @@ struct CampusView: View {
     var body: some View {
         NavigationStack {
             ScheduleMeScreen {
-                if appState.eduVerified == true {
-                    VStack(spacing: 0) {
-                        // Header
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 8) {
-                                Text("🎓 \(campusName)")
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
-                                    .foregroundColor(ScheduleMeTheme.titleText)
-                                Text("\(campusName) Verified")
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .foregroundColor(.white)
-                                    .background(ScheduleMeTheme.accent)
-                                    .clipShape(Capsule())
-                            }
-                            Text("Showing campus providers for \(campusName)")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                                .foregroundColor(ScheduleMeTheme.mutedText)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
-                        .padding(.bottom, 10)
-                        .zIndex(2)
-
-                        // Search + Sort + pills inside one card
-                        VStack(spacing: 8) {
-                            HStack(spacing: 8) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundColor(ScheduleMeTheme.mutedText)
-                                        .font(.system(size: 13))
-                                    TextField("Search by name, service, category", text: $searchText)
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 13))
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
-                                .background(ScheduleMeTheme.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorderStrong))
-
-                                Menu {
-                                    Button("Recommended") { sortMode = "recommended" }
-                                    Button("Highest rated") { sortMode = "rating" }
-                                    Button("Most reviewed") { sortMode = "reviews" }
-                                    Button("A to Z") { sortMode = "az" }
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "arrow.up.arrow.down")
-                                            .font(.system(size: 12, weight: .semibold))
-                                        Text(sortLabel)
-                                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    }
-                                    .foregroundColor(ScheduleMeTheme.titleText)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 8)
-                                    .background(ScheduleMeTheme.surface)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorderStrong))
-                                }
-                            }
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(campusCategories, id: \.self) { cat in
-                                        BrowsePill(title: cat, isSelected: cat == selectedCategory) {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                selectedCategory = cat
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding(10)
-                        .background(ScheduleMeTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                        .zIndex(2)
-
-                        if showFeatured {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Featured")
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
-                                    .foregroundColor(ScheduleMeTheme.titleText)
-
-                                TabView(selection: $featuredIndex) {
-                                    ForEach(featuredBusinesses.indices, id: \.self) { index in
-                                        let business = featuredBusinesses[index]
-                                        NavigationLink(destination: BusinessDetailView(business: business)) {
-                                            FeaturedCampusCard(business: business)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .tag(index)
-                                    }
-                                }
-                                .tabViewStyle(.page(indexDisplayMode: .never))
-                                .frame(height: 172)
-
-                                if featuredBusinesses.count > 1 {
-                                    HStack {
-                                        Button {
-                                            withAnimation(.easeInOut) {
-                                                featuredIndex = max(featuredIndex - 1, 0)
-                                            }
-                                        } label: {
-                                            Image(systemName: "chevron.left")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(ScheduleMeTheme.titleText)
-                                                .frame(width: 32, height: 32)
-                                                .background(ScheduleMeTheme.surface)
-                                                .clipShape(Circle())
-                                                .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
-                                        }
-                                        .disabled(featuredIndex == 0)
-
-                                        Spacer()
-
-                                        HStack(spacing: 6) {
-                                            ForEach(featuredBusinesses.indices, id: \.self) { idx in
-                                                Circle()
-                                                    .fill(idx == featuredIndex ? ScheduleMeTheme.accent : ScheduleMeTheme.cardBorder)
-                                                    .frame(width: 6, height: 6)
-                                            }
-                                        }
-
-                                        Spacer()
-
-                                        Button {
-                                            withAnimation(.easeInOut) {
-                                                featuredIndex = min(featuredIndex + 1, featuredBusinesses.count - 1)
-                                            }
-                                        } label: {
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(ScheduleMeTheme.titleText)
-                                                .frame(width: 32, height: 32)
-                                                .background(ScheduleMeTheme.surface)
-                                                .clipShape(Circle())
-                                                .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
-                                        }
-                                        .disabled(featuredIndex == featuredBusinesses.count - 1)
-                                    }
-                                } else {
-                                    Rectangle()
-                                        .fill(ScheduleMeTheme.cardBorder.opacity(0.3))
-                                        .frame(height: 1)
-                                        .padding(.horizontal, 30)
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 6)
-                        }
-
-                        // Content
-                        if (!dataStore.hasLoadedCampusBusinesses || dataStore.isLoadingCampusBusinesses) && allCampusBusinesses.isEmpty {
-                            CampusSkeletonView()
-                                .padding(.horizontal, 20)
-                                .padding(.top, 10)
-                        } else if filtered.isEmpty {
-                            ScheduleMeEmptyState(
-                                title: "No campus providers yet",
-                                message: "Be the first verified campus service provider here.",
-                                systemImage: "graduationcap",
-                                actionTitle: "Apply as a campus provider →",
-                                action: openBusinessSignup
-                            )
-                            .padding(.horizontal, 20)
-                            .padding(.top, 30)
-                        } else {
-                            LazyVGrid(
-                                columns: gridColumns,
-                                spacing: 10
-                            ) {
-                                ForEach(gridBusinesses) { business in
-                                    NavigationLink(destination: BusinessDetailView(business: business)) {
-                                        BusinessGridCard(business: business)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 18)
-                        }
-                    }
-                } else {
-                    VStack {
-                        ScheduleMeEmptyState(
-                            title: "Campus locked",
-                            message: "Verify your .edu email to unlock your campus marketplace.",
-                            systemImage: "lock"
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.top, 40)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
+                campusContent
             }
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -325,6 +125,154 @@ struct CampusView: View {
         }
     }
 
+    @ViewBuilder
+    private var campusContent: some View {
+        if appState.eduVerified == true {
+            VStack(spacing: 0) {
+                campusHeader
+                campusSearchAndFilters
+                featuredSection
+                campusBodySection
+            }
+        } else {
+            VStack {
+                ScheduleMeEmptyState(
+                    title: "Campus locked",
+                    message: "Verify your .edu email to unlock your campus marketplace.",
+                    systemImage: "lock"
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 40)
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var campusHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("🎓 \(campusName)")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                    .foregroundColor(ScheduleMeTheme.titleText)
+                Text("\(campusName) Verified")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .foregroundColor(.white)
+                    .background(ScheduleMeTheme.accent)
+                    .clipShape(Capsule())
+            }
+            Text("Showing campus providers for \(campusName)")
+                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                .foregroundColor(ScheduleMeTheme.mutedText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 10)
+        .zIndex(2)
+    }
+
+    private var campusSearchAndFilters: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                        .font(.system(size: 13))
+                    TextField("Search by name, service, category", text: $searchText)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 13))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(ScheduleMeTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorderStrong))
+
+                Menu {
+                    Button("Recommended") { sortMode = "recommended" }
+                    Button("Highest rated") { sortMode = "rating" }
+                    Button("Most reviewed") { sortMode = "reviews" }
+                    Button("A to Z") { sortMode = "az" }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(sortLabel)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    }
+                    .foregroundColor(ScheduleMeTheme.titleText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(ScheduleMeTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorderStrong))
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(campusCategories, id: \.self) { cat in
+                        BrowsePill(title: cat, isSelected: cat == selectedCategory) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedCategory = cat
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(ScheduleMeTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+        .zIndex(2)
+    }
+
+    @ViewBuilder
+    private var featuredSection: some View {
+        if showFeatured {
+            CampusFeaturedSection(
+                featuredBusinesses: featuredBusinesses,
+                selectedCategory: selectedCategory,
+                searchText: searchText,
+                featuredIndex: $featuredIndex
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var campusBodySection: some View {
+        if (!dataStore.hasLoadedCampusBusinesses || dataStore.isLoadingCampusBusinesses) && allCampusBusinesses.isEmpty {
+            CampusSkeletonView()
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+        } else if filtered.isEmpty {
+            ScheduleMeEmptyState(
+                title: "No campus providers yet",
+                message: "Be the first verified campus service provider here.",
+                systemImage: "graduationcap",
+                actionTitle: "Apply as a campus provider →",
+                action: openBusinessSignup
+            )
+            .padding(.horizontal, 20)
+            .padding(.top, 30)
+        } else {
+            CampusGridSection(
+                businesses: gridBusinesses,
+                selectedCategory: selectedCategory,
+                searchText: searchText,
+                columns: gridColumns
+            )
+            .padding(.horizontal, 16)
+            .padding(.bottom, 18)
+        }
+    }
+
     // MARK: - UI Helpers
 
     private var sortLabel: String {
@@ -338,8 +286,125 @@ struct CampusView: View {
 
     /// Deep-links user to provider signup page when campus feed is empty.
     private func openBusinessSignup() {
-        if let url = URL(string: "https://usescheduleme.com/business") {
-            openURL(url)
+        guard let providerDeepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
+        UIApplication.shared.open(providerDeepLink, options: [:]) { accepted in
+            guard !accepted else { return }
+            if let fallback = URL(string: "https://usescheduleme.com/business") {
+                openURL(fallback)
+            }
+        }
+    }
+}
+
+private struct CampusFeaturedSection: View {
+    let featuredBusinesses: [BusinessSummary]
+    let selectedCategory: String
+    let searchText: String
+    @Binding var featuredIndex: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Featured")
+                .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
+                .foregroundColor(ScheduleMeTheme.titleText)
+
+            TabView(selection: $featuredIndex) {
+                ForEach(featuredBusinesses.indices, id: \.self) { index in
+                    let business = featuredBusinesses[index]
+                    NavigationLink(destination: BusinessDetailView(business: business)) {
+                        FeaturedCampusCard(
+                            business: business,
+                            preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 172)
+
+            featuredPagination
+        }
+    }
+
+    @ViewBuilder
+    private var featuredPagination: some View {
+        if featuredBusinesses.count > 1 {
+            HStack {
+                Button {
+                    withAnimation(.easeInOut) {
+                        featuredIndex = max(featuredIndex - 1, 0)
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                        .frame(width: 32, height: 32)
+                        .background(ScheduleMeTheme.surface)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                }
+                .disabled(featuredIndex == 0)
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    ForEach(featuredBusinesses.indices, id: \.self) { idx in
+                        Circle()
+                            .fill(idx == featuredIndex ? ScheduleMeTheme.accent : ScheduleMeTheme.cardBorder)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    withAnimation(.easeInOut) {
+                        featuredIndex = min(featuredIndex + 1, featuredBusinesses.count - 1)
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                        .frame(width: 32, height: 32)
+                        .background(ScheduleMeTheme.surface)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                }
+                .disabled(featuredIndex == featuredBusinesses.count - 1)
+            }
+        } else {
+            Rectangle()
+                .fill(ScheduleMeTheme.cardBorder.opacity(0.3))
+                .frame(height: 1)
+                .padding(.horizontal, 30)
+        }
+    }
+}
+
+private struct CampusGridSection: View {
+    let businesses: [BusinessSummary]
+    let selectedCategory: String
+    let searchText: String
+    let columns: [GridItem]
+
+    var body: some View {
+        LazyVGrid(
+            columns: columns,
+            spacing: 10
+        ) {
+            ForEach(businesses) { business in
+                NavigationLink(destination: BusinessDetailView(business: business)) {
+                    BusinessGridCard(
+                        business: business,
+                        preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText),
+                        imageHeight: 84,
+                        contentSpacing: 4
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }
@@ -348,8 +413,14 @@ private struct FeaturedCampusCard: View {
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
     @EnvironmentObject private var appState: AppState
     let business: BusinessSummary
+    let preferredCategory: String?
+    private let featuredImageWidth: CGFloat = 110
+    private let featuredImageHeight: CGFloat = 132
     private var placeholderBackground: Color {
         Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
+    }
+    private var displayCategory: String {
+        preferredCategory ?? business.primaryCategory
     }
 
     var body: some View {
@@ -370,7 +441,7 @@ private struct FeaturedCampusCard: View {
                                 }
                             }
                         }
-                        .frame(width: 110, height: 120)
+                        .frame(width: featuredImageWidth, height: featuredImageHeight)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                         if business.founder50 == true {
@@ -389,14 +460,14 @@ private struct FeaturedCampusCard: View {
                             .offset(y: -6)
                     }
 
-                    Text(business.description ?? business.primaryCategory)
+                    Text(business.description ?? displayCategory)
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.mutedText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    ScheduleMeTag(text: business.primaryCategory)
+                    ScheduleMeTag(text: displayCategory)
 
                     HStack(spacing: 6) {
                         if let priceLabel = business.priceLabel { ScheduleMeTag(text: priceLabel) }

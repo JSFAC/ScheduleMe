@@ -123,6 +123,104 @@ struct ScheduleMeSecondaryButtonStyle: ButtonStyle {
     }
 }
 
+struct ScheduleMeLoadingBar: View {
+    var width: CGFloat? = 120
+    var height: CGFloat = 7
+    var tint: Color = ScheduleMeTheme.accent
+    var track: Color = ScheduleMeTheme.cardBorder.opacity(0.65)
+    var minimumFill: CGFloat = 0.06
+    var completesOnFirstRun: Bool = false
+    var onCompleted: (() -> Void)? = nil
+
+    @State private var progress: CGFloat = 0.06
+    @State private var animationTask: Task<Void, Never>?
+    @State private var didNotifyCompletion = false
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(track)
+
+            GeometryReader { proxy in
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.78), tint],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(proxy.size.width * progress, proxy.size.width * minimumFill))
+            }
+        }
+        .frame(width: width, height: height)
+        .clipShape(Capsule())
+        .onAppear {
+            startProgressAnimation()
+        }
+        .onDisappear {
+            animationTask?.cancel()
+            animationTask = nil
+        }
+    }
+
+    private func startProgressAnimation() {
+        animationTask?.cancel()
+        didNotifyCompletion = false
+        animationTask = Task {
+            if completesOnFirstRun {
+                await runSinglePass()
+                return
+            }
+
+            while !Task.isCancelled {
+                await runSinglePass()
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+        }
+    }
+
+    private func runSinglePass() async {
+        await MainActor.run {
+            progress = minimumFill
+        }
+        if completesOnFirstRun {
+            // Startup pass: realistic curve (quick start, steady middle, soft finish).
+            await animateProgress(to: 0.52, duration: 0.18)
+            await animateProgress(to: 0.74, duration: 0.24)
+            await animateProgress(to: 0.88, duration: 0.30)
+            await animateProgress(to: 0.97, duration: 0.34)
+            try? await Task.sleep(nanoseconds: 70_000_000)
+            await animateProgress(to: 1.0, duration: 0.12)
+        } else {
+            // In-page pass: still responsive, but less synthetic-looking.
+            await animateProgress(to: 0.6, duration: 0.14)
+            await animateProgress(to: 0.82, duration: 0.18)
+            await animateProgress(to: 0.94, duration: 0.22)
+            await animateProgress(to: 0.985, duration: 0.20)
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            await animateProgress(to: 1.0, duration: 0.09)
+        }
+
+        if completesOnFirstRun, !didNotifyCompletion {
+            await MainActor.run {
+                didNotifyCompletion = true
+                onCompleted?()
+            }
+        }
+    }
+
+    private func animateProgress(to value: CGFloat, duration: Double) async {
+        await MainActor.run {
+            withAnimation(.easeOut(duration: duration)) {
+                progress = max(minimumFill, min(value, 1.0))
+            }
+        }
+        let nanos = UInt64(duration * 1_000_000_000)
+        try? await Task.sleep(nanoseconds: nanos)
+    }
+}
+
 struct ScheduleMeFieldModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -391,6 +489,7 @@ enum ScheduleMeTab: Hashable {
 
 final class TabRouter: ObservableObject {
     @Published var selected: ScheduleMeTab = .home
+    @Published var browsePrefillQuery: String? = nil
 }
 
 struct ScheduleMeScreen<Content: View>: View {

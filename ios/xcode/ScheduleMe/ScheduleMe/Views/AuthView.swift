@@ -11,7 +11,8 @@ import Supabase
 private enum ConsumerAuthTheme {
     static let bg = ScheduleMeTheme.pageBackground
     static let surface = ScheduleMeTheme.surface
-    static let surfaceSoft = Color.dynamic(light: Color(hex: "F3F4F6"), dark: Color(hex: "1F2937"))
+    // Keep mode toggle container aligned with auth card surface (avoid blue tint mismatch in dark mode).
+    static let surfaceSoft = ScheduleMeTheme.surface
     static let border = ScheduleMeTheme.cardBorder
     static let accent = ScheduleMeTheme.accent
     static let textPrimary = ScheduleMeTheme.titleText
@@ -29,6 +30,7 @@ struct AuthView: View {
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorText: String?
+    @State private var infoText: String?
 
     enum AuthStep: Hashable { case welcome, login, signup }
 
@@ -50,7 +52,9 @@ struct AuthView: View {
                     password: $password,
                     isLoading: $isLoading,
                     errorText: $errorText,
+                    infoText: $infoText,
                     onEmailAuth: { signInWithEmail(isLogin: step == .login) },
+                    onForgotPassword: { sendPasswordReset() },
                     onApple: { signInWithOAuth(.apple) },
                     onGoogle: { signInWithOAuth(.google) }
                 )
@@ -60,6 +64,7 @@ struct AuthView: View {
         .animation(.spring(response: 0.38, dampingFraction: 0.88), value: step)
         .onChange(of: step) { _, _ in
             errorText = nil
+            infoText = nil
         }
     }
 
@@ -68,18 +73,70 @@ struct AuthView: View {
     /// Handles email/password login or signup depending on current form mode.
     private func signInWithEmail(isLogin: Bool) {
         errorText = nil
+        infoText = nil
         isLoading = true
         Task {
             defer { isLoading = false }
             do {
+                let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 if isLogin {
-                    try await SupabaseManager.shared.client.auth.signIn(email: email, password: password)
+                    do {
+                        // Prefer mobile auth endpoint first; it is configured to avoid
+                        // CAPTCHA-dependent failures that can occur in native signIn flow.
+                        try await SupabaseManager.shared.signInViaMobileEmailAuth(
+                            email: normalizedEmail,
+                            password: password,
+                            isSignup: false
+                        )
+                    } catch {
+                        // Fallback path for temporary mobile endpoint issues.
+                        try await SupabaseManager.shared.client.auth.signIn(email: normalizedEmail, password: password)
+                    }
+                    try await assertSignedInEmailMatches(normalizedEmail)
+                    appState.setAuthMethodHint("email")
                 } else {
-                    try await SupabaseManager.shared.client.auth.signUp(email: email, password: password)
+                    do {
+                        try await SupabaseManager.shared.client.auth.signUp(email: normalizedEmail, password: password)
+                    } catch {
+                        if shouldUseMobileEmailFallback(for: error) {
+                            try await SupabaseManager.shared.signInViaMobileEmailAuth(
+                                email: normalizedEmail,
+                                password: password,
+                                isSignup: true
+                            )
+                        } else {
+                            throw error
+                        }
+                    }
                 }
-                await appState.bootstrap()
+                await appState.bootstrap(context: .signingIn)
             } catch {
-                errorText = error.localizedDescription
+                errorText = userFacingAuthError(error)
+            }
+        }
+    }
+
+    private func sendPasswordReset() {
+        errorText = nil
+        infoText = nil
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedEmail.isEmpty else {
+            errorText = "Enter your email first, then tap Forgot password."
+            return
+        }
+        guard normalizedEmail.contains("@"), normalizedEmail.contains(".") else {
+            errorText = "Enter a valid email address."
+            return
+        }
+
+        isLoading = true
+        Task {
+            defer { isLoading = false }
+            do {
+                try await SupabaseManager.shared.sendPasswordReset(email: normalizedEmail)
+                infoText = "Password reset email sent. Check your inbox and spam folder."
+            } catch {
+                errorText = userFacingAuthError(error)
             }
         }
     }
@@ -106,7 +163,8 @@ struct AuthView: View {
                         return try await authenticateEphemeral(url: url, callbackScheme: callbackScheme, prefersEphemeral: useEphemeral)
                     }
                 )
-                await appState.bootstrap()
+                appState.setAuthMethodHint(provider == .apple ? "apple" : "google")
+                await appState.bootstrap(context: .signingIn)
             } catch {
                 errorText = error.localizedDescription
             }
@@ -131,6 +189,28 @@ struct AuthView: View {
             session.prefersEphemeralWebBrowserSession = prefersEphemeral
             session.presentationContextProvider = WebAuthPresentationProvider.shared
             session.start()
+        }
+    }
+
+    private func userFacingAuthError(_ error: Error) -> String {
+        let raw = (error as NSError).localizedDescription
+        if raw.localizedCaseInsensitiveContains("captcha") {
+            return "Email login is blocked by a security challenge. Use Apple/Google for now or try again shortly."
+        }
+        return raw
+    }
+
+    private func shouldUseMobileEmailFallback(for error: Error) -> Bool {
+        let raw = (error as NSError).localizedDescription.lowercased()
+        return raw.contains("captcha")
+    }
+
+    private func assertSignedInEmailMatches(_ normalizedEmail: String) async throws {
+        let session = try await SupabaseManager.shared.client.auth.session
+        let activeEmail = (session.user.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !activeEmail.isEmpty, activeEmail == normalizedEmail else {
+            try? await SupabaseManager.shared.client.auth.signOut()
+            throw DataStoreError.server("Sign-in safety check failed. Please sign in again.")
         }
     }
 }
@@ -169,63 +249,67 @@ private struct ConsumerWelcomeFlow: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 40)
+        GeometryReader { proxy in
+            let isCompactHeight = proxy.size.height < 760
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: isCompactHeight ? 20 : 40)
 
-            HStack(spacing: 0) {
-                Text("Schedule")
-                    .font(.custom(ConsumerAuthTheme.fontName, size: 30).weight(.bold))
-                    .foregroundColor(ConsumerAuthTheme.textPrimary)
-                Text("Me")
-                    .font(.custom(ConsumerAuthTheme.fontName, size: 30).weight(.bold))
-                    .foregroundColor(ConsumerAuthTheme.accent)
-            }
+                    HStack(spacing: 0) {
+                        Text("Schedule")
+                            .font(.custom(ConsumerAuthTheme.fontName, size: isCompactHeight ? 26 : 30).weight(.bold))
+                            .foregroundColor(ConsumerAuthTheme.textPrimary)
+                        Text("Me")
+                            .font(.custom(ConsumerAuthTheme.fontName, size: isCompactHeight ? 26 : 30).weight(.bold))
+                            .foregroundColor(ConsumerAuthTheme.accent)
+                    }
 
-            TabView(selection: $page) {
-                ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
-                    ConsumerWelcomePageView(page: item)
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 300)
-            .padding(.top, 18)
+                    TabView(selection: $page) {
+                        ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
+                            ConsumerWelcomePageView(page: item, compact: isCompactHeight)
+                                .tag(index)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: isCompactHeight ? 268 : 300)
+                    .padding(.top, isCompactHeight ? 12 : 18)
 
-            if hasUnlockedAuthButtons {
-                HStack(spacing: 10) {
-                    AuthActionButton(label: "Log in", style: .outline) { step = .login }
-                    AuthActionButton(label: "Create account", style: .filled) { step = .signup }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 26)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            } else {
-                Text("Swipe to continue")
+                    if hasUnlockedAuthButtons {
+                        HStack(spacing: 10) {
+                            AuthActionButton(label: "Log in", style: .outline) { step = .login }
+                            AuthActionButton(label: "Create account", style: .filled) { step = .signup }
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, isCompactHeight ? 20 : 26)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else {
+                        Text("Swipe to continue")
+                            .font(.custom(ConsumerAuthTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(ConsumerAuthTheme.textSub)
+                            .padding(.top, isCompactHeight ? 20 : 30)
+                            .transition(.opacity)
+                    }
+
+                    HStack(spacing: 8) {
+                        ForEach(0..<pages.count, id: \.self) { i in
+                            Circle()
+                                .fill(i == page ? ConsumerAuthTheme.accent : ConsumerAuthTheme.border.opacity(0.65))
+                                .frame(width: i == page ? 8 : 6, height: i == page ? 8 : 6)
+                        }
+                    }
+                    .padding(.top, 16)
+
+                    Button("Are you a provider? Log in here →") {
+                        openProviderApp()
+                    }
                     .font(.custom(ConsumerAuthTheme.fontName, size: 12).weight(.semibold))
-                    .foregroundColor(ConsumerAuthTheme.textSub)
-                    .padding(.top, 30)
-                    .transition(.opacity)
-            }
+                    .foregroundColor(ConsumerAuthTheme.accent)
+                    .padding(.top, 12)
 
-            HStack(spacing: 8) {
-                ForEach(0..<pages.count, id: \.self) { i in
-                    Circle()
-                        .fill(i == page ? ConsumerAuthTheme.accent : ConsumerAuthTheme.border.opacity(0.65))
-                        .frame(width: i == page ? 8 : 6, height: i == page ? 8 : 6)
+                    Spacer(minLength: isCompactHeight ? 18 : 24)
                 }
+                .frame(minHeight: proxy.size.height)
             }
-            .padding(.top, 16)
-
-            Button("Are you a provider? Log in here →") {
-                if let url = URL(string: "https://apps.apple.com") {
-                    UIApplication.shared.open(url)
-                }
-            }
-            .font(.custom(ConsumerAuthTheme.fontName, size: 12).weight(.semibold))
-            .foregroundColor(ConsumerAuthTheme.accent)
-            .padding(.top, 12)
-
-            Spacer(minLength: 24)
         }
         .onAppear {
             if page == pages.count - 1 {
@@ -238,25 +322,37 @@ private struct ConsumerWelcomeFlow: View {
             }
         }
     }
+
+    /// Opens the provider app via deep-link and falls back to provider web signup/login.
+    private func openProviderApp() {
+        guard let providerDeepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
+        UIApplication.shared.open(providerDeepLink, options: [:]) { accepted in
+            guard !accepted else { return }
+            if let fallback = URL(string: "https://usescheduleme.com/business") {
+                UIApplication.shared.open(fallback)
+            }
+        }
+    }
 }
 
 private struct ConsumerWelcomePageView: View {
     let page: ConsumerWelcomePage
+    let compact: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
                 Circle()
                     .fill(ConsumerAuthTheme.accent.opacity(0.12))
-                    .frame(width: 92, height: 92)
+                    .frame(width: compact ? 82 : 92, height: compact ? 82 : 92)
                 Circle()
                     .stroke(ConsumerAuthTheme.accent.opacity(0.25), lineWidth: 1)
-                    .frame(width: 92, height: 92)
+                    .frame(width: compact ? 82 : 92, height: compact ? 82 : 92)
                 Image(systemName: page.icon)
-                    .font(.system(size: 34, weight: .medium))
+                    .font(.system(size: compact ? 30 : 34, weight: .medium))
                     .foregroundColor(ConsumerAuthTheme.accent)
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, compact ? 16 : 24)
 
             VStack(spacing: 8) {
                 HStack(spacing: 6) {
@@ -270,16 +366,19 @@ private struct ConsumerWelcomePageView: View {
                 }
 
                 Text(page.title)
-                    .font(.custom(ConsumerAuthTheme.fontName, size: 32).weight(.bold))
+                    .font(.custom(ConsumerAuthTheme.fontName, size: compact ? 28 : 32).weight(.bold))
                     .foregroundColor(ConsumerAuthTheme.textPrimary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
+                    .minimumScaleFactor(0.75)
+                    .lineLimit(3)
 
                 Text(page.body)
-                    .font(.custom(ConsumerAuthTheme.fontName, size: 14).weight(.medium))
+                    .font(.custom(ConsumerAuthTheme.fontName, size: compact ? 13 : 14).weight(.medium))
                     .foregroundColor(ConsumerAuthTheme.textSub)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
+                    .minimumScaleFactor(0.85)
                     .padding(.horizontal, 24)
             }
         }
@@ -294,8 +393,10 @@ private struct ConsumerAuthForm: View {
     @Binding var password: String
     @Binding var isLoading: Bool
     @Binding var errorText: String?
+    @Binding var infoText: String?
 
     let onEmailAuth: () -> Void
+    let onForgotPassword: () -> Void
     let onApple: () -> Void
     let onGoogle: () -> Void
 
@@ -357,7 +458,31 @@ private struct ConsumerAuthForm: View {
                                 .keyboardType(.emailAddress)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
+                                .onChange(of: email) { _, newValue in
+                                    SupabaseManager.shared.prewarmAuthPipelineIfNeeded(emailHint: newValue)
+                                }
                             AuthField(placeholder: "Password", text: $password, isSecure: true)
+
+                            if isLogin {
+                                HStack {
+                                    Spacer()
+                                    Button("Forgot password?") {
+                                        onForgotPassword()
+                                    }
+                                    .font(.custom(ConsumerAuthTheme.fontName, size: 12).weight(.semibold))
+                                    .foregroundColor(ConsumerAuthTheme.accent)
+                                    .buttonStyle(.plain)
+                                    .disabled(isLoading)
+                                }
+                            }
+                        }
+
+                        if let infoText {
+                            Text(infoText)
+                                .font(.custom(ConsumerAuthTheme.fontName, size: 12).weight(.medium))
+                                .foregroundColor(ConsumerAuthTheme.accent)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
                         if let errorText {
@@ -419,15 +544,19 @@ private struct ConsumerAuthForm: View {
                     }
                 } label: {
                     Text(target == .login ? "Log in" : "Sign up")
-                        .font(.custom(ConsumerAuthTheme.fontName, size: 13).weight(.semibold))
-                        .foregroundColor(active ? ConsumerAuthTheme.textPrimary : ConsumerAuthTheme.textSub)
+                        .font(.custom(ConsumerAuthTheme.fontName, size: 13).weight(active ? .bold : .semibold))
+                        .foregroundColor(active ? ConsumerAuthTheme.accent : ConsumerAuthTheme.textSub)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 9)
                         .background(
                             ZStack {
                                 if active {
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(ConsumerAuthTheme.surface)
+                                        .fill(ScheduleMeTheme.accentSoft)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .stroke(ConsumerAuthTheme.accent.opacity(0.55), lineWidth: 1)
+                                        )
                                         .matchedGeometryEffect(id: "consumer-auth-toggle", in: toggleNS)
                                 }
                             }
@@ -447,13 +576,31 @@ private struct AuthField: View {
     let placeholder: String
     @Binding var text: String
     var isSecure: Bool = false
+    @State private var isRevealed = false
 
     var body: some View {
-        Group {
+        HStack(spacing: 10) {
+            Group {
+                if isSecure && !isRevealed {
+                    SecureField(placeholder, text: $text)
+                } else {
+                    TextField(placeholder, text: $text)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             if isSecure {
-                SecureField(placeholder, text: $text)
-            } else {
-                TextField(placeholder, text: $text)
+                Button {
+                    isRevealed.toggle()
+                } label: {
+                    Image(systemName: isRevealed ? "eye.slash" : "eye")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(ConsumerAuthTheme.textSub)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isRevealed ? "Hide password" : "Show password")
             }
         }
         .font(.custom(ConsumerAuthTheme.fontName, size: 15).weight(.medium))

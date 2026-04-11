@@ -5,6 +5,8 @@
 // If custom pricing, business hours, or booking-time UI behaves incorrectly, start here.
 
 import SwiftUI
+import Supabase
+import PostgREST
 
 private struct SelectedPhoto: Identifiable {
     let url: URL
@@ -25,6 +27,8 @@ struct BusinessDetailView: View {
     @State private var profile: BusinessProfile?
     @State private var isLoadingProfile = false
     @State private var didFinishProfileLoad = false
+    @State private var stripeReadiness: StripeReadinessRow?
+    @State private var didLoadStripeReadiness = false
     @State private var selectedService: BusinessService?
     @State private var isCustomServiceSelected = false
     @State private var preferredDate = Date()
@@ -38,6 +42,23 @@ struct BusinessDetailView: View {
     @State private var requiresExactTime = true
     @State private var showingTimePicker = false
     @State private var tempTime = Date()
+    @State private var bookingFormScrollNonce = 0
+    @FocusState private var focusedField: FocusedField?
+
+    private enum FocusedField {
+        case customServiceName
+        case bookingNote
+    }
+
+    private struct StripeReadinessRow: Decodable {
+        let stripeOnboarded: Bool?
+        let stripeAccountID: String?
+
+        enum CodingKeys: String, CodingKey {
+            case stripeOnboarded = "stripe_onboarded"
+            case stripeAccountID = "stripe_account_id"
+        }
+    }
 
     private var allPhotos: [URL] {
         var urls: [URL] = []
@@ -49,8 +70,10 @@ struct BusinessDetailView: View {
     }
 
     var body: some View {
-        ScheduleMeScreen(showsTopBar: false) {
-            VStack(alignment: .leading, spacing: 0) {
+        ScheduleMeScreen(showsTopBar: false, scrolls: false) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
                 // Photo gallery
                 if !allPhotos.isEmpty {
                     ZStack {
@@ -188,11 +211,38 @@ struct BusinessDetailView: View {
                         }
                     }
 
-                    // Book Now button
-                    Button("Book Now") {
-                        attemptBooking()
+                    // Book Now button + payment setup note.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button {
+                            attemptBooking()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Book Now")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
+                                    .foregroundColor(providerCanAcceptPayments ? .white : ScheduleMeTheme.mutedText)
+                                Spacer()
+                            }
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                        }
+                        .frame(maxWidth: .infinity)
+                        .background(providerCanAcceptPayments ? ScheduleMeTheme.accent : Color.gray.opacity(0.18))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(providerCanAcceptPayments ? Color.clear : ScheduleMeTheme.cardBorder)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .buttonStyle(.plain)
+                        .disabled(!providerCanAcceptPayments)
+
+                        if !providerCanAcceptPayments {
+                            Text("This provider currently can’t accept payments yet. Bookings will be available after the provider finishes setup.")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
-                    .buttonStyle(ScheduleMePrimaryButtonStyle())
 
                     // Services
                     VStack(alignment: .leading, spacing: 12) {
@@ -297,6 +347,7 @@ struct BusinessDetailView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 TextField("Name the service you need (max 30 chars)", text: $customServiceName)
                                     .scheduleMeFieldStyle()
+                                    .focused($focusedField, equals: .customServiceName)
                                     .onChange(of: customServiceName) { _, newValue in
                                         if newValue.count > 30 {
                                             customServiceName = String(newValue.prefix(30))
@@ -439,18 +490,38 @@ struct BusinessDetailView: View {
                             TextField("Describe what you need (max 280 chars)…", text: $bookingNote, axis: .vertical)
                                 .lineLimit(3...5)
                                 .scheduleMeFieldStyle()
+                                .focused($focusedField, equals: .bookingNote)
                                 .onChange(of: bookingNote) { _, newValue in
                                     if newValue.count > 280 {
                                         bookingNote = String(newValue.prefix(280))
                                     }
                                 }
 
-                            Button("Review booking →") {
+                            Button {
                                 attemptBooking()
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Text("Review booking →")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
+                                        .foregroundColor(providerCanAcceptPayments ? .white : ScheduleMeTheme.mutedText)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 14)
+                                .contentShape(Rectangle())
                             }
-                            .buttonStyle(ScheduleMePrimaryButtonStyle())
+                            .frame(maxWidth: .infinity)
+                            .background(providerCanAcceptPayments ? ScheduleMeTheme.accent : Color.gray.opacity(0.18))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(providerCanAcceptPayments ? Color.clear : ScheduleMeTheme.cardBorder)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .buttonStyle(.plain)
+                            .disabled(!providerCanAcceptPayments)
                         }
                     }
+                    .id("booking-form-card")
 
                     // Reviews section
                     VStack(alignment: .leading, spacing: 12) {
@@ -487,6 +558,13 @@ struct BusinessDetailView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 40)
             }
+                }
+                .onChange(of: bookingFormScrollNonce) { _, _ in
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo("booking-form-card", anchor: .top)
+                    }
+                }
+            }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -507,6 +585,7 @@ struct BusinessDetailView: View {
             FullscreenBusinessImageView(url: photo.url)
         }
         .task {
+            await loadStripeReadiness()
             await loadBusinessProfile()
             await loadServices()
             isLoadingReviews = true
@@ -588,6 +667,24 @@ struct BusinessDetailView: View {
             syncPreferredTimeToAllowedRange()
         } catch {
             profile = nil
+        }
+    }
+
+    /// Reads Stripe onboarding readiness directly from `businesses` row so
+    /// booking eligibility can be enforced even when API summary payloads omit it.
+    private func loadStripeReadiness() async {
+        didLoadStripeReadiness = false
+        defer { didLoadStripeReadiness = true }
+        do {
+            let response: PostgrestResponse<StripeReadinessRow> = try await SupabaseManager.shared.client
+                .from("businesses")
+                .select("stripe_onboarded, stripe_account_id")
+                .eq("id", value: business.id)
+                .single()
+                .execute()
+            stripeReadiness = response.value
+        } catch {
+            stripeReadiness = nil
         }
     }
 
@@ -833,29 +930,57 @@ struct BusinessDetailView: View {
 
     /// Validates service/time/custom inputs before presenting final booking review sheet.
     private func attemptBooking() {
+        if !providerCanAcceptPayments {
+            bookingValidationMessage = "This provider currently can’t accept payments yet. Bookings will be available after the provider finishes setup."
+            return
+        }
         if isCustomServiceSelected && customPriceIsBelowMinimum {
             bookingValidationMessage = "Custom service price must be at least $5.00."
             return
         }
-        let serviceName = (selectedService?.name ?? (isCustomServiceSelected ? customServiceName : "")).trimmingCharacters(in: .whitespacesAndNewlines)
-        if serviceName.isEmpty {
-            bookingValidationMessage = "Please select a service or add a custom request."
-            return
-        }
         let noteTrimmed = bookingNote.trimmingCharacters(in: .whitespacesAndNewlines)
-        if isCustomServiceSelected && noteTrimmed.isEmpty {
-            bookingValidationMessage = "Please add a note for your custom request."
+        let serviceName = (selectedService?.name ?? (isCustomServiceSelected ? customServiceName : "")).trimmingCharacters(in: .whitespacesAndNewlines)
+        if isCustomServiceSelected {
+            let missingCustomName = serviceName.isEmpty
+            let missingCustomNote = noteTrimmed.isEmpty
+            if missingCustomName && missingCustomNote {
+                bookingValidationMessage = "Please add a custom service name and a note before continuing."
+                focusedField = .customServiceName
+                requestBookingFormScroll()
+                return
+            }
+            if missingCustomName {
+                bookingValidationMessage = "Please add a name for your custom service."
+                focusedField = .customServiceName
+                requestBookingFormScroll()
+                return
+            }
+            if missingCustomNote {
+                bookingValidationMessage = "Please add a note for your custom request."
+                focusedField = .bookingNote
+                requestBookingFormScroll()
+                return
+            }
+        } else if serviceName.isEmpty {
+            bookingValidationMessage = "Please select a service or add a custom request."
+            requestBookingFormScroll()
             return
         }
         if requiresExactTime, timeIntervalForSelectedDate() == nil {
             bookingValidationMessage = "No times available for the selected date."
+            requestBookingFormScroll()
             return
         }
         if requiresExactTime == false {
             preferredTime = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: preferredDate) ?? preferredDate
         }
+        focusedField = nil
         bookingValidationMessage = nil
         showingBooking = true
+    }
+
+    private func requestBookingFormScroll() {
+        bookingFormScrollNonce += 1
     }
 
     private var customServicePriceCents: Int? {
@@ -867,6 +992,47 @@ struct BusinessDetailView: View {
     private var customPriceIsBelowMinimum: Bool {
         guard let value = customServicePriceCents else { return false }
         return value > 0 && value < 500
+    }
+
+    private var providerCanAcceptPayments: Bool {
+        // While readiness loads, default to disabled so we never allow a false-positive booking.
+        if didLoadStripeReadiness == false {
+            return false
+        }
+
+        // Primary source of truth from `businesses.stripe_onboarded`.
+        if let row = stripeReadiness {
+            if let stripeOnboarded = row.stripeOnboarded {
+                return stripeOnboarded
+            }
+        }
+
+        // Secondary fallback for API payloads that do include readiness.
+        if let profile {
+            if let stripeOnboarded = profile.stripeOnboarded, stripeOnboarded == false {
+                return false
+            }
+            if let chargesEnabled = profile.chargesEnabled, chargesEnabled == false {
+                return false
+            }
+            if let payoutsEnabled = profile.payoutsEnabled, payoutsEnabled == false {
+                return false
+            }
+            if let stripeOnboarded = profile.stripeOnboarded, stripeOnboarded == true {
+                return true
+            }
+            if let chargesEnabled = profile.chargesEnabled, let payoutsEnabled = profile.payoutsEnabled {
+                return chargesEnabled && payoutsEnabled
+            }
+        }
+        if let summaryOnboarded = business.stripeOnboarded, summaryOnboarded == false {
+            return false
+        }
+        if let summaryOnboarded = business.stripeOnboarded, summaryOnboarded == true {
+            return true
+        }
+        // If readiness is unknown even after all fallbacks, disable booking for safety.
+        return false
     }
 
     /// Formats digit input as cents-shifted currency (`100` -> `1.00`).
@@ -1042,7 +1208,12 @@ private struct FullscreenBusinessImageView: View {
                     Text("Unable to load image")
                         .foregroundColor(.white)
                 default:
-                    ProgressView().tint(.white)
+                    ScheduleMeLoadingBar(
+                        width: 120,
+                        height: 7,
+                        tint: .white,
+                        track: Color.white.opacity(0.28)
+                    )
                 }
             }
             .padding(20)

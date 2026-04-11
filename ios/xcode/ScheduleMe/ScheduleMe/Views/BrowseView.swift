@@ -57,8 +57,21 @@ struct BrowseView: View {
     private let gridPageSize = 8
 
     private var categories: [String] {
-        let values = dataStore.businesses.map(\.primaryCategory)
+        let values = dataStore.businesses.flatMap(\.categoryTags)
         return ["All", "Pinned", "New"] + Array(Set(values)).sorted()
+    }
+
+    private var viewerSchoolDomain: String? {
+        appState.resolvedSchoolDomain?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private func shouldMask(_ business: BusinessSummary) -> Bool {
+        business.shouldMaskForViewer(
+            userEduVerified: appState.eduVerified == true,
+            userSchoolDomain: viewerSchoolDomain
+        )
     }
 
     /// Search/category/distance filtering for list/grid/map modes.
@@ -68,11 +81,12 @@ struct BrowseView: View {
                 if selectedCategory == "All" { return true }
                 if selectedCategory == "Pinned" { return dataStore.favoriteIDs.contains(business.id) }
                 if selectedCategory == "New" { return business.isNew }
-                return business.primaryCategory == selectedCategory
+                return business.matchesCategory(selectedCategory)
             }()
             let matchesSearch = searchText.isEmpty
                 || business.name.localizedCaseInsensitiveContains(searchText)
-                || business.primaryCategory.localizedCaseInsensitiveContains(searchText)
+                || business.categoryTags.contains(where: { $0.localizedCaseInsensitiveContains(searchText) })
+                || (business.description ?? "").localizedCaseInsensitiveContains(searchText)
             let matchesDistance = matchesDistance(for: business)
             return matchesCategory && matchesSearch && matchesDistance
         }
@@ -213,13 +227,6 @@ struct BrowseView: View {
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
                     .padding(.horizontal, 20)
 
-                    if appState.eduVerified == false {
-                        BrowseStudentVerifyBanner {
-                            tabRouter.selected = .campus
-                        }
-                        .padding(.horizontal, 20)
-                    }
-
                     // Results
                     if selectedViewMode == .map {
                         browseResults
@@ -268,6 +275,10 @@ struct BrowseView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(item: $selectedNavigationBusiness) { business in
+                BusinessDetailView(business: business)
+                    .toolbar(.visible, for: .navigationBar)
+            }
         }
         .task {
             locationManager.requestIfNeeded()
@@ -283,16 +294,28 @@ struct BrowseView: View {
                 selectedDistance: $selectedDistance
             )
         }
-        .navigationDestination(item: $selectedNavigationBusiness) { business in
-            BusinessDetailView(business: business)
-                .toolbar(.visible, for: .navigationBar)
-        }
         .onAppear {
             updateMapRegion()
             guard !didRefreshProfileOnAppear else { return }
             didRefreshProfileOnAppear = true
             Task {
                 await appState.refreshProfile()
+            }
+        }
+        .onChange(of: tabRouter.browsePrefillQuery) { _, newValue in
+            guard tabRouter.selected == .browse else { return }
+            guard let value = newValue?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return }
+            searchText = value
+            browsePage = 0
+            tabRouter.browsePrefillQuery = nil
+        }
+        .task {
+            if tabRouter.selected == .browse,
+               let value = tabRouter.browsePrefillQuery?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !value.isEmpty {
+                searchText = value
+                browsePage = 0
+                tabRouter.browsePrefillQuery = nil
             }
         }
         .onChange(of: filteredBusinesses) { _, _ in
@@ -326,14 +349,25 @@ struct BrowseView: View {
             case .list:
                 VStack(spacing: 12) {
                     ForEach(pagedBrowseBusinesses) { business in
-                        NavigationLink(destination: BusinessDetailView(business: business)) {
+                        if shouldMask(business) {
                             BusinessListRow(
                                 business: business,
-                                imageHeight: 122
+                                imageHeight: 122,
+                                shouldMask: true,
+                                preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
                             )
+                            .padding(.horizontal, 20)
+                        } else {
+                            NavigationLink(destination: BusinessDetailView(business: business)) {
+                                BusinessListRow(
+                                    business: business,
+                                    imageHeight: 122,
+                                    preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 20)
                         }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 20)
                     }
                     BrowsePaginationControls(
                         currentPage: $browsePage,
@@ -345,10 +379,21 @@ struct BrowseView: View {
                 VStack(spacing: 12) {
                     LazyVGrid(columns: gridColumns, spacing: 14) {
                         ForEach(pagedBrowseBusinesses) { business in
-                            NavigationLink(destination: BusinessDetailView(business: business)) {
-                                BusinessGridCard(business: business)
+                            if shouldMask(business) {
+                                BusinessGridCard(
+                                    business: business,
+                                    shouldMask: true,
+                                    preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
+                                )
+                            } else {
+                                NavigationLink(destination: BusinessDetailView(business: business)) {
+                                    BusinessGridCard(
+                                        business: business,
+                                        preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -363,7 +408,9 @@ struct BrowseView: View {
                     position: $mapPosition,
                     businesses: mapBusinesses,
                     selectedBusiness: $selectedMapBusiness,
-                    navigationBusiness: $selectedNavigationBusiness
+                    navigationBusiness: $selectedNavigationBusiness,
+                    selectedCategory: selectedCategory,
+                    searchText: searchText
                 )
                 .padding(.horizontal, 12)
             }
@@ -566,18 +613,16 @@ struct LocationPromptCard: View {
 struct BusinessListRow: View {
     let business: BusinessSummary
     var imageHeight: CGFloat = 92
+    var shouldMask: Bool = false
+    var preferredCategory: String? = nil
     var onSelect: (() -> Void)? = nil
     var onOpen: (() -> Void)? = nil
     var openDestinationBusiness: BusinessSummary? = nil
-    private var shouldMask: Bool {
-        // Home/Browse should always show public provider cards.
-        false
-    }
     private var displayName: String {
         shouldMask ? "Student provider" : business.name
     }
     private var imageURL: URL? {
-        return business.heroImageURL
+        shouldMask ? nil : business.heroImageURL
     }
     private var privateBadgeBackground: Color {
         Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "262626"))
@@ -587,6 +632,9 @@ struct BusinessListRow: View {
     }
     private var placeholderBackground: Color {
         Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
+    }
+    private var displayCategory: String {
+        preferredCategory ?? business.primaryCategory
     }
 
     var body: some View {
@@ -646,11 +694,32 @@ struct BusinessListRow: View {
                                 Text(String(displayName.prefix(2)).uppercased())
                                     .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
+                                    .frame(maxHeight: .infinity, alignment: shouldMask ? .center : .center)
+                                    .offset(y: shouldMask ? -(imageHeight * 0.12) : 0)
                             }
                         }
                     }
                     .frame(width: 96, height: imageHeight)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                    if shouldMask {
+                        Text("PRIVATE UNTIL STUDENT VERIFICATION")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 8).weight(.bold))
+                            .tracking(0.45)
+                            .foregroundColor(privateBadgeText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 5)
+                            .background(privateBadgeBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(ScheduleMeTheme.cardBorderStrong)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .padding(.horizontal, 6)
+                            .offset(y: imageHeight * 0.12)
+                            .frame(maxHeight: .infinity, alignment: .center)
+                    }
 
                     if business.founder50 == true {
                         Founder50Badge()
@@ -676,25 +745,11 @@ struct BusinessListRow: View {
                     Spacer()
                     PinButton(businessID: business.id)
                 }
-                if shouldMask {
-                    Text("PRIVATE UNTIL STUDENT VERIFICATION")
-                        .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.bold))
-                        .tracking(0.6)
-                        .foregroundColor(privateBadgeText)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(privateBadgeBackground)
-                        .overlay(
-                            Capsule()
-                                .stroke(ScheduleMeTheme.cardBorderStrong)
-                        )
-                        .clipShape(Capsule())
-                }
-                Text(business.description ?? business.primaryCategory)
+                Text(business.description ?? displayCategory)
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                     .foregroundStyle(ScheduleMeTheme.mutedText)
                     .lineLimit(1)
-                ScheduleMeTag(text: business.primaryCategory)
+                ScheduleMeTag(text: displayCategory)
                 HStack(spacing: 6) {
                     if let priceLabel = business.priceLabel {
                         ScheduleMeTag(text: priceLabel)
@@ -723,16 +778,16 @@ struct BusinessListRow: View {
 /// 2-column grid card
 struct BusinessGridCard: View {
     let business: BusinessSummary
+    var shouldMask: Bool = false
+    var preferredCategory: String? = nil
+    var imageHeight: CGFloat = 72
+    var contentSpacing: CGFloat = 6
     var onSelect: (() -> Void)? = nil
-    private var shouldMask: Bool {
-        // Home/Browse should always show public provider cards.
-        false
-    }
     private var displayName: String {
         shouldMask ? "Student provider" : business.name
     }
     private var imageURL: URL? {
-        return business.heroImageURL
+        shouldMask ? nil : business.heroImageURL
     }
     private var privateBadgeBackground: Color {
         Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "262626"))
@@ -743,10 +798,13 @@ struct BusinessGridCard: View {
     private var placeholderBackground: Color {
         Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
     }
+    private var displayCategory: String {
+        preferredCategory ?? business.primaryCategory
+    }
 
     var body: some View {
         ScheduleMeCard {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: contentSpacing) {
                 ZStack(alignment: .topLeading) {
                     GeometryReader { proxy in
                         let width = proxy.size.width
@@ -759,18 +817,39 @@ struct BusinessGridCard: View {
                                     Text(String(displayName.prefix(2)).uppercased())
                                         .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
                                         .foregroundColor(ScheduleMeTheme.mutedText)
+                                        .frame(maxHeight: .infinity, alignment: shouldMask ? .top : .center)
+                                        .padding(.top, shouldMask ? 10 : 0)
                                 }
                             }
                         }
-                        .frame(width: width, height: 72)
+                        .frame(width: width, height: imageHeight)
                         .clipped()
                     }
-                    .frame(height: 72)
+                    .frame(height: imageHeight)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     if business.founder50 == true {
                         Founder50Badge()
                             .padding(6)
+                    }
+
+                    if shouldMask {
+                        Text("PRIVATE UNTIL STUDENT VERIFICATION")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 7.6).weight(.bold))
+                            .tracking(0.45)
+                            .foregroundColor(privateBadgeText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 5)
+                            .background(privateBadgeBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(ScheduleMeTheme.cardBorderStrong)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .padding(.horizontal, 6)
+                            .padding(.bottom, 6)
+                            .frame(maxHeight: .infinity, alignment: .bottom)
                     }
                 }
 
@@ -783,24 +862,7 @@ struct BusinessGridCard: View {
                     PinButton(businessID: business.id)
                 }
 
-                if shouldMask {
-                    Text("PRIVATE UNTIL STUDENT VERIFICATION")
-                        .font(.custom(ScheduleMeTheme.fontName, size: 8).weight(.bold))
-                        .tracking(0.5)
-                        .foregroundColor(privateBadgeText)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(privateBadgeBackground)
-                        .overlay(
-                            Capsule()
-                                .stroke(ScheduleMeTheme.cardBorderStrong)
-                        )
-                        .clipShape(Capsule())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 2)
-                }
-
-                ScheduleMeTag(text: business.primaryCategory)
+                ScheduleMeTag(text: displayCategory)
 
                 HStack(spacing: 4) {
                     if let priceLabel = business.priceLabel {
@@ -1043,10 +1105,13 @@ private struct MapBusinessAvatar: View {
 }
 
 private struct BrowseMapCompositeView: View {
+    @EnvironmentObject private var appState: AppState
     @Binding var position: MapCameraPosition
     let businesses: [MapBusiness]
     @Binding var selectedBusiness: BusinessSummary?
     @Binding var navigationBusiness: BusinessSummary?
+    let selectedCategory: String
+    let searchText: String
     @State private var currentPage = 0
     private let pageSize = 8
 
@@ -1068,6 +1133,19 @@ private struct BrowseMapCompositeView: View {
         DispatchQueue.main.async {
             navigationBusiness = business
         }
+    }
+
+    private var viewerSchoolDomain: String? {
+        appState.resolvedSchoolDomain?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private func shouldMask(_ business: BusinessSummary) -> Bool {
+        business.shouldMaskForViewer(
+            userEduVerified: appState.eduVerified == true,
+            userSchoolDomain: viewerSchoolDomain
+        )
     }
 
     var body: some View {
@@ -1126,10 +1204,15 @@ private struct BrowseMapCompositeView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
                             ForEach(pagedBusinesses) { item in
+                                let isMasked = shouldMask(item.business)
                                 VStack(alignment: .leading, spacing: 8) {
                                     BusinessListRow(
                                         business: item.business,
+                                        imageHeight: isMasked ? 122 : 92,
+                                        shouldMask: isMasked,
+                                        preferredCategory: item.business.preferredCategory(for: selectedCategory, searchText: searchText),
                                         onSelect: {
+                                            if isMasked { return }
                                             if selectedBusiness?.id == item.business.id {
                                                 openBusiness(item.business)
                                             } else {
@@ -1142,7 +1225,7 @@ private struct BrowseMapCompositeView: View {
                                                 )
                                             }
                                         },
-                                        openDestinationBusiness: item.business
+                                        openDestinationBusiness: isMasked ? nil : item.business
                                     )
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1277,41 +1360,5 @@ private struct BrowseFiltersSheet: View {
                 }
             }
         }
-    }
-}
-
-private struct BrowseStudentVerifyBanner: View {
-    let onVerify: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "graduationcap.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(ScheduleMeTheme.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Are you a student?")
-                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                    .foregroundColor(ScheduleMeTheme.titleText)
-                Text("Verify your .edu email to unlock campus-only providers.")
-                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                    .foregroundColor(ScheduleMeTheme.mutedText)
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 8)
-            Button("Verify") {
-                onVerify()
-            }
-            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(ScheduleMeTheme.accent)
-            .clipShape(Capsule())
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(ScheduleMeTheme.accentSoft)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(ScheduleMeTheme.cardBorder))
     }
 }

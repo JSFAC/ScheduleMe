@@ -121,7 +121,12 @@ struct ReviewSubmissionView: View {
                     Task { await submitReview() }
                 } label: {
                     if dataStore.isSubmittingReview {
-                        ProgressView().tint(.white)
+                        ScheduleMeLoadingBar(
+                            width: 72,
+                            height: 6,
+                            tint: .white,
+                            track: Color.white.opacity(0.28)
+                        )
                     } else {
                         Text("Submit Review")
                     }

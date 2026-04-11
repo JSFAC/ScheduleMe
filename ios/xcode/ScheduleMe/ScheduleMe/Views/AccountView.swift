@@ -37,6 +37,7 @@ struct AccountView: View {
     @State private var profileSaveSuccess = false
     @State private var isLoadingProfile = true
     @State private var showingEduVerification = false
+    @State private var showingEduStatus = false
     private let openEduOnAppear: Bool
     @State private var addresses: [SavedAddress] = []
     @State private var showingAddAddress = false
@@ -59,9 +60,13 @@ struct AccountView: View {
                                     ZStack {
                                         avatarView
                                         if isUploadingAvatar {
-                                            ProgressView()
-                                                .tint(.white)
-                                                .scaleEffect(0.8)
+                                            ScheduleMeLoadingBar(
+                                                width: 36,
+                                                height: 5,
+                                                tint: .white,
+                                                track: Color.white.opacity(0.28),
+                                                minimumFill: 0.18
+                                            )
                                         }
                                     }
                                 }
@@ -122,6 +127,19 @@ struct AccountView: View {
                 }
                 .padding(.top, 12)
             }
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [
+                        ScheduleMeTheme.creamBackground.opacity(0),
+                        ScheduleMeTheme.creamBackground.opacity(0.85),
+                        ScheduleMeTheme.creamBackground
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 36)
+                .allowsHitTesting(false)
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -167,24 +185,76 @@ struct AccountView: View {
                 emailAddress = appState.userEmail ?? ""
             }
             if openEduOnAppear {
-                showingEduVerification = true
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+                    if appState.eduVerified == true {
+                        showingEduVerification = false
+                        showingEduStatus = true
+                    } else {
+                        showingEduStatus = false
+                        showingEduVerification = true
+                    }
+                }
             }
-        }
-        .sheet(isPresented: $showingEduVerification) {
-            EduVerificationSheet(
-                isVerified: appState.eduVerified == true,
-                schoolDomain: appState.schoolDomain
-            ) {
-                Task { await appState.refreshEduVerification() }
-            }
-            .presentationDetents([.height(300)])
-            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingAddAddress) {
             AddressEditorSheet(address: editingAddress) { updated in
                 upsertAddress(updated)
             }
         }
+        .overlay {
+            if showingEduVerification {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showingEduVerification = false
+                            }
+                        }
+
+                    EduVerificationSheet(
+                        initialEmail: nil,
+                        onSendCode: { email in
+                            try await appState.requestEduVerificationCode(email: email)
+                        },
+                        onVerifyCode: { code in
+                            try await appState.confirmEduVerificationCode(code: code)
+                        },
+                        onClose: { showingEduVerification = false }
+                    )
+                    .padding(.horizontal, 20)
+                    .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.spring(response: 0.34, dampingFraction: 0.9), value: showingEduVerification)
+        .overlay {
+            if showingEduStatus {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showingEduStatus = false
+                            }
+                        }
+
+                    EduVerificationStatusModal(
+                        isVerified: appState.eduVerified == true,
+                        schoolDomain: appState.schoolDomain,
+                        onClose: { showingEduStatus = false },
+                        onRefresh: {
+                            Task { await appState.refreshEduVerification() }
+                        }
+                    )
+                    .padding(.horizontal, 20)
+                    .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.spring(response: 0.34, dampingFraction: 0.9), value: showingEduStatus)
         .onChange(of: avatarItem) { _, newItem in
             guard let newItem else { return }
             Task { await uploadAvatar(from: newItem) }
@@ -294,7 +364,11 @@ struct AccountView: View {
                     .buttonStyle(ScheduleMePrimaryButtonStyle())
 
                     Button(appState.eduVerified == true ? "View EDU Verification" : "Verify .edu Email") {
-                        showingEduVerification = true
+                        if appState.eduVerified == true {
+                            showingEduStatus = true
+                        } else {
+                            showingEduVerification = true
+                        }
                     }
                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
                     .foregroundColor(ScheduleMeTheme.accent)
@@ -451,7 +525,7 @@ struct AccountView: View {
                         .foregroundColor(ScheduleMeTheme.titleText)
 
                     SecurityInfoRow(systemImage: "envelope.badge.shield.half.filled", label: "Email verified", value: appState.userEmail ?? "—")
-                    SecurityInfoRow(systemImage: "person.badge.shield.checkmark", label: "Auth method", value: "Apple, Google, or Email")
+                    SecurityInfoRow(systemImage: appState.authMethodSymbol, label: "Auth method", value: appState.authMethodDisplay)
                     SecurityInfoRow(systemImage: "lock.shield", label: "Session", value: "Active")
 
                     Text("Your account can be secured through Apple, Google, or email/password depending on how you signed in.")
@@ -1085,10 +1159,176 @@ private struct AddressEditorSheet: View {
 }
 
 private struct EduVerificationSheet: View {
+    let initialEmail: String?
+    let onSendCode: (String) async throws -> Void
+    let onVerifyCode: (String) async throws -> Void
+    let onClose: () -> Void
+    private enum Step { case email, code }
+    @State private var eduEmail = ""
+    @State private var verificationCode = ""
+    @State private var step: Step = .email
+    @State private var isSending = false
+    @State private var isVerifying = false
+    @State private var statusMessage: String?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ScheduleMeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("EDU Verification")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                            .frame(width: 28, height: 28)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text("Use your .edu email to unlock campus-only providers.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+
+                if step == .email {
+                    Text("School email")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                    TextField("", text: $eduEmail)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .keyboardType(.emailAddress)
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                        .scheduleMeFieldStyle()
+                        .overlay(alignment: .leading) {
+                            if eduEmail.isEmpty {
+                                Text("name@school.edu")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                    .foregroundColor(Color.secondary.opacity(0.9))
+                                    .padding(.leading, 16)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+
+                    Button(isSending ? "Sending..." : "Send verification code") {
+                        Task { await sendCode() }
+                    }
+                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                    .disabled(isSending)
+                } else {
+                    Text("Verification code")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                    TextField("", text: $verificationCode)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .keyboardType(.numberPad)
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                        .scheduleMeFieldStyle()
+                        .overlay(alignment: .leading) {
+                            if verificationCode.isEmpty {
+                                Text("6-digit code")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                    .foregroundColor(Color.secondary.opacity(0.9))
+                                    .padding(.leading, 16)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+
+                    HStack(spacing: 10) {
+                        Button(isVerifying ? "Verifying..." : "Verify code") {
+                            Task { await verifyCode() }
+                        }
+                        .buttonStyle(ScheduleMePrimaryButtonStyle())
+                        .disabled(isVerifying || verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count < 6)
+
+                        Button(isSending ? "Sending..." : "Resend") {
+                            Task { await resendCode() }
+                        }
+                        .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                        .disabled(isSending)
+                    }
+
+                    Text("Code expires in 15 minutes.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                }
+
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.accent)
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                        .foregroundColor(.red)
+                }
+            }
+            .padding(16)
+        }
+        .frame(maxWidth: 420)
+        .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 6)
+        .padding(.vertical, 28)
+        .onAppear {
+            if eduEmail.isEmpty {
+                eduEmail = initialEmail ?? ""
+            }
+        }
+    }
+
+    private func sendCode() async {
+        guard !isSending else { return }
+        errorMessage = nil
+        statusMessage = nil
+        isSending = true
+        defer { isSending = false }
+
+        do {
+            try await onSendCode(eduEmail)
+            step = .code
+            statusMessage = "Verification code sent to your .edu email."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func resendCode() async {
+        await sendCode()
+    }
+
+    private func verifyCode() async {
+        guard !isVerifying else { return }
+        errorMessage = nil
+        statusMessage = nil
+        isVerifying = true
+        defer { isVerifying = false }
+
+        do {
+            try await onVerifyCode(verificationCode)
+            statusMessage = "Email verified successfully."
+            onClose()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+/* Legacy sheet implementation kept intentionally removed:
+ Edu verification is now a minimal floating modal card by request. */
+
+private struct EduVerificationStatusModal: View {
     let isVerified: Bool
     let schoolDomain: String?
+    let onClose: () -> Void
     let onRefresh: () -> Void
-    @Environment(\.dismiss) private var dismiss
 
     private var campusName: String {
         if let domain = schoolDomain, !domain.isEmpty {
@@ -1098,43 +1338,44 @@ private struct EduVerificationSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("EDU Verification")
-                    .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
-                    .foregroundColor(ScheduleMeTheme.titleText)
-                Spacer()
-                Button("Done") { dismiss() }
-                    .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
-                    .foregroundColor(ScheduleMeTheme.accent)
-            }
+        ScheduleMeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("EDU Verification")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                            .frame(width: 28, height: 28)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                    }
+                    .buttonStyle(.plain)
+                }
 
-            VStack(alignment: .leading, spacing: 8) {
                 Text(isVerified ? "Verified Student" : "Verification Needed")
                     .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.semibold))
                     .foregroundColor(ScheduleMeTheme.titleText)
-                Text(isVerified ? "Campus access unlocked" : "Use your .edu email to unlock campus-only providers.")
+                Text(isVerified ? "Campus access unlocked." : "Use your .edu email to unlock campus-only providers.")
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                     .foregroundColor(ScheduleMeTheme.mutedText)
                 Text("Campus: \(campusName)")
                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
                     .foregroundColor(ScheduleMeTheme.accent)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(ScheduleMeTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(ScheduleMeTheme.cardBorder)
-            )
 
-            Button("Refresh status") {
-                onRefresh()
+                Button("Refresh status") {
+                    onRefresh()
+                }
+                .buttonStyle(ScheduleMeSecondaryButtonStyle())
             }
-            .buttonStyle(ScheduleMePrimaryButtonStyle())
+            .padding(16)
         }
-        .padding(20)
-        .background(ScheduleMeTheme.pageBackground)
+        .frame(maxWidth: 420)
+        .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 6)
+        .padding(.vertical, 28)
     }
 }

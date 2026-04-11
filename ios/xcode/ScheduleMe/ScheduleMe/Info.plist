@@ -31,8 +31,13 @@
 	<string>ScheduleMe uses your location to show nearby providers, distance, and local availability.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Resources/Fonts/PlusJakartaSans-VariableFont_wght.ttf</string>
-		<string>Resources/Fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf</string>
+		<string>PlusJakartaSans-VariableFont_wght.ttf</string>
+		<string>PlusJakartaSans-Italic-VariableFont_wght.ttf</string>
 	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 </dict>
 </plist>

@@ -5,7 +5,6 @@
 // Dark mode global behavior and startup bootstrapping are configured here.
 
 import SwiftUI
-import CoreText
 import UIKit
 #if canImport(StripePaymentSheet)
 import StripePaymentSheet
@@ -29,24 +28,16 @@ final class ScheduleMeAppDelegate: NSObject, UIApplicationDelegate {
     @MainActor
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         #if DEBUG
+        #if targetEnvironment(simulator)
+        // Simulator does not have a real APNs environment entitlement; skip noisy log.
+        #else
         print("APNs registration failed: \(error.localizedDescription)")
+        #endif
         #endif
     }
 }
 
 // MARK: - App Entry
-
-private enum FontLoader {
-    static func registerFonts() {
-        ["PlusJakartaSans-VariableFont_wght", "PlusJakartaSans-Italic-VariableFont_wght"].forEach { name in
-            let directURL = Bundle.main.url(forResource: name, withExtension: "ttf")
-            let nestedURL = Bundle.main.url(forResource: name, withExtension: "ttf", subdirectory: "Resources/Fonts")
-            [directURL, nestedURL].compactMap { $0 }.forEach { url in
-                CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-            }
-        }
-    }
-}
 
 @main
 struct ScheduleMeApp: App {
@@ -62,7 +53,6 @@ struct ScheduleMeApp: App {
     @AppStorage("scheduleme_has_logged_in_ever") private var hasLoggedInEver = false
 
     init() {
-        FontLoader.registerFonts()
 #if canImport(StripePaymentSheet)
         if let key = Bundle.main.object(forInfoDictionaryKey: "STRIPE_PUBLISHABLE_KEY") as? String,
            !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

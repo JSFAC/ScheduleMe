@@ -13,10 +13,12 @@ struct BookingsView: View {
     @State private var activeExpanded = false
     @State private var completedExpanded = false
     @State private var cancelledExpanded = false
+    @State private var disputedExpanded = false
     @State private var pendingPage = 0
     @State private var activePage = 0
     @State private var completedPage = 0
     @State private var cancelledPage = 0
+    @State private var disputedPage = 0
 
     private let pageSize = 4
 
@@ -34,16 +36,16 @@ struct BookingsView: View {
         NavigationStack {
             ScheduleMeScreen {
                 VStack(spacing: 0) {
-                    ScheduleMeHeaderBlock(
+                    BookingsHeaderCard(
                         title: "My Bookings",
                         subtitle: "Track and manage your service requests",
                         actionTitle: "New request",
                         action: { tabRouter.selected = .browse }
                     ) {
                         HStack(spacing: 12) {
-                            BookingStatCard(title: "Total", value: "\(dataStore.bookings.count)")
-                            BookingStatCard(title: "Active", value: "\(activeCount)")
-                            BookingStatCard(title: "Completed", value: "\(completedCount)")
+                            BookingStatChip(title: "Total", value: "\(dataStore.bookings.count)")
+                            BookingStatChip(title: "Active", value: "\(activeCount)")
+                            BookingStatChip(title: "Completed", value: "\(completedCount)")
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -100,6 +102,13 @@ struct BookingsView: View {
                                 page: $cancelledPage,
                                 pageSize: pageSize
                             )
+                            BookingSectionView(
+                                title: "Disputed",
+                                bookings: disputedBookings,
+                                expanded: $disputedExpanded,
+                                page: $disputedPage,
+                                pageSize: pageSize
+                            )
                         }
                     }
                     .padding(.horizontal, 20)
@@ -117,19 +126,52 @@ struct BookingsView: View {
     // MARK: - Buckets
 
     private var pendingBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["pending", "payment_pending", "payment_collected", "awaiting_payment"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter { bookingBucket(for: $0.status) == .pending }
     }
 
     private var activeBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["confirmed", "active", "completion_pending"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter { bookingBucket(for: $0.status) == .active }
     }
 
     private var completedBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["completed"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter { bookingBucket(for: $0.status) == .completed }
     }
 
     private var cancelledBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["cancelled", "payment_failed"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter { bookingBucket(for: $0.status) == .cancelled }
+    }
+
+    private var disputedBookings: [BookingSummary] {
+        dataStore.bookings.filter { bookingBucket(for: $0.status) == .disputed }
+    }
+
+    private enum BookingBucket {
+        case pending
+        case active
+        case completed
+        case cancelled
+        case disputed
+    }
+
+    private func bookingBucket(for rawStatus: String) -> BookingBucket {
+        let status = rawStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Disputes first so they never get swallowed by generic failed/cancelled matching.
+        if status.contains("dispute") || status.contains("chargeback") {
+            return .disputed
+        }
+        if status.contains("cancel") || status == "payment_failed" || status.contains("failed") {
+            return .cancelled
+        }
+        if status.contains("complete") || status == "paid" {
+            return .completed
+        }
+        if status.contains("confirm") || status == "active" || status == "in_progress" || status.contains("progress") {
+            return .active
+        }
+
+        // Default unknown/new states to pending so counts reconcile and are visible to users.
+        return .pending
     }
 }
 
@@ -256,26 +298,79 @@ private struct BookingSkeletonList: View {
     }
 }
 
-private struct BookingStatCard: View {
+private struct BookingsHeaderCard<Content: View>: View {
+    let title: String
+    let subtitle: String
+    let actionTitle: String
+    let action: () -> Void
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                    Text(subtitle)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                }
+                Spacer()
+                Button(action: action) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus")
+                        Text(actionTitle)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(ScheduleMeTheme.accent)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            content
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
+        .background(ScheduleMeTheme.surface)
+    }
+}
+
+private struct BookingStatChip: View {
     @Environment(\.colorScheme) private var colorScheme
     let title: String
     let value: String
+
+    private var chipBackground: Color {
+        colorScheme == .dark ? ScheduleMeTheme.surface : ScheduleMeTheme.accentSoft
+    }
+
+    private var chipBorder: Color {
+        colorScheme == .dark ? ScheduleMeTheme.cardBorderStrong : ScheduleMeTheme.accent.opacity(0.22)
+    }
 
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
-                .foregroundColor(colorScheme == .dark ? Color(hex: "9AE6D7") : ScheduleMeTheme.headerGreen)
+                .foregroundColor(colorScheme == .dark ? ScheduleMeTheme.titleText : ScheduleMeTheme.accent)
             Text(title.uppercased())
                 .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.semibold))
                 .tracking(1)
-                .foregroundColor(ScheduleMeTheme.mutedText)
+                .foregroundColor(colorScheme == .dark ? ScheduleMeTheme.mutedText : ScheduleMeTheme.accent.opacity(0.78))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(ScheduleMeTheme.surface)
+        .background(chipBackground)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(ScheduleMeTheme.cardBorder))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(chipBorder)
+        )
     }
 }
 

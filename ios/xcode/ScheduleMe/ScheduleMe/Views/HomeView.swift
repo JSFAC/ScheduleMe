@@ -12,7 +12,8 @@ struct HomeView: View {
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var tabRouter: TabRouter
-    @State private var showingAccount = false
+    @State private var showingEduVerificationModal = false
+    @State private var showingEduStatusModal = false
     @AppStorage("scheduleme_dismiss_student_banner") private var dismissedStudentBanner = false
     @State private var quickRequest = ""
     @FocusState private var isQuickRequestFocused: Bool
@@ -79,19 +80,33 @@ struct HomeView: View {
                                         ForEach(matchedBusinesses.prefix(3)) { business in
                                             NavigationLink(destination: BusinessDetailView(business: business)) {
                                                 HStack(spacing: 10) {
-                                                    Circle()
-                                                        .fill(ScheduleMeTheme.accentSoft)
-                                                        .frame(width: 32, height: 32)
-                                                        .overlay(
-                                                            Text(String(business.name.prefix(1)))
-                                                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
-                                                                .foregroundColor(ScheduleMeTheme.accent)
-                                                        )
+                                                    AsyncImage(url: business.heroImageURL) { phase in
+                                                        switch phase {
+                                                        case .success(let image):
+                                                            image
+                                                                .resizable()
+                                                                .scaledToFill()
+                                                        default:
+                                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                                .fill(ScheduleMeTheme.accentSoft)
+                                                                .overlay(
+                                                                    Text(String(business.name.prefix(1)))
+                                                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
+                                                                        .foregroundColor(ScheduleMeTheme.accent)
+                                                                )
+                                                        }
+                                                    }
+                                                    .frame(width: 40, height: 28)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                            .stroke(ScheduleMeTheme.cardBorder, lineWidth: 1)
+                                                    )
                                                     VStack(alignment: .leading, spacing: 2) {
                                                         Text(business.name)
                                                             .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
                                                             .foregroundColor(ScheduleMeTheme.titleText)
-                                                        Text(business.primaryCategory)
+                                                        Text(business.preferredCategory(for: selectedHomeCategory, searchText: quickRequest))
                                                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                                                             .foregroundColor(ScheduleMeTheme.mutedText)
                                                     }
@@ -100,13 +115,17 @@ struct HomeView: View {
                                                         .font(.system(size: 12, weight: .semibold))
                                                         .foregroundColor(ScheduleMeTheme.mutedText)
                                                 }
+                                                .frame(maxWidth: .infinity, alignment: .leading)
                                                 .padding(.vertical, 4)
+                                                .contentShape(Rectangle())
                                             }
                                             .buttonStyle(.plain)
                                         }
                                     }
 
                                     Button("Browse all results") {
+                                        let query = quickRequest.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        tabRouter.browsePrefillQuery = query.isEmpty ? nil : query
                                         tabRouter.selected = .browse
                                     }
                                     .buttonStyle(ScheduleMeSecondaryButtonStyle())
@@ -231,60 +250,61 @@ struct HomeView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(ScheduleMeTheme.cardBorder))
                     .padding(.horizontal, 20)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Campus Pulse")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                .tracking(1.2)
-                                .foregroundColor(ScheduleMeTheme.mutedText)
-                            Spacer()
-                            Text("Updated daily")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                                .foregroundColor(ScheduleMeTheme.mutedText)
-                        }
-                        .padding(.horizontal, 12)
-
-                        if appState.eduVerified == false && dismissedStudentBanner == false {
-                            StudentVerifyBanner(
-                                onVerify: { showingAccount = true },
-                                onDismiss: { dismissedStudentBanner = true }
-                            )
+                    if appState.eduVerified == true {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Campus Pulse")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                    .tracking(1.2)
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                                Spacer()
+                                Text("Updated daily")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                            }
                             .padding(.horizontal, 12)
-                        }
 
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            if (!dataStore.hasLoadedBusinesses || dataStore.isLoadingBusinesses) && dataStore.businesses.isEmpty {
-                                PulseSkeletonRow()
-                            } else {
-                                HStack(spacing: 8) {
-                                    PulseCard(
-                                        title: "Trending on campus",
-                                        value: "Haircuts + tutoring",
-                                        subtitle: "Updated today",
-                                        systemImage: "flame.fill"
-                                    )
-                                    PulseCard(
-                                        title: "Avg response time",
-                                        value: "~18 minutes",
-                                        subtitle: "Last 7 days",
-                                        systemImage: "clock.fill"
-                                    )
-                                    PulseCard(
-                                        title: "New pros nearby",
-                                        value: "12 this week",
-                                        subtitle: "Verified students",
-                                        systemImage: "person.2.fill"
-                                    )
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                if (!dataStore.hasLoadedBusinesses || dataStore.isLoadingBusinesses) && dataStore.businesses.isEmpty {
+                                    PulseSkeletonRow()
+                                } else {
+                                    HStack(spacing: 8) {
+                                        PulseCard(
+                                            title: "Trending on campus",
+                                            value: "Haircuts + tutoring",
+                                            subtitle: "Updated today",
+                                            systemImage: "flame.fill"
+                                        )
+                                        PulseCard(
+                                            title: "Avg response time",
+                                            value: "~18 minutes",
+                                            subtitle: "Last 7 days",
+                                            systemImage: "clock.fill"
+                                        )
+                                        PulseCard(
+                                            title: "New pros nearby",
+                                            value: "12 this week",
+                                            subtitle: "Verified students",
+                                            systemImage: "person.2.fill"
+                                        )
+                                    }
                                 }
                             }
                         }
+                        .padding(8)
+                        .background(ScheduleMeTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 4)
+                    } else if dismissedStudentBanner == false {
+                        StudentVerifyBanner(
+                            onVerify: { openEduFlow() },
+                            onDismiss: { dismissedStudentBanner = true }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 4)
                     }
-                    .padding(8)
-                    .background(ScheduleMeTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
 
                     VStack(alignment: .leading, spacing: 20) {
                         if (!dataStore.hasLoadedBusinesses || dataStore.isLoadingBusinesses) && dataStore.businesses.isEmpty {
@@ -294,6 +314,7 @@ struct HomeView: View {
                                 businesses: [],
                                 cardWidth: homeCardWidth,
                                 imageHeight: homeCardImageHeight,
+                                selectedCategory: selectedHomeCategory,
                                 showsSkeleton: true
                             )
                         } else if !dataStore.businesses.isEmpty {
@@ -303,6 +324,7 @@ struct HomeView: View {
                                 businesses: homeSectionBusinesses.topRated,
                                 cardWidth: homeCardWidth,
                                 imageHeight: homeCardImageHeight,
+                                selectedCategory: selectedHomeCategory,
                                 onSeeAll: { tabRouter.selected = .browse }
                             )
                             HomeBusinessCarouselSection(
@@ -311,6 +333,7 @@ struct HomeView: View {
                                 businesses: homeSectionBusinesses.nonStudents,
                                 cardWidth: homeCardWidth,
                                 imageHeight: homeCardImageHeight,
+                                selectedCategory: selectedHomeCategory,
                                 onSeeAll: { tabRouter.selected = .browse }
                             )
                             HomeBusinessCarouselSection(
@@ -319,6 +342,7 @@ struct HomeView: View {
                                 businesses: homeSectionBusinesses.quickResponse,
                                 cardWidth: homeCardWidth,
                                 imageHeight: homeCardImageHeight,
+                                selectedCategory: selectedHomeCategory,
                                 onSeeAll: { tabRouter.selected = .browse }
                             )
                         } else if let businessError = dataStore.businessError {
@@ -362,10 +386,63 @@ struct HomeView: View {
                 .padding(.trailing, 20)
                 .padding(.bottom, 12)
             }
-            .sheet(isPresented: $showingFeedback) {
-                FeedbackModalView(userEmail: appState.userEmail)
+            .overlay {
+                if showingEduVerificationModal {
+                    ZStack {
+                        Color.black.opacity(0.45)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showingEduVerificationModal = false
+                                }
+                            }
+
+                        HomeEduVerificationModal(
+                            onSendCode: { email in
+                                try await appState.requestEduVerificationCode(email: email)
+                            },
+                            onVerifyCode: { code in
+                                try await appState.confirmEduVerificationCode(code: code)
+                            },
+                            onClose: { showingEduVerificationModal = false }
+                        )
+                        .padding(.horizontal, 20)
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                    }
+                    .transition(.opacity)
+                }
             }
-            .navigationBarTitleDisplayMode(.inline)
+            .animation(.spring(response: 0.34, dampingFraction: 0.9), value: showingEduVerificationModal)
+            .overlay {
+                if showingEduStatusModal {
+                    ZStack {
+                        Color.black.opacity(0.45)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showingEduStatusModal = false
+                                }
+                            }
+
+                        EduVerificationStatusModal(
+                            isVerified: appState.eduVerified == true,
+                            schoolDomain: appState.schoolDomain,
+                            onClose: { showingEduStatusModal = false },
+                            onRefresh: {
+                                Task { await appState.refreshEduVerification() }
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .animation(.spring(response: 0.34, dampingFraction: 0.9), value: showingEduStatusModal)
+        .sheet(isPresented: $showingFeedback) {
+            FeedbackModalView(userEmail: appState.userEmail)
+        }
+        .navigationBarTitleDisplayMode(.inline)
         }
         .task {
             locationManager.requestIfNeeded()
@@ -408,8 +485,21 @@ struct HomeView: View {
     }
 
     private var homeCategories: [String] {
-        let categories = Array(Set(dataStore.businesses.map(\.primaryCategory))).sorted()
+        let categories = Array(Set(dataStore.businesses.flatMap(\.categoryTags))).sorted()
         return ["All", "Non-students", "Quick response"] + categories
+    }
+
+    private var viewerSchoolDomain: String? {
+        appState.resolvedSchoolDomain?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private func shouldMask(_ business: BusinessSummary) -> Bool {
+        business.shouldMaskForViewer(
+            userEduVerified: appState.eduVerified == true,
+            userSchoolDomain: viewerSchoolDomain
+        )
     }
 
     private var homeFilteredBusinesses: [BusinessSummary] {
@@ -421,7 +511,7 @@ struct HomeView: View {
         case "Quick response":
             return dataStore.businesses.sorted { quickResponseRank($0) > quickResponseRank($1) }
         default:
-            return dataStore.businesses.filter { $0.primaryCategory == selectedHomeCategory }
+            return dataStore.businesses.filter { $0.matchesCategory(selectedHomeCategory) }
         }
     }
 
@@ -459,7 +549,7 @@ struct HomeView: View {
             .map { String($0) }
             .filter { !$0.isEmpty }
         let matches = dataStore.businesses.filter { business in
-            let haystack = [business.name, business.primaryCategory, business.description ?? ""]
+            let haystack = [business.name, business.categoryTags.joined(separator: " "), business.description ?? ""]
                 .joined(separator: " ")
                 .lowercased()
             return tokens.allSatisfy { haystack.contains($0) }
@@ -467,6 +557,18 @@ struct HomeView: View {
         matchedBusinesses = matches.sorted { ($0.rating ?? 0) > ($1.rating ?? 0) }
         withAnimation(.easeInOut(duration: 0.25)) {
             showingMatches = true
+        }
+    }
+
+    private func openEduFlow() {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+            if appState.eduVerified == true {
+                showingEduVerificationModal = false
+                showingEduStatusModal = true
+            } else {
+                showingEduStatusModal = false
+                showingEduVerificationModal = true
+            }
         }
     }
 
@@ -500,14 +602,17 @@ private struct HomeTopRatedSkeleton: View {
             .padding(.vertical, 4)
         }
     }
+
 }
 
 private struct HomeBusinessCarouselSection: View {
+    @EnvironmentObject private var appState: AppState
     let title: String
     let subtitle: String
     let businesses: [BusinessSummary]
     let cardWidth: CGFloat
     let imageHeight: CGFloat
+    let selectedCategory: String
     var onSeeAll: (() -> Void)? = nil
     var showsSkeleton: Bool = false
 
@@ -529,17 +634,30 @@ private struct HomeBusinessCarouselSection: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(businesses.prefix(6)) { business in
-                            NavigationLink(destination: BusinessDetailView(business: business)) {
+                            let masked = shouldMask(business)
+                            if masked {
                                 HomeBusinessCard(
                                     business: business,
                                     cardWidth: cardWidth,
-                                    imageHeight: imageHeight
+                                    imageHeight: imageHeight,
+                                    shouldMask: true,
+                                    preferredCategory: business.preferredCategory(for: selectedCategory)
                                 )
                                 .frame(width: cardWidth, alignment: .leading)
-                                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            } else {
+                                NavigationLink(destination: BusinessDetailView(business: business)) {
+                                    HomeBusinessCard(
+                                        business: business,
+                                        cardWidth: cardWidth,
+                                        imageHeight: imageHeight,
+                                        preferredCategory: business.preferredCategory(for: selectedCategory)
+                                    )
+                                    .frame(width: cardWidth, alignment: .leading)
+                                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                }
+                                .frame(width: cardWidth, alignment: .leading)
+                                .buttonStyle(.plain)
                             }
-                            .frame(width: cardWidth, alignment: .leading)
-                            .buttonStyle(.plain)
                         }
                         if let onSeeAll {
                             Button(action: onSeeAll) {
@@ -567,6 +685,19 @@ private struct HomeBusinessCarouselSection: View {
                 }
             }
         }
+    }
+
+    private var viewerSchoolDomain: String? {
+        appState.resolvedSchoolDomain?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private func shouldMask(_ business: BusinessSummary) -> Bool {
+        business.shouldMaskForViewer(
+            userEduVerified: appState.eduVerified == true,
+            userSchoolDomain: viewerSchoolDomain
+        )
     }
 }
 
@@ -721,9 +852,227 @@ private struct StudentVerifyBanner: View {
             .buttonStyle(.plain)
         }
         .padding(12)
-        .background(Color(hex: "E8F6F3"))
+        .background(
+            Color.dynamic(
+                light: Color(hex: "E8F6F3"),
+                dark: Color(hex: "132522")
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
+    }
+}
+
+private struct HomeEduVerificationModal: View {
+    let onSendCode: (String) async throws -> Void
+    let onVerifyCode: (String) async throws -> Void
+    let onClose: () -> Void
+    private enum Step { case email, code }
+    @State private var eduEmail = ""
+    @State private var verificationCode = ""
+    @State private var step: Step = .email
+    @State private var isSending = false
+    @State private var isVerifying = false
+    @State private var statusMessage: String?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ScheduleMeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("EDU Verification")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                            .frame(width: 28, height: 28)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text("Use your .edu email to unlock campus-only providers.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+
+                if step == .email {
+                    Text("School email")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                    TextField("", text: $eduEmail)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .keyboardType(.emailAddress)
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                        .scheduleMeFieldStyle()
+                        .overlay(alignment: .leading) {
+                            if eduEmail.isEmpty {
+                                Text("name@school.edu")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                    .foregroundColor(Color.secondary.opacity(0.9))
+                                    .padding(.leading, 16)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+
+                    Button(isSending ? "Sending..." : "Send verification code") {
+                        Task { await sendCode() }
+                    }
+                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                    .disabled(isSending)
+                } else {
+                    Text("Verification code")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                    TextField("", text: $verificationCode)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .keyboardType(.numberPad)
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                        .scheduleMeFieldStyle()
+                        .overlay(alignment: .leading) {
+                            if verificationCode.isEmpty {
+                                Text("6-digit code")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                    .foregroundColor(Color.secondary.opacity(0.9))
+                                    .padding(.leading, 16)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+
+                    HStack(spacing: 10) {
+                        Button(isVerifying ? "Verifying..." : "Verify code") {
+                            Task { await verifyCode() }
+                        }
+                        .buttonStyle(ScheduleMePrimaryButtonStyle())
+                        .disabled(isVerifying || verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count < 6)
+
+                        Button(isSending ? "Sending..." : "Resend") {
+                            Task { await resendCode() }
+                        }
+                        .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                        .disabled(isSending)
+                    }
+
+                    Text("Code expires in 15 minutes.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                }
+
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.accent)
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                        .foregroundColor(.red)
+                }
+            }
+            .padding(16)
+        }
+        .frame(maxWidth: 420)
+        .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 6)
+        .padding(.vertical, 28)
+    }
+
+    private func sendCode() async {
+        guard !isSending else { return }
+        errorMessage = nil
+        statusMessage = nil
+        isSending = true
+        defer { isSending = false }
+
+        do {
+            try await onSendCode(eduEmail)
+            step = .code
+            statusMessage = "Verification code sent to your .edu email."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func resendCode() async {
+        await sendCode()
+    }
+
+    private func verifyCode() async {
+        guard !isVerifying else { return }
+        errorMessage = nil
+        statusMessage = nil
+        isVerifying = true
+        defer { isVerifying = false }
+
+        do {
+            try await onVerifyCode(verificationCode)
+            statusMessage = "Email verified successfully."
+            onClose()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct EduVerificationStatusModal: View {
+    let isVerified: Bool
+    let schoolDomain: String?
+    let onClose: () -> Void
+    let onRefresh: () -> Void
+
+    private var campusName: String {
+        if let domain = schoolDomain, !domain.isEmpty {
+            return domain.replacingOccurrences(of: ".edu", with: "").uppercased()
+        }
+        return "Campus"
+    }
+
+    var body: some View {
+        ScheduleMeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("EDU Verification")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                            .frame(width: 28, height: 28)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(isVerified ? "Verified Student" : "Verification Needed")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.semibold))
+                    .foregroundColor(ScheduleMeTheme.titleText)
+                Text(isVerified ? "Campus access unlocked." : "Use your .edu email to unlock campus-only providers.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+                Text("Campus: \(campusName)")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundColor(ScheduleMeTheme.accent)
+
+                Button("Refresh status") {
+                    onRefresh()
+                }
+                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+            }
+            .padding(16)
+        }
+        .frame(maxWidth: 420)
+        .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 6)
+        .padding(.vertical, 28)
     }
 }
 
@@ -841,15 +1190,26 @@ private struct HomeBusinessCard: View {
     let business: BusinessSummary
     let cardWidth: CGFloat
     let imageHeight: CGFloat
-    private var displayName: String { business.name }
+    var shouldMask: Bool = false
+    var preferredCategory: String? = nil
+    private var displayName: String { shouldMask ? "Student provider" : business.name }
     private var imageURL: URL? {
-        business.heroImageURL
+        shouldMask ? nil : business.heroImageURL
     }
     private var placeholderBackground: Color {
         Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "2C2C2E"))
     }
     private var contentWidth: CGFloat {
         max(cardWidth - 24, 0)
+    }
+    private var privateBadgeBackground: Color {
+        Color.dynamic(light: Color(hex: "E5E7EB"), dark: Color(hex: "262626"))
+    }
+    private var privateBadgeText: Color {
+        Color.dynamic(light: Color(hex: "1F2937"), dark: Color(hex: "E5E7EB"))
+    }
+    private var displayCategory: String {
+        preferredCategory ?? business.primaryCategory
     }
 
     var body: some View {
@@ -866,6 +1226,8 @@ private struct HomeBusinessCard: View {
                                 Text(String(displayName.prefix(2)).uppercased())
                                     .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
+                                    .frame(maxHeight: .infinity, alignment: shouldMask ? .top : .center)
+                                    .padding(.top, shouldMask ? 16 : 0)
                             }
                         }
                     }
@@ -874,6 +1236,25 @@ private struct HomeBusinessCard: View {
 
                     if business.founder50 == true {
                         Founder50Badge().padding(6)
+                    }
+
+                    if shouldMask {
+                        Text("PRIVATE UNTIL STUDENT VERIFICATION")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 8).weight(.bold))
+                            .tracking(0.45)
+                            .foregroundColor(privateBadgeText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(privateBadgeBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(ScheduleMeTheme.cardBorderStrong)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .padding(.horizontal, 6)
+                            .padding(.bottom, 6)
+                            .frame(maxHeight: .infinity, alignment: .bottom)
                     }
 
                     PinButton(businessID: business.id)
@@ -889,7 +1270,7 @@ private struct HomeBusinessCard: View {
                     .frame(height: 18, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                ScheduleMeTag(text: business.primaryCategory)
+                ScheduleMeTag(text: displayCategory)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 6) {

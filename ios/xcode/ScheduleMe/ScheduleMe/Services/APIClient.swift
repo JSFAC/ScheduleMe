@@ -14,6 +14,7 @@ final class APIClient: NSObject, URLSessionDelegate {
     static let shared = APIClient()
 
     private let baseURL: URL
+    private let alternateBaseURL: URL?
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.default
         configuration.waitsForConnectivity = true
@@ -47,6 +48,17 @@ final class APIClient: NSObject, URLSessionDelegate {
             assertionFailure("API_BASE_URL is missing or invalid. Falling back to production base URL.")
             #endif
             self.baseURL = URL(string: "https://www.usescheduleme.com")!
+        }
+        if let host = self.baseURL.host?.lowercased() {
+            if host == "www.usescheduleme.com" {
+                self.alternateBaseURL = URL(string: "https://usescheduleme.com")
+            } else if host == "usescheduleme.com" {
+                self.alternateBaseURL = URL(string: "https://www.usescheduleme.com")
+            } else {
+                self.alternateBaseURL = nil
+            }
+        } else {
+            self.alternateBaseURL = nil
         }
         super.init()
     }
@@ -121,22 +133,127 @@ final class APIClient: NSObject, URLSessionDelegate {
 
     /// Executes request and decodes typed response, surfacing backend `error` messages when available.
     private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw DataStoreError.server("The server returned an invalid response.")
+        var currentRequest = request
+        var (data, response) = try await session.data(for: currentRequest)
+        var httpResponse = try validatedHTTPResponse(response)
+
+        if httpResponse.statusCode == 401,
+           request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true,
+           let refreshedToken = try? await SupabaseManager.shared.forceRefreshAccessToken() {
+            var retry = currentRequest
+            retry.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
+            (data, response) = try await session.data(for: retry)
+            httpResponse = try validatedHTTPResponse(response)
+            currentRequest = retry
+        }
+
+        if !(200..<300).contains(httpResponse.statusCode),
+           shouldRetryOnAlternateHost(data: data, statusCode: httpResponse.statusCode),
+           let failoverRequest = requestBySwitchingToAlternateHost(currentRequest) {
+            (data, response) = try await session.data(for: failoverRequest)
+            httpResponse = try validatedHTTPResponse(response)
+            currentRequest = failoverRequest
+        }
+
+        if !(200..<300).contains(httpResponse.statusCode),
+           httpResponse.statusCode == 401,
+           currentRequest.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true,
+           let refreshedToken = try? await SupabaseManager.shared.forceRefreshAccessToken() {
+            var retry = currentRequest
+            retry.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
+            (data, response) = try await session.data(for: retry)
+            httpResponse = try validatedHTTPResponse(response)
+            currentRequest = retry
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            if
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let message = json["error"] as? String
-            {
-                throw DataStoreError.server(message)
-            }
-            throw DataStoreError.server("Request failed with status \(httpResponse.statusCode).")
+            throw makeServerError(data: data, statusCode: httpResponse.statusCode)
         }
 
-        return try decoder.decode(T.self, from: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            // Some backend edges return HTTP 200 with an `{ error: ... }` payload.
+            // Treat that as a retriable server issue instead of a decode failure.
+            let serverMessage = extractServerMessage(from: data)
+            if !serverMessage.isEmpty,
+               shouldRetryOnAlternateHost(data: data, statusCode: httpResponse.statusCode),
+               let failoverRequest = requestBySwitchingToAlternateHost(currentRequest) {
+                let (fallbackData, fallbackResponse) = try await session.data(for: failoverRequest)
+                let fallbackHTTP = try validatedHTTPResponse(fallbackResponse)
+                guard (200..<300).contains(fallbackHTTP.statusCode) else {
+                    throw makeServerError(data: fallbackData, statusCode: fallbackHTTP.statusCode)
+                }
+                do {
+                    return try decoder.decode(T.self, from: fallbackData)
+                } catch {
+                    let fallbackMessage = extractServerMessage(from: fallbackData)
+                    if !fallbackMessage.isEmpty {
+                        throw DataStoreError.server(fallbackMessage)
+                    }
+                    throw error
+                }
+            }
+            if !serverMessage.isEmpty {
+                throw DataStoreError.server(serverMessage)
+            }
+            throw error
+        }
+    }
+
+    private func requestBySwitchingToAlternateHost(_ request: URLRequest) -> URLRequest? {
+        guard let alternateBaseURL,
+              let sourceURL = request.url,
+              let sourceComponents = URLComponents(url: sourceURL, resolvingAgainstBaseURL: false),
+              let sourceHost = sourceComponents.host?.lowercased(),
+              let primaryHost = baseURL.host?.lowercased(),
+              sourceHost == primaryHost else {
+            return nil
+        }
+
+        guard var alternateComponents = URLComponents(url: alternateBaseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        alternateComponents.path = sourceComponents.path
+        alternateComponents.queryItems = sourceComponents.queryItems
+        alternateComponents.percentEncodedQuery = sourceComponents.percentEncodedQuery
+        alternateComponents.fragment = sourceComponents.fragment
+        guard let alternateURL = alternateComponents.url else { return nil }
+
+        var fallback = request
+        fallback.url = alternateURL
+        return fallback
+    }
+
+    private func shouldRetryOnAlternateHost(data: Data, statusCode: Int) -> Bool {
+        guard alternateBaseURL != nil else { return false }
+        if [500, 502, 503, 504].contains(statusCode) { return true }
+        let message = extractServerMessage(from: data).lowercased()
+        if message.contains("rate limiting service unavailable") { return true }
+        if message.contains("rate limiter unavailable") { return true }
+        return false
+    }
+
+    private func extractServerMessage(from data: Data) -> String {
+        guard
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return "" }
+        return (json["error"] as? String) ?? (json["message"] as? String) ?? ""
+    }
+
+    private func validatedHTTPResponse(_ response: URLResponse) throws -> HTTPURLResponse {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw DataStoreError.server("The server returned an invalid response.")
+        }
+        return httpResponse
+    }
+
+    private func makeServerError(data: Data, statusCode: Int) -> DataStoreError {
+        let message = extractServerMessage(from: data)
+        if !message.isEmpty {
+            return .server(message)
+        }
+        return .server("Request failed with status \(statusCode).")
     }
 
     // MARK: - TLS Certificate Pinning
