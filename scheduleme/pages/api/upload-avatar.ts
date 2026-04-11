@@ -2,41 +2,57 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
-import { moderateImageDataUrl } from '../../lib/moderation';
+import { moderateUserImageDataUrl } from '../../lib/openaiModeration';
 
-const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+export const config = { api: { bodyParser: { sizeLimit: '12mb' } } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!(await rateLimit(req, res, { max: 20, windowMs: 60_000, keyPrefix: 'avatar' }))) return;
+  if (!(await rateLimit(req, res, { max: 15, windowMs: 60 * 60_000, keyPrefix: 'upload-avatar' }))) return;
   const user = await requireAuth(req, res);
   if (!user) return;
 
   const { file_data, file_type, file_name } = req.body;
   if (!file_data || !file_type || !file_name) return res.status(400).json({ error: 'file_data, file_type, file_name required' });
-  if (!ALLOWED.includes(file_type)) return res.status(400).json({ error: 'Invalid file type' });
+  if (!ALLOWED_IMAGE_TYPES.includes(String(file_type))) return res.status(400).json({ error: 'Invalid file type' });
 
-  const base64Data = file_data.replace(/^data:[^;]+;base64,/, '');
+  const base64Data = String(file_data).replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
-  if (buffer.length > 4 * 1024 * 1024) return res.status(400).json({ error: 'File too large' });
+  if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'File too large' });
 
-  const mod = await moderateImageDataUrl(file_data);
-  if (!mod.ok) return res.status(400).json({ error: mod.reason || 'Image rejected by safety filters' });
+  const dataUrl = String(file_data).startsWith('data:')
+    ? String(file_data)
+    : `data:${file_type};base64,${base64Data}`;
+  const moderation = await moderateUserImageDataUrl(dataUrl);
+  if (!moderation.ok) {
+    return res.status(400).json({
+      error: 'Image blocked by safety filters. Please upload a different image.',
+      categories: moderation.flaggedCategories,
+    });
+  }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  const ext = (file_name.split('.').pop() || 'jpg').toLowerCase();
-  const path = `avatars/${user.id}.${ext}`;
-  const { error: upErr } = await supabase.storage.from('avatars').upload(path, buffer, { upsert: true, contentType: file_type });
+  const ext = (String(file_name).split('.').pop() || 'jpg').toLowerCase();
+  const bucket = process.env.AVATAR_MEDIA_BUCKET || 'business-media';
+  const path = `avatars/${user.id}/avatar_${Date.now()}.${ext}`;
+  const { error: upErr } = await supabase.storage.from(bucket).upload(path, buffer, { upsert: true, contentType: String(file_type) });
   if (upErr) return res.status(500).json({ error: 'Upload failed: ' + upErr.message });
 
-  const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-  await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
+  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+  await supabase.from('profiles').upsert(
+    {
+      id: user.id,
+      email: user.email,
+      avatar_url: publicUrl,
+    },
+    { onConflict: 'id', ignoreDuplicates: false }
+  );
 
   return res.status(200).json({ url: publicUrl });
 }

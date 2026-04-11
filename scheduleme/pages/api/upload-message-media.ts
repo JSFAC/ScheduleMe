@@ -1,51 +1,89 @@
-// pages/api/upload-message-media.ts — upload + moderate message images
+// pages/api/upload-message-media.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { moderateUserImageDataUrl } from '../../lib/openaiModeration';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
-import { moderateImageDataUrl } from '../../lib/moderation';
 
-const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+
+export const config = { api: { bodyParser: { sizeLimit: '55mb' } } };
+
+function getSupabaseService() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) throw new Error('Missing Supabase env vars');
+  return createClient(url, serviceKey, { auth: { persistSession: false } });
+}
+
+function cleanFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!(await rateLimit(req, res, { max: 300, windowMs: 60_000, keyPrefix: 'msg-media' }))) return;
+  if (!(await rateLimit(req, res, { max: 20, windowMs: 60 * 60_000, keyPrefix: 'upload-message-media' }))) return;
   const user = await requireAuth(req, res);
   if (!user) return;
 
-  const { booking_id, file_data, file_type, file_name } = req.body;
+  const { booking_id, media_type, file_data, file_type, file_name } = req.body ?? {};
+
   if (!booking_id || !isValidUuid(booking_id)) return res.status(400).json({ error: 'Valid booking_id required' });
-  if (!file_data || !file_type || !file_name) return res.status(400).json({ error: 'file_data, file_type, file_name required' });
-  if (!ALLOWED.includes(file_type)) return res.status(400).json({ error: 'Invalid file type' });
+  if (!file_data || !file_type || !file_name || !media_type) {
+    return res.status(400).json({ error: 'booking_id, media_type, file_data, file_type, file_name required' });
+  }
+  if (!['image', 'video'].includes(media_type)) {
+    return res.status(400).json({ error: 'media_type must be image or video' });
+  }
 
-  const base64Data = file_data.replace(/^data:[^;]+;base64,/, '');
+  const isVideo = media_type === 'video';
+  const allowedTypes = isVideo ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
+  if (!allowedTypes.includes(file_type)) return res.status(400).json({ error: 'Invalid file type' });
+
+  const base64Data = String(file_data).replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
-  if (buffer.length > 4 * 1024 * 1024) return res.status(400).json({ error: 'File too large' });
+  const maxSize = isVideo ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
+  if (buffer.length > maxSize) return res.status(400).json({ error: 'File too large' });
 
-  const mod = await moderateImageDataUrl(file_data);
-  if (!mod.ok) return res.status(400).json({ error: mod.reason || 'Image rejected by safety filters' });
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
-  const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const supabase = getSupabaseService();
 
   // Verify caller is part of this booking
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, user_id, businesses(owner_email), business_id')
+    .select('id, user_id, businesses(owner_id)')
     .eq('id', booking_id)
     .maybeSingle();
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  const isUser = booking.user_id === user.id;
-  const isBiz = (booking.businesses as any)?.owner_email === user.email;
-  if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
-  const ext = (file_name.split('.').pop() || 'jpg').toLowerCase();
-  const filePath = `${booking_id}/${Date.now()}.${ext}`;
-  const { error: upErr } = await supabase.storage.from('message-media').upload(filePath, buffer, { contentType: file_type, upsert: true });
-  if (upErr) return res.status(500).json({ error: 'Upload failed: ' + upErr.message });
-  const { data: { publicUrl } } = supabase.storage.from('message-media').getPublicUrl(filePath);
+  const isUser = (booking as any).user_id === user.id;
+  const isBizOwner = ((booking as any).businesses?.owner_id ?? null) === user.id;
+  if (!isUser && !isBizOwner) return res.status(403).json({ error: 'Access denied' });
+
+  if (!isVideo) {
+    const dataUrl = String(file_data).startsWith('data:')
+      ? String(file_data)
+      : `data:${file_type};base64,${base64Data}`;
+    const moderation = await moderateUserImageDataUrl(dataUrl);
+    if (!moderation.ok) {
+      return res.status(400).json({
+        error: 'Image blocked by safety filters. Please upload a different image.',
+        categories: moderation.flaggedCategories,
+      });
+    }
+  }
+
+  const ext = (String(file_name).split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
+  const safeName = cleanFileName(String(file_name));
+  const stamped = `${Date.now()}_${safeName}`;
+  const bucket = process.env.MESSAGE_MEDIA_BUCKET || 'business-media';
+  const objectPath = `messages/${booking_id}/${stamped}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(objectPath, buffer, { contentType: file_type, upsert: false });
+
+  if (uploadError) return res.status(500).json({ error: `Storage failed: ${uploadError.message}` });
+  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(objectPath);
   return res.status(200).json({ url: publicUrl });
 }

@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { filterMessage } from '../../lib/profanity';
+import { moderateUserText } from '../../lib/openaiModeration';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, getUnknownFields } from '../../lib/apiSecurity';
 
 function getSupabase() {
@@ -501,6 +502,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const filtered = filterMessage(content.trim());
       if (!filtered.ok) return res.status(400).json({ error: filtered.error });
       filteredContent = filtered.filtered;
+      const moderation = await moderateUserText(filteredContent);
+      if (!moderation.ok) {
+        return res.status(400).json({
+          error: 'Message blocked by safety filters. Please revise and try again.',
+          categories: moderation.flaggedCategories,
+        });
+      }
     }
     const message_type = image_url ? (filteredContent ? 'mixed' : 'image') : 'text';
 

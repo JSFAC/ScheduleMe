@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, getUnknownFields } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
-import { moderateText } from '../../lib/moderation';
+import { moderateUserText } from '../../lib/openaiModeration';
 
 function getSupabase() {
   return createClient(
@@ -67,10 +67,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Filter comment if provided
     let cleanComment = '';
     if (comment) {
-      const textMod = await moderateText(comment);
-      if (!textMod.ok) return res.status(400).json({ error: textMod.reason || 'Review violates content policy' });
       const check = validateAndFilter(comment, { maxLength: 500, fieldName: 'Review' });
       if (!check.ok) return res.status(400).json({ error: check.error });
+      const moderation = await moderateUserText(check.value);
+      if (!moderation.ok) {
+        return res.status(400).json({
+          error: 'Review blocked by safety filters. Please revise and try again.',
+          categories: moderation.flaggedCategories,
+        });
+      }
       cleanComment = check.value;
     }
 

@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, isValidUuid, requireAuth } from '../../lib/apiSecurity';
-import { moderateImageDataUrl } from '../../lib/moderation';
+import { moderateUserImageDataUrl } from '../../lib/openaiModeration';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
@@ -35,13 +35,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'File too large' });
 
   if (!isVideo) {
-    const mod = await moderateImageDataUrl(file_data);
-    if (!mod.ok) return res.status(400).json({ error: mod.reason || 'Image rejected by safety filters' });
+    const dataUrl = typeof file_data === 'string' && file_data.startsWith('data:')
+      ? file_data
+      : `data:${file_type};base64,${base64Data}`;
+    const moderation = await moderateUserImageDataUrl(dataUrl);
+    if (!moderation.ok) {
+      return res.status(400).json({
+        error: 'Image blocked by safety filters. Please upload a different image.',
+        categories: moderation.flaggedCategories,
+      });
+    }
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
   if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured in Vercel env vars' });
 
@@ -51,30 +58,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     db: { schema: 'public' },
   });
 
-  // Test the connection first
-  const { data: testData, error: testError } = await supabase
-    .from('businesses')
-    .select('id')
-    .limit(1);
-
-  if (testError) {
-    return res.status(500).json({ 
-      error: `DB connection failed: ${testError.message}. Service key prefix: ${serviceKey.slice(0, 20)}...`
-    });
-  }
-
   // Now fetch the specific business
   const { data: biz, error: bizError } = await supabase
     .from('businesses')
-    .select('id, cover_url, owner_email')
+    .select('id, cover_url, owner_id, owner_email')
     .eq('id', business_id)
     .maybeSingle();
 
-  if (bizError) return res.status(500).json({ error: 'DB query error: ' + bizError.message });
-  if (!biz) return res.status(404).json({ 
-    error: `Business ${business_id} not found in DB. Key works (found ${testData?.length ?? 0} businesses total)`
-  });
-  if (biz.owner_email && biz.owner_email !== user.email) return res.status(403).json({ error: 'Access denied' });
+  if (bizError) return res.status(500).json({ error: 'Failed to fetch business' });
+  if (!biz) return res.status(404).json({ error: 'Business not found' });
+  const ownerId = typeof (biz as any).owner_id === 'string' ? (biz as any).owner_id : null;
+  const ownerEmail = typeof (biz as any).owner_email === 'string' ? (biz as any).owner_email.toLowerCase().trim() : '';
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const ownsById = !!ownerId && ownerId === user.id;
+  const ownsByEmail = !!ownerEmail && !!userEmail && ownerEmail === userEmail;
+  if (!ownsById && !ownsByEmail) return res.status(403).json({ error: 'Access denied' });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
   const fileName = `${business_id}/${isVideo ? 'video' : 'img_' + Date.now()}.${ext}`;
