@@ -21,6 +21,9 @@ const TABLES = [
   'messages',
   'reviews',
   'blocks',
+  'campus_featured',
+  'founder50_allowed_campuses',
+  'campus_founder50_legacy',
 ];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

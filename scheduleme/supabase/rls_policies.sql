@@ -7,6 +7,15 @@ alter table public.reviews enable row level security;
 alter table public.bookings enable row level security;
 alter table public.messages enable row level security;
 alter table public.profiles enable row level security;
+alter table public.founder50_allowed_campuses enable row level security;
+alter table public.campus_featured enable row level security;
+
+do $$
+begin
+  if to_regclass('public.blocks') is not null then
+    execute 'alter table public.blocks enable row level security';
+  end if;
+end $$;
 
 -- Ensure owner_id exists before owner-based policies are created.
 alter table public.businesses add column if not exists owner_id uuid;
@@ -54,6 +63,46 @@ on public.businesses
 for delete
 to authenticated
 using (owner_id::text = auth.uid()::text);
+
+-- Internal-only tables: service_role only
+do $$
+begin
+  if to_regclass('public.blocks') is not null then
+    execute 'drop policy if exists "Blocks service role only" on public.blocks';
+    execute 'create policy "Blocks service role only" on public.blocks for all to anon, authenticated using (auth.role() = ''service_role'') with check (auth.role() = ''service_role'')';
+    execute 'revoke all on table public.blocks from anon, authenticated';
+  end if;
+end $$;
+
+drop policy if exists "Founder50 allowlist service role only" on public.founder50_allowed_campuses;
+create policy "Founder50 allowlist service role only"
+on public.founder50_allowed_campuses
+for all
+to anon, authenticated
+using (auth.role() = 'service_role')
+with check (auth.role() = 'service_role');
+
+drop policy if exists "Campus featured service role only" on public.campus_featured;
+create policy "Campus featured service role only"
+on public.campus_featured
+for all
+to anon, authenticated
+using (auth.role() = 'service_role')
+with check (auth.role() = 'service_role');
+
+do $$
+begin
+  if to_regclass('public.campus_founder50_legacy') is not null then
+    execute 'alter table public.campus_founder50_legacy enable row level security';
+    execute 'drop policy if exists "Campus founder50 legacy service role only" on public.campus_founder50_legacy';
+    execute 'create policy "Campus founder50 legacy service role only" on public.campus_founder50_legacy for all to anon, authenticated using (auth.role() = ''service_role'') with check (auth.role() = ''service_role'')';
+    execute 'revoke all on table public.campus_founder50_legacy from anon, authenticated';
+  end if;
+end $$;
+
+-- Defense in depth: remove direct grants for anon/authenticated
+revoke all on table public.founder50_allowed_campuses from anon, authenticated;
+revoke all on table public.campus_featured from anon, authenticated;
 
 -- Services: public read
 drop policy if exists "Public can read services" on public.services;

@@ -20,7 +20,10 @@ const TABLES = [
   'bookings',
   'messages',
   'profiles',
+  'blocks',
   'campus_featured',
+  'founder50_allowed_campuses',
+  'campus_founder50_legacy',
   'cron_runs',
 ];
 

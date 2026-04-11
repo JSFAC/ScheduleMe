@@ -26,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       'Bot protection and WAF rules must be verified in Vercel dashboard.',
       'Supabase Auth settings (email confirmation, password strength, MFA) must be verified in Supabase dashboard.',
       'Backups/DR must be confirmed in Supabase dashboard.',
+      'PostGIS system tables (e.g. spatial_ref_sys, geography_columns, geometry_columns) are extension-managed and not app tables.',
     ],
   });
 }

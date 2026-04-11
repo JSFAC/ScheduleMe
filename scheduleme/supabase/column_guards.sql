@@ -25,6 +25,9 @@ begin
     when 'messages' then array['read']
     when 'reviews' then array['__none__']
     when 'blocks' then array['__none__']
+    when 'founder50_allowed_campuses' then array['active','notes']
+    when 'campus_featured' then array['slot','starts_at','ends_at','note','notified_on_at','notified_off_at']
+    when 'campus_founder50_legacy' then array['__none__']
     else null
   end;
 
@@ -93,6 +96,29 @@ create trigger trg_blocks_column_guard
 before update on public.blocks
 for each row
 execute function public.assert_only_columns_changed();
+
+-- Founder50 allowlist: only active/notes are mutable (service role bypasses guard)
+drop trigger if exists trg_founder50_allowed_campuses_column_guard on public.founder50_allowed_campuses;
+create trigger trg_founder50_allowed_campuses_column_guard
+before update on public.founder50_allowed_campuses
+for each row
+execute function public.assert_only_columns_changed();
+
+-- Campus featured: allow only scheduling/notification fields
+drop trigger if exists trg_campus_featured_column_guard on public.campus_featured;
+create trigger trg_campus_featured_column_guard
+before update on public.campus_featured
+for each row
+execute function public.assert_only_columns_changed();
+
+-- Legacy Founder50 table (if present): block updates entirely
+do $$
+begin
+  if to_regclass('public.campus_founder50_legacy') is not null then
+    execute 'drop trigger if exists trg_campus_founder50_legacy_column_guard on public.campus_founder50_legacy';
+    execute 'create trigger trg_campus_founder50_legacy_column_guard before update on public.campus_founder50_legacy for each row execute function public.assert_only_columns_changed()';
+  end if;
+end $$;
 
 -- Helper: check if column guard triggers are installed
 create or replace function public.get_column_guard_status(p_tables text[])
