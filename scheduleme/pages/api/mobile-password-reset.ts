@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, checkRateLimit, getClientIp, isValidEmail, clampString } from '../../lib/apiSecurity';
-import { sendPasswordResetEmail } from '../../lib/email';
 
 type MobilePasswordResetBody = {
   email?: string;
@@ -10,15 +8,16 @@ type MobilePasswordResetBody = {
   captcha_token?: string;
 };
 
-function isAllowedMobileClient(client: string): boolean {
-  return client === 'ios-consumer' || client === 'ios-provider';
+function getSupabaseAuthBaseUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const trimmed = raw.trim();
+  if (!trimmed) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  return `https://${trimmed}`;
 }
 
-function getWebResetRedirectUrl(): string {
-  const explicit = String(process.env.MOBILE_PASSWORD_RESET_WEB_URL || '').trim();
-  if (explicit) return explicit;
-  const base = String(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.usescheduleme.com').trim().replace(/\/+$/, '');
-  return `${base}/auth/reset-password`;
+function isAllowedMobileClient(client: string): boolean {
+  return client === 'ios-consumer' || client === 'ios-provider';
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -47,53 +46,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!isAllowedMobileClient(client)) return res.status(403).json({ error: 'Unsupported mobile client' });
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email address' });
 
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  if (!serviceRole || !supabaseUrl) return res.status(500).json({ error: 'Server auth config missing' });
-  if (!process.env.RESEND_API_KEY) return res.status(500).json({ error: 'Email service is not configured' });
+  if (!anonKey) return res.status(500).json({ error: 'Server auth anon config missing' });
 
   try {
-    const supabase = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } });
-    const redirectTo = getWebResetRedirectUrl();
+    const authBase = getSupabaseAuthBaseUrl();
+    const endpoint = `${authBase}/auth/v1/recover`;
 
-    const generatePayload: Record<string, unknown> = {
-      type: 'recovery',
+    const redirectTo = client === 'ios-consumer'
+      ? 'scheduleme://auth/callback'
+      : 'schedulemeprovider://auth/callback';
+
+    const payload: Record<string, unknown> = {
       email,
-      options: { redirectTo },
+      redirect_to: redirectTo,
     };
     if (captchaToken) {
-      (generatePayload as any).options.captchaToken = captchaToken;
+      payload.gotrue_meta_security = { captcha_token: captchaToken };
     }
 
-    const { data, error } = await (supabase.auth.admin as any).generateLink(generatePayload);
-    if (error) {
-      // Do not reveal account existence for reset requests.
-      const msg = String(error.message || '');
-      const notFoundLike = /not found|no user|email/i.test(msg);
-      if (!notFoundLike) {
-        console.error('[mobile-password-reset][generate-link]', msg);
-      }
-      return res.status(200).json({ ok: true });
-    }
-
-    const resetUrl =
-      (data as any)?.properties?.action_link ||
-      (data as any)?.action_link ||
-      '';
-    if (!resetUrl) return res.status(200).json({ ok: true });
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('email', email)
-      .maybeSingle();
-    const firstName = String((profile as any)?.name || email.split('@')[0] || 'there').trim() || 'there';
-
-    await sendPasswordResetEmail({
-      to: email,
-      name: firstName,
-      resetUrl,
+    let upstream = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+      },
+      body: JSON.stringify(payload),
     });
+    let response = await upstream.json().catch(() => ({}));
+
+    // Fallback for projects that enforce CAPTCHA on recover for anon callers.
+    if (!upstream.ok && serviceRole) {
+      upstream = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: serviceRole,
+          Authorization: `Bearer ${serviceRole}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      response = await upstream.json().catch(() => ({}));
+    }
+
+    if (!upstream.ok) {
+      const msg =
+        (response as any)?.msg ||
+        (response as any)?.message ||
+        (response as any)?.error_description ||
+        (response as any)?.error ||
+        'Unable to send reset email right now.';
+      return res.status(upstream.status).json({ error: String(msg) });
+    }
 
     return res.status(200).json({ ok: true });
   } catch (error) {
