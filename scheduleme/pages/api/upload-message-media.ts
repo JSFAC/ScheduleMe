@@ -51,13 +51,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Verify caller is part of this booking
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, user_id, businesses(owner_id)')
+    .select('id, user_id, businesses(owner_id, owner_email)')
     .eq('id', booking_id)
     .maybeSingle();
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
   const isUser = (booking as any).user_id === user.id;
-  const isBizOwner = ((booking as any).businesses?.owner_id ?? null) === user.id;
+  const bizOwnerId = ((booking as any).businesses?.owner_id ?? null) as string | null;
+  const bizOwnerEmail = String((booking as any).businesses?.owner_email || '').toLowerCase().trim();
+  const userEmail = String(user.email || '').toLowerCase().trim();
+  const isBizOwner = (bizOwnerId && bizOwnerId === user.id) || (!!bizOwnerEmail && !!userEmail && bizOwnerEmail === userEmail);
   if (!isUser && !isBizOwner) return res.status(403).json({ error: 'Access denied' });
 
   if (!isVideo) {
