@@ -1708,13 +1708,14 @@ const BusinessDashboard: NextPage = () => {
 
   const platformFeeRate = business?.founder50 ? 0.06 : 0.12;
   const toProviderNet = (grossCents: number) => Math.max(0, Math.round(grossCents * (1 - platformFeeRate)));
+  const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid';
   // Only completed jobs count as earned payout.
   const totalCompletedGross = bookings
     .filter(b => b.status === 'completed' && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const totalEarned = toProviderNet(totalCompletedGross);
   const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
-  const pendingCount = bookings.filter(b => b.status === 'pending').length;
+  const pendingCount = bookings.filter(b => isProviderPendingBooking(b)).length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
   const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);
   const isActiveOrCompleted = (b: any) => ['confirmed', 'payment_pending', 'price_disputed', 'paid', 'completed'].includes(b.status);
@@ -1733,6 +1734,12 @@ const BusinessDashboard: NextPage = () => {
   const pendingPaymentAmount = toProviderNet(pendingPaymentGross);
   const heldInStripeAmount = toProviderNet(heldInStripeGross);
   const awaitingReleaseAmount = pendingPaymentAmount + heldInStripeAmount;
+  const stripeShowsZeroButHeld =
+    !!business?.stripe_onboarded
+    && !!payoutBalance
+    && payoutBalance.available === 0
+    && payoutBalance.pending === 0
+    && awaitingReleaseAmount > 0;
 
   const isDisputedPricingFlow = (b: any) => {
     if (b.status === 'price_disputed') return true;
@@ -1747,10 +1754,10 @@ const BusinessDashboard: NextPage = () => {
 
   const filteredBookings = bookings.filter(b => {
     if (bkFilter === 'all') return true;
-    if (bkFilter === 'pending') return b.status === 'pending';
+    if (bkFilter === 'pending') return isProviderPendingBooking(b);
     if (bkFilter === 'disputed') return isDisputedPricingFlow(b);
     if (bkFilter === 'active') return isActiveBookingFlow(b);
-    if (bkFilter === 'completed') return b.status === 'completed' || b.status === 'paid';
+    if (bkFilter === 'completed') return b.status === 'completed';
     if (bkFilter === 'cancelled') return b.status === 'cancelled';
     return true;
   });
@@ -1779,7 +1786,7 @@ const BusinessDashboard: NextPage = () => {
     if (!b.profiles?.email) return;
     if (!isActiveOrCompleted(b)) return;
     const ex = clientMap.get(b.profiles.email);
-    const addSpend = isRevenueBooking(b) ? (b.amount_cents || 0) : 0;
+    const addSpend = isRevenueBooking(b) ? toProviderNet(b.amount_cents || 0) : 0;
     if (ex) { ex.bookingCount++; ex.totalSpent += addSpend; if (b.created_at > ex.lastBooking) ex.lastBooking = b.created_at; }
     else clientMap.set(b.profiles.email, { id: b.profiles.id, name: b.profiles.name || 'Customer', email: b.profiles.email, phone: b.profiles.phone, avatar_url: b.profiles.avatar_url, bookingCount: 1, totalSpent: addSpend, lastBooking: b.created_at });
   });
@@ -2140,6 +2147,12 @@ const BusinessDashboard: NextPage = () => {
                           <span>Pending: {fmt(payoutBalance.pending)}</span>
                         </div>
                       )}
+                      {stripeShowsZeroButHeld && (
+                        <p className="text-[11px] mt-1" style={{ color: dm ? '#fbbf24' : '#b45309' }}>
+                          Stripe shows $0 because funds are still held in-platform until provider confirmation/completion.
+                          Awaiting release: {fmt(awaitingReleaseAmount)}.
+                        </p>
+                      )}
                       {business?.stripe_onboarded && payoutBalance && payoutBalance.pending > 0 && (
                         <p className="text-[11px] mt-1" style={{ color: dm ? '#fbbf24' : '#b45309' }}>
                           Funds are pending with Stripe and will be available before payout. Instant payouts only work after funds are available.
@@ -2180,10 +2193,10 @@ const BusinessDashboard: NextPage = () => {
                 <div className="flex gap-2 flex-wrap">
                   {([
                     { key: 'all', label: 'All (' + bookings.length + ')' },
-                    { key: 'pending', label: 'Pending (' + bookings.filter(b => b.status === 'pending').length + ')' },
+                    { key: 'pending', label: 'Pending (' + bookings.filter(b => isProviderPendingBooking(b)).length + ')' },
                     { key: 'disputed', label: 'Disputed (' + bookings.filter(b => isDisputedPricingFlow(b)).length + ')' },
                     { key: 'active', label: 'Active (' + bookings.filter(b => isActiveBookingFlow(b)).length + ')' },
-                    { key: 'completed', label: 'Completed (' + bookings.filter(b => b.status === 'completed' || b.status === 'paid').length + ')' },
+                    { key: 'completed', label: 'Completed (' + bookings.filter(b => b.status === 'completed').length + ')' },
                     { key: 'cancelled', label: 'Cancelled (' + bookings.filter(b => b.status === 'cancelled').length + ')' },
                   ] as const).map(f => (
                     <button key={f.key} onClick={() => { setBkFilterTouched(true); setBkFilter(f.key); }}
