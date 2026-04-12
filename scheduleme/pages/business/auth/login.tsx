@@ -39,6 +39,37 @@ const BusinessLoginPage: NextPage = () => {
   }, [router.query.error, router]);
   const [success, setSuccess] = useState<string | null>(null);
 
+  async function findBusinessForSession(session: any) {
+    const supabase = getSupabase();
+    const normalizedEmail = String(session?.user?.email || '').toLowerCase().trim();
+
+    const byOwnerId = await supabase
+      .from('businesses')
+      .select('id, owner_id')
+      .eq('owner_id', session.user.id)
+      .maybeSingle();
+    if (byOwnerId.data) return byOwnerId.data;
+
+    if (!normalizedEmail) return null;
+
+    const byOwnerEmail = await supabase
+      .from('businesses')
+      .select('id, owner_id')
+      .ilike('owner_email', normalizedEmail)
+      .maybeSingle();
+
+    if (byOwnerEmail.data) {
+      if (!byOwnerEmail.data.owner_id) {
+        await supabase
+          .from('businesses')
+          .update({ owner_id: session.user.id })
+          .eq('id', byOwnerEmail.data.id);
+      }
+      return { ...byOwnerEmail.data, owner_id: session.user.id };
+    }
+    return null;
+  }
+
   useEffect(() => {
     if (!siteKey || !captchaRequired) return;
     const renderCaptcha = () => {
@@ -72,13 +103,17 @@ const BusinessLoginPage: NextPage = () => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return;
 
-      const { data: biz } = await supabase
-        .from('businesses')
-        .select('id')
-        .eq('owner_email', session.user.email)
-        .maybeSingle();
+      const biz = await findBusinessForSession(session);
 
       if (biz) {
+        try {
+          await supabase.from('profiles').upsert({
+            id: session.user.id,
+            email: session.user.email || '',
+            role: 'business',
+            has_seen_welcome: true,
+          }, { onConflict: 'id', ignoreDuplicates: false });
+        } catch {}
         router.replace('/business/dashboard');
       } else {
         // Not a business — sign out AND delete the orphaned auth account
@@ -119,7 +154,7 @@ const BusinessLoginPage: NextPage = () => {
         const { data: biz } = await supabase
           .from('businesses')
           .select('id')
-          .eq('owner_email', email)
+          .ilike('owner_email', email.trim().toLowerCase())
           .maybeSingle();
 
         if (!biz) {
@@ -136,13 +171,11 @@ const BusinessLoginPage: NextPage = () => {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) throw new Error('Authentication failed');
 
         // Check business account
-        const { data: biz } = await supabase
-          .from('businesses')
-          .select('id')
-          .eq('owner_email', email)
-          .maybeSingle();
+        const biz = await findBusinessForSession(session);
 
         if (!biz) {
           // Sign them back out — not a business account
@@ -151,6 +184,15 @@ const BusinessLoginPage: NextPage = () => {
           setLoading(false);
           return;
         }
+
+        try {
+          await supabase.from('profiles').upsert({
+            id: session.user.id,
+            email: session.user.email || email,
+            role: 'business',
+            has_seen_welcome: true,
+          }, { onConflict: 'id', ignoreDuplicates: false });
+        } catch {}
 
         setFailedCount(0);
         router.push('/business/dashboard');

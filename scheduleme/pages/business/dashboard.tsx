@@ -843,19 +843,12 @@ const BusinessDashboard: NextPage = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.push('/business/auth/login'); return; }
     const email = session.user.email || '';
-    // Check profile role first — fastest gate, no extra table query needed
+    const normalizedEmail = String(email || '').toLowerCase().trim();
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', session.user.id)
       .maybeSingle();
-
-    if (profile?.role !== 'business') {
-      // Consumer account — sign out and redirect, do NOT delete their account
-      await supabase.auth.signOut();
-      router.replace('/business/auth/login?error=not_a_business');
-      return;
-    }
 
     let biz: any = null;
     let bizErr: any = null;
@@ -870,15 +863,16 @@ const BusinessDashboard: NextPage = () => {
 
     // Legacy safety fallback: if owner_id is missing but owner_email matches this account,
     // self-heal by linking owner_id for future strict ownership checks.
-    if (!biz && session.user.email) {
+    if (!biz && normalizedEmail) {
       const byLegacyEmail = await supabase
         .from('businesses')
         .select('*')
-        .is('owner_id', null)
-        .eq('owner_email', session.user.email)
+        .ilike('owner_email', normalizedEmail)
         .maybeSingle();
       if (byLegacyEmail.data) {
-        await supabase.from('businesses').update({ owner_id: session.user.id }).eq('id', byLegacyEmail.data.id);
+        if (!byLegacyEmail.data.owner_id) {
+          await supabase.from('businesses').update({ owner_id: session.user.id }).eq('id', byLegacyEmail.data.id);
+        }
         biz = { ...byLegacyEmail.data, owner_id: session.user.id };
       } else if (byLegacyEmail.error) {
         bizErr = byLegacyEmail.error;
@@ -892,12 +886,7 @@ const BusinessDashboard: NextPage = () => {
 
     // Ensure profile is marked as business
     try {
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .maybeSingle();
-      const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
+      const nextRole = profile?.role === 'admin' ? 'admin' : 'business';
       await supabase.from('profiles').upsert({
         id: session.user.id,
         email,
