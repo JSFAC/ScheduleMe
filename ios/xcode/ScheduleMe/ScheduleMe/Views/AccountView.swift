@@ -686,6 +686,11 @@ struct AccountView: View {
             if let name = response.value.name, !name.isEmpty {
                 fullName = name
                 storedDisplayName = name
+                appState.userFirstName = name
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .split(separator: " ")
+                    .first
+                    .map { String($0).capitalized }
             }
             if let phone = response.value.phone {
                 phoneNumber = formatPhoneForDisplay(phone)
@@ -713,6 +718,11 @@ struct AccountView: View {
                 .execute()
             if !fullName.isEmpty {
                 storedDisplayName = fullName
+                appState.userFirstName = fullName
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .split(separator: " ")
+                    .first
+                    .map { String($0).capitalized }
             }
             profileSaveSuccess = true
             try? await Task.sleep(for: .seconds(2))
@@ -765,6 +775,11 @@ struct AccountView: View {
         let contentType = item.supportedContentTypes.first
         let mimeType = contentType?.preferredMIMEType ?? "image/jpeg"
         let ext = contentType?.preferredFilenameExtension ?? "jpg"
+        if data.count > 8 * 1024 * 1024 {
+            let sizeMB = Double(data.count) / 1_048_576.0
+            avatarError = "Image is \(String(format: "%.1f", sizeMB))MB. Max allowed is 8MB."
+            return
+        }
         let base64 = data.base64EncodedString()
         let dataURL = "data:\(mimeType);base64,\(base64)"
 
@@ -790,7 +805,7 @@ struct AccountView: View {
             )
             appState.avatarURL = response.url
         } catch {
-            avatarError = "Unable to upload avatar. Please try again."
+            avatarError = error.localizedDescription
         }
     }
 

@@ -119,10 +119,11 @@ final class SupabaseManager {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder.scheduleMe.encode(payload)
 
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw DataStoreError.server("Invalid mobile auth response.")
-            }
+            let (data, http) = try await APIClient.shared.dataResponse(
+                for: request,
+                requiresAuth: false,
+                category: .auth
+            )
 
             let decoded = (try? JSONDecoder.scheduleMe.decode(MobileEmailAuthResponse.self, from: data))
                 ?? MobileEmailAuthResponse(accessToken: nil, refreshToken: nil, error: nil)
@@ -199,10 +200,11 @@ final class SupabaseManager {
             )
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw DataStoreError.server("Invalid password reset response.")
-        }
+        let (data, http) = try await APIClient.shared.dataResponse(
+            for: request,
+            requiresAuth: false,
+            category: .auth
+        )
         guard (200..<300).contains(http.statusCode) else {
             let decoded = try? JSONDecoder.scheduleMe.decode(PasswordResetErrorResponse.self, from: data)
             let message = decoded?.msg ?? decoded?.message ?? decoded?.error
@@ -236,10 +238,11 @@ final class SupabaseManager {
             request.httpBody = payload
 
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let http = response as? HTTPURLResponse else {
-                    throw DataStoreError.server("Invalid password reset response.")
-                }
+                let (data, http) = try await APIClient.shared.dataResponse(
+                    for: request,
+                    requiresAuth: false,
+                    category: .auth
+                )
 
                 let decoded = (try? JSONDecoder.scheduleMe.decode(MobilePasswordResetResponse.self, from: data))
                     ?? MobilePasswordResetResponse(ok: nil, error: nil)
@@ -293,12 +296,20 @@ final class SupabaseManager {
             var apiRequest = URLRequest(url: apiURL)
             apiRequest.httpMethod = "OPTIONS"
             apiRequest.timeoutInterval = 4
-            _ = try? await URLSession.shared.data(for: apiRequest)
+            _ = try? await APIClient.shared.dataResponse(
+                for: apiRequest,
+                requiresAuth: false,
+                category: .auth
+            )
 
             var supabaseRequest = URLRequest(url: supabaseHealthURL)
             supabaseRequest.httpMethod = "GET"
             supabaseRequest.timeoutInterval = 4
-            _ = try? await URLSession.shared.data(for: supabaseRequest)
+            _ = try? await APIClient.shared.dataResponse(
+                for: supabaseRequest,
+                requiresAuth: false,
+                category: .auth
+            )
         }
     }
 

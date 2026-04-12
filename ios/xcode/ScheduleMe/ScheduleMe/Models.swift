@@ -534,19 +534,33 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
 
     var isNew: Bool { (reviewCount ?? 0) == 0 }
 
-    var isOpen: Bool {
-        switch availabilityStatus {
-        case "closed", "break": return false
-        default: return true
+    var normalizedAvailabilityStatus: String {
+        availabilityStatus?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+    }
+
+    var canAcceptBookings: Bool {
+        switch normalizedAvailabilityStatus {
+        case "", "open":
+            return true
+        default:
+            return false
         }
     }
 
+    var isOpen: Bool {
+        canAcceptBookings
+    }
+
     var openStatusLabel: String {
-        switch availabilityStatus {
+        switch normalizedAvailabilityStatus {
+        case "", "open": return "Open"
         case "closed": return "Closed"
         case "break": return "On break"
         case "busy": return "Busy"
-        default: return "Open"
+        default:
+            return normalizedAvailabilityStatus.capitalized
         }
     }
 
@@ -665,6 +679,19 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
     let stripePaymentMethodID: String?
     let stripeCustomerID: String?
     let stripeSetupIntentID: String?
+    let completionProofNote: String?
+    let completionProofPhotoURLs: [URL]
+    let completionProofSubmittedAt: Date?
+    let completionProofUploaderID: String?
+    let completionProofLatitude: Double?
+    let completionProofLongitude: Double?
+    let consumerConfirmationDeadlineAt: Date?
+    let disputeReason: String?
+    let disputeDetails: String?
+    let disputePhotoURLs: [URL]
+    let disputedAt: Date?
+    let fundsStatus: String?
+    let reviewed: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -685,6 +712,27 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
         case stripePaymentMethodID = "stripe_payment_method_id"
         case stripeCustomerID = "stripe_customer_id"
         case stripeSetupIntentID = "stripe_setup_intent_id"
+        case completionProofNote = "completion_proof_note"
+        case completionProofMessage = "completion_proof_message"
+        case completionProofPhotoURLs = "completion_proof_photo_urls"
+        case completionProofPhotos = "completion_proof_photos"
+        case completionProofMediaURLs = "completion_proof_media_urls"
+        case proofPhotoURLs = "proof_photo_urls"
+        case completionProofSubmittedAt = "completion_proof_submitted_at"
+        case completionProofCreatedAt = "completion_proof_created_at"
+        case completionProofUploaderID = "completion_proof_uploader_id"
+        case completionProofSubmittedBy = "completion_proof_submitted_by"
+        case completionProofLatitude = "completion_proof_latitude"
+        case completionProofLongitude = "completion_proof_longitude"
+        case consumerConfirmationDeadlineAt = "consumer_confirmation_deadline_at"
+        case confirmationDeadlineAt = "confirmation_deadline_at"
+        case disputeReason = "dispute_reason"
+        case disputeDetails = "dispute_details"
+        case disputePhotoURLs = "dispute_photo_urls"
+        case disputePhotos = "dispute_photos"
+        case disputedAt = "disputed_at"
+        case fundsStatus = "funds_status"
+        case reviewed
     }
 
     private struct NestedBusiness: Decodable {
@@ -709,7 +757,20 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
         businessEmail: String?,
         stripePaymentMethodID: String?,
         stripeCustomerID: String?,
-        stripeSetupIntentID: String?
+        stripeSetupIntentID: String?,
+        completionProofNote: String? = nil,
+        completionProofPhotoURLs: [URL] = [],
+        completionProofSubmittedAt: Date? = nil,
+        completionProofUploaderID: String? = nil,
+        completionProofLatitude: Double? = nil,
+        completionProofLongitude: Double? = nil,
+        consumerConfirmationDeadlineAt: Date? = nil,
+        disputeReason: String? = nil,
+        disputeDetails: String? = nil,
+        disputePhotoURLs: [URL] = [],
+        disputedAt: Date? = nil,
+        fundsStatus: String? = nil,
+        reviewed: Bool? = nil
     ) {
         self.id = id
         self.service = service
@@ -726,6 +787,19 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
         self.stripePaymentMethodID = stripePaymentMethodID
         self.stripeCustomerID = stripeCustomerID
         self.stripeSetupIntentID = stripeSetupIntentID
+        self.completionProofNote = completionProofNote
+        self.completionProofPhotoURLs = completionProofPhotoURLs
+        self.completionProofSubmittedAt = completionProofSubmittedAt
+        self.completionProofUploaderID = completionProofUploaderID
+        self.completionProofLatitude = completionProofLatitude
+        self.completionProofLongitude = completionProofLongitude
+        self.consumerConfirmationDeadlineAt = consumerConfirmationDeadlineAt
+        self.disputeReason = disputeReason
+        self.disputeDetails = disputeDetails
+        self.disputePhotoURLs = disputePhotoURLs
+        self.disputedAt = disputedAt
+        self.fundsStatus = fundsStatus
+        self.reviewed = reviewed
     }
 
     init(from decoder: Decoder) throws {
@@ -754,6 +828,35 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
         stripePaymentMethodID = try? container.decodeIfPresent(String.self, forKey: .stripePaymentMethodID)
         stripeCustomerID = try? container.decodeIfPresent(String.self, forKey: .stripeCustomerID)
         stripeSetupIntentID = try? container.decodeIfPresent(String.self, forKey: .stripeSetupIntentID)
+        completionProofNote = (try? container.decodeIfPresent(String.self, forKey: .completionProofNote))
+            ?? (try? container.decodeIfPresent(String.self, forKey: .completionProofMessage))
+        completionProofPhotoURLs = (try? container.decodeIfPresent([URL].self, forKey: .completionProofPhotoURLs))
+            ?? (try? container.decodeIfPresent([URL].self, forKey: .completionProofPhotos))
+            ?? (try? container.decodeIfPresent([URL].self, forKey: .completionProofMediaURLs))
+            ?? (try? container.decodeIfPresent([URL].self, forKey: .proofPhotoURLs))
+            ?? (try? container.decodeIfPresent([String].self, forKey: .completionProofPhotoURLs))?.compactMap(BusinessSummary.resolveRemoteURL(from:))
+            ?? (try? container.decodeIfPresent([String].self, forKey: .completionProofPhotos))?.compactMap(BusinessSummary.resolveRemoteURL(from:))
+            ?? (try? container.decodeIfPresent([String].self, forKey: .completionProofMediaURLs))?.compactMap(BusinessSummary.resolveRemoteURL(from:))
+            ?? (try? container.decodeIfPresent([String].self, forKey: .proofPhotoURLs))?.compactMap(BusinessSummary.resolveRemoteURL(from:))
+            ?? []
+        completionProofSubmittedAt = (try? container.decodeIfPresent(Date.self, forKey: .completionProofSubmittedAt))
+            ?? (try? container.decodeIfPresent(Date.self, forKey: .completionProofCreatedAt))
+        completionProofUploaderID = (try? container.decodeIfPresent(String.self, forKey: .completionProofUploaderID))
+            ?? (try? container.decodeIfPresent(String.self, forKey: .completionProofSubmittedBy))
+        completionProofLatitude = try? container.decodeIfPresent(Double.self, forKey: .completionProofLatitude)
+        completionProofLongitude = try? container.decodeIfPresent(Double.self, forKey: .completionProofLongitude)
+        consumerConfirmationDeadlineAt = (try? container.decodeIfPresent(Date.self, forKey: .consumerConfirmationDeadlineAt))
+            ?? (try? container.decodeIfPresent(Date.self, forKey: .confirmationDeadlineAt))
+        disputeReason = try? container.decodeIfPresent(String.self, forKey: .disputeReason)
+        disputeDetails = try? container.decodeIfPresent(String.self, forKey: .disputeDetails)
+        disputePhotoURLs = (try? container.decodeIfPresent([URL].self, forKey: .disputePhotoURLs))
+            ?? (try? container.decodeIfPresent([URL].self, forKey: .disputePhotos))
+            ?? (try? container.decodeIfPresent([String].self, forKey: .disputePhotoURLs))?.compactMap(URL.init(string:))
+            ?? (try? container.decodeIfPresent([String].self, forKey: .disputePhotos))?.compactMap(URL.init(string:))
+            ?? []
+        disputedAt = try? container.decodeIfPresent(Date.self, forKey: .disputedAt)
+        fundsStatus = try? container.decodeIfPresent(String.self, forKey: .fundsStatus)
+        reviewed = try? container.decodeIfPresent(Bool.self, forKey: .reviewed)
     }
 
     var statusLabel: String {
@@ -1059,12 +1162,14 @@ struct ReviewRequest: Encodable {
     let businessID: String
     let rating: Int
     let comment: String
+    let reviewMediaURLs: [String]
 
     enum CodingKeys: String, CodingKey {
         case bookingID = "booking_id"
         case businessID = "business_id"
         case rating
         case comment
+        case reviewMediaURLs = "review_media_urls"
     }
 }
 
@@ -1079,6 +1184,8 @@ struct BusinessReview: Decodable, Identifiable {
     let comment: String?
     let createdAt: Date
     let reviewerName: String?
+    let reviewerAvatarURL: URL?
+    let reviewMediaURLs: [String]
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -1086,11 +1193,58 @@ struct BusinessReview: Decodable, Identifiable {
         case comment
         case createdAt = "created_at"
         case reviewerName = "reviewer_name"
+        case reviewerAvatarURL = "reviewer_avatar_url"
+        case profiles
+        case reviewMediaURLs = "review_media_urls"
+    }
+
+    enum ProfileCodingKeys: String, CodingKey {
+        case name
+        case avatarURL = "avatar_url"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        rating = try container.decode(Int.self, forKey: .rating)
+        comment = try? container.decodeIfPresent(String.self, forKey: .comment)
+        createdAt = (try? container.decode(Date.self, forKey: .createdAt)) ?? .distantPast
+        let explicitName = try? container.decodeIfPresent(String.self, forKey: .reviewerName)
+        let explicitAvatar = try? container.decodeIfPresent(String.self, forKey: .reviewerAvatarURL)
+        if explicitName?.isEmpty == false {
+            reviewerName = explicitName
+        } else if let profiles = try? container.nestedContainer(keyedBy: ProfileCodingKeys.self, forKey: .profiles) {
+            reviewerName = try? profiles.decodeIfPresent(String.self, forKey: .name)
+        } else {
+            reviewerName = nil
+        }
+        if let explicitAvatar, !explicitAvatar.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            reviewerAvatarURL = BusinessSummary.resolveRemoteURL(from: explicitAvatar)
+        } else if let profiles = try? container.nestedContainer(keyedBy: ProfileCodingKeys.self, forKey: .profiles) {
+            let rawAvatar = (try? profiles.decodeIfPresent(String.self, forKey: .avatarURL)) ?? nil
+            if let avatarFromProfile = rawAvatar?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !avatarFromProfile.isEmpty {
+                reviewerAvatarURL = BusinessSummary.resolveRemoteURL(from: avatarFromProfile)
+            } else {
+                reviewerAvatarURL = nil
+            }
+        } else {
+            reviewerAvatarURL = nil
+        }
+        reviewMediaURLs = (try? container.decodeIfPresent([String].self, forKey: .reviewMediaURLs)) ?? []
     }
 }
 
 struct ReviewsResponse: Decodable {
     let reviews: [BusinessReview]
+}
+
+struct ReviewStatusResponse: Decodable {
+    let hasUserReviewed: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case hasUserReviewed = "has_user_reviewed"
+    }
 }
 
 // MARK: - Payment Methods
@@ -1264,6 +1418,44 @@ struct UpdateBookingStatusRequest: Encodable {
     enum CodingKeys: String, CodingKey {
         case bookingID = "booking_id"
         case status
+    }
+}
+
+struct SubmitBookingCompletionProofRequest: Encodable {
+    let bookingID: String
+    let note: String?
+    let photoURLs: [String]
+    let geoLat: Double?
+    let geoLng: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case bookingID = "booking_id"
+        case note
+        case photoURLs = "photo_urls"
+        case geoLat = "geo_lat"
+        case geoLng = "geo_lng"
+    }
+}
+
+struct ConfirmBookingCompletionRequest: Encodable {
+    let bookingID: String
+
+    enum CodingKeys: String, CodingKey {
+        case bookingID = "booking_id"
+    }
+}
+
+struct OpenBookingDisputeRequest: Encodable {
+    let bookingID: String
+    let reason: String
+    let details: String?
+    let photoURLs: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case bookingID = "booking_id"
+        case reason
+        case details
+        case photoURLs = "photo_urls"
     }
 }
 struct DeletePaymentMethodRequest: Encodable {

@@ -99,6 +99,9 @@ struct ScheduleMeApp: App {
                 .onAppear {
                     // UIKit-level forcing so sheets/fullScreenCover also swap instantly.
                     applyInterfaceStyle()
+                    Task {
+                        await SecurityTelemetry.shared.evaluateDeviceIntegrityIfNeeded()
+                    }
                 }
                 .onChange(of: darkModeEnabled) { _, _ in
                     applyInterfaceStyle()

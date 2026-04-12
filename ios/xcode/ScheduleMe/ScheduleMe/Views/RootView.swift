@@ -10,10 +10,16 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var dataStore: ScheduleMeDataStore
+    @EnvironmentObject private var locationManager: LocationManager
     @State private var didBootstrap = false
+    @State private var didRunStartupPrefetch = false
+    @State private var startupPrefetchCompleted = false
     @State private var loadingVisibleUntil = Date.distantPast
     @State private var loadingHoldRefresh = false
     @State private var loadingBarCompleted = false
+    @State private var loadingProgress: CGFloat = 0.08
+    @State private var loadingProgressTask: Task<Void, Never>?
 
     // Keep startup loading visible long enough for the progress animation to feel intentional.
     private let minimumLoadingVisibility: TimeInterval = 1.15
@@ -24,7 +30,11 @@ struct RootView: View {
                 // App entry routing order:
                 // 1) auth loading state, 2) main tabs if authenticated, 3) auth screens.
                 if shouldShowLoadingScreen {
-                    ConsumerLoadingScreen(context: appState.loadingContext) {
+                    ConsumerLoadingScreen(
+                        context: appState.loadingContext,
+                        finishSignal: loadingReadyForDismiss,
+                        progressValue: loadingProgress
+                    ) {
                         loadingBarCompleted = true
                         loadingHoldRefresh.toggle()
                     }
@@ -46,14 +56,23 @@ struct RootView: View {
             if appState.isLoading {
                 loadingVisibleUntil = Date().addingTimeInterval(minimumLoadingVisibility)
                 loadingBarCompleted = false
+                loadingProgress = 0.08
             }
+            startLoadingProgressTickerIfNeeded()
             await appState.bootstrap()
+            advanceLoadingProgress(to: 0.34)
+            await runStartupPrefetchIfNeeded()
         }
         .onChange(of: appState.isLoading) { _, isLoadingNow in
             if isLoadingNow {
                 loadingVisibleUntil = Date().addingTimeInterval(minimumLoadingVisibility)
                 loadingBarCompleted = false
+                loadingProgress = 0.08
+                startLoadingProgressTickerIfNeeded()
                 return
+            }
+            if !appState.isAuthenticated {
+                advanceLoadingProgress(to: 1.0)
             }
             let remaining = loadingVisibleUntil.timeIntervalSinceNow
             guard remaining > 0 else { return }
@@ -61,13 +80,158 @@ struct RootView: View {
                 loadingHoldRefresh.toggle()
             }
         }
+        .onChange(of: appState.isAuthenticated) { _, isAuthenticated in
+            if !isAuthenticated {
+                didRunStartupPrefetch = false
+                startupPrefetchCompleted = false
+                loadingBarCompleted = false
+                loadingProgress = 0.08
+                stopLoadingProgressTicker()
+                return
+            }
+
+            startLoadingProgressTickerIfNeeded()
+            Task {
+                await runStartupPrefetchIfNeeded()
+            }
+        }
+        .onChange(of: shouldShowLoadingScreen) { _, showLoading in
+            if showLoading {
+                startLoadingProgressTickerIfNeeded()
+            } else {
+                stopLoadingProgressTicker()
+            }
+        }
+        .onDisappear {
+            stopLoadingProgressTicker()
+        }
     }
 
     private var shouldShowLoadingScreen: Bool {
         _ = loadingHoldRefresh
         if appState.isLoading { return true }
+        if appState.isAuthenticated && !startupPrefetchCompleted { return true }
         if !loadingBarCompleted { return true }
-        return Date() < loadingVisibleUntil
+        return !loadingReadyForDismiss
+    }
+
+    private var loadingReadyForDismiss: Bool {
+        let minimumVisibleElapsed = Date() >= loadingVisibleUntil
+        let sessionReady = !appState.isLoading
+        let dataReady = (!appState.isAuthenticated) || startupPrefetchCompleted
+        return minimumVisibleElapsed && sessionReady && dataReady
+    }
+
+    private func runStartupPrefetchIfNeeded() async {
+        guard appState.isAuthenticated else { return }
+        guard !didRunStartupPrefetch else { return }
+        didRunStartupPrefetch = true
+        startupPrefetchCompleted = false
+
+        let baseline: CGFloat = 0.34
+        let upperBound: CGFloat = 0.96
+        advanceLoadingProgress(to: baseline)
+
+        var plannedSteps = 1 // final completion checkpoint
+        if appState.userID != nil {
+            plannedSteps += 1 // favorites
+            if !dataStore.hasLoadedThreads { plannedSteps += 1 }
+        }
+        if !dataStore.hasLoadedBookings { plannedSteps += 1 }
+        if !dataStore.hasLoadedBusinesses { plannedSteps += 1 }
+        if appState.eduVerified == true && !dataStore.hasLoadedCampusBusinesses { plannedSteps += 1 }
+
+        var completedSteps = 0
+        let markStepComplete: () -> Void = {
+            completedSteps += 1
+            let ratio = CGFloat(completedSteps) / CGFloat(max(plannedSteps, 1))
+            let nextProgress = baseline + ((upperBound - baseline) * ratio)
+            advanceLoadingProgress(to: nextProgress)
+        }
+
+        locationManager.requestIfNeeded()
+        let coordinate = locationManager.coordinate ?? LocationManager.simulatorFallbackCoordinate
+
+        if let uid = appState.userID {
+            await dataStore.loadFavorites(userID: uid)
+            markStepComplete()
+        } else {
+            markStepComplete()
+        }
+        if !dataStore.hasLoadedThreads, let uid = appState.userID {
+            await dataStore.loadThreads(for: uid)
+            markStepComplete()
+        }
+        if !dataStore.hasLoadedBookings {
+            await dataStore.loadBookings()
+            markStepComplete()
+        }
+        if !dataStore.hasLoadedBusinesses {
+            await dataStore.loadNearbyBusinesses(coordinate: coordinate)
+            markStepComplete()
+        }
+        if appState.eduVerified == true && !dataStore.hasLoadedCampusBusinesses {
+            let campusDomain = appState.resolvedSchoolDomain
+            let campusTag = campusDomain?.split(separator: ".").first.map { String($0).uppercased() }
+            await dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
+            markStepComplete()
+        }
+
+        startupPrefetchCompleted = true
+        markStepComplete()
+        advanceLoadingProgress(to: 1.0)
+        if appState.loadingContext == .signingIn {
+            appState.loadingContext = .startup
+        }
+    }
+
+    private func advanceLoadingProgress(to value: CGFloat) {
+        let clamped = max(0.06, min(value, 1.0))
+        if clamped > loadingProgress {
+            loadingProgress = clamped
+        } else if clamped == 1.0 {
+            loadingProgress = 1.0
+        }
+    }
+
+    private func startLoadingProgressTickerIfNeeded() {
+        guard loadingProgressTask == nil else { return }
+        loadingProgressTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                await MainActor.run {
+                    guard shouldShowLoadingScreen else { return }
+                    guard loadingProgress < 1.0 else { return }
+                    let ceiling: CGFloat
+                    if loadingReadyForDismiss {
+                        ceiling = 1.0
+                    } else if appState.isLoading {
+                        ceiling = 0.88
+                    } else if appState.isAuthenticated {
+                        ceiling = 0.97
+                    } else {
+                        ceiling = 0.93
+                    }
+                    guard loadingProgress < ceiling else { return }
+                    let increment: CGFloat
+                    if loadingProgress < 0.82 {
+                        increment = appState.loadingContext == .signingIn ? 0.020 : 0.016
+                    } else if loadingProgress < 0.92 {
+                        increment = appState.loadingContext == .signingIn ? 0.015 : 0.012
+                    } else if loadingProgress < 0.97 {
+                        increment = appState.loadingContext == .signingIn ? 0.010 : 0.008
+                    } else {
+                        increment = 0.005
+                    }
+                    loadingProgress = min(ceiling, loadingProgress + increment)
+                }
+            }
+        }
+    }
+
+    private func stopLoadingProgressTicker() {
+        loadingProgressTask?.cancel()
+        loadingProgressTask = nil
     }
 
     private var pendingBusinessLookupBinding: Binding<PendingBusinessLookupItem?> {
@@ -90,6 +254,8 @@ private struct PendingBusinessLookupItem: Identifiable {
 
 private struct ConsumerLoadingScreen: View {
     let context: AppState.LoadingContext
+    let finishSignal: Bool
+    let progressValue: CGFloat
     let onBarCompleted: () -> Void
 
     private var icon: String {
@@ -165,6 +331,8 @@ private struct ConsumerLoadingScreen: View {
                     height: 8,
                     tint: ScheduleMeTheme.accent,
                     completesOnFirstRun: true,
+                    finishSignal: finishSignal,
+                    progressOverride: progressValue,
                     onCompleted: onBarCompleted
                 )
                     .padding(.top, 6)

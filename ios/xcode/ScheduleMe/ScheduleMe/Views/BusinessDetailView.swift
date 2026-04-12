@@ -44,6 +44,7 @@ struct BusinessDetailView: View {
     @State private var tempTime = Date()
     @State private var bookingFormScrollNonce = 0
     @FocusState private var focusedField: FocusedField?
+    private static var servicesCache: [String: [BusinessService]] = [:]
 
     private enum FocusedField {
         case customServiceName
@@ -62,11 +63,28 @@ struct BusinessDetailView: View {
 
     private var allPhotos: [URL] {
         var urls: [URL] = []
-        if let cover = business.coverURL { urls.append(cover) }
-        for url in business.mediaURLs where url != business.coverURL {
+        if let cover = business.coverURL, !looksLikeUserGeneratedThreadMedia(cover) {
+            urls.append(cover)
+        }
+        for url in business.mediaURLs where url != business.coverURL && !looksLikeUserGeneratedThreadMedia(url) {
             urls.append(url)
         }
         return urls
+    }
+
+    private func looksLikeUserGeneratedThreadMedia(_ url: URL) -> Bool {
+        let path = url.path.lowercased()
+        return path.contains("/messages/") || path.contains("/reviews/")
+    }
+
+    private var bestReviews: [BusinessReview] {
+        reviews
+            .sorted { lhs, rhs in
+                if lhs.rating != rhs.rating { return lhs.rating > rhs.rating }
+                return lhs.createdAt > rhs.createdAt
+            }
+            .prefix(5)
+            .map { $0 }
     }
 
     var body: some View {
@@ -198,6 +216,12 @@ struct BusinessDetailView: View {
                                 .foregroundColor(ScheduleMeTheme.mutedText)
                         }
 
+                        OpenStatusDot(
+                            isOpen: providerCanAcceptBookingsByStatus,
+                            label: providerAvailabilityLabel,
+                            status: providerAvailabilityStatus
+                        )
+
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(business.serviceTags, id: \.self) { tag in
@@ -220,23 +244,28 @@ struct BusinessDetailView: View {
                                 Spacer()
                                 Text("Book Now")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                                    .foregroundColor(providerCanAcceptPayments ? .white : ScheduleMeTheme.mutedText)
+                                    .foregroundColor(canBookNow ? .white : ScheduleMeTheme.mutedText)
                                 Spacer()
                             }
                             .padding(.vertical, 14)
                             .contentShape(Rectangle())
                         }
                         .frame(maxWidth: .infinity)
-                        .background(providerCanAcceptPayments ? ScheduleMeTheme.accent : Color.gray.opacity(0.18))
+                        .background(canBookNow ? ScheduleMeTheme.accent : Color.gray.opacity(0.18))
                         .overlay(
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(providerCanAcceptPayments ? Color.clear : ScheduleMeTheme.cardBorder)
+                                .stroke(canBookNow ? Color.clear : ScheduleMeTheme.cardBorder)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .buttonStyle(.plain)
-                        .disabled(!providerCanAcceptPayments)
+                        .disabled(!canBookNow)
 
-                        if !providerCanAcceptPayments {
+                        if let bookingDisabledMessage {
+                            Text(bookingDisabledMessage)
+                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else if !providerCanAcceptPayments {
                             Text("This provider currently can’t accept payments yet. Bookings will be available after the provider finishes setup.")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                                 .foregroundColor(ScheduleMeTheme.mutedText)
@@ -504,21 +533,28 @@ struct BusinessDetailView: View {
                                     Spacer()
                                     Text("Review booking →")
                                         .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                                        .foregroundColor(providerCanAcceptPayments ? .white : ScheduleMeTheme.mutedText)
+                                        .foregroundColor(canBookNow ? .white : ScheduleMeTheme.mutedText)
                                     Spacer()
                                 }
                                 .padding(.vertical, 14)
                                 .contentShape(Rectangle())
                             }
                             .frame(maxWidth: .infinity)
-                            .background(providerCanAcceptPayments ? ScheduleMeTheme.accent : Color.gray.opacity(0.18))
+                            .background(canBookNow ? ScheduleMeTheme.accent : Color.gray.opacity(0.18))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(providerCanAcceptPayments ? Color.clear : ScheduleMeTheme.cardBorder)
+                                    .stroke(canBookNow ? Color.clear : ScheduleMeTheme.cardBorder)
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                             .buttonStyle(.plain)
-                            .disabled(!providerCanAcceptPayments)
+                            .disabled(!canBookNow)
+
+                            if let bookingDisabledMessage {
+                                Text(bookingDisabledMessage)
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
                     }
                     .id("booking-form-card")
@@ -547,8 +583,17 @@ struct BusinessDetailView: View {
                                 }
                                 .frame(maxWidth: .infinity)
                             }
+                        } else if bestReviews.count > 1 {
+                            TabView {
+                                ForEach(bestReviews) { review in
+                                    ReviewCard(review: review)
+                                        .padding(.horizontal, 2)
+                                }
+                            }
+                            .tabViewStyle(.page(indexDisplayMode: .automatic))
+                            .frame(height: 260)
                         } else {
-                            ForEach(reviews) { review in
+                            ForEach(bestReviews) { review in
                                 ReviewCard(review: review)
                             }
                         }
@@ -634,15 +679,55 @@ struct BusinessDetailView: View {
     private func loadServices() async {
         isLoadingServices = true
         defer { isLoadingServices = false }
-        do {
-            let response: ServicesResponse = try await APIClient.shared.get(
-                path: "/api/services",
-                queryItems: [.init(name: "business_id", value: business.id)]
-            )
-            services = response.services
-        } catch {
+        if services.isEmpty, let cached = Self.servicesCache[business.id], !cached.isEmpty {
+            services = cached
+        }
+
+        var lastError: Error?
+        for attempt in 0..<3 {
+            do {
+                let response: ServicesResponse = try await APIClient.shared.get(
+                    path: "/api/services",
+                    queryItems: [.init(name: "business_id", value: business.id)]
+                )
+                services = response.services
+                Self.servicesCache[business.id] = response.services
+                return
+            } catch {
+                lastError = error
+                if isRetriableServiceLoadError(error), attempt < 2 {
+                    let waitNanos = UInt64((0.25 + (Double(attempt) * 0.35)) * 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: waitNanos)
+                    continue
+                }
+                break
+            }
+        }
+
+        // Never wipe existing/cached services on transient failures.
+        if services.isEmpty, let cached = Self.servicesCache[business.id], !cached.isEmpty {
+            services = cached
+        } else if services.isEmpty {
+            // Keep custom-request fallback only when we truly have no known services.
             services = []
         }
+
+        if let lastError {
+            #if DEBUG
+            print("[BusinessDetailView] loadServices failed for \(business.id): \(lastError.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func isRetriableServiceLoadError(_ error: Error) -> Bool {
+        let message = error.localizedDescription.lowercased()
+        if message.contains("status 429") || message.contains("too many") { return true }
+        if message.contains("status 500") || message.contains("status 502")
+            || message.contains("status 503") || message.contains("status 504") {
+            return true
+        }
+        if message.contains("timed out") || message.contains("network") { return true }
+        return false
     }
 
     /// Loads business profile metadata including business hours and custom booking rules.
@@ -930,6 +1015,10 @@ struct BusinessDetailView: View {
 
     /// Validates service/time/custom inputs before presenting final booking review sheet.
     private func attemptBooking() {
+        if !providerCanAcceptBookingsByStatus {
+            bookingValidationMessage = "This provider is currently \(providerAvailabilityLabel.lowercased()) and not accepting bookings right now."
+            return
+        }
         if !providerCanAcceptPayments {
             bookingValidationMessage = "This provider currently can’t accept payments yet. Bookings will be available after the provider finishes setup."
             return
@@ -1033,6 +1122,54 @@ struct BusinessDetailView: View {
         }
         // If readiness is unknown even after all fallbacks, disable booking for safety.
         return false
+    }
+
+    private var providerAvailabilityStatus: String {
+        let profileStatus = (profile?.availabilityStatus ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let summaryStatus = (business.availabilityStatus ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        // Favor explicit non-open statuses so a stale "open" payload doesn't mask Busy/Closed.
+        if !profileStatus.isEmpty, profileStatus != "open" { return profileStatus }
+        if !summaryStatus.isEmpty, summaryStatus != "open" { return summaryStatus }
+        if !profileStatus.isEmpty { return profileStatus }
+        return summaryStatus
+    }
+
+    private var providerCanAcceptBookingsByStatus: Bool {
+        switch providerAvailabilityStatus {
+        case "", "open":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var providerAvailabilityLabel: String {
+        switch providerAvailabilityStatus {
+        case "", "open":
+            return "Open"
+        case "busy":
+            return "Busy"
+        case "closed":
+            return "Closed"
+        case "break":
+            return "On break"
+        default:
+            return providerAvailabilityStatus.capitalized
+        }
+    }
+
+    private var canBookNow: Bool {
+        providerCanAcceptPayments && providerCanAcceptBookingsByStatus
+    }
+
+    private var bookingDisabledMessage: String? {
+        guard !providerCanAcceptBookingsByStatus else { return nil }
+        return "This provider is currently \(providerAvailabilityLabel.lowercased()) and not accepting bookings right now."
     }
 
     /// Formats digit input as cents-shifted currency (`100` -> `1.00`).
@@ -1236,6 +1373,26 @@ private struct FullscreenBusinessImageView: View {
 
 private struct ReviewCard: View {
     let review: BusinessReview
+    @State private var selectedMediaURL: URL?
+    private static let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "webm"]
+
+    private func resolvedMediaURL(from raw: String) -> URL? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let direct = URL(string: trimmed), direct.scheme != nil {
+            return direct
+        }
+        if let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+           let parsed = URL(string: encoded),
+           parsed.scheme != nil {
+            return parsed
+        }
+        return nil
+    }
+
+    private func isVideoURL(_ url: URL) -> Bool {
+        Self.videoExtensions.contains(url.pathExtension.lowercased())
+    }
 
     var body: some View {
         ScheduleMeCard {
@@ -1255,9 +1412,12 @@ private struct ReviewCard: View {
                 }
 
                 if let name = review.reviewerName, !name.isEmpty {
-                    Text(name)
-                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                        .foregroundColor(ScheduleMeTheme.titleText)
+                    HStack(spacing: 8) {
+                        ReviewAvatarView(name: name, avatarURL: review.reviewerAvatarURL)
+                        Text(name)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.titleText)
+                    }
                 }
 
                 if let comment = review.comment, !comment.isEmpty {
@@ -1265,7 +1425,106 @@ private struct ReviewCard: View {
                         .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.mutedText)
                 }
+
+                if !review.reviewMediaURLs.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(review.reviewMediaURLs, id: \.self) { media in
+                                if let url = resolvedMediaURL(from: media) {
+                                    ZStack {
+                                        if isVideoURL(url) {
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .fill(ScheduleMeTheme.accentSoft)
+                                            Image(systemName: "play.circle.fill")
+                                                .font(.system(size: 22, weight: .semibold))
+                                                .foregroundStyle(ScheduleMeTheme.accent)
+                                        } else {
+                                            AsyncImage(url: url) { phase in
+                                                switch phase {
+                                                case .success(let image):
+                                                    image
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                default:
+                                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                        .fill(ScheduleMeTheme.accentSoft)
+                                                        .overlay(
+                                                            Image(systemName: "photo")
+                                                                .foregroundColor(ScheduleMeTheme.accent)
+                                                        )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .frame(width: 72, height: 72)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .stroke(ScheduleMeTheme.cardBorder)
+                                    )
+                                    .onTapGesture {
+                                        selectedMediaURL = url
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+        .fullScreenCover(item: Binding(
+            get: { selectedMediaURL.map(IdentifiableURL.init) },
+            set: { selectedMediaURL = $0?.url }
+        )) { item in
+            FullscreenBusinessImageView(url: item.url)
+        }
     }
+}
+
+private struct ReviewAvatarView: View {
+    let name: String
+    let avatarURL: URL?
+
+    private var initials: String {
+        let parts = name.split(separator: " ").prefix(2)
+        let letters = parts.compactMap { $0.first }.map { String($0).uppercased() }.joined()
+        return letters.isEmpty ? String(name.prefix(1)).uppercased() : letters
+    }
+
+    var body: some View {
+        Group {
+            if let avatarURL {
+                AsyncImage(url: avatarURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        fallback
+                    }
+                }
+            } else {
+                fallback
+            }
+        }
+        .frame(width: 28, height: 28)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+    }
+
+    private var fallback: some View {
+        Circle()
+            .fill(ScheduleMeTheme.accentSoft)
+            .overlay(
+                Text(initials)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.bold))
+                    .foregroundColor(ScheduleMeTheme.accent)
+            )
+    }
+}
+
+private struct IdentifiableURL: Identifiable {
+    let id = UUID()
+    let url: URL
 }

@@ -130,11 +130,15 @@ struct ScheduleMeLoadingBar: View {
     var track: Color = ScheduleMeTheme.cardBorder.opacity(0.65)
     var minimumFill: CGFloat = 0.06
     var completesOnFirstRun: Bool = false
+    var finishSignal: Bool = false
+    var progressOverride: CGFloat? = nil
     var onCompleted: (() -> Void)? = nil
 
     @State private var progress: CGFloat = 0.06
     @State private var animationTask: Task<Void, Never>?
     @State private var didNotifyCompletion = false
+    @State private var shouldFinishSinglePass = false
+    @State private var shimmerPhase: CGFloat = -0.4
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -142,6 +146,7 @@ struct ScheduleMeLoadingBar: View {
                 .fill(track)
 
             GeometryReader { proxy in
+                let fillWidth = max(proxy.size.width * progress, proxy.size.width * minimumFill)
                 Capsule()
                     .fill(
                         LinearGradient(
@@ -150,17 +155,71 @@ struct ScheduleMeLoadingBar: View {
                             endPoint: .trailing
                         )
                     )
-                    .frame(width: max(proxy.size.width * progress, proxy.size.width * minimumFill))
+                    .frame(width: fillWidth)
+                    .overlay(alignment: .leading) {
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.clear, .white.opacity(0.34), .clear],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .frame(width: proxy.size.width * 0.22, height: height * 2.4)
+                            .rotationEffect(.degrees(18))
+                            .offset(x: proxy.size.width * shimmerPhase)
+                    }
+                    .mask(
+                        Capsule()
+                            .frame(width: fillWidth)
+                    )
             }
         }
         .frame(width: width, height: height)
         .clipShape(Capsule())
         .onAppear {
+            shimmerPhase = -0.4
+            withAnimation(.linear(duration: 1.05).repeatForever(autoreverses: false)) {
+                shimmerPhase = 1.35
+            }
+            if let progressOverride {
+                progress = max(minimumFill, min(progressOverride, 1.0))
+                if progress >= 1.0, !didNotifyCompletion {
+                    didNotifyCompletion = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.19) {
+                        onCompleted?()
+                    }
+                }
+                return
+            }
+            shouldFinishSinglePass = finishSignal
             startProgressAnimation()
+        }
+        .onChange(of: progressOverride) { _, newValue in
+            guard let newValue else { return }
+            animationTask?.cancel()
+            animationTask = nil
+            let clamped = max(minimumFill, min(newValue, 1.0))
+            withAnimation(.easeOut(duration: 0.22)) {
+                progress = clamped
+            }
+            if clamped >= 1.0, !didNotifyCompletion {
+                didNotifyCompletion = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.19) {
+                    onCompleted?()
+                }
+            }
+        }
+        .onChange(of: finishSignal) { _, newValue in
+            guard progressOverride == nil else { return }
+            if newValue {
+                shouldFinishSinglePass = true
+            }
         }
         .onDisappear {
             animationTask?.cancel()
             animationTask = nil
+            shimmerPhase = -0.4
         }
     }
 
@@ -185,19 +244,23 @@ struct ScheduleMeLoadingBar: View {
             progress = minimumFill
         }
         if completesOnFirstRun {
-            // Startup pass: realistic curve (quick start, steady middle, soft finish).
-            await animateProgress(to: 0.52, duration: 0.18)
-            await animateProgress(to: 0.74, duration: 0.24)
-            await animateProgress(to: 0.88, duration: 0.30)
-            await animateProgress(to: 0.97, duration: 0.34)
-            try? await Task.sleep(nanoseconds: 70_000_000)
+            // Single startup pass: smooth fill to near-complete, then finish only when root data is ready.
+            await animateProgress(to: 0.45, duration: 0.55, curve: .linear)
+            await animateProgress(to: 0.72, duration: 0.55, curve: .linear)
+            await animateProgress(to: 0.88, duration: 0.50, curve: .easeOut)
+            await animateProgress(to: 0.94, duration: 0.46, curve: .easeOut)
+            while !Task.isCancelled {
+                let ready = await MainActor.run { shouldFinishSinglePass }
+                if ready { break }
+                try? await Task.sleep(nanoseconds: 80_000_000)
+            }
             await animateProgress(to: 1.0, duration: 0.12)
         } else {
             // In-page pass: still responsive, but less synthetic-looking.
-            await animateProgress(to: 0.6, duration: 0.14)
-            await animateProgress(to: 0.82, duration: 0.18)
-            await animateProgress(to: 0.94, duration: 0.22)
-            await animateProgress(to: 0.985, duration: 0.20)
+            await animateProgress(to: 0.6, duration: 0.14, curve: .easeOut)
+            await animateProgress(to: 0.82, duration: 0.18, curve: .easeOut)
+            await animateProgress(to: 0.94, duration: 0.22, curve: .easeOut)
+            await animateProgress(to: 0.985, duration: 0.20, curve: .easeOut)
             try? await Task.sleep(nanoseconds: 50_000_000)
             await animateProgress(to: 1.0, duration: 0.09)
         }
@@ -210,9 +273,22 @@ struct ScheduleMeLoadingBar: View {
         }
     }
 
-    private func animateProgress(to value: CGFloat, duration: Double) async {
+    private enum ProgressCurve {
+        case linear
+        case easeOut
+    }
+
+    private func animateProgress(to value: CGFloat, duration: Double, curve: ProgressCurve = .easeOut) async {
         await MainActor.run {
-            withAnimation(.easeOut(duration: duration)) {
+            let animation: Animation = {
+                switch curve {
+                case .linear:
+                    return .linear(duration: duration)
+                case .easeOut:
+                    return .easeOut(duration: duration)
+                }
+            }()
+            withAnimation(animation) {
                 progress = max(minimumFill, min(value, 1.0))
             }
         }
@@ -490,6 +566,8 @@ enum ScheduleMeTab: Hashable {
 final class TabRouter: ObservableObject {
     @Published var selected: ScheduleMeTab = .home
     @Published var browsePrefillQuery: String? = nil
+    @Published var pendingMessageBusinessID: String? = nil
+    @Published var pendingMessageBookingID: String? = nil
 }
 
 struct ScheduleMeScreen<Content: View>: View {
@@ -499,6 +577,7 @@ struct ScheduleMeScreen<Content: View>: View {
     var showsTopFade: Bool = true
     var allowsBounce: Bool = false
     var respectsTabBarInset: Bool = true
+    var onRefresh: (() async -> Void)? = nil
     @Environment(\.floatingTabBarHeight) private var floatingTabBarHeight
 
     init(
@@ -507,6 +586,7 @@ struct ScheduleMeScreen<Content: View>: View {
         showsTopFade: Bool = true,
         allowsBounce: Bool = false,
         respectsTabBarInset: Bool = true,
+        onRefresh: (() async -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.showsTopBar = showsTopBar
@@ -514,6 +594,7 @@ struct ScheduleMeScreen<Content: View>: View {
         self.showsTopFade = showsTopFade
         self.allowsBounce = allowsBounce
         self.respectsTabBarInset = respectsTabBarInset
+        self.onRefresh = onRefresh
         self.content = content()
     }
 
@@ -531,6 +612,10 @@ struct ScheduleMeScreen<Content: View>: View {
                         .frame(maxWidth: .infinity, alignment: .top)
                     }
                     .scrollBounceBehavior(allowsBounce ? .always : .basedOnSize)
+                    .refreshable {
+                        guard let onRefresh else { return }
+                        await onRefresh()
+                    }
                 } else {
                     VStack(spacing: 0) {
                         content

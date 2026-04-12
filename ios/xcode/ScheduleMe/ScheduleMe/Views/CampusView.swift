@@ -50,11 +50,21 @@ struct CampusView: View {
 
     private var featuredBusinesses: [BusinessSummary] {
         dataStore.campusFeatured
+            .filter(isValidCampusProvider(_:))
+            .sorted {
+            let leftScore = (($0.rating ?? 0) * 1000) + Double($0.reviewCount ?? 0)
+            let rightScore = (($1.rating ?? 0) * 1000) + Double($1.reviewCount ?? 0)
+            if leftScore == rightScore {
+                return $0.id < $1.id
+            }
+            return leftScore > rightScore
+        }
     }
 
     /// De-duplicates featured + regular campus arrays so each business appears once.
     private var allCampusBusinesses: [BusinessSummary] {
-        var combined = dataStore.campusBusinesses + dataStore.campusFeatured
+        var combined = (dataStore.campusBusinesses + dataStore.campusFeatured)
+            .filter(isValidCampusProvider(_:))
         var seen = Set<String>()
         combined = combined.filter { seen.insert($0.id).inserted }
         return combined
@@ -65,11 +75,12 @@ struct CampusView: View {
     }
 
     private var gridBusinesses: [BusinessSummary] {
+        let base = filtered
         if showFeatured {
             let featuredIDs = Set(featuredBusinesses.map(\.id))
-            return dataStore.campusBusinesses.filter { !featuredIDs.contains($0.id) }
+            return base.filter { !featuredIDs.contains($0.id) }
         }
-        return filtered
+        return base
     }
 
     private var gridColumns: [GridItem] {
@@ -94,34 +105,80 @@ struct CampusView: View {
         campusDomain?.split(separator: ".").first.map { String($0).uppercased() }
     }
 
+    private func isValidCampusProvider(_ business: BusinessSummary) -> Bool {
+        guard business.campusProvider == true else { return false }
+        let normalizedDomain = campusDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedTag = campusTag?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let businessDomain = business.schoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let businessTag = business.campusSchoolName?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        if let normalizedDomain, !normalizedDomain.isEmpty {
+            return businessDomain == normalizedDomain
+        }
+        if let normalizedTag, !normalizedTag.isEmpty {
+            if businessTag == normalizedTag { return true }
+            let derivedTag = businessDomain?.split(separator: ".").first.map { String($0).uppercased() }
+            return derivedTag == normalizedTag
+        }
+        return businessDomain?.hasSuffix(".edu") == true
+    }
+
+    private func refreshCampusFeed() async {
+        guard appState.eduVerified == true else { return }
+        guard let domain = campusDomain?.trimmingCharacters(in: .whitespacesAndNewlines), !domain.isEmpty else {
+            return
+        }
+        await dataStore.loadCampusBusinesses(schoolDomain: domain, campusTag: campusTag)
+    }
+
+    private func loadCampusIfReady() async {
+        guard appState.eduVerified == true else { return }
+        guard let domain = campusDomain?.trimmingCharacters(in: .whitespacesAndNewlines), !domain.isEmpty else {
+            dataStore.clearCampusBusinesses()
+            return
+        }
+        await dataStore.loadCampusBusinesses(schoolDomain: domain, campusTag: campusTag)
+    }
+
     var body: some View {
         NavigationStack {
-            ScheduleMeScreen {
-                campusContent
+            ScheduleMeScreen(scrolls: false) {
+                ScrollView {
+                    campusContent
+                }
+                .scrollBounceBehavior(.always)
+                .refreshable {
+                    await refreshCampusFeed()
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
         }
         .task {
-            if appState.eduVerified == true {
-                await dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
-                featuredIndex = 0
-            }
+            await loadCampusIfReady()
+            featuredIndex = 0
         }
         .onChange(of: appState.schoolDomain) { _, _ in
             Task {
-                await dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
+                await loadCampusIfReady()
                 featuredIndex = 0
             }
         }
         .onChange(of: appState.eduVerified) { _, _ in
             if appState.eduVerified == true {
                 Task {
-                    await dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
+                    await loadCampusIfReady()
                     featuredIndex = 0
                 }
             } else {
                 dataStore.clearCampusBusinesses()
             }
+        }
+        .onChange(of: featuredBusinesses.count) { _, count in
+            guard count > 0 else {
+                featuredIndex = 0
+                return
+            }
+            featuredIndex = min(max(featuredIndex, 0), count - 1)
         }
     }
 
@@ -475,7 +532,11 @@ private struct FeaturedCampusCard: View {
                     }
 
                     HStack(spacing: 6) {
-                        OpenStatusDot(isOpen: business.isOpen, label: business.openStatusLabel)
+                        OpenStatusDot(
+                            isOpen: business.isOpen,
+                            label: business.openStatusLabel,
+                            status: business.normalizedAvailabilityStatus
+                        )
                         Text("•").foregroundColor(ScheduleMeTheme.mutedText.opacity(0.4))
                         Text(reviewSummary)
                             .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))

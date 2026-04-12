@@ -12,12 +12,15 @@ struct HomeView: View {
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var tabRouter: TabRouter
+    @Environment(\.openURL) private var openURL
     @State private var showingEduVerificationModal = false
     @State private var showingEduStatusModal = false
     @AppStorage("scheduleme_dismiss_student_banner") private var dismissedStudentBanner = false
     @State private var quickRequest = ""
     @FocusState private var isQuickRequestFocused: Bool
     @State private var showingFeedback = false
+    @State private var showFeedbackToast: Bool = false
+    @State private var feedbackToastMessage: String = ""
     @State private var selectedHomeCategory = "All"
     @State private var showingMatches = false
     @State private var matchedBusinesses: [BusinessSummary] = []
@@ -26,8 +29,9 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScheduleMeScreen {
-                VStack(alignment: .leading, spacing: 12) {
+            ScheduleMeScreen(scrolls: false) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(greeting.uppercased())
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
@@ -271,20 +275,20 @@ struct HomeView: View {
                                     HStack(spacing: 8) {
                                         PulseCard(
                                             title: "Trending on campus",
-                                            value: "Haircuts + tutoring",
-                                            subtitle: "Updated today",
+                                            value: pulseTrendingValue,
+                                            subtitle: pulseTrendingSubtitle,
                                             systemImage: "flame.fill"
                                         )
                                         PulseCard(
-                                            title: "Avg response time",
-                                            value: "~18 minutes",
-                                            subtitle: "Last 7 days",
-                                            systemImage: "clock.fill"
+                                            title: "Open now",
+                                            value: "\(pulseOpenNowCount) available",
+                                            subtitle: "Live provider status",
+                                            systemImage: "clock.badge.checkmark.fill"
                                         )
                                         PulseCard(
                                             title: "New pros nearby",
-                                            value: "12 this week",
-                                            subtitle: "Verified students",
+                                            value: "\(pulseCampusProviderCount) providers",
+                                            subtitle: "Verified campus listings",
                                             systemImage: "person.2.fill"
                                         )
                                     }
@@ -345,19 +349,26 @@ struct HomeView: View {
                                 selectedCategory: selectedHomeCategory,
                                 onSeeAll: { tabRouter.selected = .browse }
                             )
-                        } else if let businessError = dataStore.businessError {
+                        } else if dataStore.businessError != nil {
+                            let message = hasLocation
+                                ? "No nearby providers right now. Be the first to join your area."
+                                : "Location disabled. Enable location to browse nearby providers."
                             ScheduleMeEmptyState(
                                 title: "Nearby search unavailable",
-                                message: businessError,
-                                systemImage: "location.slash"
+                                message: message,
+                                systemImage: "location.slash",
+                                actionTitle: "Become the first provider →",
+                                action: openProviderApp
                             )
                         } else if !hasLocation && !dataStore.isLoadingBusinesses {
                             LocationPromptCard()
                         } else if dataStore.businesses.isEmpty && hasLocation {
                             ScheduleMeEmptyState(
-                                title: "No businesses nearby yet",
-                                message: "Be the first to bring ScheduleMe to your area.",
-                                systemImage: "magnifyingglass"
+                                title: "No nearby providers yet",
+                                message: "Be the first provider in your area.",
+                                systemImage: "magnifyingglass",
+                                actionTitle: "Become the first provider →",
+                                action: openProviderApp
                             )
                         } else {
                             HomeTopRatedSkeleton(cardWidth: homeCardWidth, imageHeight: homeCardImageHeight)
@@ -365,6 +376,19 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 30)
+                    }
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            if isQuickRequestFocused {
+                                isQuickRequestFocused = false
+                            }
+                        }
+                    )
+                }
+                .scrollBounceBehavior(.always)
+                .refreshable {
+                    await refreshHomeFeed()
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -439,10 +463,19 @@ struct HomeView: View {
                 }
             }
             .animation(.spring(response: 0.34, dampingFraction: 0.9), value: showingEduStatusModal)
-        .sheet(isPresented: $showingFeedback) {
-            FeedbackModalView(userEmail: appState.userEmail)
-        }
-        .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingFeedback) {
+                FeedbackModalView(userEmail: appState.userEmail) {
+                    self.showFeedbackSubmittedToast("Thanks! Feedback submitted.")
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if self.showFeedbackToast {
+                    HomeToastView(message: self.feedbackToastMessage)
+                        .padding(.bottom, 94)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
         }
         .task {
             locationManager.requestIfNeeded()
@@ -452,6 +485,7 @@ struct HomeView: View {
         .task(id: locationTaskID) {
             await dataStore.loadNearbyBusinesses(coordinate: locationManager.coordinate)
         }
+        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: self.showFeedbackToast)
     }
 
     // MARK: - Derived State
@@ -460,6 +494,18 @@ struct HomeView: View {
     private var locationTaskID: String {
         guard let coordinate = locationManager.coordinate else { return "none" }
         return "\(coordinate.latitude),\(coordinate.longitude)"
+    }
+
+    private func refreshHomeFeed() async {
+        locationManager.requestIfNeeded()
+        await dataStore.loadBookings()
+        await dataStore.loadThreads(for: appState.userID)
+        await dataStore.loadNearbyBusinesses(coordinate: locationManager.coordinate)
+        if appState.eduVerified == true {
+            let campusDomain = appState.resolvedSchoolDomain
+            let campusTag = campusDomain?.split(separator: ".").first.map { String($0).uppercased() }
+            await dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
+        }
     }
 
     /// True when device location (or simulator fallback) is available for nearby content.
@@ -478,10 +524,60 @@ struct HomeView: View {
     }
 
     private var displayName: String {
+        if let firstName = appState.userFirstName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !firstName.isEmpty {
+            return firstName
+        }
         if let email = appState.userEmail, let localPart = email.split(separator: "@").first, !localPart.isEmpty {
             return localPart.capitalized
         }
         return "there"
+    }
+
+    /// Campus Pulse should reflect live marketplace inventory.
+    /// Prefer campus feed when available, fallback to nearby businesses.
+    private var campusPulseSourceBusinesses: [BusinessSummary] {
+        if appState.eduVerified == true, !dataStore.campusBusinesses.isEmpty {
+            return dataStore.campusBusinesses
+        }
+        if appState.eduVerified == true {
+            let campusOnly = dataStore.businesses.filter { $0.campusProvider == true }
+            if !campusOnly.isEmpty { return campusOnly }
+        }
+        return dataStore.businesses
+    }
+
+    private var pulseOpenNowCount: Int {
+        campusPulseSourceBusinesses.filter(\.isOpen).count
+    }
+
+    private var pulseCampusProviderCount: Int {
+        campusPulseSourceBusinesses.filter { $0.campusProvider == true }.count
+    }
+
+    private var pulseTrendingValue: String {
+        let tags = campusPulseSourceBusinesses.flatMap(\.categoryTags)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !tags.isEmpty else { return "Campus demand" }
+
+        let counts = Dictionary(grouping: tags, by: { $0 }).mapValues(\.count)
+        let top = counts
+            .sorted { lhs, rhs in
+                if lhs.value == rhs.value {
+                    return lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedAscending
+                }
+                return lhs.value > rhs.value
+            }
+            .first?.key
+
+        return top ?? "Campus demand"
+    }
+
+    private var pulseTrendingSubtitle: String {
+        let total = campusPulseSourceBusinesses.count
+        guard total > 0 else { return "Waiting for campus activity" }
+        return "\(total) active providers"
     }
 
     private var homeCategories: [String] {
@@ -544,6 +640,7 @@ struct HomeView: View {
     private func runMatches() {
         let query = quickRequest.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return }
+        isQuickRequestFocused = false
         let tokens = query
             .split(separator: " ")
             .map { String($0) }
@@ -568,6 +665,31 @@ struct HomeView: View {
             } else {
                 showingEduStatusModal = false
                 showingEduVerificationModal = true
+            }
+        }
+    }
+
+    private func showFeedbackSubmittedToast(_ message: String) {
+        feedbackToastMessage = message
+        withAnimation {
+            showFeedbackToast = true
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(2.0))
+            await MainActor.run {
+                withAnimation {
+                    showFeedbackToast = false
+                }
+            }
+        }
+    }
+
+    private func openProviderApp() {
+        guard let deepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
+        openURL(deepLink) { accepted in
+            guard accepted == false else { return }
+            if let fallback = URL(string: "https://usescheduleme.com/business") {
+                openURL(fallback)
             }
         }
     }
@@ -699,6 +821,7 @@ private struct HomeBusinessCarouselSection: View {
             userSchoolDomain: viewerSchoolDomain
         )
     }
+
 }
 
 private struct PulseSkeletonRow: View {
@@ -727,6 +850,7 @@ private struct PulseSkeletonRow: View {
 
 private struct FeedbackModalView: View {
     let userEmail: String?
+    let onSubmitted: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var topic = ""
@@ -734,41 +858,76 @@ private struct FeedbackModalView: View {
     @State private var email = ""
     @State private var isSending = false
     @State private var sendError: String?
-    @State private var didSend = false
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Topic (optional)") {
-                    TextField("Bug report, idea, feature request", text: $topic)
-                }
+            ScheduleMePage {
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Feedback")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 38).weight(.bold))
+                                .foregroundColor(ScheduleMeTheme.titleText)
 
-                Section("Your feedback") {
-                    TextEditor(text: $message)
-                        .frame(minHeight: 140)
-                }
+                            Text("Tell us what’s working and what we should improve.")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
 
-                Section("Reply email (optional)") {
-                    TextField("name@email.com", text: $email)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
-                }
+                            ScheduleMeCard {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("TOPIC (OPTIONAL)")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                                        .tracking(1.1)
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                    TextField("Bug report, idea, feature request", text: $topic)
+                                        .scheduleMeFieldStyle()
+                                }
 
-                if let sendError {
-                    Section {
-                        Text(sendError)
-                            .foregroundColor(.red)
-                    }
-                }
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("YOUR FEEDBACK")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                                        .tracking(1.1)
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                    TextEditor(text: $message)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                        .foregroundColor(ScheduleMeTheme.titleText)
+                                        .scrollContentBackground(.hidden)
+                                        .frame(minHeight: 150)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .background(ScheduleMeTheme.surface)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .stroke(ScheduleMeTheme.cardBorder)
+                                        )
+                                }
 
-                if didSend {
-                    Section {
-                        Text("Thanks! Your feedback was sent.")
-                            .foregroundColor(.green)
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("REPLY EMAIL (OPTIONAL)")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                                        .tracking(1.1)
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                    TextField("name@email.com", text: $email)
+                                        .textInputAutocapitalization(.never)
+                                        .keyboardType(.emailAddress)
+                                        .scheduleMeFieldStyle()
+                                }
+
+                                if let sendError {
+                                    Text(sendError)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .padding(.bottom, 28)
                     }
                 }
             }
-            .navigationTitle("Feedback")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
@@ -791,7 +950,6 @@ private struct FeedbackModalView: View {
     private func submit() async {
         isSending = true
         sendError = nil
-        didSend = false
         defer { isSending = false }
 
         do {
@@ -805,13 +963,35 @@ private struct FeedbackModalView: View {
                 )
             )
             if response.success == true || response.error == nil {
-                didSend = true
+                onSubmitted()
+                dismiss()
             } else {
                 sendError = response.error ?? "Unable to send feedback."
             }
         } catch {
             sendError = "Unable to send feedback right now."
         }
+    }
+}
+
+private struct HomeToastView: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+            Text(message)
+                .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                .foregroundColor(.white)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(ScheduleMeTheme.accent)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
     }
 }
 
@@ -1150,6 +1330,8 @@ private struct PulseCard: View {
             Text(value)
                 .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.semibold))
                 .foregroundColor(ScheduleMeTheme.titleText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Text(subtitle)
                 .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))
                 .foregroundColor(ScheduleMeTheme.mutedText)
@@ -1280,7 +1462,11 @@ private struct HomeBusinessCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 6) {
-                    OpenStatusDot(isOpen: business.isOpen, label: business.openStatusLabel)
+                    OpenStatusDot(
+                        isOpen: business.isOpen,
+                        label: business.openStatusLabel,
+                        status: business.normalizedAvailabilityStatus
+                    )
                     Spacer(minLength: 6)
                     Text(business.distanceLabel)
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))

@@ -13,6 +13,14 @@ import Security
 final class APIClient: NSObject, URLSessionDelegate {
     static let shared = APIClient()
 
+    enum RequestCategory {
+        case general
+        case auth
+        case payment
+        case media
+        case securityTelemetry
+    }
+
     private let baseURL: URL
     private let alternateBaseURL: URL?
     private lazy var session: URLSession = {
@@ -67,16 +75,19 @@ final class APIClient: NSObject, URLSessionDelegate {
     func get<T: Decodable>(
         path: String,
         queryItems: [URLQueryItem] = [],
-        requiresAuth: Bool = false
+        requiresAuth: Bool = true,
+        category: RequestCategory? = nil
     ) async throws -> T {
+        let resolvedCategory = category ?? requestCategory(for: path)
         let request = try await makeRequest(
             path: path,
             method: "GET",
             queryItems: queryItems,
             body: nil,
-            requiresAuth: requiresAuth
+            requiresAuth: requiresAuth,
+            category: resolvedCategory
         )
-        return try await perform(request)
+        return try await perform(request, category: resolvedCategory)
     }
 
     /// Generic JSON request helper used for POST/PATCH/DELETE flows.
@@ -85,17 +96,75 @@ final class APIClient: NSObject, URLSessionDelegate {
         method: String,
         body: Body,
         queryItems: [URLQueryItem] = [],
-        requiresAuth: Bool = false
+        requiresAuth: Bool = true,
+        category: RequestCategory? = nil
     ) async throws -> T {
+        let resolvedCategory = category ?? requestCategory(for: path)
         let requestBody = try encoder.encode(body)
         let request = try await makeRequest(
             path: path,
             method: method,
             queryItems: queryItems,
             body: requestBody,
-            requiresAuth: requiresAuth
+            requiresAuth: requiresAuth,
+            category: resolvedCategory
         )
-        return try await perform(request)
+        return try await perform(request, category: resolvedCategory)
+    }
+
+    /// Executes a prebuilt URLRequest over the pinned networking stack.
+    func dataResponse(
+        for request: URLRequest,
+        requiresAuth: Bool = false,
+        category: RequestCategory = .general
+    ) async throws -> (Data, HTTPURLResponse) {
+        var currentRequest = request
+        if requiresAuth, currentRequest.value(forHTTPHeaderField: "Authorization") == nil {
+            let bearer = try await SupabaseManager.shared.accessToken()
+            currentRequest.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        }
+
+        let policy = retryPolicy(for: category)
+        if currentRequest.timeoutInterval <= 0 {
+            currentRequest.timeoutInterval = policy.timeout
+        }
+
+        var attempt = 0
+        while true {
+            do {
+                let (data, response) = try await session.data(for: currentRequest)
+                guard let http = response as? HTTPURLResponse else {
+                    throw DataStoreError.server("The server returned an invalid response.")
+                }
+
+                if http.statusCode == 401,
+                   currentRequest.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true,
+                   let refreshed = try? await SupabaseManager.shared.forceRefreshAccessToken() {
+                    currentRequest.setValue("Bearer \(refreshed)", forHTTPHeaderField: "Authorization")
+                    let (retryData, retryResponse) = try await session.data(for: currentRequest)
+                    guard let retryHTTP = retryResponse as? HTTPURLResponse else {
+                        throw DataStoreError.server("The server returned an invalid response.")
+                    }
+                    return (retryData, retryHTTP)
+                }
+
+                if shouldRetryTransient(statusCode: http.statusCode),
+                   attempt < (policy.maxAttempts - 1) {
+                    attempt += 1
+                    try? await Task.sleep(for: .milliseconds(backoffMillis(for: attempt, baseMillis: policy.backoffBaseMillis)))
+                    continue
+                }
+
+                return (data, http)
+            } catch {
+                if isRetriableTransportError(error), attempt < (policy.maxAttempts - 1) {
+                    attempt += 1
+                    try? await Task.sleep(for: .milliseconds(backoffMillis(for: attempt, baseMillis: policy.backoffBaseMillis)))
+                    continue
+                }
+                throw error
+            }
+        }
     }
 
     /// Builds URLRequest with query params + optional bearer auth.
@@ -104,7 +173,8 @@ final class APIClient: NSObject, URLSessionDelegate {
         method: String,
         queryItems: [URLQueryItem],
         body: Data?,
-        requiresAuth: Bool
+        requiresAuth: Bool,
+        category: RequestCategory
     ) async throws -> URLRequest {
         let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
         let url = baseURL.appendingPathComponent(cleanPath)
@@ -124,6 +194,7 @@ final class APIClient: NSObject, URLSessionDelegate {
         var request = URLRequest(url: finalURL)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = retryPolicy(for: category).timeout
         if let bearer = bearer {
             request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
         }
@@ -132,26 +203,23 @@ final class APIClient: NSObject, URLSessionDelegate {
     }
 
     /// Executes request and decodes typed response, surfacing backend `error` messages when available.
-    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+    private func perform<T: Decodable>(_ request: URLRequest, category: RequestCategory) async throws -> T {
         var currentRequest = request
-        var (data, response) = try await session.data(for: currentRequest)
-        var httpResponse = try validatedHTTPResponse(response)
+        var (data, httpResponse) = try await dataResponse(for: currentRequest, category: category)
 
         if httpResponse.statusCode == 401,
            request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true,
            let refreshedToken = try? await SupabaseManager.shared.forceRefreshAccessToken() {
             var retry = currentRequest
             retry.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
-            (data, response) = try await session.data(for: retry)
-            httpResponse = try validatedHTTPResponse(response)
+            (data, httpResponse) = try await dataResponse(for: retry, category: category)
             currentRequest = retry
         }
 
         if !(200..<300).contains(httpResponse.statusCode),
            shouldRetryOnAlternateHost(data: data, statusCode: httpResponse.statusCode),
            let failoverRequest = requestBySwitchingToAlternateHost(currentRequest) {
-            (data, response) = try await session.data(for: failoverRequest)
-            httpResponse = try validatedHTTPResponse(response)
+            (data, httpResponse) = try await dataResponse(for: failoverRequest, category: category)
             currentRequest = failoverRequest
         }
 
@@ -161,8 +229,7 @@ final class APIClient: NSObject, URLSessionDelegate {
            let refreshedToken = try? await SupabaseManager.shared.forceRefreshAccessToken() {
             var retry = currentRequest
             retry.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
-            (data, response) = try await session.data(for: retry)
-            httpResponse = try validatedHTTPResponse(response)
+            (data, httpResponse) = try await dataResponse(for: retry, category: category)
             currentRequest = retry
         }
 
@@ -179,8 +246,7 @@ final class APIClient: NSObject, URLSessionDelegate {
             if !serverMessage.isEmpty,
                shouldRetryOnAlternateHost(data: data, statusCode: httpResponse.statusCode),
                let failoverRequest = requestBySwitchingToAlternateHost(currentRequest) {
-                let (fallbackData, fallbackResponse) = try await session.data(for: failoverRequest)
-                let fallbackHTTP = try validatedHTTPResponse(fallbackResponse)
+                let (fallbackData, fallbackHTTP) = try await dataResponse(for: failoverRequest, category: category)
                 guard (200..<300).contains(fallbackHTTP.statusCode) else {
                     throw makeServerError(data: fallbackData, statusCode: fallbackHTTP.statusCode)
                 }
@@ -254,6 +320,60 @@ final class APIClient: NSObject, URLSessionDelegate {
             return .server(message)
         }
         return .server("Request failed with status \(statusCode).")
+    }
+
+    private func requestCategory(for path: String) -> RequestCategory {
+        let normalized = path.lowercased()
+        if normalized.contains("auth") || normalized.contains("password-reset") || normalized.contains("password_reset") {
+            return .auth
+        }
+        if normalized.contains("stripe") || normalized.contains("payment") || normalized.contains("checkout") || normalized.contains("apple-pay") {
+            return .payment
+        }
+        if normalized.contains("media") || normalized.contains("upload") || normalized.contains("image") {
+            return .media
+        }
+        if normalized.contains("security-event") {
+            return .securityTelemetry
+        }
+        return .general
+    }
+
+    private func retryPolicy(for category: RequestCategory) -> (maxAttempts: Int, backoffBaseMillis: Int, timeout: TimeInterval) {
+        switch category {
+        case .auth:
+            return (maxAttempts: 4, backoffBaseMillis: 250, timeout: 15)
+        case .payment:
+            return (maxAttempts: 4, backoffBaseMillis: 300, timeout: 20)
+        case .media:
+            return (maxAttempts: 3, backoffBaseMillis: 220, timeout: 18)
+        case .securityTelemetry:
+            return (maxAttempts: 2, backoffBaseMillis: 200, timeout: 8)
+        case .general:
+            return (maxAttempts: 3, backoffBaseMillis: 200, timeout: 12)
+        }
+    }
+
+    private func backoffMillis(for attempt: Int, baseMillis: Int) -> Int {
+        let exponent = max(0, min(4, attempt - 1))
+        let factor = 1 << exponent
+        return baseMillis * factor
+    }
+
+    private func shouldRetryTransient(statusCode: Int) -> Bool {
+        if statusCode == 408 || statusCode == 425 || statusCode == 429 { return true }
+        if (500...599).contains(statusCode) { return true }
+        return false
+    }
+
+    private func isRetriableTransportError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .notConnectedToInternet, .dnsLookupFailed:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - TLS Certificate Pinning

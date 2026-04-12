@@ -194,10 +194,15 @@ private struct NotificationTabs: View {
                             selected = .all
                         }
                     } label: {
-                        Text("All")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                            .foregroundColor(selected == .all ? .white : ScheduleMeTheme.titleText)
-                            .frame(width: width, height: 34)
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.clear)
+                            Text("All")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                .foregroundColor(selected == .all ? .white : ScheduleMeTheme.titleText)
+                        }
+                        .frame(width: width, height: 34)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 
@@ -206,10 +211,15 @@ private struct NotificationTabs: View {
                             selected = .archived
                         }
                     } label: {
-                        Text("Archived")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                            .foregroundColor(selected == .archived ? .white : ScheduleMeTheme.titleText)
-                            .frame(width: width, height: 34)
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.clear)
+                            Text("Archived")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                .foregroundColor(selected == .archived ? .white : ScheduleMeTheme.titleText)
+                        }
+                        .frame(width: width, height: 34)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

@@ -25,16 +25,16 @@ struct BookingsView: View {
     // MARK: - Derived Counts
 
     private var activeCount: Int {
-        dataStore.bookings.filter { ["confirmed", "active", "completion_pending"].contains($0.status.lowercased()) }.count
+        dataStore.bookings.filter { ["confirmed", "active", "completion_pending", "in_progress"].contains($0.status.lowercased()) }.count
     }
 
     private var completedCount: Int {
-        dataStore.bookings.filter { ["completed"].contains($0.status.lowercased()) }.count
+        dataStore.bookings.filter { ["completed", "awaiting_consumer_confirmation"].contains($0.status.lowercased()) }.count
     }
 
     var body: some View {
         NavigationStack {
-            ScheduleMeScreen {
+            ScheduleMeScreen(allowsBounce: true, onRefresh: refreshBookings) {
                 VStack(spacing: 0) {
                     BookingsHeaderCard(
                         title: "My Bookings",
@@ -82,6 +82,13 @@ struct BookingsView: View {
                                 pageSize: pageSize
                             )
                             BookingSectionView(
+                                title: "Disputed",
+                                bookings: disputedBookings,
+                                expanded: $disputedExpanded,
+                                page: $disputedPage,
+                                pageSize: pageSize
+                            )
+                            BookingSectionView(
                                 title: "Active",
                                 bookings: activeBookings,
                                 expanded: $activeExpanded,
@@ -102,13 +109,6 @@ struct BookingsView: View {
                                 page: $cancelledPage,
                                 pageSize: pageSize
                             )
-                            BookingSectionView(
-                                title: "Disputed",
-                                bookings: disputedBookings,
-                                expanded: $disputedExpanded,
-                                page: $disputedPage,
-                                pageSize: pageSize
-                            )
                         }
                     }
                     .padding(.horizontal, 20)
@@ -121,6 +121,10 @@ struct BookingsView: View {
         .task {
             await dataStore.loadBookings()
         }
+    }
+
+    private func refreshBookings() async {
+        await dataStore.loadBookings()
     }
 
     // MARK: - Buckets
@@ -163,7 +167,15 @@ struct BookingsView: View {
         if status.contains("cancel") || status == "payment_failed" || status.contains("failed") {
             return .cancelled
         }
-        if status.contains("complete") || status == "paid" {
+        // Payment capture alone should not move the booking to completed.
+        // It stays pending until provider accepts/starts/completes.
+        if status == "paid" || status == "payment_collected" || status == "payment_pending" || status == "awaiting_payment" {
+            return .pending
+        }
+        if status == "awaiting_consumer_confirmation" {
+            return .completed
+        }
+        if status.contains("complete") {
             return .completed
         }
         if status.contains("confirm") || status == "active" || status == "in_progress" || status.contains("progress") {
@@ -423,9 +435,11 @@ private struct BookingStatusBadge: View {
 
     private var color: Color {
         switch status {
-        case "confirmed", "active", "completion_pending": return .green
+        case "confirmed", "active", "completion_pending", "in_progress": return .green
+        case "awaiting_consumer_confirmation": return ScheduleMeTheme.accent
         case "completed": return ScheduleMeTheme.accent
-        case "pending", "payment_pending", "payment_collected", "awaiting_payment": return .orange
+        case "disputed": return .orange
+        case "pending", "paid", "payment_pending", "payment_collected", "awaiting_payment": return .orange
         case "cancelled", "payment_failed": return .red
         default: return ScheduleMeTheme.mutedText
         }

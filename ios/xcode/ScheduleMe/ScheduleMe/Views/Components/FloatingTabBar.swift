@@ -10,6 +10,7 @@ import SwiftUI
 
 struct FloatingTabBar: View {
     @EnvironmentObject private var tabRouter: TabRouter
+    @EnvironmentObject private var dataStore: ScheduleMeDataStore
     let showsCampus: Bool
 
     private let height: CGFloat = 68
@@ -49,7 +50,8 @@ struct FloatingTabBar: View {
             FloatingTabBarItem(
                 title: "Messages",
                 systemImage: "bubble.left.and.bubble.right",
-                isSelected: tabRouter.selected == .messages
+                isSelected: tabRouter.selected == .messages,
+                badgeCount: unreadMessagesCount
             ) {
                 tabRouter.selected = .messages
             }
@@ -74,12 +76,17 @@ struct FloatingTabBar: View {
     }
 
     var barHeight: CGFloat { height }
+
+    private var unreadMessagesCount: Int {
+        max(0, dataStore.threads.reduce(0) { $0 + max(0, $1.unreadCount) })
+    }
 }
 
 private struct FloatingTabBarItem: View {
     let title: String
     let systemImage: String
     let isSelected: Bool
+    var badgeCount: Int = 0
     let action: () -> Void
 
     var body: some View {
@@ -95,6 +102,16 @@ private struct FloatingTabBarItem: View {
                     Image(systemName: systemImage)
                         .font(.system(size: 17, weight: .regular))
                         .foregroundColor(isSelected ? ScheduleMeTheme.accent : ScheduleMeTheme.titleText)
+                    if badgeCount > 0 {
+                        Text("\(min(badgeCount, 99))")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 8).weight(.bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(ScheduleMeTheme.accent)
+                            .clipShape(Capsule())
+                            .offset(x: 14, y: -12)
+                    }
                 }
                 .scaleEffect(isSelected ? 1.03 : 1)
                 Text(title)

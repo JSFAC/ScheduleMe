@@ -109,9 +109,14 @@ struct AuthView: View {
                         }
                     }
                 }
+                await SecurityTelemetry.shared.recordAuthSuccess()
                 await appState.bootstrap(context: .signingIn)
             } catch {
-                errorText = userFacingAuthError(error)
+                let safeMessage = userFacingAuthError(error)
+                Task {
+                    await SecurityTelemetry.shared.recordAuthFailure(reason: safeMessage)
+                }
+                errorText = safeMessage
             }
         }
     }
@@ -136,7 +141,11 @@ struct AuthView: View {
                 try await SupabaseManager.shared.sendPasswordReset(email: normalizedEmail)
                 infoText = "Password reset email sent. Check your inbox and spam folder."
             } catch {
-                errorText = userFacingAuthError(error)
+                let safeMessage = userFacingAuthError(error)
+                Task {
+                    await SecurityTelemetry.shared.recordAuthFailure(reason: safeMessage)
+                }
+                errorText = safeMessage
             }
         }
     }
@@ -164,9 +173,14 @@ struct AuthView: View {
                     }
                 )
                 appState.setAuthMethodHint(provider == .apple ? "apple" : "google")
+                await SecurityTelemetry.shared.recordAuthSuccess()
                 await appState.bootstrap(context: .signingIn)
             } catch {
-                errorText = error.localizedDescription
+                let safeMessage = userFacingAuthError(error)
+                Task {
+                    await SecurityTelemetry.shared.recordAuthFailure(reason: safeMessage)
+                }
+                errorText = safeMessage
             }
         }
     }
@@ -193,11 +207,34 @@ struct AuthView: View {
     }
 
     private func userFacingAuthError(_ error: Error) -> String {
-        let raw = (error as NSError).localizedDescription
-        if raw.localizedCaseInsensitiveContains("captcha") {
+        let raw = (error as NSError).localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = raw.lowercased()
+
+        if normalized.contains("captcha") {
             return "Email login is blocked by a security challenge. Use Apple/Google for now or try again shortly."
         }
-        return raw
+        if normalized.contains("invalid login credentials")
+            || normalized.contains("invalid credentials")
+            || normalized.contains("wrong password")
+            || normalized.contains("incorrect password") {
+            return "Incorrect email or password."
+        }
+        if normalized.contains("email not confirmed")
+            || normalized.contains("verify")
+            || normalized.contains("confirmation") {
+            return "Please verify your email before signing in."
+        }
+        if normalized.contains("too many")
+            || normalized.contains("rate limit")
+            || normalized.contains("temporarily unavailable")
+            || normalized.contains("timeout")
+            || normalized.contains("network") {
+            return "Sign-in is temporarily unavailable. Please try again in a moment."
+        }
+        if normalized.contains("session") && normalized.contains("expired") {
+            return "Your session expired. Please sign in again."
+        }
+        return "Sign-in failed. Please try again."
     }
 
     private func shouldUseMobileEmailFallback(for error: Error) -> Bool {

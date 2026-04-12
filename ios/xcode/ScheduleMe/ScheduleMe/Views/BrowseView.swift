@@ -14,6 +14,7 @@ struct BrowseView: View {
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var tabRouter: TabRouter
+    @Environment(\.openURL) private var openURL
     @State private var searchText = ""
     @State private var selectedCategory = "All"
     @State private var selectedSort: BrowseSortMode = .recommended
@@ -133,8 +134,9 @@ struct BrowseView: View {
 
     var body: some View {
         NavigationStack {
-            ScheduleMeScreen {
-                VStack(alignment: .leading, spacing: 12) {
+            ScheduleMeScreen(scrolls: false) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .firstTextBaseline) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text("Browse Pros")
@@ -248,11 +250,16 @@ struct BrowseView: View {
                                 .padding(.horizontal, 20)
                             browseResults
                         }
-                    } else if let businessError = dataStore.businessError {
+                    } else if dataStore.businessError != nil {
+                        let message = hasLocation
+                            ? "No nearby providers right now. Be the first to join in your area."
+                            : "Location disabled. Enable location to browse nearby providers."
                         ScheduleMeEmptyState(
                             title: "Browse unavailable",
-                            message: businessError,
-                            systemImage: "location.slash"
+                            message: message,
+                            systemImage: "location.slash",
+                            actionTitle: "Become the first provider →",
+                            action: openProviderApp
                         )
                         .padding(.horizontal, 20)
                     } else if !hasLocation && !dataStore.isLoadingBusinesses {
@@ -260,9 +267,11 @@ struct BrowseView: View {
                             .padding(.horizontal, 20)
                     } else if dataStore.businesses.isEmpty && hasLocation {
                         ScheduleMeEmptyState(
-                            title: "No businesses found nearby",
-                            message: "Try adjusting your filters or distance.",
-                            systemImage: "mappin.and.ellipse"
+                            title: "No nearby providers yet",
+                            message: "Be the first provider in your area.",
+                            systemImage: "mappin.and.ellipse",
+                            actionTitle: "Become the first provider →",
+                            action: openProviderApp
                         )
                         .padding(.horizontal, 20)
                     } else {
@@ -270,7 +279,12 @@ struct BrowseView: View {
                             .padding(.horizontal, 20)
                     }
 
-                    Spacer(minLength: 24)
+                        Spacer(minLength: 24)
+                    }
+                }
+                .scrollBounceBehavior(.always)
+                .refreshable {
+                    await refreshBrowseFeed()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -333,6 +347,16 @@ struct BrowseView: View {
         }
     }
 
+    private func openProviderApp() {
+        guard let deepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
+        openURL(deepLink) { accepted in
+            guard accepted == false else { return }
+            if let fallback = URL(string: "https://usescheduleme.com/business") {
+                openURL(fallback)
+            }
+        }
+    }
+
     private var hasLocation: Bool {
         locationManager.coordinate != nil || LocationManager.simulatorFallbackCoordinate != nil
     }
@@ -341,6 +365,11 @@ struct BrowseView: View {
     private var locationTaskID: String {
         guard let coordinate = locationManager.coordinate else { return "none" }
         return "\(coordinate.latitude),\(coordinate.longitude)"
+    }
+
+    private func refreshBrowseFeed() async {
+        locationManager.requestIfNeeded()
+        await dataStore.loadNearbyBusinesses(coordinate: locationManager.coordinate)
     }
 
     private var browseResults: some View {
@@ -759,7 +788,11 @@ struct BusinessListRow: View {
                     }
                 }
                 HStack(spacing: 6) {
-                    OpenStatusDot(isOpen: business.isOpen, label: business.openStatusLabel)
+                    OpenStatusDot(
+                        isOpen: business.isOpen,
+                        label: business.openStatusLabel,
+                        status: business.normalizedAvailabilityStatus
+                    )
                     Text("•").foregroundColor(ScheduleMeTheme.mutedText.opacity(0.4))
                     Text("\(business.distanceLabel) • \(business.ratingLabel)★")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
@@ -869,7 +902,11 @@ struct BusinessGridCard: View {
                         ScheduleMeTag(text: priceLabel)
                     }
                     if business.isNew { NewBadge() }
-                    OpenStatusDot(isOpen: business.isOpen, label: business.openStatusLabel)
+                    OpenStatusDot(
+                        isOpen: business.isOpen,
+                        label: business.openStatusLabel,
+                        status: business.normalizedAvailabilityStatus
+                    )
                 }
 
                 Text(business.distanceLabel)
@@ -926,23 +963,44 @@ struct NewBadge: View {
 struct OpenStatusDot: View {
     let isOpen: Bool
     let label: String
+    var status: String? = nil
+
+    private var normalizedStatus: String {
+        status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+    }
+
+    private var accentColor: Color {
+        switch normalizedStatus {
+        case "busy":
+            return Color(hex: "ca8a04")
+        case "closed":
+            return Color(hex: "6b7280")
+        case "break":
+            return Color(hex: "6b7280")
+        case "open", "":
+            return Color(hex: "16a34a")
+        default:
+            return Color(hex: "6b7280")
+        }
+    }
 
     var body: some View {
+        let emphasize = normalizedStatus == "open" || normalizedStatus == "busy" || (normalizedStatus.isEmpty && isOpen)
         HStack(spacing: 4) {
             Circle()
-                .fill(isOpen ? Color.green : ScheduleMeTheme.mutedText.opacity(0.5))
+                .fill(accentColor.opacity(emphasize ? 1 : 0.78))
                 .frame(width: 6, height: 6)
             Text(label)
                 .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
-                .foregroundColor(isOpen ? .green : ScheduleMeTheme.mutedText)
+                .foregroundColor(accentColor)
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
-        .background(isOpen ? Color.green.opacity(0.12) : ScheduleMeTheme.surface)
+        .background(accentColor.opacity(emphasize ? 0.14 : 0.11))
         .clipShape(Capsule())
         .overlay(
             Capsule()
-                .stroke(isOpen ? Color.green.opacity(0.3) : ScheduleMeTheme.cardBorder)
+                .stroke(accentColor.opacity(emphasize ? 0.34 : 0.26))
         )
     }
 }
