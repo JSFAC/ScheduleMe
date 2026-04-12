@@ -345,3 +345,48 @@ export function pickFields<T extends object>(
   }
   return result;
 }
+
+// Return keys present in body but not in allowed list.
+export function getUnknownFields(body: unknown, allowed: string[]): string[] {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return [];
+  const allowedSet = new Set((allowed || []).map((k) => String(k)));
+  return Object.keys(body as Record<string, unknown>).filter((k) => !allowedSet.has(k));
+}
+
+// Best-effort audit logger. Never throws into request handlers.
+export async function logAuditEvent(
+  req: NextApiRequest,
+  action: string,
+  details: {
+    entity_type?: string | null;
+    entity_id?: string | null;
+    actor_id?: string | null;
+    actor_email?: string | null;
+    actor_role?: string | null;
+    meta?: Record<string, unknown> | null;
+  } = {}
+): Promise<void> {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key || !action) return;
+
+    const supabase = createClient(url, key, { auth: { persistSession: false } });
+    const ip = getClientIp(req);
+    const ua = String(req.headers['user-agent'] || '');
+
+    await supabase.from('audit_logs').insert({
+      action,
+      entity_type: details.entity_type || null,
+      entity_id: details.entity_id || null,
+      actor_id: details.actor_id || null,
+      actor_email: details.actor_email || null,
+      actor_role: details.actor_role || null,
+      ip,
+      user_agent: ua || null,
+      meta: details.meta || null,
+    });
+  } catch (err) {
+    console.error('[audit] failed to write audit event', err);
+  }
+}
