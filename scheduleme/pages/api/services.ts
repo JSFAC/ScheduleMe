@@ -20,6 +20,58 @@ function isMissingColumnError(error: any, column: string): boolean {
   );
 }
 
+async function insertServiceWithFallback(supabase: any, basePayload: Record<string, any>) {
+  const candidates: Array<Record<string, any>> = [];
+  candidates.push({ ...basePayload });
+  candidates.push({ ...basePayload, requires_exact_time: undefined });
+  candidates.push({ ...basePayload, sort_order: undefined });
+  candidates.push({ ...basePayload, requires_exact_time: undefined, sort_order: undefined });
+
+  let lastError: any = null;
+  for (const candidate of candidates) {
+    const payload = Object.fromEntries(
+      Object.entries(candidate).filter(([, value]) => value !== undefined)
+    );
+    const result = await supabase.from('services').insert(payload).select().single();
+    if (!result.error) return result;
+    lastError = result.error;
+  }
+
+  return { data: null, error: lastError };
+}
+
+async function updateServiceWithFallback(
+  supabase: any,
+  safeUpdates: Record<string, any>,
+  id: string,
+  business_id: string
+) {
+  const candidates: Array<Record<string, any>> = [];
+  candidates.push({ ...safeUpdates });
+  candidates.push({ ...safeUpdates, requires_exact_time: undefined });
+  candidates.push({ ...safeUpdates, sort_order: undefined });
+  candidates.push({ ...safeUpdates, requires_exact_time: undefined, sort_order: undefined });
+
+  let lastError: any = null;
+  for (const candidate of candidates) {
+    const payload = Object.fromEntries(
+      Object.entries(candidate).filter(([, value]) => value !== undefined)
+    );
+    if (Object.keys(payload).length === 0) continue;
+    const result = await supabase
+      .from('services')
+      .update(payload)
+      .eq('id', id)
+      .eq('business_id', business_id)
+      .select()
+      .single();
+    if (!result.error) return result;
+    lastError = result.error;
+  }
+
+  return { data: null, error: lastError };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   const limited = await rateLimit(req, res, { max: 60, windowMs: 60000 });
@@ -114,15 +166,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         active: true,
       };
 
-      let { data, error } = await supabase.from('services').insert(insertPayload).select().single();
-      if (error && (isMissingColumnError(error, 'requires_exact_time') || isMissingColumnError(error, 'sort_order'))) {
-        const fallbackPayload = { ...insertPayload };
-        if (isMissingColumnError(error, 'requires_exact_time')) delete fallbackPayload.requires_exact_time;
-        if (isMissingColumnError(error, 'sort_order')) delete fallbackPayload.sort_order;
-        const fallbackResult = await supabase.from('services').insert(fallbackPayload).select().single();
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-      }
+      const { data, error } = await insertServiceWithFallback(supabase, insertPayload);
 
       if (error) return res.status(500).json({ error: error.message });
       return res.status(201).json({ service: data });
@@ -178,18 +222,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (Object.keys(safeUpdates).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
 
-      let { data, error } = await supabase.from('services').update(safeUpdates).eq('id', id).eq('business_id', business_id).select().single();
-      if (error && (isMissingColumnError(error, 'requires_exact_time') || isMissingColumnError(error, 'sort_order'))) {
-        const fallbackUpdates = { ...safeUpdates };
-        if (isMissingColumnError(error, 'requires_exact_time')) delete fallbackUpdates.requires_exact_time;
-        if (isMissingColumnError(error, 'sort_order')) delete fallbackUpdates.sort_order;
-        if (Object.keys(fallbackUpdates).length === 0) {
-          return res.status(400).json({ error: 'No valid fields to update for current deployment' });
-        }
-        const fallbackResult = await supabase.from('services').update(fallbackUpdates).eq('id', id).eq('business_id', business_id).select().single();
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-      }
+      const { data, error } = await updateServiceWithFallback(
+        supabase,
+        safeUpdates,
+        id,
+        business_id
+      );
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json({ service: data });
     }
