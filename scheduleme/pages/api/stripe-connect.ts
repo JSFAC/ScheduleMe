@@ -17,12 +17,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAuth(req, res);
   if (!user) return;
 
-  const { businessId, mode } = req.body;
+  const { businessId } = req.body;
   if (!businessId) return res.status(400).json({ error: 'businessId required' });
   if (!isValidUuid(businessId)) return res.status(400).json({ error: 'Invalid businessId' });
 
   const supabase = getSupabase();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+  const providerAppScheme = process.env.PROVIDER_APP_URL_SCHEME || 'schedulemeprovider';
+  const providerAppReturnUrl = process.env.PROVIDER_APP_STRIPE_RETURN_URL || `${providerAppScheme}://stripe/connect?status=success`;
+  const providerAppRefreshUrl = process.env.PROVIDER_APP_STRIPE_REFRESH_URL || `${providerAppScheme}://stripe/connect?status=refresh`;
+  const clientPlatformHeader = String(req.headers['x-client-platform'] || '').toLowerCase();
+  const isProviderMobileClient = clientPlatformHeader.includes('ios-provider');
 
   const { data: business } = await supabase.from('businesses')
     .select('id, stripe_account_id, name, owner_email, owner_id').eq('id', businessId).single();
@@ -64,6 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({
       error: 'This signed-in account is not linked to this provider business.',
       code: 'OWNER_MISMATCH',
+      ownerEmail: business.owner_email || null,
     });
   }
 
@@ -81,17 +87,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await supabase.from('businesses').update({ stripe_account_id: stripeAccountId }).eq('id', businessId);
     }
 
-    const linkType = 'account_onboarding';
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${siteUrl}/business/dashboard?stripe=refresh&id=${businessId}`,
-      return_url: `${siteUrl}/business/dashboard?stripe=success&id=${businessId}`,
-      type: linkType,
+      refresh_url: isProviderMobileClient ? providerAppRefreshUrl : `${siteUrl}/business/dashboard?stripe=refresh&id=${businessId}`,
+      return_url: isProviderMobileClient ? providerAppReturnUrl : `${siteUrl}/business/dashboard?stripe=success&id=${businessId}`,
+      type: 'account_onboarding',
     });
 
     return res.status(200).json({ url: accountLink.url });
   } catch (err) {
     console.error('[stripe-connect]', err);
-    return res.status(500).json({ error: (err as any)?.raw?.message || (err as any)?.message || 'Failed to create Stripe onboarding link' });
+    return res.status(500).json({ error: 'Failed to create Stripe onboarding link' });
   }
 }
