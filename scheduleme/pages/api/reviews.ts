@@ -212,7 +212,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('reviews')
-      .select('id, rating, comment, review_media_urls, created_at, profiles(name)')
+      .select('id, rating, comment, review_media_urls, created_at, profiles(name,avatar_url)')
       .eq('business_id', business_id)
       .order('created_at', { ascending: false })
       .limit(50);
