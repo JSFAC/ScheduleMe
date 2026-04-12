@@ -141,7 +141,7 @@ struct ProviderServicesView: View {
     }
 }
 
-private struct ProviderServiceEditorSheet: View {
+struct ProviderServiceEditorSheet: View {
     enum Mode { case create, edit }
 
     @EnvironmentObject private var providerStore: ProviderDataStore
@@ -181,23 +181,21 @@ private struct ProviderServiceEditorSheet: View {
                                     .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.bold))
                                     .foregroundStyle(ScheduleMeTheme.mutedText)
                                     .padding(.leading, 12)
-                                TextField(
-                                    "0.00",
-                                    text: Binding(
-                                        get: { priceText },
-                                        set: { newValue in
-                                            let digits = newValue.filter(\.isNumber)
-                                            priceDigits = digits
-                                            priceText = formatCentsDigits(digits)
-                                        }
-                                    )
-                                )
+                                TextField("0.00", text: $priceText)
                                 .keyboardType(.numberPad)
                                 .scheduleMePasteMenu($priceText)
                                 .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
                                 .foregroundStyle(ScheduleMeTheme.titleText)
                                 .padding(.leading, 4)
                                 .padding(.trailing, 12)
+                                .onChange(of: priceText) { _, newValue in
+                                    let digits = newValue.filter(\.isNumber)
+                                    priceDigits = digits
+                                    let formatted = formatCentsDigits(digits)
+                                    if formatted != newValue {
+                                        priceText = formatted
+                                    }
+                                }
                             }
                             .padding(.vertical, 10)
                             .background(ScheduleMeTheme.surface)

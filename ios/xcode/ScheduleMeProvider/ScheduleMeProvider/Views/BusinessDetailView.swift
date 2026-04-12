@@ -47,6 +47,21 @@ struct BusinessDetailView: View {
         return urls
     }
 
+    private var isBookableNow: Bool {
+        business.isOpen
+    }
+
+    private var unbookableMessage: String {
+        switch business.availabilityStatus?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "busy":
+            return "This provider is currently busy and not accepting bookings right now."
+        case "closed":
+            return "This provider is currently closed and not accepting bookings right now."
+        default:
+            return "This provider is not accepting bookings right now."
+        }
+    }
+
     var body: some View {
         ScheduleMeScreen(showsTopBar: false) {
             VStack(alignment: .leading, spacing: 0) {
@@ -188,10 +203,17 @@ struct BusinessDetailView: View {
                     }
 
                     // Book Now button
-                    Button("Book Now") {
+                    Button(isBookableNow ? "Book Now" : "Currently Unavailable") {
                         attemptBooking()
                     }
                     .buttonStyle(ScheduleMePrimaryButtonStyle())
+                    .disabled(!isBookableNow)
+
+                    if !isBookableNow {
+                        Text(unbookableMessage)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(Color.dynamic(light: Color(hex: "B45309"), dark: Color(hex: "FCD34D")))
+                    }
 
                     // Services
                     VStack(alignment: .leading, spacing: 12) {
@@ -442,6 +464,7 @@ struct BusinessDetailView: View {
                                 attemptBooking()
                             }
                             .buttonStyle(ScheduleMePrimaryButtonStyle())
+                            .disabled(!isBookableNow)
                         }
                     }
 
@@ -547,7 +570,8 @@ struct BusinessDetailView: View {
         do {
             let response: ServicesResponse = try await APIClient.shared.get(
                 path: "/api/services",
-                queryItems: [.init(name: "business_id", value: business.id)]
+                queryItems: [.init(name: "business_id", value: business.id)],
+                requiresAuth: false
             )
             services = response.services
         } catch {
@@ -562,7 +586,8 @@ struct BusinessDetailView: View {
         do {
             let response: BusinessProfileResponse = try await APIClient.shared.get(
                 path: "/api/business-profile",
-                queryItems: [.init(name: "business_id", value: business.id)]
+                queryItems: [.init(name: "business_id", value: business.id)],
+                requiresAuth: false
             )
             profile = response.business
             if isCustomServiceSelected {
@@ -811,6 +836,10 @@ struct BusinessDetailView: View {
 
     /// Validates service/time/custom inputs before presenting final booking review sheet.
     private func attemptBooking() {
+        guard isBookableNow else {
+            bookingValidationMessage = unbookableMessage
+            return
+        }
         if isCustomServiceSelected && customPriceIsBelowMinimum {
             bookingValidationMessage = "Custom service price must be at least $5.00."
             return

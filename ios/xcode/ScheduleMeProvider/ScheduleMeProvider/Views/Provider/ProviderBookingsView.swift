@@ -1,4 +1,7 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
+import UIKit
 
 struct ProviderBookingsView: View {
     @EnvironmentObject private var providerStore: ProviderDataStore
@@ -9,8 +12,16 @@ struct ProviderBookingsView: View {
     @State private var pricingBooking: ProviderBookingSummary?
     @State private var priceDigits = ""
     @State private var actionError: String?
-    @State private var successToast: String?
+    @State private var toastMessage: String?
+    @State private var toastIsError = false
     @State private var pendingConfirmation: BookingConfirmation?
+    @State private var completionProofBooking: ProviderBookingSummary?
+    @State private var completionProofNote = ""
+    @State private var completionProofError: String?
+    @State private var completionProofPhotoItem: PhotosPickerItem?
+    @State private var completionProofPhotoURLs: [String] = []
+    @State private var completionProofIsUploadingPhoto = false
+    @State private var completionProofKeyboardHeight: CGFloat = 0
     private let pageSize = 8
 
     private enum BookingFilter: String, CaseIterable, Identifiable {
@@ -41,14 +52,14 @@ struct ProviderBookingsView: View {
         case .active:
             return providerStore.bookings.filter {
                 let status = $0.status.lowercased()
-                return status == "active" || status == "confirmed"
+                return status == "active" || status == "confirmed" || status == "awaiting_consumer_confirmation"
             }
         case .disputed:
             return providerStore.bookings.filter { isDisputed($0) }
         case .completed:
             return providerStore.bookings.filter {
                 let status = $0.status.lowercased()
-                return status == "completed" || status == "paid"
+                return status == "completed"
             }
         case .cancelled:
             return providerStore.bookings.filter { $0.status.lowercased() == "cancelled" }
@@ -78,11 +89,6 @@ struct ProviderBookingsView: View {
                 GeometryReader { proxy in
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
-                            HStack {
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.horizontal, 2)
-
                             filterRow
 
                             if let actionError {
@@ -93,17 +99,13 @@ struct ProviderBookingsView: View {
                             }
 
                             if filtered.isEmpty {
-                                VStack {
-                                    Spacer(minLength: 0)
-                                    ScheduleMeEmptyState(
-                                        title: "No bookings",
-                                        message: "Bookings in this category will appear here.",
-                                        systemImage: "calendar.badge.clock"
-                                    )
-                                    .frame(maxWidth: .infinity)
-                                    Spacer(minLength: 0)
-                                }
-                                .frame(minHeight: max(proxy.size.height - 120, 360))
+                                ScheduleMeEmptyState(
+                                    title: "No bookings",
+                                    message: "Bookings in this category will appear here.",
+                                    systemImage: "calendar.badge.clock"
+                                )
+                                .frame(maxWidth: .infinity, alignment: .top)
+                                .padding(.top, 4)
                             } else {
                                 pageControls
 
@@ -114,13 +116,13 @@ struct ProviderBookingsView: View {
                         }
                         .padding(16)
                     }
+                    .refreshable {
+                        await providerStore.loadBookings()
+                    }
                 }
             }
             .navigationTitle("Bookings")
             .navigationBarTitleDisplayMode(.inline)
-            .refreshable {
-                await providerStore.loadBookings()
-            }
             .onAppear {
                 setInitialFilterIfNeeded()
             }
@@ -135,15 +137,14 @@ struct ProviderBookingsView: View {
                 priceSheet(for: booking)
             }
             .overlay(alignment: .top) {
-                if let successToast {
-                    Text(successToast)
+                if let toastMessage {
+                    Text(toastMessage)
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                        .foregroundStyle(ScheduleMeTheme.titleText)
+                        .foregroundStyle(Color.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
-                        .background(ScheduleMeTheme.surface)
+                        .background(toastIsError ? Color(hex: "B91C1C") : ScheduleMeTheme.accent)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
                         .padding(.top, 10)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -153,7 +154,61 @@ struct ProviderBookingsView: View {
                     confirmationOverlay(confirmation)
                 }
             }
+            .overlay {
+                if let booking = completionProofBooking {
+                    completionProofOverlay(for: booking)
+                }
+            }
+            .onChange(of: completionProofPhotoItem) { _, newItem in
+                guard let item = newItem else { return }
+                Task {
+                    await uploadCompletionProofPhoto(item)
+                    completionProofPhotoItem = nil
+                }
+            }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+                    guard completionProofBooking != nil else { return }
+                guard
+                    let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+                else { return }
+                let screenHeight = currentWindowHeight()
+                let overlap = max(0, screenHeight - frame.origin.y)
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    completionProofKeyboardHeight = overlap
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    completionProofKeyboardHeight = 0
+                }
+            }
         }
+    }
+
+    private func currentWindowHeight() -> CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for scene in scenes {
+            if let activeWindow = scene.windows.first(where: { $0.isKeyWindow }) {
+                return activeWindow.bounds.height
+            }
+            if let fallbackWindow = scene.windows.first {
+                return fallbackWindow.bounds.height
+            }
+        }
+        return 0
+    }
+
+    private func currentWindowSafeAreaBottom() -> CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for scene in scenes {
+            if let activeWindow = scene.windows.first(where: { $0.isKeyWindow }) {
+                return activeWindow.safeAreaInsets.bottom
+            }
+            if let fallbackWindow = scene.windows.first {
+                return fallbackWindow.safeAreaInsets.bottom
+            }
+        }
+        return 0
     }
 
     private var filterRow: some View {
@@ -258,7 +313,7 @@ struct ProviderBookingsView: View {
                         expandedIDs.insert(booking.id)
                     }
                 } label: {
-                    let showDetailsOnly = ["completed", "paid", "cancelled"].contains(booking.status.lowercased())
+                    let showDetailsOnly = ["completed", "cancelled"].contains(booking.status.lowercased())
                     HStack {
                         Text(isExpanded ? "Hide Actions" : (showDetailsOnly ? "Show Booking Details" : "Manage Booking"))
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
@@ -276,40 +331,44 @@ struct ProviderBookingsView: View {
                     VStack(spacing: 8) {
                         if isPending(booking) {
                             HStack(spacing: 8) {
-                                Button("Accept Booking") {
+                                Button {
                                     Task {
                                         await runAction(successMessage: "Booking accepted.") {
                                             try await providerStore.confirmBooking(bookingID: booking.id)
                                         }
                                     }
+                                } label: {
+                                    Text("Accept Booking")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                        .foregroundStyle(Color.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 9)
+                                        .contentShape(Rectangle())
                                 }
-                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                .foregroundStyle(Color.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 9)
-                                .background(Color(hex: "16A34A"))
+                                .background(ScheduleMeTheme.accent)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                                .buttonStyle(.plain)
 
                                 if shouldAllowPendingSetPrice(booking) {
-                                    Button("Set Price") {
+                                    Button {
                                         pricingBooking = booking
                                         if let amount = booking.amountCents, amount > 0 {
                                             priceDigits = String(amount)
                                         } else {
                                             priceDigits = ""
                                         }
+                                    } label: {
+                                        Text("Set Price")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                            .foregroundStyle(ScheduleMeTheme.titleText)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 9)
+                                            .contentShape(Rectangle())
                                     }
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundStyle(ScheduleMeTheme.titleText)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 9)
                                     .background(ScheduleMeTheme.surface)
                                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -317,40 +376,44 @@ struct ProviderBookingsView: View {
                         if isDisputed(booking) {
                             HStack(spacing: 8) {
                                 if booking.status.lowercased() == "price_disputed" || booking.status.lowercased() == "disputed" {
-                                    Button("Set New Price") {
+                                    Button {
                                         pricingBooking = booking
                                         if let amount = booking.amountCents {
                                             priceDigits = String(amount)
                                         } else {
                                             priceDigits = ""
                                         }
+                                    } label: {
+                                        Text("Set New Price")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                            .foregroundStyle(ScheduleMeTheme.titleText)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 9)
+                                            .contentShape(Rectangle())
                                     }
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundStyle(ScheduleMeTheme.titleText)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 9)
                                     .background(ScheduleMeTheme.surface)
                                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                                    .buttonStyle(.plain)
                                 }
 
-                                Button("Accept Customer Price (\(booking.customerCounterAmountLabel))") {
+                                Button {
                                     Task {
                                         await runAction(successMessage: "Customer price accepted.") {
                                             try await providerStore.confirmBooking(bookingID: booking.id)
                                         }
                                     }
+                                } label: {
+                                    Text("Accept Customer Price (\(booking.customerCounterAmountLabel))")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                        .foregroundStyle(Color.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 9)
+                                        .contentShape(Rectangle())
                                 }
-                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                .foregroundStyle(Color.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 9)
                                 .background(ScheduleMeTheme.accent)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                                .buttonStyle(.plain)
                             }
                             if booking.isDerivedPricePending {
                                 Text("Waiting for customer to accept your proposed price.")
@@ -360,27 +423,27 @@ struct ProviderBookingsView: View {
                         }
 
                         if ["active", "confirmed"].contains(booking.status.lowercased()) {
-                            Button("Mark Complete") {
-                                pendingConfirmation = BookingConfirmation(
-                                    bookingID: booking.id,
-                                    title: "Mark booking complete?",
-                                    message: "This action is irreversible and cannot be undone.",
-                                    confirmLabel: "Mark Complete",
-                                    action: .complete
-                                )
+                            Button {
+                                completionProofError = nil
+                                completionProofNote = ""
+                                completionProofPhotoURLs = []
+                                completionProofIsUploadingPhoto = false
+                                completionProofBooking = booking
+                            } label: {
+                                Text("Mark Complete")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                    .foregroundStyle(Color.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 9)
+                                    .contentShape(Rectangle())
                             }
-                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                            .foregroundStyle(Color.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
                             .background(ScheduleMeTheme.accent)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                            .buttonStyle(.plain)
                         }
 
-                        if !["cancelled", "completed", "paid"].contains(booking.status.lowercased()) {
-                            Button("Cancel Booking") {
+                        if !["cancelled", "completed"].contains(booking.status.lowercased()) {
+                            Button {
                                 pendingConfirmation = BookingConfirmation(
                                     bookingID: booking.id,
                                     title: "Cancel this booking?",
@@ -388,19 +451,21 @@ struct ProviderBookingsView: View {
                                     confirmLabel: "Cancel Booking",
                                     action: .cancel
                                 )
+                            } label: {
+                                Text("Cancel Booking")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .contentShape(Rectangle())
                             }
-                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
                             .background(ScheduleMeTheme.surface)
                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(ScheduleMeTheme.cardBorder))
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                            .buttonStyle(.plain)
                         }
 
-                        if ["completed", "paid", "cancelled"].contains(booking.status.lowercased()) {
+                        if ["completed", "cancelled"].contains(booking.status.lowercased()) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Booking Details")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
@@ -476,15 +541,266 @@ struct ProviderBookingsView: View {
         .presentationDetents([.medium])
     }
 
+    @ViewBuilder
+    private func completionProofOverlay(for booking: ProviderBookingSummary) -> some View {
+        ZStack {
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    closeCompletionProofModal()
+                }
+
+            GeometryReader { proxy in
+                let safeBottom = currentWindowSafeAreaBottom()
+                let keyboardOverlap = max(0, completionProofKeyboardHeight - safeBottom)
+                let modalHeight: CGFloat = 380
+                let preferredTop = proxy.size.height * 0.16
+                let maxTopBeforeKeyboard = proxy.size.height - keyboardOverlap - modalHeight - 14
+                let modalTop = max(14, min(preferredTop, maxTopBeforeKeyboard))
+
+                VStack {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Button("Close") {
+                                closeCompletionProofModal()
+                            }
+                            .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                            .foregroundStyle(ScheduleMeTheme.accent)
+                            Spacer()
+                            Text("Proof of Completion")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                                .minimumScaleFactor(0.75)
+                                .lineLimit(1)
+                                .foregroundStyle(ScheduleMeTheme.titleText)
+                            Spacer()
+                            Color.clear.frame(width: 44, height: 1)
+                        }
+                        .padding(.bottom, 2)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Submission is required for payment.")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.semibold))
+                                .foregroundStyle(ScheduleMeTheme.titleText)
+                            Text("Add a short note. Photo proof is strongly recommended to protect your payout in disputes.")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                        }
+                        .padding(.top, 4)
+
+                        completionProofNoteEditor
+
+                        PhotosPicker(selection: $completionProofPhotoItem, matching: .images) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text(completionProofIsUploadingPhoto ? "Uploading photo..." : "Add Photo Proof")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                Spacer(minLength: 0)
+                            }
+                            .foregroundStyle(ScheduleMeTheme.titleText)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
+                        }
+                        .disabled(completionProofIsUploadingPhoto)
+
+                        if !completionProofPhotoURLs.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(Array(completionProofPhotoURLs.enumerated()), id: \.offset) { index, url in
+                                        HStack(spacing: 8) {
+                                            AsyncImage(url: URL(string: url)) { phase in
+                                                switch phase {
+                                                case .success(let image):
+                                                    image
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                default:
+                                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                                        .fill(ScheduleMeTheme.pageBackground)
+                                                        .overlay(
+                                                            Image(systemName: "photo")
+                                                                .font(.system(size: 11, weight: .semibold))
+                                                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                                                        )
+                                                }
+                                            }
+                                            .frame(width: 30, height: 30)
+                                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+                                            Text("Photo \(index + 1)")
+                                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                                .foregroundStyle(ScheduleMeTheme.titleText)
+                                            Button {
+                                                guard completionProofPhotoURLs.indices.contains(index) else { return }
+                                                completionProofPhotoURLs.remove(at: index)
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.system(size: 12, weight: .bold))
+                                                    .foregroundStyle(Color(hex: "FCA5A5"))
+                                            }
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(ScheduleMeTheme.surface)
+                                        .clipShape(Capsule())
+                                        .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
+                                        .contextMenu {
+                                            Button("Copy URL") {
+                                                UIPasteboard.general.string = url
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if let completionProofError {
+                            Text(completionProofError)
+                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                .foregroundStyle(.red)
+                        }
+
+                        Button("Submit Proof") {
+                            Task {
+                                await submitCompletionProof(for: booking)
+                            }
+                        }
+                        .buttonStyle(ScheduleMePrimaryButtonStyle())
+                        .disabled(completionProofIsUploadingPhoto)
+                    }
+                    .padding(18)
+                    .frame(maxWidth: 520)
+                    .frame(height: modalHeight, alignment: .top)
+                    .background(ScheduleMeTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(ScheduleMeTheme.cardBorder))
+                    .padding(.horizontal, 18)
+                    .padding(.top, modalTop)
+                    .shadow(color: Color.black.opacity(0.32), radius: 20, x: 0, y: 12)
+                    .onTapGesture {
+                        dismissKeyboard()
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 4)
+            }
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+        .animation(.easeInOut(duration: 0.18), value: completionProofBooking != nil)
+    }
+
+    private var completionProofNoteEditor: some View {
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $completionProofNote)
+                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
+                .foregroundStyle(ScheduleMeTheme.titleText)
+                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .scheduleMePasteMenu($completionProofNote)
+                .frame(minHeight: 78, maxHeight: 106)
+
+            if completionProofNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Describe completed work and key details.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                    .padding(.leading, 13)
+                    .padding(.top, 14)
+                    .allowsHitTesting(false)
+            }
+        }
+        .background(ScheduleMeTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(ScheduleMeTheme.cardBorder))
+    }
+
+    @MainActor
+    private func submitCompletionProof(for booking: ProviderBookingSummary) async {
+        let trimmedNote = completionProofNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedPhotos = completionProofPhotoURLs.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard !trimmedNote.isEmpty || !cleanedPhotos.isEmpty else {
+            completionProofError = "Add a completion note or at least one photo proof."
+            return
+        }
+
+        await runAction(successMessage: "Proof submitted. Booking completed. Customers can dispute within 24 hours.") {
+            try await providerStore.completeBooking(
+                bookingID: booking.id,
+                proofNote: trimmedNote,
+                proofPhotoURLs: cleanedPhotos
+            )
+        }
+        // Always close after server response and show toast outcome.
+        closeCompletionProofModal()
+    }
+
+    private func closeCompletionProofModal() {
+        dismissKeyboard()
+        completionProofBooking = nil
+        completionProofError = nil
+        completionProofNote = ""
+        completionProofPhotoItem = nil
+        completionProofPhotoURLs = []
+        completionProofIsUploadingPhoto = false
+        completionProofKeyboardHeight = 0
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    @MainActor
+    private func uploadCompletionProofPhoto(_ item: PhotosPickerItem) async {
+        completionProofIsUploadingPhoto = true
+        completionProofError = nil
+        defer { completionProofIsUploadingPhoto = false }
+
+        do {
+            guard let bookingID = completionProofBooking?.id, !bookingID.isEmpty else {
+                throw DataStoreError.server("Booking context missing. Please close and reopen proof.")
+            }
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                throw DataStoreError.server("Could not read selected photo.")
+            }
+            let contentType = item.supportedContentTypes.first
+            let mimeType = contentType?.preferredMIMEType ?? "image/jpeg"
+            let ext = contentType?.preferredFilenameExtension ?? "jpg"
+            let url = try await providerStore.uploadCompletionProofMedia(
+                bookingID: bookingID,
+                data: data,
+                mimeType: mimeType,
+                fileName: "completion_proof_\(UUID().uuidString).\(ext)"
+            )
+            let cleaned = url.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty, !completionProofPhotoURLs.contains(cleaned) {
+                completionProofPhotoURLs.append(cleaned)
+            }
+        } catch {
+            let message = error.localizedDescription
+            if message.lowercased().contains("blocked by safety filters") {
+                completionProofError = "Photo upload was blocked by automated filters. Please try another image or contact support."
+            } else {
+                completionProofError = message
+            }
+        }
+    }
+
     private func runAction(successMessage: String? = nil, _ operation: () async throws -> Void) async {
         do {
             try await operation()
             actionError = nil
             if let successMessage {
-                await showSuccessToast(successMessage)
+                await showToast(successMessage, isError: false)
             }
         } catch {
             actionError = error.localizedDescription
+            await showToast(error.localizedDescription, isError: true)
         }
     }
 
@@ -498,7 +814,7 @@ struct ProviderBookingsView: View {
             filter = .pending
         } else if providerStore.bookings.contains(where: isDisputed(_:)) {
             filter = .disputed
-        } else if providerStore.bookings.contains(where: { ["active", "confirmed"].contains($0.status.lowercased()) }) {
+        } else if providerStore.bookings.contains(where: { ["active", "confirmed", "awaiting_consumer_confirmation"].contains($0.status.lowercased()) }) {
             filter = .active
         } else {
             filter = .all
@@ -513,11 +829,11 @@ struct ProviderBookingsView: View {
         case .pending:
             return providerStore.bookings.filter { isPending($0) }.count
         case .active:
-            return providerStore.bookings.filter { ["active", "confirmed"].contains($0.status.lowercased()) }.count
+            return providerStore.bookings.filter { ["active", "confirmed", "awaiting_consumer_confirmation"].contains($0.status.lowercased()) }.count
         case .disputed:
             return providerStore.bookings.filter { isDisputed($0) }.count
         case .completed:
-            return providerStore.bookings.filter { ["completed", "paid"].contains($0.status.lowercased()) }.count
+            return providerStore.bookings.filter { $0.status.lowercased() == "completed" }.count
         case .cancelled:
             return providerStore.bookings.filter { $0.status.lowercased() == "cancelled" }.count
         }
@@ -535,6 +851,7 @@ struct ProviderBookingsView: View {
     private func isPending(_ booking: ProviderBookingSummary) -> Bool {
         let status = booking.status.lowercased()
         if status == "payment_pending" { return true }
+        if status == "paid" { return true }
         if status == "pending" && !isDisputed(booking) { return true }
         return false
     }
@@ -574,11 +891,15 @@ struct ProviderBookingsView: View {
             return Color(hex: "EF4444")
         case "pending", "payment_pending":
             return Color(hex: "F59E0B")
+        case "paid":
+            return Color(hex: "F59E0B")
         case "cancelled":
             return Color(hex: "94A3B8")
         case "active", "confirmed":
             return Color(hex: "22C55E")
-        case "completed", "paid":
+        case "awaiting_consumer_confirmation":
+            return Color(hex: "F59E0B")
+        case "completed":
             return Color(hex: "3B82F6")
         default:
             return Color(hex: "33C8B5")
@@ -662,8 +983,12 @@ struct ProviderBookingsView: View {
                         Task {
                             switch action {
                             case .complete:
-                                await runAction(successMessage: "Booking marked complete.") {
-                                    try await providerStore.completeBooking(bookingID: bookingID)
+                                if let booking = providerStore.bookings.first(where: { $0.id == bookingID }) {
+                                    completionProofError = nil
+                                    completionProofNote = ""
+                                    completionProofPhotoURLs = []
+                                    completionProofIsUploadingPhoto = false
+                                    completionProofBooking = booking
                                 }
                             case .cancel:
                                 await runAction(successMessage: "Booking cancelled.") {
@@ -691,13 +1016,14 @@ struct ProviderBookingsView: View {
     }
 
     @MainActor
-    private func showSuccessToast(_ message: String) async {
+    private func showToast(_ message: String, isError: Bool) async {
         withAnimation(.easeInOut(duration: 0.2)) {
-            successToast = message
+            toastMessage = message
+            toastIsError = isError
         }
-        try? await Task.sleep(for: .seconds(1.4))
+        try? await Task.sleep(for: .seconds(1.8))
         withAnimation(.easeInOut(duration: 0.2)) {
-            successToast = nil
+            toastMessage = nil
         }
     }
 }

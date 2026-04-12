@@ -50,9 +50,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
-        #if DEBUG
-        print("Location error: \(error.localizedDescription)")
-        #endif
+        _ = (manager, error)
     }
 }
 

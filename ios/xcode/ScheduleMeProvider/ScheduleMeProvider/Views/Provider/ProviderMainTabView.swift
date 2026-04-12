@@ -21,7 +21,9 @@ struct ProviderMainTabView: View {
                 .tabItem { Label("Bookings", systemImage: "calendar") }
                 .badge(providerStore.pendingBookingsCount == 0 ? nil : "\(providerStore.pendingBookingsCount)")
                 .tag(ProviderTab.bookings)
-            ProviderCalendarView()
+            NavigationStack {
+                ProviderCalendarView()
+            }
                 .tabItem { Label("Calendar", systemImage: "calendar.badge.clock") }
                 .tag(ProviderTab.calendar)
             ProviderMessagesView()

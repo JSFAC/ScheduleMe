@@ -310,9 +310,11 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
     var isNew: Bool { (reviewCount ?? 0) == 0 }
 
     var isOpen: Bool {
-        switch availabilityStatus {
-        case "closed", "break": return false
-        default: return true
+        switch availabilityStatus?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "closed", "break", "busy":
+            return false
+        default:
+            return true
         }
     }
 
@@ -346,6 +348,14 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
     let stripePaymentMethodID: String?
     let stripeCustomerID: String?
     let stripeSetupIntentID: String?
+    let consumerConfirmationDueAt: Date?
+    let completionProofNote: String?
+    let completionProofPhotoURLs: [String]?
+    let completionProofSubmittedAt: Date?
+    let disputedAt: Date?
+    let disputeReason: String?
+    let disputeDetails: String?
+    let disputeMediaURLs: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -363,6 +373,14 @@ struct BookingSummary: Decodable, Identifiable, Hashable {
         case stripePaymentMethodID = "stripe_payment_method_id"
         case stripeCustomerID = "stripe_customer_id"
         case stripeSetupIntentID = "stripe_setup_intent_id"
+        case consumerConfirmationDueAt = "consumer_confirmation_due_at"
+        case completionProofNote = "completion_proof_note"
+        case completionProofPhotoURLs = "completion_proof_photo_urls"
+        case completionProofSubmittedAt = "completion_proof_submitted_at"
+        case disputedAt = "disputed_at"
+        case disputeReason = "dispute_reason"
+        case disputeDetails = "dispute_details"
+        case disputeMediaURLs = "dispute_media_urls"
     }
 
     var statusLabel: String {
@@ -772,11 +790,35 @@ struct AttachPaymentMethodRequest: Encodable {
 
 struct UpdateBookingStatusRequest: Encodable {
     let bookingID: String
-    let status: String
+    let status: String?
+    let action: String?
+    let disputeReason: String?
+    let disputeDetails: String?
+    let disputeMediaURLs: [String]?
+
+    init(
+        bookingID: String,
+        status: String? = nil,
+        action: String? = nil,
+        disputeReason: String? = nil,
+        disputeDetails: String? = nil,
+        disputeMediaURLs: [String]? = nil
+    ) {
+        self.bookingID = bookingID
+        self.status = status
+        self.action = action
+        self.disputeReason = disputeReason
+        self.disputeDetails = disputeDetails
+        self.disputeMediaURLs = disputeMediaURLs
+    }
 
     enum CodingKeys: String, CodingKey {
         case bookingID = "booking_id"
         case status
+        case action
+        case disputeReason = "dispute_reason"
+        case disputeDetails = "dispute_details"
+        case disputeMediaURLs = "dispute_media_urls"
     }
 }
 struct DeletePaymentMethodRequest: Encodable {

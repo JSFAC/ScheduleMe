@@ -63,7 +63,8 @@ struct DeepLinkBusinessLoader: View {
         do {
             let response: BusinessLookupResponse = try await APIClient.shared.get(
                 path: "/api/business-lookup",
-                queryItems: query
+                queryItems: query,
+                requiresAuth: false
             )
             if let business = response.business {
                 loadedBusiness = business

@@ -415,7 +415,7 @@ struct BookingCreationView: View {
             }
             .buttonStyle(ScheduleMePrimaryButtonStyle())
             .padding(.horizontal, 20)
-            .disabled(dataStore.isCreatingBooking || name.isEmpty)
+            .disabled(dataStore.isCreatingBooking || name.isEmpty || !business.isOpen)
         }
     }
 
@@ -508,6 +508,15 @@ struct BookingCreationView: View {
     /// 1) validates inputs, 2) creates booking, 3) attempts immediate payment, 4) advances to done state.
     private func submitBooking() async {
         error = nil
+        if !business.isOpen {
+            let status = business.availabilityStatus?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if status == "busy" {
+                error = "This provider is currently busy and not accepting bookings right now."
+            } else {
+                error = "This provider is currently unavailable for booking."
+            }
+            return
+        }
         if selectedPaymentMethodID == nil {
             error = "Please add a payment method to confirm."
             return

@@ -102,8 +102,22 @@ struct ProviderSettingsView: View {
         }
     }
 
+    private func availabilityColor(for value: String) -> Color {
+        switch value.lowercased() {
+        case "busy":
+            return Color(hex: "F59E0B")
+        case "closed":
+            return Color(hex: "EF4444")
+        default:
+            return ScheduleMeTheme.accent
+        }
+    }
+
     private func availabilityChip(_ value: String, _ label: String) -> some View {
-        Button {
+        let isSelected = status.lowercased() == value.lowercased()
+        let tint = availabilityColor(for: value)
+
+        return Button {
             status = value
             Task {
                 do {
@@ -116,12 +130,12 @@ struct ProviderSettingsView: View {
         } label: {
             Text(label)
                 .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                .foregroundStyle(status == value ? Color.white : ScheduleMeTheme.titleText)
+                .foregroundStyle(isSelected ? Color.white : tint)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(status == value ? ScheduleMeTheme.accent : ScheduleMeTheme.surface)
+                .background(isSelected ? tint : ScheduleMeTheme.surface)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
+                .overlay(Capsule().stroke(isSelected ? Color.clear : tint.opacity(0.65)))
         }
         .contentShape(Rectangle())
         .buttonStyle(.plain)

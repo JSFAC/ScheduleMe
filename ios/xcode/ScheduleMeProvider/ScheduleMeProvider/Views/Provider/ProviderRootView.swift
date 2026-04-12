@@ -13,12 +13,13 @@ struct ProviderRootView: View {
     @EnvironmentObject private var providerStore: ProviderDataStore
     @EnvironmentObject private var providerTabRouter: ProviderTabRouter
     @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = true
+    @AppStorage("provider_has_ever_authenticated") private var hasEverAuthenticated = false
     @State private var loadingHoldUntil: Date = .distantPast
     @State private var loadingHoldTick = false
     @State private var loadingHoldTask: Task<Void, Never>?
     @State private var lastLoadingKind: LoadingKind = .appLaunch
     private let loadingSubtitle = "Syncing bookings, messages, services, payouts, and profile..."
-    private let minimumLoadingDisplaySeconds: TimeInterval = 1.2
+    private let minimumLoadingDisplaySeconds: TimeInterval = 2.75
 
     private enum LoadingKind {
         case appLaunch
@@ -78,6 +79,7 @@ struct ProviderRootView: View {
     private var liveLoadingKind: LoadingKind {
         if appState.isSigningOut { return .signOut }
         if appState.isAuthenticated { return .signedInData }
+        if hasEverAuthenticated { return .signedInData }
         return .appLaunch
     }
 
@@ -163,6 +165,9 @@ struct ProviderRootView: View {
                 : .dark
         )
         .onChange(of: appState.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                hasEverAuthenticated = true
+            }
             if !isAuthenticated {
                 providerStore.reset()
                 providerTabRouter.selected = .overview
@@ -184,17 +189,22 @@ private struct ProviderAppLaunchLoadingView: View {
             VStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "0C9182").opacity(0.16))
+                        .fill(ScheduleMeTheme.accentSoft)
                         .frame(width: 84, height: 84)
                     Image(systemName: "briefcase.fill")
                         .font(.system(size: 30, weight: .bold))
-                        .foregroundStyle(Color(hex: "33C8B5"))
+                        .foregroundStyle(ScheduleMeTheme.accent)
                 }
                 .symbolEffect(.pulse.byLayer, options: .repeating, isActive: true)
 
-                Text("Loading ScheduleMe")
-                    .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
-                    .foregroundStyle(Color.white)
+                HStack(spacing: 0) {
+                    Text("Loading Schedule")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+                    Text("Me")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                        .foregroundStyle(ScheduleMeTheme.accent)
+                }
 
                 Text("Preparing sign-in, secure session checks, and app services...")
                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
@@ -204,10 +214,11 @@ private struct ProviderAppLaunchLoadingView: View {
                     .lineLimit(2)
 
                 ScheduleMeLoadingBar(
-                    tint: Color(hex: "33C8B5"),
-                    track: Color(hex: "2C2C30"),
+                    tint: ScheduleMeTheme.accent,
+                    track: ScheduleMeTheme.cardBorderStrong,
                     width: 180,
                     height: 4,
+                    target: 1.0,
                     initialProgress: 0.08,
                     animate: true
                 )
@@ -215,9 +226,9 @@ private struct ProviderAppLaunchLoadingView: View {
             }
             .padding(26)
             .frame(maxWidth: 340, minHeight: 240)
-            .background(Color(hex: "151515"))
+            .background(ScheduleMeTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "2C2C30")))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(ScheduleMeTheme.cardBorder))
             .padding(.horizontal, 24)
         }
     }
@@ -242,7 +253,7 @@ private struct ProviderSignOutLoadingView: View {
 
                 Text("Signing Out")
                     .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ScheduleMeTheme.titleText)
 
                 Text("Securing your account and clearing this device session...")
                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
@@ -253,9 +264,10 @@ private struct ProviderSignOutLoadingView: View {
 
                 ScheduleMeLoadingBar(
                     tint: Color(hex: "F87171"),
-                    track: Color(hex: "2C2C30"),
+                    track: ScheduleMeTheme.cardBorderStrong,
                     width: 180,
                     height: 4,
+                    target: 1.0,
                     initialProgress: 0.12,
                     animate: true
                 )
@@ -263,9 +275,9 @@ private struct ProviderSignOutLoadingView: View {
             }
             .padding(26)
             .frame(maxWidth: 340, minHeight: 240)
-            .background(Color(hex: "151515"))
+            .background(ScheduleMeTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "2C2C30")))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(ScheduleMeTheme.cardBorder))
             .padding(.horizontal, 24)
         }
     }
@@ -380,17 +392,22 @@ private struct ProviderPremiumLoadingView: View {
             VStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "0C9182").opacity(0.18))
+                        .fill(ScheduleMeTheme.accentSoft)
                         .frame(width: 84, height: 84)
                     Image(systemName: icon)
                         .font(.system(size: 30, weight: .bold))
-                        .foregroundStyle(Color(hex: "33C8B5"))
+                        .foregroundStyle(ScheduleMeTheme.accent)
                 }
                 .symbolEffect(.pulse.byLayer, options: .repeating, isActive: true)
 
-                Text(title)
-                    .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
-                    .foregroundStyle(Color.white)
+                VStack(spacing: 4) {
+                    ScheduleMeWordmark(size: 34)
+
+                    Text("FOR PROVIDERS")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .tracking(1.4)
+                        .foregroundStyle(ScheduleMeTheme.accent)
+                }
 
                 Text(subtitle)
                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
@@ -400,10 +417,11 @@ private struct ProviderPremiumLoadingView: View {
                     .lineLimit(2)
 
                 ScheduleMeLoadingBar(
-                    tint: Color(hex: "33C8B5"),
-                    track: Color(hex: "2C2C30"),
+                    tint: ScheduleMeTheme.accent,
+                    track: ScheduleMeTheme.cardBorderStrong,
                     width: 180,
                     height: 4,
+                    target: 1.0,
                     initialProgress: initialBarProgress,
                     animate: animateBar
                 )
@@ -411,9 +429,9 @@ private struct ProviderPremiumLoadingView: View {
             }
             .padding(26)
             .frame(maxWidth: 340, minHeight: 240)
-            .background(Color(hex: "151515"))
+            .background(ScheduleMeTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "2C2C30")))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(ScheduleMeTheme.cardBorder))
             .padding(.horizontal, 24)
         }
     }

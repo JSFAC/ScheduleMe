@@ -9,6 +9,7 @@ import Combine
 import Supabase
 import Auth
 import PostgREST
+import Darwin
 
 @MainActor
 final class AppState: ObservableObject {
@@ -23,6 +24,7 @@ final class AppState: ObservableObject {
     @Published var avatarURL: String? = nil
     @Published var pendingBusinessLookupKey: String? = nil
     @Published var isSigningOut: Bool = false
+    @Published private(set) var deviceSecurityFlagged: Bool = false
 
     /// Resolved absolute URL for rendering the signed-in user's avatar.
     var resolvedAvatarURL: URL? {
@@ -40,6 +42,7 @@ final class AppState: ObservableObject {
     }
 
     private var authTask: Task<Void, Never>?
+    private var previousSessionFingerprint: String?
 
     init() {
         // Subscribe once to Supabase auth events so app shell stays in sync with session changes.
@@ -59,7 +62,13 @@ final class AppState: ObservableObject {
     func bootstrap() async {
         // Cold-start hydration path used after launch and OAuth callback completion.
         isLoading = true
-        let session = try? await SupabaseManager.shared.client.auth.session
+        await runDeviceSecurityChecks()
+        let session: Session?
+        do {
+            session = try await SupabaseManager.shared.client.auth.session
+        } catch {
+            session = nil
+        }
         apply(session: session)
         await refreshEduVerification()
         await refreshProfile()
@@ -97,6 +106,19 @@ final class AppState: ObservableObject {
 
     private func apply(session: Session?) {
         // Single fan-out point from auth session into UI-facing published fields.
+        let newFingerprint = sessionFingerprint(session)
+        if let previousSessionFingerprint, previousSessionFingerprint != newFingerprint {
+            Task {
+                await APIClient.shared.reportSecurityEvent(
+                    "session_fingerprint_changed",
+                    metadata: [
+                        "has_session": String(session != nil)
+                    ]
+                )
+            }
+        }
+        previousSessionFingerprint = newFingerprint
+
         userEmail = session?.user.email
         userID = session?.user.id.uuidString
         isAuthenticated = session != nil
@@ -148,6 +170,23 @@ final class AppState: ObservableObject {
         }
 
         return false
+    }
+
+    private func sessionFingerprint(_ session: Session?) -> String {
+        guard let session else { return "none" }
+        let uid = session.user.id.uuidString
+        let email = (session.user.email ?? "").lowercased()
+        return "\(uid)|\(email)"
+    }
+
+    private func runDeviceSecurityChecks() async {
+        let checks = DeviceSecurityChecks.evaluate()
+        deviceSecurityFlagged = checks.isSuspicious
+        guard checks.isSuspicious else { return }
+        await APIClient.shared.reportSecurityEvent(
+            "device_tamper_signal",
+            metadata: checks.flags
+        )
     }
 
     func refreshEduVerification() async {
@@ -263,5 +302,56 @@ final class AppState: ObservableObject {
         }
         URLCache.shared.removeAllCachedResponses()
         HTTPCookieStorage.shared.removeCookies(since: .distantPast)
+    }
+}
+
+private enum DeviceSecurityChecks {
+    static func evaluate() -> (isSuspicious: Bool, flags: [String: String]) {
+        var flags: [String: String] = [:]
+
+        let debugger = isDebuggerAttached()
+        if debugger { flags["debugger_attached"] = "true" }
+
+        #if !targetEnvironment(simulator)
+        let jailbreak = isJailbroken()
+        if jailbreak { flags["jailbreak_signal"] = "true" }
+        #endif
+
+        if let dyld = ProcessInfo.processInfo.environment["DYLD_INSERT_LIBRARIES"], !dyld.isEmpty {
+            flags["dyld_injected"] = "true"
+        }
+
+        return (!flags.isEmpty, flags)
+    }
+
+    private static func isDebuggerAttached() -> Bool {
+        var info = kinfo_proc()
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+        var size = MemoryLayout<kinfo_proc>.stride
+        let result = sysctl(&mib, 4, &info, &size, nil, 0)
+        if result != 0 { return false }
+        return (info.kp_proc.p_flag & P_TRACED) != 0
+    }
+
+    private static func isJailbroken() -> Bool {
+        let suspiciousPaths = [
+            "/Applications/Cydia.app",
+            "/Library/MobileSubstrate/MobileSubstrate.dylib",
+            "/bin/bash",
+            "/usr/sbin/sshd",
+            "/etc/apt"
+        ]
+        if suspiciousPaths.contains(where: { FileManager.default.fileExists(atPath: $0) }) {
+            return true
+        }
+
+        let testPath = "/private/scheduleme_security_test"
+        do {
+            try "x".write(toFile: testPath, atomically: true, encoding: .utf8)
+            try? FileManager.default.removeItem(atPath: testPath)
+            return true
+        } catch {
+            return false
+        }
     }
 }

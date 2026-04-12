@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import UIKit
 import UserNotifications
+import Security
 
 @MainActor
 final class PushNotificationManager: NSObject, ObservableObject {
@@ -10,12 +11,13 @@ final class PushNotificationManager: NSObject, ObservableObject {
     @Published private(set) var deviceToken: String?
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
-    private let tokenDefaultsKey = "scheduleme_apns_device_token"
+    private let tokenKeychainService = "com.usescheduleme.provider.push"
+    private let tokenKeychainAccount = "scheduleme_apns_device_token"
     private var hasRegisteredRemoteNotifications = false
 
     private override init() {
         super.init()
-        deviceToken = UserDefaults.standard.string(forKey: tokenDefaultsKey)
+        deviceToken = KeychainTokenStore.shared.read(service: tokenKeychainService, account: tokenKeychainAccount)
     }
 
     func configure() {
@@ -57,7 +59,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let token = tokenData.map { String(format: "%02.2hhx", $0) }.joined()
         guard !token.isEmpty else { return }
         deviceToken = token
-        UserDefaults.standard.set(token, forKey: tokenDefaultsKey)
+        KeychainTokenStore.shared.write(token, service: tokenKeychainService, account: tokenKeychainAccount)
         Task { await syncTokenIfPossible() }
     }
 
@@ -84,6 +86,8 @@ final class PushNotificationManager: NSObject, ObservableObject {
                 body: PushTokenRequest(token: token, platform: "ios"),
                 requiresAuth: true
             )
+            deviceToken = nil
+            KeychainTokenStore.shared.delete(service: tokenKeychainService, account: tokenKeychainAccount)
         } catch {
             // Best-effort unregister.
         }
@@ -99,6 +103,59 @@ final class PushNotificationManager: NSObject, ObservableObject {
     private var hasAPNsEntitlement: Bool {
         guard let entitlements = Bundle.main.entitlements else { return false }
         return entitlements["aps-environment"] != nil
+    }
+}
+
+private final class KeychainTokenStore {
+    static let shared = KeychainTokenStore()
+
+    private init() {}
+
+    func read(service: String, account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let token = String(data: data, encoding: .utf8),
+              !token.isEmpty else {
+            return nil
+        }
+        return token
+    }
+
+    func write(_ value: String, service: String, account: String) {
+        guard let data = value.data(using: .utf8) else { return }
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        let update: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        let updateStatus = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        if updateStatus == errSecItemNotFound {
+            var add = query
+            add.merge(update) { _, new in new }
+            _ = SecItemAdd(add as CFDictionary, nil)
+        }
+    }
+
+    func delete(service: String, account: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        _ = SecItemDelete(query as CFDictionary)
     }
 }
 

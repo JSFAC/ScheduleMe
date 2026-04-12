@@ -6,6 +6,7 @@ struct ProviderOverviewView: View {
     @State private var path: [ProviderMoreDestination] = []
     @State private var stripeActionInFlight = false
     @State private var stripeActionError: String?
+    @State private var selectedRevenueBarIndex: Int?
 
     private var completedCount: Int {
         providerStore.bookings.filter {
@@ -70,6 +71,23 @@ struct ProviderOverviewView: View {
         return Array(repeating: (label: nil, cents: 0), count: placeholders) + nonZero
     }
 
+    private var activeRevenueBarIndex: Int {
+        if let selectedRevenueBarIndex, revenueBars.indices.contains(selectedRevenueBarIndex) {
+            return selectedRevenueBarIndex
+        }
+        if let rightmostRealIndex = revenueBars.lastIndex(where: { $0.cents > 0 && $0.label != nil }) {
+            return rightmostRealIndex
+        }
+        return max(0, revenueBars.count - 1)
+    }
+
+    private var hasExplicitRevenueSelection: Bool {
+        if let selectedRevenueBarIndex, revenueBars.indices.contains(selectedRevenueBarIndex) {
+            return revenueBars[selectedRevenueBarIndex].cents > 0 && revenueBars[selectedRevenueBarIndex].label != nil
+        }
+        return false
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
@@ -125,8 +143,61 @@ struct ProviderOverviewView: View {
             Text("Run your bookings, messages, services, and payouts from one place.")
                 .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
                 .foregroundStyle(ScheduleMeTheme.mutedText)
+
+            Button {
+                path.append(.settings)
+            } label: {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(availabilityColor)
+                        .frame(width: 9, height: 9)
+                    Text("Status: \(availabilityLabel)")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(ScheduleMeTheme.surface)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
+            }
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var normalizedAvailabilityStatus: String {
+        let raw = providerStore.profile?.availabilityStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "open"
+        switch raw {
+        case "open", "busy", "closed":
+            return raw
+        default:
+            return "open"
+        }
+    }
+
+    private var availabilityLabel: String {
+        switch normalizedAvailabilityStatus {
+        case "busy": return "Busy"
+        case "closed": return "Closed"
+        default: return "Open"
+        }
+    }
+
+    private var availabilityColor: Color {
+        switch normalizedAvailabilityStatus {
+        case "busy":
+            return Color(hex: "F59E0B")
+        case "closed":
+            return Color(hex: "EF4444")
+        default:
+            return ScheduleMeTheme.accent
+        }
     }
 
     private var kpiGrid: some View {
@@ -197,7 +268,7 @@ struct ProviderOverviewView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 actionButton(title: "Calendar", icon: "calendar", destination: .calendar)
                 actionButton(title: "Services", icon: "briefcase", destination: .services)
-                actionButton(title: "Clients", icon: "person.2", destination: .clients)
+                actionButton(title: "Edit Listing", icon: "square.and.pencil", destination: .editListing)
                 actionButton(title: "Settings", icon: "gearshape", destination: .settings)
             }
         }
@@ -290,24 +361,43 @@ struct ProviderOverviewView: View {
 
                 HStack(alignment: .bottom, spacing: 6) {
                     let maxValue = max(revenueBars.map(\.cents).max() ?? 1, 1)
-                    ForEach(Array(revenueBars.enumerated()), id: \.offset) { _, point in
+                    ForEach(Array(revenueBars.enumerated()), id: \.offset) { index, point in
                         let cents = point.cents
                         let ratio = cents > 0 ? max(Double(cents) / Double(maxValue), 0.18) : 0.02
-                        VStack(spacing: 4) {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .fill(cents == 0 ? ScheduleMeTheme.cardBorder : (cents == maxValue ? ScheduleMeTheme.accent : ScheduleMeTheme.accentSoft))
-                                .frame(height: cents == 0 ? 5 : max(20, 76 * ratio))
-                            Text(point.label ?? "")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.semibold))
-                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                        let isActive = index == activeRevenueBarIndex
+
+                        Button {
+                            if point.label != nil && point.cents > 0 {
+                                selectedRevenueBarIndex = index
+                            }
+                        } label: {
+                            VStack(spacing: 4) {
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .fill(cents == 0 ? ScheduleMeTheme.cardBorder : (isActive ? ScheduleMeTheme.accent : ScheduleMeTheme.accentSoft))
+                                    .opacity(cents == 0 ? 1.0 : (isActive ? 1.0 : 0.35))
+                                    .frame(height: cents == 0 ? 5 : max(20, 76 * ratio))
+                                Text(point.label ?? "")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.semibold))
+                                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
                     }
                 }
                 .frame(height: 96, alignment: .bottom)
 
-                if let maxPoint = revenueBars.last(where: { $0.cents > 0 }),
-                   let label = maxPoint.label {
-                    Text("Top day: \(label) \(NumberFormatter.currency.string(from: NSNumber(value: Double(maxPoint.cents) / 100.0)) ?? "$0")")
+                if revenueBars.indices.contains(activeRevenueBarIndex),
+                   let label = revenueBars[activeRevenueBarIndex].label,
+                   revenueBars[activeRevenueBarIndex].cents > 0 {
+                    let value = NumberFormatter.currency.string(
+                        from: NSNumber(value: Double(revenueBars[activeRevenueBarIndex].cents) / 100.0)
+                    ) ?? "$0"
+                    Text(hasExplicitRevenueSelection ? "\(label): \(value)" : "Top day: \(value)")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
+                } else {
+                    Text("No revenue in the past 6 weeks")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                         .foregroundStyle(ScheduleMeTheme.mutedText)
                 }

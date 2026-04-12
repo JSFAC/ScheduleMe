@@ -530,7 +530,8 @@ private struct FeedbackModalView: View {
                     topic: topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : topic,
                     message: message,
                     email: email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : email
-                )
+                ),
+                requiresAuth: false
             )
             if response.success == true || response.error == nil {
                 didSend = true

@@ -31,15 +31,7 @@ final class SupabaseManager {
             : defaultRedirect
 
         let trimmedURLString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedURLString: String
-        if trimmedURLString.hasPrefix("http://") || trimmedURLString.hasPrefix("https://") {
-            normalizedURLString = trimmedURLString
-        } else if !trimmedURLString.isEmpty {
-            // xcconfig treats '//' as comments, so host-only values are supported here.
-            normalizedURLString = "https://\(trimmedURLString)"
-        } else {
-            normalizedURLString = ""
-        }
+        let normalizedURLString = Self.normalizedHTTPSURLString(trimmedURLString)
         guard !normalizedURLString.isEmpty, let supabaseURL = URL(string: normalizedURLString) else {
             preconditionFailure("Missing or invalid SUPABASE_URL. Set it in Config.local.xcconfig (host or full URL).")
         }
@@ -57,7 +49,8 @@ final class SupabaseManager {
             #endif
         }
         self.authSettingsURL = supabaseURL.appendingPathComponent("auth/v1/settings")
-        self.apiBaseURL = URL(string: configuredAPIBase.trimmingCharacters(in: .whitespacesAndNewlines)) ?? URL(string: "https://www.usescheduleme.com")!
+        let normalizedAPIBase = Self.normalizedHTTPSURLString(configuredAPIBase.trimmingCharacters(in: .whitespacesAndNewlines))
+        self.apiBaseURL = URL(string: normalizedAPIBase.isEmpty ? "https://www.usescheduleme.com" : normalizedAPIBase) ?? URL(string: "https://www.usescheduleme.com")!
 
         self.redirectURL = redirectURL
         client = SupabaseClient(
@@ -71,6 +64,20 @@ final class SupabaseManager {
                 )
             )
         )
+    }
+
+    private static func normalizedHTTPSURLString(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        if trimmed.hasPrefix("http://") {
+            #if DEBUG
+            assertionFailure("Insecure HTTP URL is not allowed. Use HTTPS.")
+            #endif
+            return ""
+        }
+        if trimmed.hasPrefix("https://") { return trimmed }
+        // xcconfig may provide host-only values; normalize to HTTPS.
+        return "https://\(trimmed)"
     }
 
     /// Passes OAuth callback URL back into Supabase auth handler.
@@ -125,7 +132,7 @@ final class SupabaseManager {
             request.httpBody = payload
 
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await APIClient.shared.performRaw(request, category: .auth)
                 guard let http = response as? HTTPURLResponse else {
                     throw DataStoreError.server("Invalid mobile auth response.")
                 }
@@ -188,7 +195,7 @@ final class SupabaseManager {
             request.httpBody = payload
 
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await APIClient.shared.performRaw(request, category: .auth)
                 guard let http = response as? HTTPURLResponse else {
                     throw DataStoreError.server("Invalid password reset response.")
                 }
@@ -257,7 +264,7 @@ final class SupabaseManager {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await APIClient.shared.performRaw(request, category: .auth)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 return true
             }

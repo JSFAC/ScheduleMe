@@ -16,6 +16,10 @@ struct BookingDetailView: View {
     @State private var showingCancelAlert = false
     @State private var showingPayment = false
     @State private var cancelError: String?
+    @State private var showingDisputeSheet = false
+    @State private var disputeReason = ""
+    @State private var disputeDetails = ""
+    @State private var disputeError: String?
 
     var body: some View {
         ScheduleMeScreen(showsTopBar: false) {
@@ -58,6 +62,49 @@ struct BookingDetailView: View {
 
                         if let note = booking.note, !note.isEmpty {
                             DetailRow(systemImage: "note.text", label: "Note", value: note)
+                        }
+
+                        if let proofNote = booking.completionProofNote, !proofNote.isEmpty {
+                            DetailRow(systemImage: "checkmark.seal", label: "Provider Proof", value: proofNote)
+                        }
+
+                        if let proofSubmittedAt = booking.completionProofSubmittedAt {
+                            DetailRow(
+                                systemImage: "clock.badge.checkmark",
+                                label: "Proof Submitted",
+                                value: proofSubmittedAt.formatted(date: .abbreviated, time: .shortened)
+                            )
+                        }
+
+                        if let proofPhotoURLs = booking.completionProofPhotoURLs, !proofPhotoURLs.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("PROOF PHOTOS")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                                    .tracking(0.8)
+                                ForEach(Array(proofPhotoURLs.enumerated()), id: \.offset) { index, photoURL in
+                                    if let url = URL(string: photoURL) {
+                                        Link(destination: url) {
+                                            HStack(spacing: 8) {
+                                                Image(systemName: "photo")
+                                                    .font(.system(size: 13, weight: .semibold))
+                                                Text("View proof photo \(index + 1)")
+                                                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                                    .lineLimit(1)
+                                            }
+                                            .foregroundStyle(ScheduleMeTheme.accent)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if let dueAt = booking.consumerConfirmationDueAt {
+                            DetailRow(
+                                systemImage: "hourglass",
+                                label: "Dispute By",
+                                value: dueAt.formatted(date: .abbreviated, time: .shortened)
+                            )
                         }
 
                         Text("ID: \(booking.id)")
@@ -155,6 +202,21 @@ struct BookingDetailView: View {
                         .buttonStyle(ScheduleMeSecondaryButtonStyle())
                     }
 
+                    if canOpenDisputeWindow {
+                        Button {
+                            disputeError = nil
+                            disputeReason = ""
+                            disputeDetails = ""
+                            showingDisputeSheet = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.bubble.fill")
+                                Text("Report Issue / Dispute")
+                            }
+                        }
+                        .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                    }
+
                     // Cancel — only for pending bookings
                     if booking.status == "pending" {
                         Button("Cancel Booking") {
@@ -167,6 +229,12 @@ struct BookingDetailView: View {
 
                     if let cancelError {
                         Text(cancelError)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                            .foregroundColor(.red)
+                    }
+
+                    if let disputeError {
+                        Text(disputeError)
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                             .foregroundColor(.red)
                     }
@@ -192,6 +260,9 @@ struct BookingDetailView: View {
         .sheet(isPresented: $showingPayment) {
             PaymentSetupWebView(bookingID: booking.id)
         }
+        .sheet(isPresented: $showingDisputeSheet) {
+            disputeSheet
+        }
     }
 
     // MARK: - Actions
@@ -205,6 +276,79 @@ struct BookingDetailView: View {
         } catch {
             cancelError = error.localizedDescription
         }
+    }
+
+    private func submitDispute() async {
+        disputeError = nil
+        let trimmedReason = disputeReason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedReason.isEmpty else {
+            disputeError = "Please add a dispute reason."
+            return
+        }
+
+        do {
+            try await dataStore.openBookingDispute(
+                bookingID: booking.id,
+                reason: trimmedReason,
+                details: disputeDetails
+            )
+            showingDisputeSheet = false
+            dismiss()
+        } catch {
+            disputeError = error.localizedDescription
+        }
+    }
+
+    private var disputeSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Tell us what went wrong")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+                Text("Funds are held while our team reviews the dispute.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+
+                TextField("Reason (required)", text: $disputeReason)
+                    .modifier(ScheduleMeFieldModifier())
+                    .scheduleMePasteMenu($disputeReason)
+
+                TextField("What happened? Add details", text: $disputeDetails, axis: .vertical)
+                    .modifier(ScheduleMeFieldModifier())
+                    .scheduleMePasteMenu($disputeDetails)
+
+                if let disputeError {
+                    Text(disputeError)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                        .foregroundStyle(.red)
+                }
+
+                Button("Submit Dispute") {
+                    Task { await submitDispute() }
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+
+                Spacer()
+            }
+            .padding(16)
+            .navigationTitle("Open Dispute")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { showingDisputeSheet = false }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var canOpenDisputeWindow: Bool {
+        let status = booking.status.lowercased()
+        guard status == "completed" || status == "paid" || status == "awaiting_consumer_confirmation" else {
+            return false
+        }
+        guard let dueAt = booking.consumerConfirmationDueAt else { return false }
+        return dueAt > Date()
     }
 }
 
@@ -252,6 +396,8 @@ private struct StatusBadge: View {
     private var color: Color {
         switch status {
         case "confirmed": return .green
+        case "awaiting_consumer_confirmation": return .orange
+        case "disputed": return .red
         case "completed": return ScheduleMeTheme.accent
         case "pending": return .orange
         case "cancelled": return .red

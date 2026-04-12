@@ -169,6 +169,22 @@ struct ProviderCustomerProfile: Decodable, Hashable {
         case phone
     }
 
+    init(
+        id: String?,
+        name: String?,
+        fullName: String?,
+        username: String?,
+        email: String?,
+        phone: String?
+    ) {
+        self.id = id
+        self.name = name
+        self.fullName = fullName
+        self.username = username
+        self.email = email
+        self.phone = phone
+    }
+
     var displayName: String {
         if let fullName, !fullName.isEmpty { return fullName }
         if let name, !name.isEmpty { return name }
@@ -214,6 +230,26 @@ struct ProviderMessageThread: Decodable, Identifiable, Hashable {
         case profile = "profiles"
         case lastMessage
         case unreadCount
+    }
+
+    init(
+        id: String,
+        bookingID: String?,
+        service: String,
+        status: String,
+        createdAt: Date,
+        profile: ProviderCustomerProfile?,
+        lastMessage: ProviderConversationMessage?,
+        unreadCount: Int
+    ) {
+        self.id = id
+        self.bookingID = bookingID
+        self.service = service
+        self.status = status
+        self.createdAt = createdAt
+        self.profile = profile
+        self.lastMessage = lastMessage
+        self.unreadCount = unreadCount
     }
 
     init(from decoder: Decoder) throws {
@@ -412,9 +448,33 @@ struct ProviderService: Decodable, Identifiable, Hashable {
         businessID = try? container.decodeIfPresent(String.self, forKey: .businessID)
         name = (try? container.decode(String.self, forKey: .name)) ?? "Service"
         description = try? container.decodeIfPresent(String.self, forKey: .description)
-        priceCents = try? container.decodeIfPresent(Int.self, forKey: .priceCents)
-        durationMin = try? container.decodeIfPresent(Int.self, forKey: .durationMin)
-        sortOrder = try? container.decodeIfPresent(Int.self, forKey: .sortOrder)
+        if let value = try? container.decodeIfPresent(Int.self, forKey: .priceCents) {
+            priceCents = value
+        } else if let value = try? container.decodeIfPresent(Double.self, forKey: .priceCents) {
+            priceCents = Int(value.rounded())
+        } else if let value = try? container.decodeIfPresent(String.self, forKey: .priceCents), let intValue = Int(value) {
+            priceCents = intValue
+        } else {
+            priceCents = nil
+        }
+        if let value = try? container.decodeIfPresent(Int.self, forKey: .durationMin) {
+            durationMin = value
+        } else if let value = try? container.decodeIfPresent(Double.self, forKey: .durationMin) {
+            durationMin = Int(value.rounded())
+        } else if let value = try? container.decodeIfPresent(String.self, forKey: .durationMin), let intValue = Int(value) {
+            durationMin = intValue
+        } else {
+            durationMin = nil
+        }
+        if let value = try? container.decodeIfPresent(Int.self, forKey: .sortOrder) {
+            sortOrder = value
+        } else if let value = try? container.decodeIfPresent(Double.self, forKey: .sortOrder) {
+            sortOrder = Int(value.rounded())
+        } else if let value = try? container.decodeIfPresent(String.self, forKey: .sortOrder), let intValue = Int(value) {
+            sortOrder = intValue
+        } else {
+            sortOrder = nil
+        }
         active = try? container.decodeIfPresent(Bool.self, forKey: .active)
 
         if let exact = try? container.decodeIfPresent(Bool.self, forKey: .requiresExactTime) {
@@ -495,11 +555,47 @@ struct ProviderStripeBalance: Hashable {
 
 struct ProviderUpdateBookingStatusRequest: Encodable {
     let bookingID: String
-    let status: String
+    let status: String?
+    let action: String?
+    let proofNote: String?
+    let proofPhotoURLs: [String]?
+    let geoMetadata: [String: String]?
+    let disputeReason: String?
+    let disputeDetails: String?
+    let disputeMediaURLs: [String]?
+
+    init(
+        bookingID: String,
+        status: String? = nil,
+        action: String? = nil,
+        proofNote: String? = nil,
+        proofPhotoURLs: [String]? = nil,
+        geoMetadata: [String: String]? = nil,
+        disputeReason: String? = nil,
+        disputeDetails: String? = nil,
+        disputeMediaURLs: [String]? = nil
+    ) {
+        self.bookingID = bookingID
+        self.status = status
+        self.action = action
+        self.proofNote = proofNote
+        self.proofPhotoURLs = proofPhotoURLs
+        self.geoMetadata = geoMetadata
+        self.disputeReason = disputeReason
+        self.disputeDetails = disputeDetails
+        self.disputeMediaURLs = disputeMediaURLs
+    }
 
     enum CodingKeys: String, CodingKey {
         case bookingID = "booking_id"
         case status
+        case action
+        case proofNote = "proof_note"
+        case proofPhotoURLs = "proof_photo_urls"
+        case geoMetadata = "geo_metadata"
+        case disputeReason = "dispute_reason"
+        case disputeDetails = "dispute_details"
+        case disputeMediaURLs = "dispute_media_urls"
     }
 }
 
@@ -518,14 +614,12 @@ struct ProviderSendMessageRequest: Encodable {
     let senderType: String
     let content: String
     let imageURL: String?
-    let messageType: String?
 
     enum CodingKeys: String, CodingKey {
         case bookingID = "booking_id"
         case senderType = "sender_type"
         case content
         case imageURL = "image_url"
-        case messageType = "message_type"
     }
 }
 
@@ -550,6 +644,27 @@ struct ProviderUploadMessageMediaRequest: Encodable {
 }
 
 struct ProviderUploadMessageMediaResponse: Decodable {
+    let url: String?
+    let error: String?
+}
+
+struct ProviderUploadBusinessMediaRequest: Encodable {
+    let businessID: String
+    let mediaType: String
+    let fileData: String
+    let fileType: String
+    let fileName: String
+
+    enum CodingKeys: String, CodingKey {
+        case businessID = "business_id"
+        case mediaType = "media_type"
+        case fileData = "file_data"
+        case fileType = "file_type"
+        case fileName = "file_name"
+    }
+}
+
+struct ProviderUploadBusinessMediaResponse: Decodable {
     let url: String?
     let error: String?
 }
@@ -599,6 +714,71 @@ struct ProviderServiceUpdateRequest: Encodable {
         case priceCents = "price_cents"
         case durationMin = "duration_min"
         case requiresExactTime = "requires_exact_time"
+    }
+}
+
+struct ProviderServiceCreateCompatibilityRequest: Encodable {
+    let businessID: String
+    let name: String
+    let description: String?
+    let priceCents: Int
+    let durationMin: Int
+    let requiresExactTime: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case businessID = "business_id"
+        case name
+        case description
+        case priceCents = "price_cents"
+        case durationMin = "duration_min"
+        case requiresExactTime = "requires_exact_time"
+        case exactTimeRequired = "exact_time_required"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(businessID, forKey: .businessID)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(description, forKey: .description)
+        try container.encode(priceCents, forKey: .priceCents)
+        try container.encode(durationMin, forKey: .durationMin)
+        try container.encodeIfPresent(requiresExactTime, forKey: .requiresExactTime)
+        try container.encodeIfPresent(requiresExactTime, forKey: .exactTimeRequired)
+    }
+}
+
+struct ProviderServiceUpdateCompatibilityRequest: Encodable {
+    let id: String
+    let businessID: String
+    let name: String
+    let description: String?
+    let priceCents: Int
+    let durationMin: Int
+    let requiresExactTime: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case serviceID = "service_id"
+        case businessID = "business_id"
+        case name
+        case description
+        case priceCents = "price_cents"
+        case durationMin = "duration_min"
+        case requiresExactTime = "requires_exact_time"
+        case exactTimeRequired = "exact_time_required"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(id, forKey: .serviceID)
+        try container.encode(businessID, forKey: .businessID)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(description, forKey: .description)
+        try container.encode(priceCents, forKey: .priceCents)
+        try container.encode(durationMin, forKey: .durationMin)
+        try container.encodeIfPresent(requiresExactTime, forKey: .requiresExactTime)
+        try container.encodeIfPresent(requiresExactTime, forKey: .exactTimeRequired)
     }
 }
 

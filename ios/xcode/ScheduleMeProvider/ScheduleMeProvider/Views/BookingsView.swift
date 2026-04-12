@@ -115,7 +115,9 @@ struct BookingsView: View {
     }
 
     private var activeBookings: [BookingSummary] {
-        dataStore.bookings.filter { ["confirmed", "active"].contains($0.status.lowercased()) }
+        dataStore.bookings.filter {
+            ["confirmed", "active", "awaiting_consumer_confirmation", "disputed"].contains($0.status.lowercased())
+        }
     }
 
     private var completedBookings: [BookingSummary] {
@@ -309,6 +311,8 @@ private struct BookingStatusBadge: View {
     private var color: Color {
         switch status {
         case "confirmed", "active": return .green
+        case "awaiting_consumer_confirmation": return .orange
+        case "disputed": return .red
         case "completed", "paid": return ScheduleMeTheme.accent
         case "pending", "payment_pending": return .orange
         case "cancelled", "payment_failed": return .red

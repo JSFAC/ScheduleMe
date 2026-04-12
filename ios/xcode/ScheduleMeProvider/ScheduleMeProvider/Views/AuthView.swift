@@ -31,6 +31,8 @@ struct AuthView: View {
     @State private var errorText: String?
     @State private var noticeText: String?
     @State private var hasPrimedAuthWarmup = false
+    @State private var failedAuthCount = 0
+    @State private var failedAuthWindowStart = Date()
 
     enum AuthStep: Hashable { case welcome, login, signup }
 
@@ -158,6 +160,7 @@ struct AuthView: View {
                 }
                 await appState.bootstrap()
             } catch {
+                await recordFailedAuthEvent(reason: "email_sign_in_failed")
                 errorText = userFacingAuthError(error)
             }
         }
@@ -196,6 +199,7 @@ struct AuthView: View {
                 )
                 await appState.bootstrap()
             } catch {
+                await recordFailedAuthEvent(reason: "oauth_sign_in_failed")
                 errorText = userFacingAuthError(error)
             }
         }
@@ -253,7 +257,7 @@ struct AuthView: View {
             return "Invalid email or password."
         }
 
-        return raw
+        return "Sign-in could not be completed right now. Please try again."
     }
 
     private func sendPasswordReset() {
@@ -284,8 +288,38 @@ struct AuthView: View {
                 }
                 noticeText = "Password reset email sent. Check your inbox."
             } catch {
+                await recordFailedAuthEvent(reason: "password_reset_failed")
                 errorText = userFacingAuthError(error)
             }
+        }
+    }
+
+    @MainActor
+    private func recordFailedAuthEvent(reason: String) async {
+        let now = Date()
+        if now.timeIntervalSince(failedAuthWindowStart) > 120 {
+            failedAuthWindowStart = now
+            failedAuthCount = 0
+        }
+        failedAuthCount += 1
+
+        await APIClient.shared.reportSecurityEvent(
+            "auth_failure",
+            metadata: [
+                "reason": reason,
+                "count_in_window": String(failedAuthCount),
+                "window_seconds": "120"
+            ]
+        )
+
+        if failedAuthCount >= 5 {
+            await APIClient.shared.reportSecurityEvent(
+                "auth_failure_burst",
+                metadata: [
+                    "count_in_window": String(failedAuthCount),
+                    "window_seconds": "120"
+                ]
+            )
         }
     }
 
@@ -378,7 +412,7 @@ private actor AuthPipelineWarmup {
         request.httpMethod = "HEAD"
         request.timeoutInterval = 4
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        _ = try? await URLSession.shared.data(for: request)
+        _ = try? await APIClient.shared.performRaw(request, category: .auth)
     }
 }
 

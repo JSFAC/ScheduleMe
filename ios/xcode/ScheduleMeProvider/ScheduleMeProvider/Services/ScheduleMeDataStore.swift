@@ -69,7 +69,8 @@ final class ScheduleMeDataStore: ObservableObject {
         do {
             let response: CampusBusinessesResponse = try await APIClient.shared.get(
                 path: "/api/campus-businesses",
-                queryItems: items
+                queryItems: items,
+                requiresAuth: false
             )
             campusBusinesses = response.businesses
             campusFeatured = response.featured
@@ -185,7 +186,8 @@ final class ScheduleMeDataStore: ObservableObject {
                     .init(name: "lng", value: String(coordinate.longitude)),
                     .init(name: "radius", value: "25"),
                     .init(name: "limit", value: "40"),
-                ]
+                ],
+                requiresAuth: false
             )
             businesses = response.businesses
             businessError = nil
@@ -283,8 +285,15 @@ final class ScheduleMeDataStore: ObservableObject {
 
     /// Loads inbox thread list for the current user.
     func loadThreads(for userID: String?) async {
-        let session = try? await SupabaseManager.shared.client.auth.session
-        let resolvedUserID = userID ?? session?.user.id.uuidString
+        var resolvedUserID = userID
+        if resolvedUserID == nil {
+            do {
+                let session = try await SupabaseManager.shared.client.auth.session
+                resolvedUserID = session.user.id.uuidString
+            } catch {
+                resolvedUserID = nil
+            }
+        }
         guard let resolvedUserID else {
             threads = []
             messagesError = DataStoreError.unauthenticated.localizedDescription
@@ -553,7 +562,8 @@ final class ScheduleMeDataStore: ObservableObject {
     func loadReviews(for businessID: String) async throws -> [BusinessReview] {
         let response: ReviewsResponse = try await APIClient.shared.get(
             path: "/api/reviews",
-            queryItems: [.init(name: "business_id", value: businessID)]
+            queryItems: [.init(name: "business_id", value: businessID)],
+            requiresAuth: false
         )
         return response.reviews
     }
@@ -728,10 +738,47 @@ final class ScheduleMeDataStore: ObservableObject {
                 businessEmail: existing.businessEmail,
                 stripePaymentMethodID: existing.stripePaymentMethodID,
                 stripeCustomerID: existing.stripeCustomerID,
-                stripeSetupIntentID: existing.stripeSetupIntentID
+                stripeSetupIntentID: existing.stripeSetupIntentID,
+                consumerConfirmationDueAt: existing.consumerConfirmationDueAt,
+                completionProofNote: existing.completionProofNote,
+                completionProofPhotoURLs: existing.completionProofPhotoURLs,
+                completionProofSubmittedAt: existing.completionProofSubmittedAt,
+                disputedAt: existing.disputedAt,
+                disputeReason: existing.disputeReason,
+                disputeDetails: existing.disputeDetails,
+                disputeMediaURLs: existing.disputeMediaURLs
             )
             bookings[index] = updated
         }
+    }
+
+    /// Opens a dispute during the post-completion dispute window with consumer-provided evidence.
+    func openBookingDispute(
+        bookingID: String,
+        reason: String,
+        details: String,
+        mediaURLs: [String] = []
+    ) async throws {
+        let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedReason.isEmpty else {
+            throw DataStoreError.server("Please add a dispute reason.")
+        }
+        let trimmedDetails = details.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedURLs = mediaURLs.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+
+        let _: GenericSuccessResponse = try await APIClient.shared.send(
+            path: "/api/bookings",
+            method: "PATCH",
+            body: UpdateBookingStatusRequest(
+                bookingID: bookingID,
+                action: "consumer_open_dispute",
+                disputeReason: trimmedReason,
+                disputeDetails: trimmedDetails.isEmpty ? nil : trimmedDetails,
+                disputeMediaURLs: cleanedURLs.isEmpty ? nil : cleanedURLs
+            ),
+            requiresAuth: true
+        )
+        await loadBookings()
     }
 
     // MARK: - Messaging (continued)

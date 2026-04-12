@@ -840,8 +840,21 @@ struct ProviderApplicationView: View {
             let error: String?
         }
 
-        guard let base = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
-              let baseURL = URL(string: base),
+        let configuredBase = (Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedBase: String
+        if configuredBase.hasPrefix("http://") {
+            normalizedBase = ""
+        } else if configuredBase.hasPrefix("https://") {
+            normalizedBase = configuredBase
+        } else if configuredBase.isEmpty {
+            normalizedBase = ""
+        } else {
+            normalizedBase = "https://\(configuredBase)"
+        }
+
+        guard let baseURL = URL(string: normalizedBase),
+              baseURL.scheme?.lowercased() == "https",
               let url = URL(string: "/api/business-signup", relativeTo: baseURL) else {
             submissionError = "Invalid API configuration."
             return
@@ -873,7 +886,7 @@ struct ProviderApplicationView: View {
 
         do {
             request.httpBody = try JSONEncoder().encode(payload)
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await APIClient.shared.performRaw(request, category: .auth)
             guard let http = response as? HTTPURLResponse else {
                 submissionError = "Invalid server response."
                 return
@@ -884,10 +897,10 @@ struct ProviderApplicationView: View {
             if (200..<300).contains(http.statusCode), decoded?.success == true {
                 resultMessage = "Application submitted successfully. We'll email you after review."
             } else {
-                submissionError = decoded?.error ?? "Unable to submit application."
+                submissionError = "Unable to submit application right now. Please try again."
             }
         } catch {
-            submissionError = error.localizedDescription
+            submissionError = "Unable to submit application right now. Please try again."
         }
     }
 

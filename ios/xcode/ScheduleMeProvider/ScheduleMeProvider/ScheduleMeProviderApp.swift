@@ -27,9 +27,7 @@ final class ScheduleMeProviderAppDelegate: NSObject, UIApplicationDelegate {
 
     @MainActor
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        #if DEBUG
-        print("APNs registration failed: \(error.localizedDescription)")
-        #endif
+        _ = error
     }
 }
 

@@ -1,5 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import PhotosUI
+import UIKit
 
 enum ProviderMoreDestination: Hashable {
     case calendar
@@ -14,9 +16,9 @@ struct ProviderMoreView: View {
     @State private var path: [ProviderMoreDestination] = []
     @AppStorage("scheduleme_dark_mode") private var darkModeEnabled = true
     private let moreItems: [(title: String, icon: String, destination: ProviderMoreDestination)] = [
+        ("Edit Listing", "square.and.pencil", .editListing),
         ("Services", "briefcase", .services),
         ("Business Hours", "clock", .businessHours),
-        ("Edit Listing", "square.and.pencil", .editListing),
         ("Clients", "person.2", .clients),
         ("Settings", "gearshape", .settings)
     ]
@@ -101,16 +103,30 @@ struct ProviderEditListingView: View {
     @State private var description = ""
     @State private var website = ""
     @State private var instagram = ""
+    @State private var showWebsiteField = false
+    @State private var showInstagramField = false
     @State private var services: [String] = []
     @State private var newService = ""
+    @State private var newCategoryTag = ""
     @State private var images: [EditableImage] = []
     @State private var newImageURL = ""
     @State private var showAddImageSheet = false
     @State private var draggingImageID: UUID?
+    @State private var draggingServiceTag: String?
+    @State private var showingPhotoPicker = false
+    @State private var showingCameraPicker = false
+    @State private var showingFileImporter = false
+    @State private var pickedMediaItem: PhotosPickerItem?
+    @State private var capturedMediaImage: UIImage?
+    @State private var isUploadingMedia = false
+    @State private var mediaUploadError: String?
+    @State private var showingCreateService = false
+    @State private var editingService: ProviderService?
     @State private var previewMode: PreviewMode = .open
     @State private var openPreviewImageIndex = 0
     @State private var isSaving = false
     @State private var message: String?
+    @State private var showSavedToast = false
 
     private var coverImageURL: String {
         images.first?.url ?? ""
@@ -145,6 +161,10 @@ struct ProviderEditListingView: View {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
+                        Color.clear
+                            .frame(height: 0)
+                            .id("listing-top")
+
                         HStack(spacing: 8) {
                             Text("Listing Preview")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
@@ -154,7 +174,7 @@ struct ProviderEditListingView: View {
                                 withAnimation(.easeInOut(duration: 0.2)) { isEditMode.toggle() }
                                 if !isEditMode {
                                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                        proxy.scrollTo("edit-card-section", anchor: .top)
+                                        proxy.scrollTo("listing-top", anchor: .top)
                                     }
                                 }
                             }
@@ -180,15 +200,24 @@ struct ProviderEditListingView: View {
                             }
                         }
 
-                        if isEditMode {
-                            editFieldsCard
-                                .id("edit-card-section")
-                            servicesEditorCard
-                            imagesEditorCard
-                        }
-
                         Button(isSaving ? "Saving..." : "Save Listing") {
-                            Task { await save() }
+                            Task {
+                                await save()
+                                if message == "Listing updated." {
+                                    await MainActor.run {
+                                        hideKeyboard()
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            isEditMode = false
+                                        }
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                                            proxy.scrollTo("listing-top", anchor: .top)
+                                        }
+                                        showSavedToast = true
+                                    }
+                                    try? await Task.sleep(for: .seconds(1.5))
+                                    await MainActor.run { showSavedToast = false }
+                                }
+                            }
                         }
                         .buttonStyle(ScheduleMePrimaryButtonStyle())
                         .disabled(isSaving)
@@ -202,12 +231,39 @@ struct ProviderEditListingView: View {
                     }
                     .padding(16)
                 }
+                .overlay(alignment: .top) {
+                    if showSavedToast {
+                        Text("Listing updated")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(ScheduleMeTheme.accent)
+                            .clipShape(Capsule())
+                            .padding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
             }
         }
         .navigationTitle("Edit Listing")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAddImageSheet) {
             addImageSheet
+        }
+        .sheet(isPresented: $showingCreateService) {
+            ProviderServiceEditorSheet(mode: .create, service: nil)
+        }
+        .sheet(item: $editingService) { service in
+            ProviderServiceEditorSheet(mode: .edit, service: service)
+        }
+        .photosPicker(isPresented: $showingPhotoPicker, selection: $pickedMediaItem, matching: .any(of: [.images, .videos]))
+        .sheet(isPresented: $showingCameraPicker) {
+            ProviderListingCameraPicker(image: $capturedMediaImage)
+        }
+        .fileImporter(isPresented: $showingFileImporter, allowedContentTypes: [.image, .movie], allowsMultipleSelection: false) { result in
+            guard case let .success(urls) = result, let url = urls.first else { return }
+            Task { await handleImportedFile(url: url) }
         }
         .task {
             await providerStore.refreshAll()
@@ -219,6 +275,8 @@ struct ProviderEditListingView: View {
             description = providerStore.profile?.description ?? ""
             website = providerStore.profile?.website ?? ""
             instagram = providerStore.profile?.instagram ?? ""
+            showWebsiteField = false
+            showInstagramField = false
 
             services = providerStore.profile?.serviceTags ?? []
             if services.isEmpty {
@@ -226,54 +284,87 @@ struct ProviderEditListingView: View {
             }
 
             let rawMedia = providerStore.profile?.mediaURLs ?? []
-            if rawMedia.isEmpty, let cover = providerStore.profile?.coverURL, !cover.isEmpty {
-                images = [EditableImage(id: UUID(), url: cover)]
-            } else {
-                images = rawMedia.map { EditableImage(id: UUID(), url: $0) }
+            let rawCover = providerStore.profile?.coverURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            var hydratedURLs: [String] = []
+            if !rawCover.isEmpty {
+                hydratedURLs.append(rawCover)
             }
+            hydratedURLs.append(contentsOf: rawMedia)
+            images = sanitizedImages(hydratedURLs.map { EditableImage(id: UUID(), url: $0) })
             await prefetchPreviewImages(urls: images.map(\.url))
         }
         .onChange(of: images) { _, newImages in
-            let maxIndex = max(newImages.count - 1, 0)
+            let sanitized = sanitizedImages(newImages)
+            if sanitized.map(\.id) != newImages.map(\.id) {
+                images = sanitized
+                return
+            }
+            let maxIndex = max(sanitized.count - 1, 0)
             openPreviewImageIndex = min(openPreviewImageIndex, maxIndex)
+        }
+        .onChange(of: pickedMediaItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                await handlePickedMedia(item: newItem)
+                pickedMediaItem = nil
+            }
+        }
+        .onChange(of: capturedMediaImage) { _, image in
+            guard let image else { return }
+            Task {
+                await handleCapturedImage(image)
+                capturedMediaImage = nil
+            }
         }
     }
 
     private var consumerStylePreviewCard: some View {
         ScheduleMeCard {
-            HStack(alignment: .top, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
                 ZStack(alignment: .topLeading) {
                     Group {
                         if let url = coverImageURLObject {
                             AsyncImage(url: url) { phase in
                                 switch phase {
-                                case .success(let image): image.resizable().scaledToFill()
-                                default: Rectangle().fill(ScheduleMeTheme.pageBackground)
+                                case .success(let image):
+                                    image.resizable().scaledToFill()
+                                default:
+                                    Rectangle().fill(ScheduleMeTheme.pageBackground)
                                 }
                             }
                         } else {
                             Rectangle()
                                 .fill(ScheduleMeTheme.pageBackground)
                                 .overlay(
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 22, weight: .semibold))
+                                    Text((providerName.first.map { String($0) } ?? "P").uppercased())
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 26).weight(.bold))
                                         .foregroundStyle(ScheduleMeTheme.mutedText)
                                 )
                         }
                     }
-                    .frame(width: 100, height: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .frame(width: 86, height: 86)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color(hex: "22C55E"), lineWidth: 1.5)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(ScheduleMeTheme.cardBorder)
                     )
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(providerName.isEmpty ? "Your Business Name" : providerName)
-                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                        .foregroundStyle(ScheduleMeTheme.titleText)
-                        .lineLimit(1)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(providerName.isEmpty ? "Your Business Name" : providerName)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.bold))
+                            .foregroundStyle(ScheduleMeTheme.titleText)
+                            .lineLimit(1)
+                        Spacer()
+                        Image(systemName: "pin")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                            .padding(5)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                    }
 
                     Text(description.isEmpty ? "Add a short description about your business." : description)
                         .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
@@ -281,33 +372,46 @@ struct ProviderEditListingView: View {
                         .lineLimit(2)
 
                     HStack(spacing: 6) {
-                        if services.isEmpty {
-                            Text("No service tags yet")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))
-                                .foregroundStyle(ScheduleMeTheme.mutedText)
-                        } else {
-                            ForEach(Array(services.prefix(3)), id: \.self) { tag in
-                                Text(tag)
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
-                                    .foregroundStyle(Color(hex: "9AE6D7"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(hex: "0F766E").opacity(0.25))
-                                    .clipShape(Capsule())
-                            }
-                        }
+                        Text(previewPrimaryCategory)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                            .foregroundStyle(ScheduleMeTheme.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(ScheduleMeTheme.accentSoft)
+                            .clipShape(Capsule())
+
+                        Text("$$")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.bold))
+                            .foregroundStyle(ScheduleMeTheme.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(ScheduleMeTheme.accentSoft)
+                            .clipShape(Capsule())
+
+                        Text("New")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.bold))
+                            .foregroundStyle(Color(hex: "B45309"))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(hex: "FEF3C7"))
+                            .clipShape(Capsule())
                     }
 
                     HStack(spacing: 6) {
                         openPill
-                        Text("•").foregroundStyle(ScheduleMeTheme.mutedText)
-                        Text(cityAddress.isEmpty ? "City not set" : cityAddress)
+                        Text("•")
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                        Text("0.4 mi away")
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                             .foregroundStyle(ScheduleMeTheme.mutedText)
-                            .lineLimit(1)
+                        Text("•")
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                        Text("0.0★")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
                     }
+                    .lineLimit(1)
                 }
-                Spacer()
             }
         }
         .background(ScheduleMeTheme.surface)
@@ -375,18 +479,70 @@ struct ProviderEditListingView: View {
                     }
                 }
 
+                if isEditMode {
+                    embeddedMediaEditorStrip
+                        .padding(.horizontal, 14)
+                        .padding(.top, 10)
+                }
+
                 VStack(alignment: .leading, spacing: 14) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(providerName.isEmpty ? "Your Business Name" : providerName)
-                            .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
-                            .foregroundColor(ScheduleMeTheme.titleText)
-                            .lineLimit(3)
+                        if isEditMode {
+                            TextField("Business name", text: $providerName)
+                                .modifier(ScheduleMeFieldModifier())
+                            TextField("Description", text: $description, axis: .vertical)
+                                .modifier(ScheduleMeFieldModifier())
+                                .lineLimit(2...4)
+                            TextField("City / ZIP", text: $cityAddress)
+                                .modifier(ScheduleMeFieldModifier())
+                            TextField("Phone", text: $phone)
+                                .keyboardType(.phonePad)
+                                .modifier(ScheduleMeFieldModifier())
+                            HStack(spacing: 8) {
+                                Button {
+                                    showWebsiteField.toggle()
+                                } label: {
+                                    Label("Add Website", systemImage: "link")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(ScheduleMeTheme.accent)
 
-                        Text(description.isEmpty ? "Add a short description about your business." : description)
-                            .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
-                            .foregroundColor(ScheduleMeTheme.mutedText)
-                            .lineLimit(3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                                Button {
+                                    showInstagramField.toggle()
+                                } label: {
+                                    Label("Add Instagram", systemImage: "camera")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(ScheduleMeTheme.accent)
+                            }
+
+                            if showWebsiteField {
+                                TextField("Website", text: $website)
+                                    .modifier(ScheduleMeFieldModifier())
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            }
+
+                            if showInstagramField {
+                                TextField("@handle", text: $instagram)
+                                    .modifier(ScheduleMeFieldModifier())
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            }
+                        } else {
+                            Text(providerName.isEmpty ? "Your Business Name" : providerName)
+                                .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
+                                .foregroundColor(ScheduleMeTheme.titleText)
+                                .lineLimit(3)
+
+                            Text(description.isEmpty ? "Add a short description about your business." : description)
+                                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+                                .lineLimit(3)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
 
                         HStack(spacing: 12) {
@@ -408,13 +564,68 @@ struct ProviderEditListingView: View {
                                 .lineLimit(1)
                         }
 
-                        ScrollView(.horizontal, showsIndicators: false) {
+                        if isEditMode {
                             HStack(spacing: 8) {
-                                if services.isEmpty {
-                                    Text("No service tags yet")
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
-                                        .foregroundStyle(ScheduleMeTheme.mutedText)
-                                } else {
+                                TextField("Add category", text: $newCategoryTag)
+                                    .modifier(ScheduleMeFieldModifier())
+                                Button("Add") {
+                                    let trimmed = newCategoryTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    guard !trimmed.isEmpty else { return }
+                                    if !services.contains(trimmed) {
+                                        services.append(trimmed)
+                                    }
+                                    newCategoryTag = ""
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(ScheduleMeTheme.accent)
+                            }
+                        }
+
+                        if services.isEmpty {
+                            Text("No service tags yet")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                        } else if isEditMode {
+                            Text("Drag categories to reorder. First tag is primary on consumer cards.")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                            FlowLayout(spacing: 8) {
+                                ForEach(services, id: \.self) { service in
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "line.3.horizontal")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                                        Text(service)
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                            .foregroundStyle(ScheduleMeTheme.titleText)
+                                        Button {
+                                            services.removeAll { $0 == service }
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(Color(hex: "FCA5A5"))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(ScheduleMeTheme.surface)
+                                    .clipShape(Capsule())
+                                    .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
+                                    .onDrag {
+                                        draggingServiceTag = service
+                                        return NSItemProvider(object: service as NSString)
+                                    }
+                                    .onDrop(of: [UTType.text], delegate: ProviderServiceTagDropDelegate(
+                                        item: service,
+                                        items: $services,
+                                        draggingTag: $draggingServiceTag
+                                    ))
+                                }
+                            }
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
                                     ForEach(Array(services.prefix(6)), id: \.self) { tag in
                                         Text(tag)
                                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
@@ -435,9 +646,12 @@ struct ProviderEditListingView: View {
                             .opacity(0.85)
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Services")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
-                                .foregroundStyle(ScheduleMeTheme.titleText)
+                            HStack {
+                                Text("Services")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
+                                Spacer()
+                            }
 
                             if providerStore.services.isEmpty && services.isEmpty {
                                 Text("Add services below to see them here.")
@@ -462,9 +676,20 @@ struct ProviderEditListingView: View {
                                                     .foregroundColor(ScheduleMeTheme.mutedText)
                                             }
                                             Spacer()
-                                            Text(service.priceLabel)
-                                                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.bold))
-                                                .foregroundColor(ScheduleMeTheme.accent)
+                                            VStack(alignment: .trailing, spacing: 6) {
+                                                Text(service.priceLabel)
+                                                    .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.bold))
+                                                    .foregroundColor(ScheduleMeTheme.accent)
+
+                                                if isEditMode {
+                                                    Button("Edit") {
+                                                        editingService = service
+                                                    }
+                                                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                                    .foregroundStyle(Color(hex: "FCA5A5"))
+                                                    .buttonStyle(.plain)
+                                                }
+                                            }
                                         }
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -487,63 +712,163 @@ struct ProviderEditListingView: View {
                                     }
                                 }
                             }
+
+                            if isEditMode {
+                                Button {
+                                    showingCreateService = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "plus.circle")
+                                            .font(.system(size: 14, weight: .semibold))
+                                        Text("Add Service")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                                        Spacer()
+                                    }
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity)
+                                    .background(ScheduleMeTheme.surface)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(ScheduleMeTheme.cardBorder)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+
                         }
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Reviews")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
-                                .foregroundStyle(ScheduleMeTheme.titleText)
-                            ScheduleMeCard {
-                                Text("No reviews yet")
+                        ScheduleMeCard {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Set your booking time")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                                    .foregroundColor(ScheduleMeTheme.titleText)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Business hours")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                        .foregroundStyle(ScheduleMeTheme.mutedText)
+                                    Text(previewHoursSummary)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                        .foregroundStyle(ScheduleMeTheme.titleText)
+                                }
+
+                                HStack {
+                                    Circle()
+                                        .fill(ScheduleMeTheme.surface)
+                                        .frame(width: 28, height: 28)
+                                        .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                                        .overlay(
+                                            Image(systemName: "chevron.left")
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                                        )
+                                    Spacer()
+                                    Text(Date().formatted(.dateTime.month(.wide).year()))
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
+                                        .minimumScaleFactor(0.8)
+                                        .lineLimit(1)
+                                        .foregroundStyle(ScheduleMeTheme.titleText)
+                                    Spacer()
+                                    Circle()
+                                        .fill(ScheduleMeTheme.surface)
+                                        .frame(width: 28, height: 28)
+                                        .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                                        .overlay(
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                                        )
+                                }
+
+                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
+                                    ForEach(Array(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].enumerated()), id: \.offset) { _, day in
+                                        Text(day)
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                                    }
+
+                                    ForEach(previewCalendarDays, id: \.self) { day in
+                                        let weekday = Calendar.current.component(.weekday, from: day)
+                                        let isOpenDay = previewOpenWeekdays.contains(weekday)
+                                        let isCurrentMonth = Calendar.current.isDate(day, equalTo: Date(), toGranularity: .month)
+                                        let isSelected = Calendar.current.isDate(day, inSameDayAs: previewSelectedDate)
+                                        Text(day.formatted(.dateTime.day()))
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                            .foregroundStyle(
+                                                isSelected ? Color.white :
+                                                    ((isOpenDay && isCurrentMonth) ? ScheduleMeTheme.titleText : ScheduleMeTheme.mutedText.opacity(0.55))
+                                            )
+                                            .frame(maxWidth: .infinity, minHeight: 30)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                                    .fill(isSelected ? ScheduleMeTheme.accent : Color.clear)
+                                            )
+                                    }
+                                }
+
+                                HStack {
+                                    Text("Select time")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                        .foregroundStyle(ScheduleMeTheme.titleText)
+                                    Spacer()
+                                    Text(previewTimeLabel)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                        .foregroundStyle(ScheduleMeTheme.accent)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(ScheduleMeTheme.mutedText)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
+                                .background(ScheduleMeTheme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(ScheduleMeTheme.cardBorder)
+                                )
+
+                                Text("Describe what you need (max 280 chars)…")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
-                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
+                                    .background(ScheduleMeTheme.surface)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(ScheduleMeTheme.cardBorder)
+                                    )
+
+                                Button("Review booking →") {}
+                                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                    .disabled(true)
+                                    .opacity(0.85)
                             }
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Calendar")
-                                .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
+                            Text("Reviews")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
                                 .foregroundStyle(ScheduleMeTheme.titleText)
                             ScheduleMeCard {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    HStack {
-                                        Image(systemName: "chevron.left")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundStyle(ScheduleMeTheme.mutedText)
-                                        Spacer()
-                                        Text(Date().formatted(.dateTime.month(.wide).year()))
-                                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                                            .foregroundStyle(ScheduleMeTheme.titleText)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundStyle(ScheduleMeTheme.mutedText)
-                                    }
-
-                                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
-                                        ForEach(Array(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].enumerated()), id: \.offset) { _, day in
-                                            Text(day)
-                                                .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.semibold))
-                                                .foregroundStyle(ScheduleMeTheme.mutedText)
-                                        }
-
-                                        ForEach(previewCalendarDays, id: \.self) { day in
-                                            let weekday = Calendar.current.component(.weekday, from: day)
-                                            let isOpenDay = previewOpenWeekdays.contains(weekday)
-                                            let isCurrentMonth = Calendar.current.isDate(day, equalTo: Date(), toGranularity: .month)
-                                            Text(day.formatted(.dateTime.day()))
-                                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                                .foregroundStyle(
-                                                    isOpenDay && isCurrentMonth ? ScheduleMeTheme.titleText : ScheduleMeTheme.mutedText
-                                                )
-                                                .frame(maxWidth: .infinity, minHeight: 26)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                                        .fill(isOpenDay && isCurrentMonth ? ScheduleMeTheme.accent.opacity(0.35) : Color.clear)
-                                                )
-                                        }
-                                    }
+                                VStack(spacing: 8) {
+                                    Image(systemName: "star")
+                                        .font(.system(size: 24))
+                                        .foregroundStyle(ScheduleMeTheme.accent)
+                                    Text("No reviews yet")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
+                                        .foregroundStyle(ScheduleMeTheme.titleText)
+                                    Text("Be the first to book and leave a review.")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                                        .foregroundStyle(ScheduleMeTheme.mutedText)
+                                        .multilineTextAlignment(.center)
                                 }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
                             }
                         }
                 }
@@ -553,6 +878,115 @@ struct ProviderEditListingView: View {
         .background(ScheduleMeTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(ScheduleMeTheme.cardBorder))
+    }
+
+    private var embeddedMediaEditorStrip: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Media")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+                Spacer()
+                Text("Max 8")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+            }
+
+            if isUploadingMedia {
+                Text("Uploading media...")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+            }
+            if let mediaUploadError {
+                Text(mediaUploadError)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .foregroundStyle(Color(hex: "F87171"))
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(Array(images.enumerated()), id: \.element.id) { index, image in
+                        ZStack(alignment: .topLeading) {
+                            AsyncImage(url: URL(string: normalizeImageURL(image.url))) { phase in
+                                switch phase {
+                                case .success(let rendered):
+                                    rendered.resizable().scaledToFill()
+                                default:
+                                    Rectangle().fill(ScheduleMeTheme.pageBackground)
+                                }
+                            }
+                            .frame(width: 72, height: 72)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(index == 0 ? ScheduleMeTheme.accent : ScheduleMeTheme.cardBorder, lineWidth: index == 0 ? 1.8 : 1)
+                            )
+
+                            if index == 0 {
+                                Text("Cover")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 9).weight(.bold))
+                                    .foregroundStyle(Color.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(ScheduleMeTheme.accent)
+                                    .clipShape(Capsule())
+                                    .padding(5)
+                            }
+
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.18)) {
+                                            images.removeAll { $0.id == image.id }
+                                            let maxIndex = max(images.count - 1, 0)
+                                            openPreviewImageIndex = min(openPreviewImageIndex, maxIndex)
+                                        }
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundStyle(Color(hex: "FCA5A5"))
+                                            .padding(5)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .onDrag {
+                            draggingImageID = image.id
+                            return NSItemProvider(object: image.id.uuidString as NSString)
+                        }
+                        .onDrop(of: [UTType.text], delegate: ProviderImageDropDelegate(
+                            item: image,
+                            items: $images,
+                            draggingID: $draggingImageID
+                        ))
+                    }
+
+                    if images.count < 8 {
+                        Button {
+                            showAddImageSheet = true
+                        } label: {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(ScheduleMeTheme.surface)
+                                .frame(width: 72, height: 72)
+                                .overlay(
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(ScheduleMeTheme.accent)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(ScheduleMeTheme.cardBorder)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.bottom, 2)
+            }
+        }
     }
 
     private var editFieldsCard: some View {
@@ -594,13 +1028,29 @@ struct ProviderEditListingView: View {
                         .foregroundStyle(ScheduleMeTheme.mutedText)
                     ForEach(providerStore.services.prefix(5)) { service in
                         HStack {
-                            Text(service.name)
-                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                .foregroundStyle(ScheduleMeTheme.titleText)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(service.name)
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                    .foregroundStyle(ScheduleMeTheme.titleText)
+                                if let desc = service.description, !desc.isEmpty {
+                                    Text(desc)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))
+                                        .foregroundStyle(ScheduleMeTheme.mutedText)
+                                        .lineLimit(1)
+                                }
+                            }
                             Spacer()
-                            Text(service.priceLabel)
-                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
-                                .foregroundStyle(ScheduleMeTheme.accent)
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(service.priceLabel)
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.bold))
+                                    .foregroundStyle(ScheduleMeTheme.accent)
+                                Button("Edit") {
+                                    editingService = service
+                                }
+                                .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                                .foregroundStyle(Color(hex: "FCA5A5"))
+                                .buttonStyle(.plain)
+                            }
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -631,9 +1081,15 @@ struct ProviderEditListingView: View {
                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                     .foregroundStyle(ScheduleMeTheme.mutedText)
             } else {
+                Text("Drag categories to reorder. First tag is used as primary on consumer cards.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
                 FlowLayout(spacing: 8) {
                     ForEach(services, id: \.self) { service in
                         HStack(spacing: 6) {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(ScheduleMeTheme.mutedText)
                             Text(service)
                                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                 .foregroundStyle(ScheduleMeTheme.titleText)
@@ -652,6 +1108,15 @@ struct ProviderEditListingView: View {
                         .background(ScheduleMeTheme.surface)
                         .clipShape(Capsule())
                         .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
+                        .onDrag {
+                            draggingServiceTag = service
+                            return NSItemProvider(object: service as NSString)
+                        }
+                        .onDrop(of: [UTType.text], delegate: ProviderServiceTagDropDelegate(
+                            item: service,
+                            items: $services,
+                            draggingTag: $draggingServiceTag
+                        ))
                     }
                 }
             }
@@ -786,19 +1251,46 @@ struct ProviderEditListingView: View {
     private var addImageSheet: some View {
         NavigationStack {
             VStack(spacing: 12) {
-                TextField("Paste image URL", text: $newImageURL)
-                    .modifier(ScheduleMeFieldModifier())
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-
-                Button("Add Image") {
-                    let normalized = normalizeImageURL(newImageURL)
-                    guard !normalized.isEmpty else { return }
-                    images.append(EditableImage(id: UUID(), url: normalized))
-                    newImageURL = ""
+                Button {
                     showAddImageSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        showingPhotoPicker = true
+                    }
+                } label: {
+                    Label("Photo Library", systemImage: "photo")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(ScheduleMePrimaryButtonStyle())
+                .disabled(isUploadingMedia)
+
+                Button {
+                    showAddImageSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        showingCameraPicker = true
+                    }
+                } label: {
+                    Label("Camera", systemImage: "camera")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                .disabled(isUploadingMedia)
+
+                Button {
+                    showAddImageSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        showingFileImporter = true
+                    }
+                } label: {
+                    Label("Files", systemImage: "folder")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                .disabled(isUploadingMedia)
+
+                if isUploadingMedia {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                }
 
                 Spacer()
             }
@@ -812,6 +1304,113 @@ struct ProviderEditListingView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+
+    private func sanitizedImages(_ source: [EditableImage]) -> [EditableImage] {
+        var seen = Set<String>()
+        var result: [EditableImage] = []
+        for item in source.prefix(8) {
+            let key = normalizeImageURL(item.url)
+            guard !key.isEmpty else { continue }
+            if seen.insert(key).inserted {
+                result.append(.init(id: item.id, url: key))
+            }
+        }
+        return result
+    }
+
+    private func appendUploadedMediaURL(_ url: String) {
+        let normalized = normalizeImageURL(url)
+        guard !normalized.isEmpty else { return }
+        images = sanitizedImages(images + [EditableImage(id: UUID(), url: normalized)])
+    }
+
+    private func handlePickedMedia(item: PhotosPickerItem) async {
+        guard images.count < 8 else { return }
+        isUploadingMedia = true
+        mediaUploadError = nil
+        defer { isUploadingMedia = false }
+
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                throw DataStoreError.server("Could not read selected media.")
+            }
+            let contentType = item.supportedContentTypes.first
+            let isVideo = contentType?.conforms(to: .movie) == true
+            let mimeType = contentType?.preferredMIMEType ?? (isVideo ? "video/mp4" : "image/jpeg")
+            let ext = contentType?.preferredFilenameExtension ?? (isVideo ? "mp4" : "jpg")
+            let mediaType = isVideo ? "video" : "image"
+            let url = try await providerStore.uploadListingMedia(
+                data: data,
+                mimeType: mimeType,
+                fileName: "provider_listing_\(UUID().uuidString).\(ext)",
+                mediaType: mediaType
+            )
+            await MainActor.run {
+                appendUploadedMediaURL(url)
+                showAddImageSheet = false
+            }
+        } catch {
+            mediaUploadError = error.localizedDescription
+        }
+    }
+
+    private func handleCapturedImage(_ image: UIImage) async {
+        guard images.count < 8 else { return }
+        isUploadingMedia = true
+        mediaUploadError = nil
+        defer { isUploadingMedia = false }
+
+        do {
+            guard let data = image.jpegData(compressionQuality: 0.85) else {
+                throw DataStoreError.server("Could not process captured image.")
+            }
+            let url = try await providerStore.uploadListingMedia(
+                data: data,
+                mimeType: "image/jpeg",
+                fileName: "provider_camera_\(UUID().uuidString).jpg",
+                mediaType: "image"
+            )
+            await MainActor.run {
+                appendUploadedMediaURL(url)
+                showAddImageSheet = false
+            }
+        } catch {
+            mediaUploadError = error.localizedDescription
+        }
+    }
+
+    private func handleImportedFile(url: URL) async {
+        guard images.count < 8 else { return }
+        isUploadingMedia = true
+        mediaUploadError = nil
+        defer { isUploadingMedia = false }
+
+        let hasAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if hasAccess { url.stopAccessingSecurityScopedResource() }
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let type = UTType(filenameExtension: url.pathExtension) ?? .data
+            let isVideo = type.conforms(to: .movie)
+            let mimeType = type.preferredMIMEType ?? (isVideo ? "video/mp4" : "image/jpeg")
+            let mediaType = isVideo ? "video" : "image"
+            let safeName = url.lastPathComponent.isEmpty ? "upload_\(UUID().uuidString).\(isVideo ? "mp4" : "jpg")" : url.lastPathComponent
+            let uploaded = try await providerStore.uploadListingMedia(
+                data: data,
+                mimeType: mimeType,
+                fileName: safeName,
+                mediaType: mediaType
+            )
+            await MainActor.run {
+                appendUploadedMediaURL(uploaded)
+                showAddImageSheet = false
+            }
+        } catch {
+            mediaUploadError = error.localizedDescription
+        }
     }
 
     private var openPill: some View {
@@ -877,6 +1476,39 @@ struct ProviderEditListingView: View {
         return open
     }
 
+    private var previewSelectedDate: Date {
+        let today = Calendar.current.startOfDay(for: Date())
+        let todayWeekday = Calendar.current.component(.weekday, from: today)
+        if previewOpenWeekdays.contains(todayWeekday) {
+            return today
+        }
+        return previewCalendarDays.first(where: { day in
+            let weekday = Calendar.current.component(.weekday, from: day)
+            return previewOpenWeekdays.contains(weekday) &&
+                   Calendar.current.isDate(day, equalTo: Date(), toGranularity: .month)
+        }) ?? today
+    }
+
+    private var previewHoursSummary: String {
+        guard !previewHoursRows.isEmpty else { return "Hours not available" }
+        let selectedWeekday = Calendar.current.component(.weekday, from: previewSelectedDate)
+        let shortMap: [Int: String] = [1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat"]
+        let selectedShort = shortMap[selectedWeekday] ?? "Day"
+        if let row = previewHoursRows.first(where: { $0.day == selectedShort }) {
+            return "\(selectedShort): \(row.hours)"
+        }
+        if let fallback = previewHoursRows.first {
+            return "\(fallback.day): \(fallback.hours)"
+        }
+        return "Hours not available"
+    }
+
+    private var previewTimeLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: Date())
+    }
+
     private var previewCalendarDays: [Date] {
         let calendar = Calendar.current
         let month = Date()
@@ -938,10 +1570,25 @@ struct ProviderEditListingView: View {
                 group.addTask {
                     var request = URLRequest(url: url)
                     request.cachePolicy = .returnCacheDataElseLoad
-                    _ = try? await URLSession.shared.data(for: request)
+                    _ = try? await APIClient.shared.performRaw(request, category: .media)
                 }
             }
         }
+    }
+
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    private var previewPrimaryCategory: String {
+        guard let first = services.first, !first.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return "No category"
+        }
+        return first
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.capitalized }
+            .joined(separator: " ")
     }
 }
 
@@ -964,6 +1611,62 @@ private struct ProviderImageDropDelegate: DropDelegate {
 
     func performDrop(info: DropInfo) -> Bool {
         draggingID = nil
+        return true
+    }
+}
+
+private struct ProviderListingCameraPicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        picker.allowsEditing = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        private let parent: ProviderListingCameraPicker
+        init(_ parent: ProviderListingCameraPicker) { self.parent = parent }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.image = image
+            }
+            parent.dismiss()
+        }
+    }
+}
+
+private struct ProviderServiceTagDropDelegate: DropDelegate {
+    let item: String
+    @Binding var items: [String]
+    @Binding var draggingTag: String?
+
+    func dropEntered(info: DropInfo) {
+        guard let draggingTag,
+              let from = items.firstIndex(of: draggingTag),
+              let to = items.firstIndex(of: item),
+              from != to else { return }
+
+        withAnimation(.easeInOut(duration: 0.15)) {
+            let moved = items.remove(at: from)
+            items.insert(moved, at: to)
+        }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggingTag = nil
         return true
     }
 }

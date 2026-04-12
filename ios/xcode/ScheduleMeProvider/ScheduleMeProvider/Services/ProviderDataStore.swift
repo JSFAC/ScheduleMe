@@ -292,6 +292,47 @@ final class ProviderDataStore: ObservableObject {
         }
     }
 
+    private struct BusinessMediaRow: Decodable {
+        let coverURL: String?
+        let mediaURLs: [String]?
+
+        enum CodingKeys: String, CodingKey {
+            case coverURL = "cover_url"
+            case mediaURLs = "media_urls"
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            coverURL = try? container.decodeIfPresent(String.self, forKey: .coverURL)
+
+            if let array = try? container.decode([String].self, forKey: .mediaURLs) {
+                mediaURLs = array
+            } else if let single = try? container.decode(String.self, forKey: .mediaURLs) {
+                let trimmed = single.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.hasPrefix("["),
+                   let data = trimmed.data(using: .utf8),
+                   let decoded = try? JSONDecoder().decode([String].self, from: data) {
+                    mediaURLs = decoded
+                } else if trimmed.hasPrefix("{"), trimmed.hasSuffix("}") {
+                    let values = trimmed
+                        .dropFirst()
+                        .dropLast()
+                        .split(separator: ",")
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .map { $0.replacingOccurrences(of: "\"", with: "") }
+                        .filter { !$0.isEmpty }
+                    mediaURLs = values.isEmpty ? nil : values
+                } else if trimmed.isEmpty {
+                    mediaURLs = nil
+                } else {
+                    mediaURLs = [trimmed]
+                }
+            } else {
+                mediaURLs = nil
+            }
+        }
+    }
+
     private struct ProviderProfileUpdatePayload: Encodable {
         let name: String
         let ownerName: String
@@ -522,12 +563,28 @@ final class ProviderDataStore: ObservableObject {
             return
         }
         if businessID == nil {
-            let fallbackEmail = ownerEmailForFallback?.isEmpty == false ? ownerEmailForFallback : nil
-            let fallbackUserID = ownerIDForFallback?.isEmpty == false ? ownerIDForFallback : nil
+            var fallbackEmail = ownerEmailForFallback?.isEmpty == false ? ownerEmailForFallback : nil
+            var fallbackUserID = ownerIDForFallback?.isEmpty == false ? ownerIDForFallback : nil
+            if fallbackUserID == nil {
+                do {
+                    let session = try await SupabaseManager.shared.client.auth.session
+                    fallbackUserID = session.user.id.uuidString
+                    if let sessionEmail = session.user.email?.trimmingCharacters(in: .whitespacesAndNewlines),
+                       !sessionEmail.isEmpty {
+                        fallbackEmail = sessionEmail
+                    }
+                    ownerIDForFallback = fallbackUserID
+                    ownerEmailForFallback = fallbackEmail
+                } catch {
+                    // Keep existing fallbacks; next refresh will retry.
+                }
+            }
             try? await loadBusinessProfile(ownerEmail: fallbackEmail, userID: fallbackUserID)
         }
         guard businessID != nil else {
-            lastLoadedAt = Date()
+            // Keep refresh hot if startup identity/business resolution races.
+            // This avoids blank dashboards that only recover after relogin.
+            lastLoadedAt = nil
             hasCompletedInitialDataLoad = true
             return
         }
@@ -583,6 +640,9 @@ final class ProviderDataStore: ObservableObject {
                 requiresAuth: true
             )
             bookings = response.bookings
+            if !threads.isEmpty {
+                threads = normalizeThreads(threads)
+            }
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -605,8 +665,7 @@ final class ProviderDataStore: ObservableObject {
                 queryItems: [URLQueryItem(name: "business_id", value: businessID)],
                 requiresAuth: true
             )
-            threads = response.threads
-                .sorted { ($0.lastMessage?.createdAt ?? $0.createdAt) > ($1.lastMessage?.createdAt ?? $1.createdAt) }
+            threads = normalizeThreads(response.threads)
             errorMessage = nil
         } catch {
             do {
@@ -615,8 +674,7 @@ final class ProviderDataStore: ObservableObject {
                     queryItems: [URLQueryItem(name: "business_id", value: businessID)],
                     requiresAuth: true
                 )
-                threads = fallbackThreads
-                    .sorted { ($0.lastMessage?.createdAt ?? $0.createdAt) > ($1.lastMessage?.createdAt ?? $1.createdAt) }
+                threads = normalizeThreads(fallbackThreads)
                 errorMessage = nil
             } catch {
                 errorMessage = error.localizedDescription
@@ -736,17 +794,83 @@ final class ProviderDataStore: ObservableObject {
 
     private func conversationIdentityKey(for thread: ProviderMessageThread?) -> String {
         guard let thread else { return "unknown" }
-        if let id = thread.profile?.id?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
-            return "id:\(id.lowercased())"
+        return threadIdentityKey(for: thread)
+    }
+
+    private func normalizeThreads(_ rawThreads: [ProviderMessageThread]) -> [ProviderMessageThread] {
+        guard !rawThreads.isEmpty else { return [] }
+
+        var grouped: [String: [ProviderMessageThread]] = [:]
+        for thread in rawThreads {
+            grouped[threadIdentityKey(for: thread), default: []].append(thread)
         }
-        if let email = thread.profile?.email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
-            return "email:\(email.lowercased())"
+
+        let merged = grouped.values.compactMap { group -> ProviderMessageThread? in
+            guard let newest = group.max(by: { ($0.lastMessage?.createdAt ?? $0.createdAt) < ($1.lastMessage?.createdAt ?? $1.createdAt) }) else {
+                return nil
+            }
+
+            let unreadTotal = group.reduce(0) { $0 + max(0, $1.unreadCount) }
+
+            let selectedLastMessage = group
+                .compactMap(\.lastMessage)
+                .max(by: { $0.createdAt < $1.createdAt })
+
+            let selectedProfile = newest.profile ?? profileForThread(newest)
+            let selectedBookingID =
+                newest.bookingID ??
+                newest.lastMessage?.bookingID ??
+                group.compactMap(\.bookingID).first
+
+            return ProviderMessageThread(
+                id: newest.id,
+                bookingID: selectedBookingID,
+                service: newest.service,
+                status: newest.status,
+                createdAt: newest.createdAt,
+                profile: selectedProfile,
+                lastMessage: selectedLastMessage ?? newest.lastMessage,
+                unreadCount: unreadTotal
+            )
         }
-        let display = thread.profile?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !display.isEmpty, display.lowercased() != "customer" {
-            return "name:\(display.lowercased())"
+
+        return merged.sorted { ($0.lastMessage?.createdAt ?? $0.createdAt) > ($1.lastMessage?.createdAt ?? $1.createdAt) }
+    }
+
+    private func threadIdentityKey(for thread: ProviderMessageThread) -> String {
+        if let id = thread.profile?.id?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !id.isEmpty {
+            return "id:\(id)"
+        }
+        if let email = thread.profile?.email?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !email.isEmpty {
+            return "email:\(email)"
+        }
+        if let bookingProfile = profileForThread(thread) {
+            if let id = bookingProfile.id?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !id.isEmpty {
+                return "booking-id:\(id)"
+            }
+            if let email = bookingProfile.email?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !email.isEmpty {
+                return "booking-email:\(email)"
+            }
+            let name = bookingProfile.displayName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !name.isEmpty, name != "customer" {
+                return "booking-name:\(name)"
+            }
+        }
+        let display = thread.profile?.displayName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        if !display.isEmpty, display != "customer" {
+            return "name:\(display)"
+        }
+        if let bookingID = thread.bookingID?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !bookingID.isEmpty {
+            return "booking:\(bookingID)"
         }
         return "thread:\(thread.id.lowercased())"
+    }
+
+    private func profileForThread(_ thread: ProviderMessageThread) -> ProviderCustomerProfile? {
+        guard let bookingID = thread.bookingID?.trimmingCharacters(in: .whitespacesAndNewlines), !bookingID.isEmpty else {
+            return nil
+        }
+        return bookings.first(where: { $0.id == bookingID })?.profile
     }
 
     @discardableResult
@@ -755,8 +879,7 @@ final class ProviderDataStore: ObservableObject {
             bookingID: threadID,
             senderType: "business",
             content: content,
-            imageURL: nil,
-            messageType: nil
+            imageURL: nil
         )
         let response: ProviderSendMessageResponse = try await APIClient.shared.send(
             path: "/api/messages",
@@ -791,28 +914,53 @@ final class ProviderDataStore: ObservableObject {
         fileName: String,
         mediaType: String
     ) async throws -> ProviderConversationMessage {
-        let upload: ProviderUploadMessageMediaResponse = try await APIClient.shared.send(
-            path: "/api/upload-message-media",
-            method: "POST",
-            body: ProviderUploadMessageMediaRequest(
-                bookingID: threadID,
-                mediaType: mediaType,
-                fileData: data.base64EncodedString(),
-                fileType: mimeType,
-                fileName: fileName
-            ),
-            requiresAuth: true
-        )
-        guard let mediaURL = upload.url, !mediaURL.isEmpty else {
-            throw DataStoreError.server(upload.error ?? "Failed to upload media.")
+        let mediaURL: String
+        do {
+            // Prefer the listing uploader because it is stable across environments.
+            mediaURL = try await uploadListingMedia(
+                data: data,
+                mimeType: mimeType,
+                fileName: fileName,
+                mediaType: mediaType
+            )
+        } catch {
+            let message = error.localizedDescription.lowercased()
+            if message.contains("missing business id") || message.contains("invalid business id") {
+                // Fallback to booking-based uploader if listing upload cannot resolve business context.
+                let upload: ProviderUploadMessageMediaResponse = try await APIClient.shared.send(
+                    path: "/api/upload-message-media",
+                    method: "POST",
+                    body: ProviderUploadMessageMediaRequest(
+                        bookingID: threadID,
+                        mediaType: mediaType,
+                        fileData: data.base64EncodedString(),
+                        fileType: mimeType,
+                        fileName: fileName
+                    ),
+                    requiresAuth: true
+                )
+                guard let url = upload.url, !url.isEmpty else {
+                    throw DataStoreError.server(upload.error ?? "Failed to upload media.")
+                }
+                mediaURL = url
+            } else if message.contains("invalid media bucket") {
+                // Last fallback for older servers with partially configured storage.
+                mediaURL = try await uploadListingMedia(
+                    data: data,
+                    mimeType: mimeType,
+                    fileName: fileName,
+                    mediaType: mediaType
+                )
+            } else {
+                throw error
+            }
         }
 
         let body = ProviderSendMessageRequest(
             bookingID: threadID,
             senderType: "business",
             content: mediaType == "image" ? "Image attachment" : "Video attachment",
-            imageURL: mediaURL,
-            messageType: mediaType
+            imageURL: mediaURL
         )
         let response: ProviderSendMessageResponse = try await APIClient.shared.send(
             path: "/api/messages",
@@ -823,6 +971,84 @@ final class ProviderDataStore: ObservableObject {
         messagesByThreadID[threadID, default: []].append(response.message)
         messagesByThreadID[threadID] = (messagesByThreadID[threadID] ?? []).sorted { $0.createdAt < $1.createdAt }
         return response.message
+    }
+
+    @discardableResult
+    func uploadListingMedia(
+        data: Data,
+        mimeType: String,
+        fileName: String,
+        mediaType: String
+    ) async throws -> String {
+        guard let businessID, !businessID.isEmpty else {
+            throw DataStoreError.server("Missing business ID.")
+        }
+
+        let dataURL = "data:\(mimeType);base64,\(data.base64EncodedString())"
+        let upload: ProviderUploadBusinessMediaResponse = try await APIClient.shared.send(
+            path: "/api/upload-media",
+            method: "POST",
+            body: ProviderUploadBusinessMediaRequest(
+                businessID: businessID,
+                mediaType: mediaType,
+                fileData: dataURL,
+                fileType: mimeType,
+                fileName: fileName
+            ),
+            requiresAuth: true
+        )
+
+        guard let url = upload.url, !url.isEmpty else {
+            throw DataStoreError.server(upload.error ?? "Failed to upload media.")
+        }
+        return url
+    }
+
+    @discardableResult
+    func uploadCompletionProofMedia(
+        bookingID: String,
+        data: Data,
+        mimeType: String,
+        fileName: String
+    ) async throws -> String {
+        do {
+            let upload: ProviderUploadMessageMediaResponse = try await APIClient.shared.send(
+                path: "/api/upload-message-media",
+                method: "POST",
+                body: ProviderUploadMessageMediaRequest(
+                    bookingID: bookingID,
+                    mediaType: "image",
+                    fileData: data.base64EncodedString(),
+                    fileType: mimeType,
+                    fileName: fileName
+                ),
+                requiresAuth: true
+            )
+            if let mediaURL = upload.url, !mediaURL.isEmpty {
+                return mediaURL
+            }
+            let message = (upload.error ?? "").lowercased()
+            if message.contains("invalid media bucket") {
+                return try await uploadListingMedia(
+                    data: data,
+                    mimeType: mimeType,
+                    fileName: fileName,
+                    mediaType: "image"
+                )
+            }
+            throw DataStoreError.server(upload.error ?? "Failed to upload proof image.")
+        } catch {
+            let message = error.localizedDescription.lowercased()
+            if message.contains("invalid media bucket") {
+                return try await uploadListingMedia(
+                    data: data,
+                    mimeType: mimeType,
+                    fileName: fileName,
+                    mediaType: "image"
+                )
+            }
+            throw error
+        }
     }
 
     func loadServices() async {
@@ -880,12 +1106,34 @@ final class ProviderDataStore: ObservableObject {
                 durationMin: durationMin,
                 requiresExactTime: nil
             )
-            let _: ProviderServiceMutationResponse = try await APIClient.shared.send(
-                path: "/api/services",
-                method: "POST",
-                body: legacy,
-                requiresAuth: true
-            )
+            do {
+                let _: ProviderServiceMutationResponse = try await APIClient.shared.send(
+                    path: "/api/services",
+                    method: "POST",
+                    body: legacy,
+                    requiresAuth: true
+                )
+            } catch {
+                // Additional compatibility fallback for deployments using exact_time_required naming.
+                let compatibility = ProviderServiceCreateCompatibilityRequest(
+                    businessID: businessID,
+                    name: name,
+                    description: description.isEmpty ? nil : description,
+                    priceCents: priceCents,
+                    durationMin: durationMin,
+                    requiresExactTime: requiresExactTime
+                )
+                do {
+                    let _: ProviderServiceMutationResponse = try await APIClient.shared.send(
+                        path: "/api/services",
+                        method: "POST",
+                        body: compatibility,
+                        requiresAuth: true
+                    )
+                } catch {
+                    throw error
+                }
+            }
         }
         await loadServices()
     }
@@ -925,12 +1173,35 @@ final class ProviderDataStore: ObservableObject {
                 durationMin: durationMin,
                 requiresExactTime: nil
             )
-            let _: ProviderServiceMutationResponse = try await APIClient.shared.send(
-                path: "/api/services",
-                method: "PATCH",
-                body: legacy,
-                requiresAuth: true
-            )
+            do {
+                let _: ProviderServiceMutationResponse = try await APIClient.shared.send(
+                    path: "/api/services",
+                    method: "PATCH",
+                    body: legacy,
+                    requiresAuth: true
+                )
+            } catch {
+                // Additional compatibility fallback for deployments using service_id / exact_time_required naming.
+                let compatibility = ProviderServiceUpdateCompatibilityRequest(
+                    id: id,
+                    businessID: businessID,
+                    name: name,
+                    description: description.isEmpty ? nil : description,
+                    priceCents: priceCents,
+                    durationMin: durationMin,
+                    requiresExactTime: requiresExactTime
+                )
+                do {
+                    let _: ProviderServiceMutationResponse = try await APIClient.shared.send(
+                        path: "/api/services",
+                        method: "PATCH",
+                        body: compatibility,
+                        requiresAuth: true
+                    )
+                } catch {
+                    throw error
+                }
+            }
         }
         await loadServices()
     }
@@ -1005,8 +1276,70 @@ final class ProviderDataStore: ObservableObject {
         try await updateBooking(bookingID: bookingID, status: "active")
     }
 
-    func completeBooking(bookingID: String) async throws {
-        try await updateBooking(bookingID: bookingID, status: "completed")
+    func completeBooking(
+        bookingID: String,
+        proofNote: String,
+        proofPhotoURLs: [String] = [],
+        geoMetadata: [String: String]? = nil
+    ) async throws {
+        let trimmedNote = proofNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedPhotos = proofPhotoURLs.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard !trimmedNote.isEmpty || !cleanedPhotos.isEmpty else {
+            throw DataStoreError.server("Add at least one completion proof item (note or photo).")
+        }
+
+        let body = ProviderUpdateBookingStatusRequest(
+            bookingID: bookingID,
+            action: "provider_submit_completion_proof",
+            proofNote: trimmedNote.isEmpty ? nil : trimmedNote,
+            proofPhotoURLs: cleanedPhotos.isEmpty ? nil : cleanedPhotos,
+            geoMetadata: geoMetadata
+        )
+        do {
+            let _: ProviderSimpleSuccessResponse = try await APIClient.shared.send(
+                path: "/api/bookings",
+                method: "PATCH",
+                body: body,
+                requiresAuth: true
+            )
+        } catch {
+            // Compatibility path for older booking PATCH handlers that reject `action`.
+            let message = error.localizedDescription.lowercased()
+            if message.contains("unexpected fields: action") || message.contains("unexpected field") {
+                struct LegacyCompleteBookingRequest: Encodable {
+                    let bookingID: String
+                    let status: String
+                    let proofNote: String?
+                    let proofPhotoURLs: [String]?
+                    let geoMetadata: [String: String]?
+
+                    enum CodingKeys: String, CodingKey {
+                        case bookingID = "booking_id"
+                        case status
+                        case proofNote = "proof_note"
+                        case proofPhotoURLs = "proof_photo_urls"
+                        case geoMetadata = "geo_metadata"
+                    }
+                }
+
+                let legacyBody = LegacyCompleteBookingRequest(
+                    bookingID: bookingID,
+                    status: "completed",
+                    proofNote: trimmedNote.isEmpty ? nil : trimmedNote,
+                    proofPhotoURLs: cleanedPhotos.isEmpty ? nil : cleanedPhotos,
+                    geoMetadata: geoMetadata
+                )
+                let _: ProviderSimpleSuccessResponse = try await APIClient.shared.send(
+                    path: "/api/bookings",
+                    method: "PATCH",
+                    body: legacyBody,
+                    requiresAuth: true
+                )
+            } else {
+                throw error
+            }
+        }
+        await loadBookings()
     }
 
     func cancelBooking(bookingID: String) async throws {
@@ -1277,21 +1610,45 @@ final class ProviderDataStore: ObservableObject {
     private func loadBusinessProfile(ownerEmail: String?, userID: String?) async throws {
         let selectFields = try await resolveBusinessSelectFields()
 
-        let resolvedUserID = userID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            ? userID?.trimmingCharacters(in: .whitespacesAndNewlines)
-            : (try? await SupabaseManager.shared.client.auth.session.user.id.uuidString)
+        var resolvedUserID = userID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if resolvedUserID?.isEmpty == true {
+            resolvedUserID = nil
+        }
+
+        var sessionEmail: String?
+        if resolvedUserID == nil {
+            do {
+                let session = try await SupabaseManager.shared.client.auth.session
+                resolvedUserID = session.user.id.uuidString
+                sessionEmail = session.user.email
+            } catch {
+                resolvedUserID = nil
+                sessionEmail = nil
+            }
+        } else {
+            do {
+                let session = try await SupabaseManager.shared.client.auth.session
+                sessionEmail = session.user.email
+            } catch {
+                sessionEmail = nil
+            }
+        }
 
         guard let resolvedUserID, !resolvedUserID.isEmpty else {
             throw DataStoreError.server("No authenticated provider session found.")
         }
-
-        let sessionEmail = try? await SupabaseManager.shared.client.auth.session.user.email
         if let ownerRow = try? await fetchBusinessRow(
             selectFields: selectFields,
             column: "owner_id",
             value: resolvedUserID
         ) {
-            applyBusinessRow(ownerRow, ownerEmailFallback: ownerEmail ?? sessionEmail ?? "")
+            let supplementalMedia = try? await fetchBusinessMediaRow(businessID: ownerRow.id)
+            applyBusinessRow(
+                ownerRow,
+                ownerEmailFallback: ownerEmail ?? sessionEmail ?? "",
+                supplementalCoverURL: supplementalMedia?.coverURL,
+                supplementalMediaURLs: supplementalMedia?.mediaURLs
+            )
             return
         }
 
@@ -1309,8 +1666,14 @@ final class ProviderDataStore: ObservableObject {
         for email in emailCandidates {
             if let row = try? await fetchBusinessRow(selectFields: selectFields, column: "owner_email", value: email) {
                 let rowOwnerID = row.ownerID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                if rowOwnerID.isEmpty {
-                    applyBusinessRow(row, ownerEmailFallback: ownerEmail ?? sessionEmail ?? "")
+                if rowOwnerID.isEmpty || rowOwnerID.lowercased() == resolvedUserID.lowercased() {
+                    let supplementalMedia = try? await fetchBusinessMediaRow(businessID: row.id)
+                    applyBusinessRow(
+                        row,
+                        ownerEmailFallback: ownerEmail ?? sessionEmail ?? "",
+                        supplementalCoverURL: supplementalMedia?.coverURL,
+                        supplementalMediaURLs: supplementalMedia?.mediaURLs
+                    )
                     return
                 }
             }
@@ -1336,12 +1699,49 @@ final class ProviderDataStore: ObservableObject {
         guard let businessID, !businessID.isEmpty else { return }
         let selectFields = try await resolveBusinessSelectFields()
         let row = try await fetchBusinessRow(selectFields: selectFields, column: "id", value: businessID)
-        applyBusinessRow(row, ownerEmailFallback: profile?.ownerEmail ?? ownerEmailForFallback ?? "")
+        let supplementalMedia = try? await fetchBusinessMediaRow(businessID: businessID)
+        applyBusinessRow(
+            row,
+            ownerEmailFallback: profile?.ownerEmail ?? ownerEmailForFallback ?? "",
+            supplementalCoverURL: supplementalMedia?.coverURL,
+            supplementalMediaURLs: supplementalMedia?.mediaURLs
+        )
+    }
+
+    private func fetchBusinessMediaRow(businessID: String) async throws -> BusinessMediaRow {
+        let candidates = [
+            "id,cover_url,media_urls",
+            "id,cover_url",
+            "id,media_urls"
+        ]
+
+        var lastError: Error?
+        for select in candidates {
+            do {
+                let response: PostgrestResponse<[BusinessMediaRow]> = try await SupabaseManager.shared.client
+                    .from("businesses")
+                    .select(select)
+                    .eq("id", value: businessID)
+                    .limit(1)
+                    .execute()
+                if let row = response.value.first {
+                    return row
+                }
+            } catch {
+                lastError = error
+            }
+        }
+        if let lastError {
+            throw lastError
+        }
+        throw DataStoreError.server("Unable to load listing media.")
     }
 
     private func resolveBusinessSelectFields() async throws -> String {
         // Try richest shape first, then gracefully fall back for older/mismatched schemas.
         let candidates = [
+            "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,availability_status,owner_id",
+            "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,availability_status",
             "id,name,owner_name,owner_email,phone,address,description,website,instagram,cover_url,media_urls,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,founder50,platform_fee_percent,hours,provider_hours,business_hours,hours_json,availability_status,custom_request_requires_exact_time,custom_requests_require_exact_time,custom_request_exact_time,owner_id",
             "id,name,owner_name,owner_email,phone,address,description,website,instagram,cover_url,media_urls,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,founder50,platform_fee_percent,hours,business_hours,hours_json,availability_status,custom_request_requires_exact_time,custom_requests_require_exact_time,custom_request_exact_time,owner_id",
             "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,founder50,platform_fee_percent,hours,business_hours,hours_json,availability_status,owner_id",
@@ -1380,9 +1780,28 @@ final class ProviderDataStore: ObservableObject {
         throw DataStoreError.server("Unable to read provider business schema.")
     }
 
-    private func applyBusinessRow(_ row: BusinessRow, ownerEmailFallback: String) {
+    private func applyBusinessRow(
+        _ row: BusinessRow,
+        ownerEmailFallback: String,
+        supplementalCoverURL: String? = nil,
+        supplementalMediaURLs: [String]? = nil
+    ) {
         businessID = row.id
         let normalizedHours = normalizedBusinessHours(row.hours ?? [:])
+        let mergedMedia = {
+            let rowMedia = row.mediaURLs ?? []
+            if !rowMedia.isEmpty { return rowMedia }
+            return supplementalMediaURLs ?? []
+        }()
+        let mergedCoverURL = row.coverURL ?? supplementalCoverURL
+        let normalizedAvailabilityRaw = row.availabilityStatus?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let normalizedAvailability = (normalizedAvailabilityRaw?.isEmpty == false) ? normalizedAvailabilityRaw : nil
+        let availability =
+            normalizedAvailability ??
+            profile?.availabilityStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ??
+            "open"
         hasResolvedAccessDecision = true
         profile = ProviderProfile(
             id: row.id,
@@ -1394,8 +1813,8 @@ final class ProviderDataStore: ObservableObject {
             description: row.description ?? "",
             website: row.website ?? "",
             instagram: row.instagram ?? "",
-            coverURL: row.coverURL,
-            mediaURLs: row.mediaURLs ?? [],
+            coverURL: mergedCoverURL,
+            mediaURLs: mergedMedia,
             serviceTags: row.serviceTags ?? [],
             stripeOnboarded: row.stripeOnboarded ?? false,
             isOnboarded: row.isOnboarded ?? false,
@@ -1404,7 +1823,7 @@ final class ProviderDataStore: ObservableObject {
             founder50: row.founder50 ?? false,
             platformFeePercent: row.platformFeePercent,
             hours: normalizedHours,
-            availabilityStatus: row.availabilityStatus ?? "open",
+            availabilityStatus: availability,
             customRequestRequiresExactTime: row.customRequestRequiresExactTime ?? true
         )
     }

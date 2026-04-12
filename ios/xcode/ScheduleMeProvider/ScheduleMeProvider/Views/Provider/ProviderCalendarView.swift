@@ -7,6 +7,8 @@ struct ProviderCalendarView: View {
     @State private var isHydrating = false
     @State private var dayPageIndex = 0
     @State private var expandedBookingIDs: Set<String> = []
+    @State private var showingMonthYearPicker = false
+    @State private var monthPickerResetToken = UUID()
     private let dayPageSize = 6
 
     private var days: [Date] {
@@ -87,13 +89,25 @@ struct ProviderCalendarView: View {
                         .padding(8)
                 }
                 .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                .buttonStyle(.plain)
             }
 
             ToolbarItem(placement: .principal) {
-                Text(month.formatted(.dateTime.month(.wide).year()))
-                    .font(.custom(ScheduleMeTheme.fontName, size: 17).weight(.semibold))
-                    .foregroundStyle(ScheduleMeTheme.titleText)
+                Button {
+                    // Always reset jump picker to current month/year before presenting.
+                    monthPickerResetToken = UUID()
+                    showingMonthYearPicker = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(month.formatted(.dateTime.month(.wide).year()))
+                            .font(.custom(ScheduleMeTheme.fontName, size: 17).weight(.semibold))
+                            .foregroundStyle(ScheduleMeTheme.titleText)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                    }
+                }
+                .buttonStyle(.plain)
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -106,8 +120,13 @@ struct ProviderCalendarView: View {
                         .padding(8)
                 }
                 .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                .buttonStyle(.plain)
             }
+        }
+        .refreshable {
+            isHydrating = true
+            await providerStore.refreshAll(force: true, prioritizeFastLoad: true)
+            isHydrating = false
         }
         .task {
             if providerStore.bookings.isEmpty {
@@ -115,6 +134,22 @@ struct ProviderCalendarView: View {
             }
             await providerStore.refreshAll(force: false)
             isHydrating = false
+        }
+        .onChange(of: month) { _, newMonth in
+            dayPageIndex = 0
+            expandedBookingIDs.removeAll()
+            if !Calendar.current.isDate(selectedDay, equalTo: newMonth, toGranularity: .month) {
+                selectedDay = newMonth
+            }
+        }
+        .fullScreenCover(isPresented: $showingMonthYearPicker) {
+            ProviderMonthYearPickerOverlay(
+                selectedMonth: $month,
+                resetToken: monthPickerResetToken,
+                onClose: {
+                    showingMonthYearPicker = false
+                }
+            )
         }
     }
 
@@ -150,7 +185,7 @@ struct ProviderCalendarView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                .buttonStyle(.plain)
             }
         }
         .padding(10)
@@ -227,7 +262,7 @@ struct ProviderCalendarView: View {
                                 }
                             }
                             .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                            .buttonStyle(.plain)
 
                             if expandedBookingIDs.contains(booking.id) {
                                 VStack(alignment: .leading, spacing: 5) {
@@ -344,5 +379,173 @@ struct ProviderCalendarView: View {
         .contentShape(Rectangle())
         .buttonStyle(.plain)
         .disabled(!isEnabled)
+    }
+}
+
+private struct ProviderMonthYearPickerOverlay: View {
+    @Binding var selectedMonth: Date
+    let resetToken: UUID
+    let onClose: () -> Void
+    @State private var isPresented = false
+
+    var body: some View {
+        ZStack {
+            Color.black
+                .opacity(isPresented ? 0.34 : 0)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    dismissAnimated()
+                }
+                .animation(.easeOut(duration: 0.16), value: isPresented)
+
+            ProviderMonthYearPickerSheet(
+                selectedMonth: $selectedMonth,
+                resetToken: resetToken,
+                onDismiss: dismissAnimated
+            )
+            .frame(maxWidth: 330)
+            .padding(.horizontal, 20)
+            .offset(y: isPresented ? 0 : 44)
+            .opacity(isPresented ? 1 : 0)
+            .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isPresented)
+        }
+        .presentationBackground(.clear)
+        .onAppear {
+            isPresented = true
+        }
+    }
+
+    private func dismissAnimated() {
+        isPresented = false
+        Task {
+            try? await Task.sleep(for: .milliseconds(180))
+            await MainActor.run {
+                onClose()
+            }
+        }
+    }
+}
+
+private struct ProviderMonthYearPickerSheet: View {
+    @Binding var selectedMonth: Date
+    let resetToken: UUID
+    let onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var selectedYear: Int
+    @State private var selectedMonthNumber: Int
+
+    private let calendar = Calendar.current
+    private let months = Calendar.current.monthSymbols
+
+    init(selectedMonth: Binding<Date>, resetToken: UUID, onDismiss: @escaping () -> Void) {
+        self._selectedMonth = selectedMonth
+        self.resetToken = resetToken
+        self.onDismiss = onDismiss
+        let components = Calendar.current.dateComponents([.year, .month], from: Date())
+        _selectedYear = State(initialValue: components.year ?? Calendar.current.component(.year, from: Date()))
+        _selectedMonthNumber = State(initialValue: components.month ?? 1)
+    }
+
+    private var yearRange: [Int] {
+        let current = calendar.component(.year, from: Date())
+        return Array((current - 20)...(current + 20))
+    }
+
+    private func resetToCurrentDate() {
+        let now = Date()
+        let components = calendar.dateComponents([.year, .month], from: now)
+        selectedYear = components.year ?? selectedYear
+        selectedMonthNumber = components.month ?? selectedMonthNumber
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Button {
+                    // Tapping title snaps picker to the current year/month.
+                    resetToCurrentDate()
+                } label: {
+                    Text("Jump to Month")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+                }
+                .buttonStyle(.plain)
+
+                HStack {
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(ScheduleMeTheme.accent)
+                            .frame(width: 26, height: 26)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Button("Done") {
+                        let nextMonth = calendar.date(
+                            from: DateComponents(year: selectedYear, month: selectedMonthNumber, day: 1)
+                        ) ?? selectedMonth
+                        selectedMonth = nextMonth
+                        onDismiss()
+                    }
+                    .font(.custom(ScheduleMeTheme.fontName, size: 17).weight(.bold))
+                    .foregroundStyle(ScheduleMeTheme.accent)
+                    .frame(minWidth: 52, minHeight: 26, alignment: .trailing)
+                }
+            }
+
+            Picker("Year", selection: $selectedYear) {
+                ForEach(yearRange, id: \.self) { year in
+                    Text("\(year)").tag(year)
+                }
+            }
+            .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
+            .pickerStyle(.wheel)
+            .frame(height: 110)
+            .clipped()
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                ForEach(Array(months.enumerated()), id: \.offset) { index, name in
+                    let monthNumber = index + 1
+                    Button {
+                        selectedMonthNumber = monthNumber
+                    } label: {
+                        let isSelected = selectedMonthNumber == monthNumber
+                        Text(String(name.prefix(3)))
+                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                            .foregroundStyle(isSelected ? Color.white : ScheduleMeTheme.titleText)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                isSelected
+                                ? ScheduleMeTheme.accent
+                                : (colorScheme == .dark ? Color.clear : ScheduleMeTheme.surface)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(colorScheme == .dark ? ScheduleMeTheme.cardBorder.opacity(0.45) : ScheduleMeTheme.cardBorder)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 4)
+        }
+        .padding(18)
+        .background(ScheduleMeTheme.pageBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(ScheduleMeTheme.cardBorder)
+        )
+        .shadow(color: .black.opacity(0.16), radius: 22, y: 10)
+        .onAppear {
+            resetToCurrentDate()
+        }
+        .onChange(of: resetToken) { _, _ in resetToCurrentDate() }
     }
 }
