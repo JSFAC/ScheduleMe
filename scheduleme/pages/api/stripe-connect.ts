@@ -26,6 +26,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const providerAppScheme = process.env.PROVIDER_APP_URL_SCHEME || 'schedulemeprovider';
   const providerAppReturnUrl = process.env.PROVIDER_APP_STRIPE_RETURN_URL || `${providerAppScheme}://stripe/connect?status=success`;
   const providerAppRefreshUrl = process.env.PROVIDER_APP_STRIPE_REFRESH_URL || `${providerAppScheme}://stripe/connect?status=refresh`;
+  const providerMobileReturnPage = `${siteUrl}/provider/stripe-connect-return?target=${encodeURIComponent(providerAppReturnUrl)}&fallback=${encodeURIComponent(`${siteUrl}/business/dashboard?stripe=success&id=${businessId}`)}`;
+  const providerMobileRefreshPage = `${siteUrl}/provider/stripe-connect-return?target=${encodeURIComponent(providerAppRefreshUrl)}&fallback=${encodeURIComponent(`${siteUrl}/business/dashboard?stripe=refresh&id=${businessId}`)}`;
   const clientPlatformHeader = String(req.headers['x-client-platform'] || '').toLowerCase();
   const isProviderMobileClient = clientPlatformHeader.includes('ios-provider');
 
@@ -89,8 +91,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: isProviderMobileClient ? providerAppRefreshUrl : `${siteUrl}/business/dashboard?stripe=refresh&id=${businessId}`,
-      return_url: isProviderMobileClient ? providerAppReturnUrl : `${siteUrl}/business/dashboard?stripe=success&id=${businessId}`,
+      refresh_url: isProviderMobileClient ? providerMobileRefreshPage : `${siteUrl}/business/dashboard?stripe=refresh&id=${businessId}`,
+      return_url: isProviderMobileClient ? providerMobileReturnPage : `${siteUrl}/business/dashboard?stripe=success&id=${businessId}`,
       type: 'account_onboarding',
     });
 

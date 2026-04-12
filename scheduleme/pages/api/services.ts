@@ -72,6 +72,13 @@ async function updateServiceWithFallback(
   return { data: null, error: lastError };
 }
 
+function isHardModerationBlock(result: { ok: boolean; flaggedCategories?: string[]; reason?: string }) {
+  if (result.ok) return false;
+  if ((result.flaggedCategories || []).length > 0) return true;
+  const reason = String(result.reason || '').toLowerCase();
+  return reason.includes('blocked by safety filter');
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   const limited = await rateLimit(req, res, { max: 60, windowMs: 60000 });
@@ -141,7 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const filteredName = filterMessage(safeName);
       if (!filteredName.ok) return res.status(400).json({ error: filteredName.error });
       const nameModeration = await moderateUserText(filteredName.filtered);
-      if (!nameModeration.ok) {
+      if (isHardModerationBlock(nameModeration)) {
         return res.status(400).json({ error: 'Service name blocked by safety filters. Please revise and try again.', categories: nameModeration.flaggedCategories });
       }
 
@@ -149,7 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const filteredDescription = filterMessage(safeDescription);
         if (!filteredDescription.ok) return res.status(400).json({ error: filteredDescription.error });
         const descriptionModeration = await moderateUserText(filteredDescription.filtered);
-        if (!descriptionModeration.ok) {
+        if (isHardModerationBlock(descriptionModeration)) {
           return res.status(400).json({ error: 'Service description blocked by safety filters. Please revise and try again.', categories: descriptionModeration.flaggedCategories });
         }
         cleanedDescription = filteredDescription.filtered;
@@ -192,7 +199,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const filtered = filterMessage(trimmed);
         if (!filtered.ok) return res.status(400).json({ error: filtered.error });
         const moderation = await moderateUserText(filtered.filtered);
-        if (!moderation.ok) {
+        if (isHardModerationBlock(moderation)) {
           return res.status(400).json({ error: 'Service name blocked by safety filters. Please revise and try again.', categories: moderation.flaggedCategories });
         }
         safeUpdates.name = filtered.filtered;
@@ -205,7 +212,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const filtered = filterMessage(trimmed);
           if (!filtered.ok) return res.status(400).json({ error: filtered.error });
           const moderation = await moderateUserText(filtered.filtered);
-          if (!moderation.ok) {
+          if (isHardModerationBlock(moderation)) {
             return res.status(400).json({ error: 'Service description blocked by safety filters. Please revise and try again.', categories: moderation.flaggedCategories });
           }
           safeUpdates.description = filtered.filtered;
