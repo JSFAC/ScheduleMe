@@ -1,9 +1,9 @@
 // pages/api/reviews.ts — submit and fetch business reviews
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, getUnknownFields } from '../../lib/apiSecurity';
+import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
-import { moderateUserText } from '../../lib/openaiModeration';
+import { moderateUserText, hasHardModerationSignal } from '../../lib/openaiModeration';
 
 function getSupabase() {
   return createClient(
@@ -11,36 +11,6 @@ function getSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
-}
-
-async function hydrateReviewerName(supabase: ReturnType<typeof getSupabase>, userId: string) {
-  try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .eq('id', userId)
-      .maybeSingle();
-    if (profile?.name) return;
-
-    const { data: authData } = await supabase.auth.admin.getUserById(userId);
-    const authUser = authData?.user;
-    const first = String(authUser?.user_metadata?.first_name || '').trim();
-    const last = String(authUser?.user_metadata?.last_name || '').trim();
-    const fromParts = `${first} ${last}`.trim();
-    const metaName =
-      String(authUser?.user_metadata?.full_name || '').trim() ||
-      String(authUser?.user_metadata?.name || '').trim() ||
-      fromParts;
-
-    if (!metaName) return;
-    await supabase.from('profiles').upsert({
-      id: userId,
-      name: metaName,
-      email: authUser?.email || profile?.email || null,
-    }, { onConflict: 'id' });
-  } catch {
-    // non-blocking best effort
-  }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -52,10 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
-    const allowed = ['booking_id','business_id','rating','comment','image_urls'];
-    const unknown = getUnknownFields(req.body, allowed);
-    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
-    const { booking_id, business_id, rating, comment, image_urls } = req.body;
+    const { booking_id, business_id, rating, comment } = req.body;
 
     if (!booking_id || !business_id || !rating)
       return res.status(400).json({ error: 'booking_id, business_id, rating required' });
@@ -70,7 +37,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const check = validateAndFilter(comment, { maxLength: 500, fieldName: 'Review' });
       if (!check.ok) return res.status(400).json({ error: check.error });
       const moderation = await moderateUserText(check.value);
-      if (!moderation.ok) {
+      const hardSignal = hasHardModerationSignal(moderation.flaggedCategories);
+      if (!moderation.ok && hardSignal) {
         return res.status(400).json({
           error: 'Review blocked by safety filters. Please revise and try again.',
           categories: moderation.flaggedCategories,
@@ -79,13 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       cleanComment = check.value;
     }
 
-    let safeImages: string[] = [];
-    if (Array.isArray(image_urls)) {
-      safeImages = image_urls.filter((u: any) => typeof u === 'string').slice(0, 3);
-    }
-
     const supabase = getSupabase();
-    await hydrateReviewerName(supabase, user.id);
 
     // Verify the booking belongs to this user and is completed
     const { data: booking } = await supabase
@@ -108,6 +70,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (existing) return res.status(409).json({ error: 'You already reviewed this booking' });
 
+    // One review per provider (business) per user.
+    const { data: existingBusinessReview } = await supabase
+      .from('reviews')
+      .select('id, booking_id')
+      .eq('business_id', business_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingBusinessReview) {
+      return res.status(409).json({ error: 'You already reviewed this provider' });
+    }
+
     // Insert review
     const { data: review, error } = await supabase
       .from('reviews')
@@ -117,9 +91,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_id: user.id,
         rating,
         comment: cleanComment || null,
-        image_urls: safeImages.length ? safeImages : null,
       })
-      .select('id, rating, comment, image_urls, created_at')
+      .select('id, rating, comment, created_at')
       .single();
 
     if (error) return res.status(500).json({ error: 'Failed to submit review' });
@@ -155,7 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('reviews')
-      .select('id, rating, comment, image_urls, created_at, profiles(name, avatar_url)')
+      .select('id, rating, comment, created_at, profiles(name)')
       .eq('business_id', business_id)
       .order('created_at', { ascending: false })
       .limit(50);

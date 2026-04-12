@@ -36,6 +36,24 @@ function summarizeFlagged(categories?: ModerationCategoryMap): string[] {
     .slice(0, 5);
 }
 
+const HARD_BLOCK_CATEGORY_PREFIXES = [
+  'sexual/minors',
+  'violence/graphic',
+  'self-harm/instructions',
+  'self-harm/intent',
+  'hate/threatening',
+  'harassment/threatening',
+  'illicit/violent',
+];
+
+export function hasHardModerationSignal(categories?: string[]): boolean {
+  if (!categories || categories.length === 0) return false;
+  const normalized = categories.map((value) => value.toLowerCase().trim());
+  return normalized.some((category) =>
+    HARD_BLOCK_CATEGORY_PREFIXES.some((prefix) => category === prefix || category.startsWith(`${prefix}/`))
+  );
+}
+
 async function callModeration(input: unknown): Promise<ModerationResult> {
   const failOpen = shouldFailOpen();
   const apiKey = getApiKey();
@@ -102,4 +120,3 @@ export async function moderateUserImageDataUrl(dataUrl: string): Promise<Moderat
     },
   ]);
 }
-

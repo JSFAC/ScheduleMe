@@ -1,10 +1,10 @@
 // pages/api/upload-message-media.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { moderateUserImageDataUrl } from '../../lib/openaiModeration';
+import { moderateUserImageDataUrl, hasHardModerationSignal } from '../../lib/openaiModeration';
 import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 
 export const config = { api: { bodyParser: { sizeLimit: '80mb' } } };
@@ -87,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? String(file_data)
       : `data:${file_type};base64,${base64Data}`;
     const moderation = await moderateUserImageDataUrl(dataUrl);
-    const hasHardSignal = (moderation.flaggedCategories?.length ?? 0) > 0;
+    const hasHardSignal = hasHardModerationSignal(moderation.flaggedCategories);
     if (!moderation.ok && hasHardSignal) {
       return res.status(400).json({
         error: 'Image blocked by safety filters. Please upload a different image.',
