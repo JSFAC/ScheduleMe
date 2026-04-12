@@ -12,7 +12,7 @@ const LIMITS = {
   service: 120,
   note: 500,
 };
-const CONSUMER_DISPUTE_WINDOW_HOURS = Math.min(72, Math.max(24, Number(process.env.CONSUMER_CONFIRMATION_WINDOW_HOURS || 36)));
+const CONSUMER_DISPUTE_WINDOW_HOURS = 24;
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
