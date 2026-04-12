@@ -77,12 +77,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: business } = await supabase
     .from('businesses')
-    .select('id, name, stripe_account_id, stripe_onboarded')
+    .select('id, name, stripe_account_id, stripe_onboarded, availability_status')
     .eq('id', business_id)
     .maybeSingle();
 
   if (!business) {
     return res.status(404).json({ error: 'Provider not found.' });
+  }
+  const availabilityStatus = String((business as any).availability_status || '').trim().toLowerCase();
+  if (availabilityStatus && availabilityStatus !== 'open') {
+    return res.status(409).json({ error: `Provider is currently ${availabilityStatus} and not accepting bookings.` });
   }
   if (!business.stripe_onboarded || !business.stripe_account_id) {
     return res.status(400).json({ error: "This provider can't accept payments yet." });

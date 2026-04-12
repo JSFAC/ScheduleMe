@@ -1,18 +1,24 @@
 // @ts-nocheck
-// pages/api/bookings.ts — SECURED + notifications
+// pages/api/bookings.ts — SECURED + completion proof + consumer confirmation + disputes
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
-import { moderateText } from '../../lib/moderation';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail, getUnknownFields, logAuditEvent } from '../../lib/apiSecurity';
-import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
-import { PROTECTION_FEE_CENTS } from '../../lib/fees';
-const LIMITS = {
-  service: 120,
-  note: 500,
-};
-const CONSUMER_DISPUTE_WINDOW_HOURS = 24;
+import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
+
+const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
+const VALID_STATUSES = [
+  'pending',
+  'confirmed',
+  'active',
+  'payment_pending',
+  'paid',
+  'awaiting_consumer_confirmation',
+  'disputed',
+  'completed',
+  'cancelled',
+  'payment_failed',
+];
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,47 +27,79 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-async function hydrateProfileFromAuth(
-  supabase: ReturnType<typeof getSupabase>,
-  userId: string | null | undefined,
-  profile: any,
-  cache: Map<string, any>
-) {
-  if (!userId) return profile;
-  if (cache.has(userId)) return cache.get(userId);
-  let nextProfile = profile;
-  if (nextProfile?.name) {
-    cache.set(userId, nextProfile);
-    return nextProfile;
+function parseSlotTo24h(slot?: string): { hours: number; minutes: number } | null {
+  if (!slot || typeof slot !== 'string') return null;
+  const m = slot.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) return null;
+  let hours = parseInt(m[1], 10);
+  const minutes = parseInt(m[2], 10);
+  const meridiem = m[3].toUpperCase();
+  if (meridiem === 'PM' && hours !== 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+  return { hours, minutes };
+}
+
+function buildScheduledStart(scheduledDate?: string, scheduledSlot?: string, scheduledStartRaw?: string): string | null {
+  if (scheduledStartRaw && typeof scheduledStartRaw === 'string') {
+    const parsed = new Date(scheduledStartRaw);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
   }
-  try {
-    const { data: authData } = await supabase.auth.admin.getUserById(userId);
-    const authUser = authData?.user;
-    const first = String(authUser?.user_metadata?.first_name || '').trim();
-    const last = String(authUser?.user_metadata?.last_name || '').trim();
-    const fromParts = `${first} ${last}`.trim();
-    const metaName =
-      String(authUser?.user_metadata?.full_name || '').trim() ||
-      String(authUser?.user_metadata?.name || '').trim() ||
-      fromParts;
-    if (metaName) {
-      await supabase.from('profiles').upsert({
-        id: userId,
-        name: metaName,
-        email: authUser?.email || nextProfile?.email || null,
-      }, { onConflict: 'id' });
-      nextProfile = { ...(nextProfile || {}), id: userId, name: metaName, email: authUser?.email || nextProfile?.email || null };
-    }
-  } catch {}
-  cache.set(userId, nextProfile);
-  return nextProfile;
+  if (!scheduledDate || typeof scheduledDate !== 'string') return null;
+  const normalizedDate = scheduledDate.trim();
+  const dateMatch = normalizedDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dateMatch) return null;
+  const year = Number(dateMatch[1]);
+  const monthIndex = Number(dateMatch[2]) - 1;
+  const day = Number(dateMatch[3]);
+  const base = new Date(year, monthIndex, day, 0, 0, 0, 0);
+  if (Number.isNaN(base.getTime())) return null;
+  const parsed = parseSlotTo24h(scheduledSlot);
+  if (parsed) {
+    base.setHours(parsed.hours, parsed.minutes, 0, 0);
+  }
+  return base.toISOString();
+}
+
+function parseConfirmationWindowHours() {
+  // Provider-protective default: auto-complete on proof with a fixed 24h dispute window.
+  return DEFAULT_CONFIRMATION_WINDOW_HOURS;
+}
+
+function cleanText(value: unknown, maxLen = 1000): string {
+  if (typeof value !== 'string') return '';
+  return value.trim().slice(0, maxLen);
+}
+
+function cleanUrlArray(value: unknown, maxItems = 8): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    const s = item.trim();
+    if (!s) continue;
+    if (s.length > 1000) continue;
+    out.push(s);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
+function deriveBookingStatus(row: any): string {
+  if (row?.status === 'disputed' || row?.disputed_at) return 'disputed';
+  return row?.status || 'pending';
+}
+
+function isMissingColumnError(err: any): boolean {
+  const msg = String(err?.message || '').toLowerCase();
+  const details = String(err?.details || '').toLowerCase();
+  return msg.includes('column') || msg.includes('does not exist') || details.includes('does not exist');
 }
 
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
   try {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, status, created_at, scheduled_start, scheduled_end, note, amount_cents, protection_fee_cents, customer_proposed_price_cents, businesses(name, owner_email, phone), profiles(name, email, phone, avatar_url)')
+      .select('id, service, status, created_at, businesses(name, owner_email, phone), profiles(name, email, phone)')
       .eq('id', bookingId)
       .single();
     if (!booking) return;
@@ -71,29 +109,7 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
     const secret = process.env.NOTIFY_SECRET || '';
 
-    // Email consumer about booking request
-    if (user?.email) {
-      await fetch(`${siteUrl}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
-        body: JSON.stringify({
-          type: 'booking_confirmation',
-          to: user.email,
-          name: user?.name || 'there',
-          service: booking.service,
-          location: biz?.name || '',
-        }),
-      }).catch(() => {});
-    }
-
-    // Email business owner about new booking
     if (biz?.owner_email) {
-      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
-      const scheduledAt = scheduledRaw
-        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-        : '';
-      const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
-      const totalCents = typeof booking.amount_cents === 'number' ? (booking.amount_cents + protectionFee) : null;
       await fetch(`${siteUrl}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
@@ -103,32 +119,12 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
           name: biz.name,
           service: booking.service,
           customerName: user?.name || 'A customer',
-          scheduledAt,
-          note: booking.note || '',
-          amountDollars: totalCents != null ? (totalCents / 100).toFixed(2) : '',
+          customerPhone: user?.phone || '',
           bookingId,
         }),
       }).catch(() => {});
     }
 
-    // Email business owner about customer price proposal (custom request)
-    if (biz?.owner_email && booking.customer_proposed_price_cents) {
-      await fetch(`${siteUrl}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
-        body: JSON.stringify({
-          type: 'customer_proposed_price',
-          to: biz.owner_email,
-          businessName: biz.name || 'Your business',
-          customerName: user?.name || 'A customer',
-          service: booking.service,
-          amountDollars: (booking.customer_proposed_price_cents / 100).toFixed(2),
-          bookingId,
-        }),
-      }).catch(() => {});
-    }
-
-    // Trigger n8n workflow
     const n8nUrl = process.env.N8N_WEBHOOK_URL;
     if (n8nUrl) {
       await fetch(n8nUrl, {
@@ -147,747 +143,371 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
         }),
       }).catch(() => {});
     }
-  } catch { /* non-fatal */ }
+  } catch {
+    // non-fatal
+  }
 }
 
-async function handleCompletionBusinessUpdate(
-  supabase: ReturnType<typeof getSupabase>,
-  businessId: string
-) {
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('id, name, owner_email, founder50, founder50_status, bookings_completed, last_completed_booking_at, away_start, away_end, availability_status, break_until, featured_until, featured_on_notified_at')
-    .eq('id', businessId)
-    .maybeSingle();
-  if (!biz) return;
+async function getPaymentIntentForBooking(bookingId: string) {
+  const query = `metadata['booking_id']:'${bookingId}' AND status:'succeeded'`;
+  const result = await stripe.paymentIntents.search({ query, limit: 1 });
+  return result.data?.[0] || null;
+}
 
-  const now = new Date();
-  const updates: any = {};
-  const currentCompleted = Number(biz.bookings_completed || 0);
-  updates.bookings_completed = currentCompleted + 1;
-  updates.last_completed_booking_at = now.toISOString();
+async function refundBookingIfPaid(bookingId: string, amountCents?: number) {
+  try {
+    const paymentIntent = await getPaymentIntentForBooking(bookingId);
+    if (!paymentIntent) return { refunded: false, reason: 'no_payment_found' };
 
-  if (biz.founder50 && biz.founder50_status !== 'revoked') {
-    updates.founder50_status = 'active';
+    const existingRefunds = await stripe.refunds.list({ payment_intent: paymentIntent.id, limit: 10 });
+    const alreadyRefunded = existingRefunds.data.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const maxRefundable = Math.max(0, (paymentIntent.amount_received || paymentIntent.amount || 0) - alreadyRefunded);
+    if (maxRefundable <= 0) return { refunded: false, reason: 'already_refunded' };
+
+    const refundAmount = typeof amountCents === 'number'
+      ? Math.max(1, Math.min(maxRefundable, Math.round(amountCents)))
+      : maxRefundable;
+
+    await stripe.refunds.create({
+      payment_intent: paymentIntent.id,
+      amount: refundAmount,
+      reason: 'requested_by_customer',
+      metadata: { booking_id: bookingId },
+    });
+
+    return { refunded: true, amount_cents: refundAmount };
+  } catch (err) {
+    console.error('[bookings] refund failed', err);
+    return { refunded: false, reason: 'refund_failed' };
   }
+}
 
-  const featuredUntil = biz.featured_until ? new Date(biz.featured_until) : null;
-  const shouldFeature = updates.bookings_completed >= 3 && (!featuredUntil || Number.isNaN(featuredUntil.getTime()) || featuredUntil.getTime() < now.getTime());
-  if (shouldFeature) {
-    const nextUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    updates.featured_until = nextUntil.toISOString();
-    updates.featured_reason = 'milestone';
-    updates.featured_on_notified_at = now.toISOString();
-  }
-
-  await supabase.from('businesses').update(updates).eq('id', businessId);
-
-  if (shouldFeature && biz.owner_email && process.env.RESEND_API_KEY) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-    fetch(`${siteUrl}/api/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-      body: JSON.stringify({
-        type: 'featured_on',
-        to: biz.owner_email,
-        name: biz.name || 'there',
-        businessName: biz.name || 'Your business',
-      }),
-    }).catch(() => {});
-  }
+async function sendStatusUpdateEmail(to: string | undefined, payload: any) {
+  if (!to) return;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+  await fetch(`${siteUrl}/api/notify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+    body: JSON.stringify({ type: 'status_update', to, ...payload }),
+  }).catch(() => {});
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   if (req.method === 'POST') {
-    if (!(await rateLimit(req, res, { max: 1000, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
+    if (!(await rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
 
-    const allowed = ['business_id','user_id','service','user_name','user_phone','user_email','scheduled_start','scheduled_end','timezone','note','service_price_cents','customer_proposed_price_cents'];
-    const unknown = getUnknownFields(req.body, allowed);
-    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
-    const { business_id, user_id, service, user_name, user_phone, user_email, scheduled_start, scheduled_end, timezone, note, service_price_cents, customer_proposed_price_cents } = req.body;
-    let email = user_email;
-
-    let authUser: { id: string; email: string } | null = null;
-    if (req.headers.authorization) {
-      authUser = await requireAuth(req, res);
-      if (!authUser) return;
-      if (!email) email = authUser.email;
-    }
-
+    const {
+      business_id,
+      user_id,
+      service,
+      user_name,
+      user_phone,
+      user_email,
+      note,
+      address,
+      scheduled_date,
+      scheduled_slot,
+      scheduled_start,
+    } = req.body;
 
     if (!business_id) return res.status(400).json({ error: 'business_id is required' });
     if (!isValidUuid(business_id)) return res.status(400).json({ error: 'Invalid business_id' });
     if (user_id && !isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
-    if (email && !isValidEmail(email)) return res.status(400).json({ error: 'Invalid email' });
-
-    if (service_price_cents && typeof service_price_cents !== 'number') return res.status(400).json({ error: 'Invalid service_price_cents' });
-    if (typeof service_price_cents === 'number' && service_price_cents < 500) return res.status(400).json({ error: 'Minimum service price is $5.00' });
-    if (customer_proposed_price_cents != null) {
-      const proposed = Number(customer_proposed_price_cents);
-      if (!Number.isFinite(proposed) || proposed < 500) return res.status(400).json({ error: 'Minimum customer proposed price is $5.00' });
-      if (typeof service_price_cents === 'number') return res.status(400).json({ error: 'customer_proposed_price_cents only allowed for custom requests' });
-    }
+    if (user_email && !isValidEmail(user_email)) return res.status(400).json({ error: 'Invalid email' });
 
     if (service) {
-      const svcCheck = validateAndFilter(service, { maxLength: LIMITS.service, fieldName: 'Service description' });
+      const svcCheck = validateAndFilter(service, { maxLength: 500, fieldName: 'Service description' });
       if (!svcCheck.ok) return res.status(400).json({ error: svcCheck.error });
     }
-    if (typeof note === 'string' && note.length > LIMITS.note) {
-      return res.status(400).json({ error: `Note must be ${LIMITS.note} characters or less` });
-    }
-    if (typeof note === 'string' && note.trim()) {
-      const textMod = await moderateText(note);
-      if (!textMod.ok) return res.status(400).json({ error: textMod.reason || 'Note violates content policy' });
-    }
+
+    const safeAddress = typeof address === 'string' ? address.trim().slice(0, 300) : null;
+    const safeNote = typeof note === 'string' ? note.trim().slice(0, 2000) : null;
+    const scheduledStart = buildScheduledStart(scheduled_date, scheduled_slot, scheduled_start);
 
     try {
       const supabase = getSupabase();
-      const blockUserId = user_id || authUser?.id;
-      if (blockUserId) {
-        const { data: block } = await supabase
-          .from('blocks')
-          .select('id')
-          .eq('business_id', business_id)
-          .eq('user_id', blockUserId)
-          .maybeSingle();
-        if (block) {
-          return res.status(403).json({ error: 'This business has blocked new bookings from your account.' });
-        }
-      }
-      if (email) {
-        const requesterId = authUser?.id || user_id || null;
-        const { data: owner } = await supabase
-          .from('businesses')
-          .select('owner_id')
-          .eq('id', business_id)
-          .maybeSingle();
-        if (requesterId && owner?.owner_id && owner.owner_id === requesterId) {
-          return res.status(403).json({ error: 'You cannot book your own business.' });
-        }
-      }
-      // Block all new bookings if business has not completed Stripe onboarding.
-      const { data: biz } = await supabase
+
+      const { data: businessRow } = await supabase
         .from('businesses')
-        .select('stripe_onboarded, stripe_account_id')
+        .select('id, availability_status')
         .eq('id', business_id)
         .maybeSingle();
-      if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
-        return res.status(400).json({ error: 'This provider cannot accept payments yet.' });
+      if (!businessRow) return res.status(404).json({ error: 'Provider not found' });
+      const availabilityStatus = String((businessRow as any).availability_status || '').trim().toLowerCase();
+      if (availabilityStatus && availabilityStatus !== 'open') {
+        return res.status(409).json({
+          error: `Provider is currently ${availabilityStatus} and not accepting bookings.`,
+        });
       }
 
-      let scheduledStart: string | null = null;
-      if (scheduled_start && typeof scheduled_start === 'string') {
-        const d = new Date(scheduled_start);
-        if (!Number.isNaN(d.getTime())) scheduledStart = d.toISOString();
-      }
-      let scheduledEnd: string | null = null;
-      if (scheduled_end && typeof scheduled_end === 'string') {
-        const d = new Date(scheduled_end);
-        if (!Number.isNaN(d.getTime())) scheduledEnd = d.toISOString();
-      }
-
-      // Prevent double-booking the same slot (or overlapping hour block).
-      if (scheduledStart) {
-        const startMs = new Date(scheduledStart).getTime();
-        const windowStart = new Date(startMs - 59 * 60 * 1000).toISOString();
-        const windowEnd = new Date(startMs + 59 * 60 * 1000).toISOString();
-        const { data: conflicts, error: conflictErr } = await supabase
-          .from('bookings')
-          .select('id')
-          .eq('business_id', business_id)
-          .not('status', 'in', '(cancelled,completed,payment_failed)')
-          .gte('scheduled_start', windowStart)
-          .lte('scheduled_start', windowEnd)
-          .limit(1);
-        if (!conflictErr && (conflicts || []).length > 0) {
-          return res.status(409).json({ error: 'That time slot is no longer available. Please pick another time.' });
-        }
-      }
-
-      let resolvedUserId = user_id || authUser?.id;
-      if (!email && authUser?.email) email = authUser.email;
-
-      let profileId: string | null = null;
-      if (email) {
-        // Prefer existing profile id for this email to avoid mismatches
-        const { data: existing } = await supabase
+      let resolvedUserId = user_id;
+      if (!resolvedUserId && user_email) {
+        const { data: userData } = await supabase
           .from('profiles')
+          .upsert(
+            {
+              email: user_email,
+              name: user_name?.slice(0, 100),
+              phone: user_phone?.slice(0, 20),
+            },
+            { onConflict: 'email' }
+          )
           .select('id')
-          .eq('email', email)
-          .maybeSingle();
-        if (existing?.id) {
-          profileId = existing.id;
-        } else {
-          const payload: any = { email: email, name: user_name?.slice(0, 100), phone: user_phone?.slice(0, 20) };
-          if (authUser?.id) payload.id = authUser.id;
-          const { data: userData } = await supabase
-            .from('profiles')
-            .upsert(payload, { onConflict: authUser?.id ? 'id' : 'email' })
-            .select('id').single();
-          profileId = userData?.id ?? null;
-        }
-        if (existing?.id && user_name) {
-          await supabase
-            .from('profiles')
-            .update({ name: user_name.slice(0, 100) })
-            .eq('id', existing.id)
-            .is('name', null);
-        }
-      }
-      if (profileId) resolvedUserId = profileId;
-
-      let profileStripeCustomerId = null;
-      let profileStripePaymentMethodId = null;
-      if (profileId) {
-        const { data: pStripe } = await supabase
-          .from('profiles')
-          .select('stripe_customer_id, stripe_payment_method_id')
-          .eq('id', profileId)
-          .maybeSingle();
-        if (pStripe) {
-          profileStripeCustomerId = pStripe.stripe_customer_id || null;
-          profileStripePaymentMethodId = pStripe.stripe_payment_method_id || null;
-        }
+          .single();
+        resolvedUserId = userData?.id;
       }
 
-      const { data, error } = await supabase.from('bookings').insert({
-        business_id,
-        user_id: resolvedUserId ?? null,
-        service: (service?.slice(0, LIMITS.service) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
-        amount_cents: typeof service_price_cents === 'number' ? service_price_cents : undefined,
-        protection_fee_cents: PROTECTION_FEE_CENTS,
-        customer_proposed_price_cents: typeof customer_proposed_price_cents === 'number' ? Math.round(customer_proposed_price_cents) : undefined,
-        note: typeof note === 'string' ? note.slice(0, LIMITS.note) : null,
-        scheduled_start: scheduledStart ?? null,
-        scheduled_end: scheduledEnd ?? null,
-        timezone: typeof timezone === 'string' ? timezone : undefined,
-        status: 'pending',
-        requires_manual_action: true,
-        stripe_customer_id: profileStripeCustomerId || undefined,
-        stripe_payment_method_id: profileStripePaymentMethodId || undefined,
-      }).select('id, status, created_at, amount_cents').single();
-
-      if (error) {
-        // Fallback: some deployments don't have optional columns yet
-        const { data: fallback, error: fbErr } = await supabase.from('bookings').insert({
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
           business_id,
           user_id: resolvedUserId ?? null,
-          service: (service?.slice(0, LIMITS.service) ?? (typeof service_price_cents === 'number' ? 'Service' : 'Custom Request')),
+          service: service?.slice(0, 500) ?? 'General Service',
           status: 'pending',
           requires_manual_action: true,
-          protection_fee_cents: PROTECTION_FEE_CENTS,
-        stripe_customer_id: profileStripeCustomerId || undefined,
-        stripe_payment_method_id: profileStripePaymentMethodId || undefined,
-        }).select('id, status, created_at, amount_cents').single();
-        if (fbErr) return res.status(500).json({ error: 'Failed to create booking', details: error.message || error });
-        if (!service_price_cents || typeof service_price_cents !== 'number') {
-          notifyNewBooking(fallback.id, supabase);
-        }
-        return res.status(200).json({ booking: fallback, warning: 'Booking created without schedule details. Please update database columns.' });
-      }
+          notes: safeNote,
+          address: safeAddress,
+          scheduled_start: scheduledStart,
+        })
+        .select('id, status, created_at, amount_cents, address, notes, scheduled_start')
+        .single();
 
-      // Fire-and-forget notifications (only for non-paid/custom requests)
-      if (!service_price_cents || typeof service_price_cents !== 'number') {
-        notifyNewBooking(data.id, supabase);
-      }
+      if (error) return res.status(500).json({ error: 'Failed to create booking' });
+
+      notifyNewBooking(data.id, supabase);
 
       return res.status(200).json({ booking: data });
-    } catch (err) {
-      return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
+    } catch {
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
   if (req.method === 'PATCH') {
-    // Business confirms/cancels/completes a booking
-    if (!(await rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-patch' }))) return;
+    if (!(await rateLimit(req, res, { max: 120, windowMs: 60_000, keyPrefix: 'book-patch' }))) return;
     const user = await requireAuth(req, res);
     if (!user) return;
+    if (!(await rateLimitByPrincipal(res, user.id, { max: 240, windowMs: 60_000, keyPrefix: 'book-patch-user' }))) return;
 
-    const allowed = [
-      'booking_id',
-      'status',
-      'dispute_amount_cents',
-      'dispute_note',
-      'cancellation_reason',
-      'proof_note',
-      'proof_photo_urls',
-      'proof_geo_metadata',
-      'dispute_reason',
-      'dispute_details',
-      'dispute_media_urls',
-    ];
-    const unknown = getUnknownFields(req.body, allowed);
-    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
-    const {
-      booking_id,
-      status,
-      dispute_amount_cents,
-      dispute_note,
-      cancellation_reason,
-      proof_note,
-      proof_photo_urls,
-      proof_geo_metadata,
-      dispute_reason,
-      dispute_details,
-      dispute_media_urls,
-    } = req.body;
+    const { booking_id, status, action } = req.body;
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
-    const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid', 'price_disputed', 'disputed'];
-    if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
     const supabase = getSupabase();
-
-    // Verify caller owns the business for this booking
-    let booking: any = null;
-    let bookingErr: any = null;
-    let hasCompletionColumns = true;
-    ({ data: booking, error: bookingErr } = await supabase
+    const { data: booking } = await supabase
       .from('bookings')
-      .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, consumer_confirmation_due_at, completion_proof_submitted_at, businesses(id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+      .select('id, service, business_id, user_id, paid_at, status, amount_cents, consumer_confirmation_due_at, completion_proof_submitted_at, businesses(owner_id, owner_email, name), profiles(name, email)')
       .eq('id', booking_id)
-      .maybeSingle());
+      .maybeSingle();
 
-    if (bookingErr && (bookingErr.message || '').includes('consumer_confirmation_due_at')) {
-      hasCompletionColumns = false;
-      ({ data: booking, error: bookingErr } = await supabase
-        .from('bookings')
-        .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
-        .eq('id', booking_id)
-        .maybeSingle());
-    }
-
-    if (bookingErr) return res.status(500).json({ error: bookingErr.message || 'Failed to load booking' });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    let biz = booking.businesses as any;
-    if (!biz && booking.business_id) {
-      const { data: fallbackBiz } = await supabase
-        .from('businesses')
-      .select('id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
-        .eq('id', booking.business_id)
-        .maybeSingle();
-      biz = fallbackBiz || null;
-    }
-    const isBusinessOwner = biz?.owner_id === user.id;
-    let canCancelAsConsumer = false;
-    let canDisputeAsConsumer = false;
-    let canServiceDisputeAsConsumer = false;
-    if (!isBusinessOwner && status === 'cancelled') {
-      let canCancel = booking.user_id === user.id;
-      if (!canCancel && user.email) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (profile?.id && booking.user_id === profile.id) canCancel = true;
-        if (!canCancel) {
-          try {
-            const { data: legacyUser } = await supabase
-              .from('users')
-              .select('id')
-              .eq('email', user.email)
-              .maybeSingle();
-            if (legacyUser?.id && booking.user_id === legacyUser.id) canCancel = true;
-          } catch {}
-        }
-      }
-      canCancelAsConsumer = canCancel;
-    }
-    if (!isBusinessOwner && status === 'price_disputed') {
-      let canDispute = booking.user_id === user.id;
-      if (!canDispute && user.email) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (profile?.id && booking.user_id === profile.id) canDispute = true;
-        if (!canDispute) {
-          try {
-            const { data: legacyUser } = await supabase
-              .from('users')
-              .select('id')
-              .eq('email', user.email)
-              .maybeSingle();
-            if (legacyUser?.id && booking.user_id === legacyUser.id) canDispute = true;
-          } catch {}
-        }
-      }
-      canDisputeAsConsumer = canDispute;
-    }
-    if (!isBusinessOwner && status === 'disputed') {
-      let canDispute = booking.user_id === user.id;
-      if (!canDispute && user.email) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (profile?.id && booking.user_id === profile.id) canDispute = true;
-        if (!canDispute) {
-          try {
-            const { data: legacyUser } = await supabase
-              .from('users')
-              .select('id')
-              .eq('email', user.email)
-              .maybeSingle();
-            if (legacyUser?.id && booking.user_id === legacyUser.id) canDispute = true;
-          } catch {}
-        }
-      }
-      canServiceDisputeAsConsumer = canDispute;
-    }
 
-    if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer && !canServiceDisputeAsConsumer)
-      return res.status(403).json({ error: 'Access denied' });
-    const cancellationReason = typeof cancellation_reason === 'string' ? cancellation_reason.trim().slice(0, LIMITS.note) : '';
-    if (status === 'cancelled' && !isBusinessOwner && booking.paid_at && !cancellationReason) {
-      return res.status(400).json({ error: 'Cancellation reason is required' });
-    }
+    const ownerID = (booking.businesses as any)?.owner_id;
+    const ownerEmail = ((booking.businesses as any)?.owner_email || '').toLowerCase().trim();
+    const userEmail = (user.email || '').toLowerCase().trim();
+    const isBusinessOwner = ownerID === user.id || (!ownerID && !!ownerEmail && !!userEmail && ownerEmail === userEmail);
+    const isCustomer = booking.user_id === user.id;
+    const consumer = booking.profiles as any;
+    const businessName = (booking.businesses as any)?.name || 'Your provider';
 
-    if (status === 'completed' && booking.status === 'completed') {
-      return res.status(200).json({ success: true, already_completed: true });
-    }
-    if (status === 'cancelled' && booking.status === 'cancelled') {
-      return res.status(200).json({ success: true, already_cancelled: true });
-    }
-    if (status === 'completed' && isBusinessOwner) {
-      if (!hasCompletionColumns) {
-        return res.status(500).json({ error: 'Database update required: run supabase/booking_completion_disputes.sql before using completion proof flow.' });
-      }
-      // Basic anti-fraud guard: provider cannot complete before the scheduled service time.
-      const gateIso = booking.scheduled_end || booking.scheduled_start || null;
-      if (gateIso) {
-        const gate = new Date(gateIso).getTime();
-        if (!Number.isNaN(gate) && Date.now() < gate) {
-          return res.status(400).json({
-            error: 'You can mark this booking complete only after the scheduled service time.',
-          });
-        }
-      }
-    }
-    if (status === 'completed' && !isBusinessOwner) {
-      return res.status(400).json({ error: 'This flow auto-completes when provider submits completion proof.' });
-    }
+    if (!isBusinessOwner && !isCustomer) return res.status(403).json({ error: 'Access denied' });
 
-    const updatePayload: any = { status };
-    if (status === 'completed' && isBusinessOwner) {
-      const proofNote = typeof proof_note === 'string' ? proof_note.trim().slice(0, 1000) : '';
-      const proofPhotos = Array.isArray(proof_photo_urls)
-        ? proof_photo_urls.map((u: any) => String(u || '').trim()).filter(Boolean).slice(0, 8)
-        : [];
+    // New explicit workflow actions
+    if (action === 'provider_submit_completion_proof') {
+      if (!isBusinessOwner) return res.status(403).json({ error: 'Only providers can submit completion proof' });
+      if (!['confirmed', 'paid', 'payment_pending', 'active'].includes(booking.status)) {
+        return res.status(400).json({ error: 'Booking must be confirmed before completion proof can be submitted' });
+      }
+      if (booking.completion_proof_submitted_at) {
+        return res.status(400).json({ error: 'Completion proof already submitted and locked for this booking' });
+      }
+
+      const proofNote = cleanText(req.body?.proof_note, 1000);
+      const proofPhotos = cleanUrlArray(req.body?.proof_photo_urls, 8);
       if (!proofNote && proofPhotos.length === 0) {
-        return res.status(400).json({ error: 'Completion proof required: add a note or photo.' });
-      }
-      if (booking.status === 'completed' || booking.completion_proof_submitted_at) {
-        return res.status(400).json({ error: 'Completion proof already submitted for this booking.' });
-      }
-      updatePayload.completion_proof_note = proofNote || null;
-      updatePayload.completion_proof_photo_urls = proofPhotos;
-      updatePayload.completion_proof_geo_metadata =
-        proof_geo_metadata && typeof proof_geo_metadata === 'object' ? proof_geo_metadata : null;
-      updatePayload.completion_proof_submitted_at = new Date().toISOString();
-      updatePayload.completion_proof_submitted_by = user.id;
-      updatePayload.completed_at = new Date().toISOString();
-      updatePayload.consumer_confirmation_due_at = new Date(Date.now() + CONSUMER_DISPUTE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-      updatePayload.consumer_confirmation_mode = 'provider_auto_completed';
-    }
-    if (status === 'disputed') {
-      if (!hasCompletionColumns) {
-        return res.status(500).json({ error: 'Database update required: run supabase/booking_completion_disputes.sql before using disputes.' });
-      }
-      if (isBusinessOwner) {
-        return res.status(400).json({ error: 'Providers cannot open service disputes.' });
-      }
-      if (booking.status !== 'completed') {
-        return res.status(400).json({ error: 'Service disputes are only allowed on completed bookings.' });
-      }
-      const dueAtMs = booking.consumer_confirmation_due_at ? new Date(booking.consumer_confirmation_due_at).getTime() : 0;
-      if (!dueAtMs || dueAtMs <= Date.now()) {
-        return res.status(400).json({ error: 'Dispute window has closed.' });
-      }
-      const reason = typeof dispute_reason === 'string' ? dispute_reason.trim().slice(0, 200) : '';
-      const details = typeof dispute_details === 'string' ? dispute_details.trim().slice(0, 2000) : '';
-      const media = Array.isArray(dispute_media_urls)
-        ? dispute_media_urls.map((u: any) => String(u || '').trim()).filter(Boolean).slice(0, 8)
-        : [];
-      if (!reason) return res.status(400).json({ error: 'dispute_reason is required' });
-      updatePayload.disputed_at = new Date().toISOString();
-      updatePayload.dispute_reason = reason;
-      updatePayload.dispute_details = details || null;
-      updatePayload.dispute_media_urls = media;
-      updatePayload.dispute_opened_by = user.id;
-    }
-    if (status === 'price_disputed') {
-      if (!dispute_amount_cents || dispute_amount_cents < 500) {
-        return res.status(400).json({ error: 'Minimum dispute price is $5.00' });
-      }
-      updatePayload.dispute_amount_cents = Math.round(dispute_amount_cents);
-      updatePayload.dispute_note = dispute_note || null;
-      updatePayload.dispute_at = new Date().toISOString();
-      updatePayload.price_accepted_by_customer = false;
-      updatePayload.price_accepted_by_provider = false;
-      updatePayload.price_accepted_at = null;
-      if (isBusinessOwner) {
-        // Provider has sent a counter price; persist so dashboard can lock controls while waiting.
-        updatePayload.provider_proposed_price_cents = Math.round(dispute_amount_cents);
-      } else {
-        // Consumer has sent a counter price; persist for provider review context.
-        updatePayload.customer_proposed_price_cents = Math.round(dispute_amount_cents);
-      }
-    }
-
-    // If cancelling a paid booking, refund only the service amount.
-    // The protection fee is non-refundable and therefore excluded from refund amount.
-    if (status === 'cancelled' && booking.stripe_payment_intent_id) {
-      const serviceRefundCents = Number(booking.amount_cents || 0);
-      try {
-        if (serviceRefundCents > 0) {
-          await stripe.refunds.create({
-            payment_intent: booking.stripe_payment_intent_id,
-            amount: serviceRefundCents,
-            reverse_transfer: true,
-            refund_application_fee: true,
-          });
-        } else {
-          // Safety fallback for legacy records without amount_cents.
-          await stripe.refunds.create({
-            payment_intent: booking.stripe_payment_intent_id,
-            reverse_transfer: true,
-            refund_application_fee: true,
-          });
-        }
-      } catch (e: any) {
-        try {
-          if (serviceRefundCents > 0) {
-            await stripe.refunds.create({
-              payment_intent: booking.stripe_payment_intent_id,
-              amount: serviceRefundCents,
-            });
-          } else {
-            await stripe.refunds.create({
-              payment_intent: booking.stripe_payment_intent_id,
-            });
-          }
-        } catch (fallbackErr: any) {
-          console.error('[booking] refund failed', fallbackErr);
-          return res.status(500).json({ error: fallbackErr?.message || 'Refund failed' });
-        }
-      }
-    }
-
-    // Completion flow:
-    // 1) If not paid yet, charge customer now into platform balance.
-    // 2) Release provider payout via transfer only when booking is completed.
-    if (status === 'completed' && booking.amount_cents && booking.amount_cents > 0) {
-      if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
-        return res.status(400).json({ error: 'Business has not connected their bank account yet' });
-      }
-      const platformFeePercent = getPlatformFeePercent(biz);
-      if (!assertPlatformFeePercent(biz, platformFeePercent)) {
-        return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
-      }
-      const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);
-      const protectionFeeCents = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
-      const totalChargeCents = booking.amount_cents + protectionFeeCents;
-
-      let sourceTransactionId: string | null = null;
-      let isLegacyDestinationCharge = false;
-
-      if (!booking.paid_at) {
-        let profileStripeCustomerId: string | null = null;
-        let profileStripePaymentMethodId: string | null = null;
-        if (booking.user_id) {
-          const { data: pStripe } = await supabase
-            .from('profiles')
-            .select('stripe_customer_id, stripe_payment_method_id')
-            .eq('id', booking.user_id)
-            .maybeSingle();
-          if (pStripe) {
-            profileStripeCustomerId = pStripe.stripe_customer_id || null;
-            profileStripePaymentMethodId = pStripe.stripe_payment_method_id || null;
-          }
-        }
-        const customerId = booking.stripe_customer_id || profileStripeCustomerId;
-        const paymentMethodId = booking.stripe_payment_method_id || profileStripePaymentMethodId;
-        if (!customerId || !paymentMethodId) {
-          return res.status(400).json({ error: 'Customer has not saved a card yet' });
-        }
-        try {
-          const pi = await stripe.paymentIntents.create({
-            amount: totalChargeCents,
-            currency: 'usd',
-            customer: customerId,
-            payment_method: paymentMethodId,
-            confirm: true,
-            off_session: true,
-            description: `ScheduleMe booking: ${booking.service || 'Service'} with ${biz.name || 'provider'}`,
-            metadata: {
-              bookingId: booking_id,
-              businessId: biz.id,
-              service: booking.service || '',
-              business_name: biz.name || '',
-              hold_in_platform: 'true',
-              platform_fee_percent: String(platformFeePercent),
-              platform_fee_cents: String(platformFeeCents),
-              protection_fee_cents: String(protectionFeeCents),
-            },
-          });
-
-          if (pi.status !== 'succeeded') {
-            return res.status(500).json({ error: 'Payment could not be completed. Please try again.' });
-          }
-          if (pi.transfer_data?.destination) {
-            isLegacyDestinationCharge = true;
-          }
-          sourceTransactionId =
-            typeof pi.latest_charge === 'string'
-              ? pi.latest_charge
-              : ((pi.latest_charge as any)?.id || null);
-
-          updatePayload.paid_at = new Date().toISOString();
-          updatePayload.protection_fee_cents = protectionFeeCents;
-          updatePayload.stripe_payment_intent_id = pi.id;
-          updatePayload.stripe_customer_id = customerId;
-          updatePayload.stripe_payment_method_id = paymentMethodId;
-        } catch (e: any) {
-          console.error('[booking] payment intent create failed', e);
-          return res.status(500).json({ error: e?.message || 'Payment failed' });
-        }
-      } else if (booking.stripe_payment_intent_id) {
-        try {
-          const existingPi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
-          if (existingPi.transfer_data?.destination) {
-            isLegacyDestinationCharge = true;
-          }
-          sourceTransactionId =
-            typeof existingPi.latest_charge === 'string'
-              ? existingPi.latest_charge
-              : ((existingPi.latest_charge as any)?.id || null);
-        } catch (e: any) {
-          console.warn('[booking] could not retrieve payment intent for transfer source', e?.message || e);
-        }
+        return res.status(400).json({ error: 'At least one proof item is required (photo or note)' });
       }
 
-      // For new platform-held charges, release provider payout only on completion.
-      const transferAmount = Math.max(0, booking.amount_cents - platformFeeCents);
-      if (!isLegacyDestinationCharge && transferAmount > 0) {
-        try {
-          await stripe.transfers.create({
-            amount: transferAmount,
-            currency: 'usd',
-            destination: biz.stripe_account_id,
-            source_transaction: sourceTransactionId || undefined,
-            metadata: {
-              bookingId: booking_id,
-              businessId: biz.id,
-              release: 'on_completion',
-              platform_fee_percent: String(platformFeePercent),
-              protection_fee_cents: String(protectionFeeCents),
-            },
-            description: `ScheduleMe payout release for booking ${booking_id.slice(0, 8)}`,
-          }, {
-            idempotencyKey: `booking_${booking_id}_release_v1`,
-          });
-        } catch (e: any) {
-          console.error('[booking] payout release transfer failed', e);
-          return res.status(500).json({ error: e?.message || 'Could not release provider payout' });
-        }
+      const geoMeta = req.body?.geo_metadata && typeof req.body.geo_metadata === 'object'
+        ? req.body.geo_metadata
+        : null;
+
+      const nowIso = new Date().toISOString();
+      const dueDate = new Date(Date.now() + parseConfirmationWindowHours() * 60 * 60 * 1000).toISOString();
+
+      const { data: updated, error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          status: 'completed',
+          completed_at: nowIso,
+          consumer_confirmation_mode: 'provider_auto_completed',
+          completion_proof_note: proofNote || null,
+          completion_proof_photo_urls: proofPhotos,
+          completion_proof_geo_metadata: geoMeta,
+          completion_proof_submitted_at: nowIso,
+          completion_proof_submitted_by: user.id,
+          consumer_confirmation_due_at: dueDate,
+          disputed_at: null,
+          dispute_reason: null,
+          dispute_details: null,
+          dispute_media_urls: null,
+        })
+        .eq('id', booking_id)
+        .is('completion_proof_submitted_at', null)
+        .select('id, status, completed_at, consumer_confirmation_due_at, completion_proof_submitted_at')
+        .single();
+
+      if (updateError || !updated) {
+        return res.status(500).json({ error: 'Failed to submit completion proof' });
       }
-    }
 
-    const { error: updErr } = await supabase.from('bookings').update(updatePayload).eq('id', booking_id);
-    if (updErr) {
-      const msg = updErr.message || '';
-      const isDisputeFieldMissing = status === 'price_disputed' && (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at'));
-      const isPriceAcceptMissing = status === 'price_disputed' && (msg.includes('price_accepted_at') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider'));
-      const isPriceProposalMissing = status === 'price_disputed' && (msg.includes('provider_proposed_price_cents') || msg.includes('customer_proposed_price_cents'));
-      const isCompletionFlowFieldMissing = (status === 'completed' || status === 'disputed')
-        && (msg.includes('completion_proof_') || msg.includes('consumer_confirmation_due_at') || msg.includes('disputed_at') || msg.includes('dispute_reason') || msg.includes('dispute_details') || msg.includes('dispute_media_urls') || msg.includes('dispute_opened_by'));
-      if (isDisputeFieldMissing || isPriceAcceptMissing || isPriceProposalMissing) {
-        const fallbackPayload: any = { status };
-        if (!isDisputeFieldMissing) {
-          // If dispute columns exist but price-accepted columns don't, keep dispute fields
-          fallbackPayload.dispute_amount_cents = updatePayload.dispute_amount_cents;
-          fallbackPayload.dispute_note = updatePayload.dispute_note;
-          fallbackPayload.dispute_at = updatePayload.dispute_at;
-        }
-        if (!isPriceAcceptMissing) {
-          fallbackPayload.price_accepted_by_customer = updatePayload.price_accepted_by_customer;
-          fallbackPayload.price_accepted_by_provider = updatePayload.price_accepted_by_provider;
-          fallbackPayload.price_accepted_at = updatePayload.price_accepted_at;
-        }
-        if (!isPriceProposalMissing) {
-          if (typeof updatePayload.provider_proposed_price_cents !== 'undefined') {
-            fallbackPayload.provider_proposed_price_cents = updatePayload.provider_proposed_price_cents;
-          }
-          if (typeof updatePayload.customer_proposed_price_cents !== 'undefined') {
-            fallbackPayload.customer_proposed_price_cents = updatePayload.customer_proposed_price_cents;
-          }
-        }
-        const { error: fallbackErr } = await supabase.from('bookings').update(fallbackPayload).eq('id', booking_id);
-        if (fallbackErr) return res.status(500).json({ error: fallbackErr.message || 'Failed to update booking' });
-      } else if (isCompletionFlowFieldMissing) {
-        return res.status(500).json({ error: 'Database update required: run supabase/booking_completion_disputes.sql.' });
-      } else {
-        return res.status(500).json({ error: msg || 'Failed to update booking' });
-      }
-    }
+      await sendStatusUpdateEmail(consumer?.email, {
+        name: consumer?.name || 'there',
+        service: booking.service,
+        status: 'completed',
+        businessName,
+      });
 
-    await logAuditEvent(req, 'booking_status_update', {
-      entity_type: 'booking',
-      entity_id: booking_id,
-      actor_id: user.id,
-      actor_email: user.email,
-      actor_role: isBusinessOwner ? 'business' : 'consumer',
-      meta: { status, cancellation_reason: status === 'cancelled' ? (cancellationReason || null) : null },
-    });
-
-    if (status === 'completed' && booking.status !== 'completed' && booking.business_id) {
-      await handleCompletionBusinessUpdate(supabase, booking.business_id);
-    }
-
-    // Notify consumer of status change
-    let consumer: any = null;
-    if (booking.user_id) {
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('name, email')
-        .eq('id', booking.user_id)
-        .maybeSingle();
-      consumer = prof || null;
-      if (!consumer) {
-        try {
-          const { data: legacy } = await supabase
-            .from('users')
-            .select('name, email')
-            .eq('id', booking.user_id)
-            .maybeSingle();
-          consumer = legacy || null;
-        } catch {}
-      }
-    }
-    if (consumer?.email) {
-      if (status === 'price_disputed' && updatePayload.dispute_amount_cents) {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-        fetch(`${siteUrl}/api/notify`, {
+      if (process.env.N8N_WEBHOOK_URL) {
+        fetch(process.env.N8N_WEBHOOK_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            type: 'price_dispute_submitted',
-            to: consumer.email,
-            name: consumer.name || 'there',
-            service: booking.service,
-            businessName: (booking.businesses as any)?.name || 'Your provider',
-            amountDollars: (Number(updatePayload.dispute_amount_cents) / 100).toFixed(2),
+            event: 'booking_completed_with_dispute_window',
             bookingId: booking_id,
+            consumerConfirmationDueAt: dueDate,
+            timestamp: nowIso,
           }),
         }).catch(() => {});
       }
-      // Send review request email when booking is completed
+
+      return res.status(200).json({ success: true, booking: updated });
+    }
+
+    if (action === 'consumer_confirm_completion') {
+      return res.status(400).json({ error: 'This booking flow auto-completes when provider submits proof' });
+    }
+
+    if (action === 'consumer_open_dispute') {
+      if (!isCustomer) return res.status(403).json({ error: 'Only customers can open disputes' });
+      if (booking.status !== 'completed') {
+        return res.status(400).json({ error: 'Disputes can only be opened on completed bookings' });
+      }
+      const dueAt = booking.consumer_confirmation_due_at ? new Date(booking.consumer_confirmation_due_at).getTime() : 0;
+      if (!dueAt || dueAt <= Date.now()) {
+        return res.status(400).json({ error: 'Dispute window has closed' });
+      }
+
+      const reason = cleanText(req.body?.dispute_reason, 200);
+      const details = cleanText(req.body?.dispute_details, 2000);
+      const mediaUrls = cleanUrlArray(req.body?.dispute_media_urls, 8);
+      if (!reason) return res.status(400).json({ error: 'dispute_reason is required' });
+
+      const nowIso = new Date().toISOString();
+      const { data: updated, error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          status: 'disputed',
+          disputed_at: nowIso,
+          dispute_reason: reason,
+          dispute_details: details || null,
+          dispute_media_urls: mediaUrls,
+          dispute_opened_by: user.id,
+        })
+        .eq('id', booking_id)
+        .select('id, status, disputed_at, dispute_reason')
+        .single();
+
+      if (updateError || !updated) return res.status(500).json({ error: 'Failed to open dispute' });
+
+      await sendStatusUpdateEmail(consumer?.email, {
+        name: consumer?.name || 'there',
+        service: booking.service,
+        status: 'disputed',
+        businessName,
+      });
+
+      if (process.env.N8N_WEBHOOK_URL) {
+        fetch(process.env.N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'booking_disputed',
+            bookingId: booking_id,
+            disputeReason: reason,
+            timestamp: nowIso,
+          }),
+        }).catch(() => {});
+      }
+
+      return res.status(200).json({ success: true, booking: updated });
+    }
+
+    if (action === 'admin_resolve_dispute') {
+      const allowedAdmins = (process.env.DISPUTE_ADMIN_EMAILS || '')
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      const isAdmin = allowedAdmins.includes((user.email || '').toLowerCase().trim());
+      if (!isAdmin) return res.status(403).json({ error: 'Only dispute admins can resolve disputes' });
+      if (booking.status !== 'disputed') return res.status(400).json({ error: 'Booking is not disputed' });
+
+      const resolution = cleanText(req.body?.resolution, 60);
+      if (!['release_funds', 'full_refund', 'partial_refund'].includes(resolution)) {
+        return res.status(400).json({ error: 'resolution must be release_funds, full_refund, or partial_refund' });
+      }
+
+      let refund: any = null;
+      if (resolution === 'full_refund') {
+        refund = await refundBookingIfPaid(booking_id);
+      }
+      if (resolution === 'partial_refund') {
+        const cents = Number(req.body?.partial_refund_cents);
+        if (!Number.isFinite(cents) || cents <= 0) {
+          return res.status(400).json({ error: 'partial_refund_cents must be a positive number' });
+        }
+        refund = await refundBookingIfPaid(booking_id, cents);
+      }
+
+      const nowIso = new Date().toISOString();
+      const targetStatus = resolution === 'release_funds' ? 'completed' : 'cancelled';
+      const { data: updated, error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          status: targetStatus,
+          dispute_resolved_at: nowIso,
+          dispute_resolution: resolution,
+          dispute_resolution_notes: cleanText(req.body?.resolution_notes, 1000) || null,
+          completed_at: targetStatus === 'completed' ? nowIso : null,
+        })
+        .eq('id', booking_id)
+        .select('id, status, dispute_resolved_at, dispute_resolution')
+        .single();
+
+      if (updateError || !updated) return res.status(500).json({ error: 'Failed to resolve dispute' });
+      return res.status(200).json({ success: true, booking: updated, refund });
+    }
+
+    // Legacy status patching path
+    if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+    if (isCustomer && status !== 'cancelled') {
+      return res.status(403).json({ error: 'Customers can only cancel bookings' });
+    }
+
+    if (isBusinessOwner && status === 'completed') {
+      return res.status(400).json({ error: 'Use provider_submit_completion_proof before marking complete' });
+    }
+
+    const { error: updateError } = await supabase.from('bookings').update({ status }).eq('id', booking_id);
+    if (updateError) return res.status(500).json({ error: 'Failed to update booking' });
+
+    let refund: { refunded: boolean; reason?: string } | null = null;
+    if (status === 'cancelled' && booking.paid_at) {
+      refund = await refundBookingIfPaid(booking_id);
+    }
+
+    if (consumer?.email) {
       if (status === 'completed') {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
         fetch(`${siteUrl}/api/notify`, {
@@ -902,23 +522,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }),
         }).catch(() => {});
       }
-      if (status !== 'cancelled' && status !== 'price_disputed') {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-        fetch(`${siteUrl}/api/notify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-          body: JSON.stringify({
-            type: 'status_update',
-            to: consumer.email,
-            name: consumer.name || 'there',
-            service: booking.service,
-            status,
-            businessName: (booking.businesses as any)?.name,
-          }),
-        }).catch(() => {});
-      }
 
-      // n8n trigger for status changes
+      await sendStatusUpdateEmail(consumer.email, {
+        name: consumer.name || 'there',
+        service: booking.service,
+        status,
+        businessName,
+      });
+
       if (process.env.N8N_WEBHOOK_URL) {
         fetch(process.env.N8N_WEBHOOK_URL, {
           method: 'POST',
@@ -929,292 +540,101 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             service: booking.service,
             customerEmail: consumer.email,
             customerName: consumer.name,
+            refund,
             timestamp: new Date().toISOString(),
           }),
         }).catch(() => {});
       }
     }
 
-    if (status === 'cancelled' && consumer?.email) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
-      const scheduledAt = scheduledRaw
-        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-        : '';
-      const cancelledByLabel = isBusinessOwner
-        ? `${biz?.name || 'Provider'} (provider)`
-        : `${consumer?.name || user.email?.split('@')[0] || 'Customer'} (customer)`;
-      fetch(`${siteUrl}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-        body: JSON.stringify({
-          type: 'booking_cancelled_consumer',
-          to: consumer.email,
-          name: consumer.name || 'there',
-          businessName: biz?.name || 'Your provider',
-          service: booking.service || 'Service',
-          scheduledAt,
-          cancellationReason: cancellationReason || 'Not provided',
-          cancelledByLabel,
-          refundInProgress: !!booking.paid_at,
-          bookingId: booking_id,
-        }),
-      }).catch(() => {});
-    }
-
-    if (status === 'cancelled' && biz?.owner_email) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
-      const scheduledAt = scheduledRaw
-        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-        : '';
-      const cancelledByLabel = isBusinessOwner
-        ? `${biz?.name || 'Provider'} (provider)`
-        : `${consumer?.name || user.email?.split('@')[0] || 'Customer'} (customer)`;
-      fetch(`${siteUrl}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-        body: JSON.stringify({
-          type: 'booking_cancelled_business',
-          to: biz.owner_email,
-          businessName: biz?.name || 'Your business',
-          customerName: consumer?.name || user.email?.split('@')[0] || 'A customer',
-          service: booking.service || 'Service',
-          scheduledAt,
-          cancellationReason: cancellationReason || 'Not provided',
-          cancelledByLabel,
-          bookingId: booking_id,
-        }),
-      }).catch(() => {});
-    }
-
-    if (status === 'price_disputed' && biz?.owner_email) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
-      const scheduledRaw = booking.scheduled_start || booking.scheduled_end || null;
-      const scheduledAt = scheduledRaw
-        ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-        : '';
-      fetch(`${siteUrl}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
-        body: JSON.stringify({
-          type: 'customer_proposed_price',
-          to: biz.owner_email,
-          businessName: biz?.name || 'Your business',
-          customerName: consumer?.name || user.email?.split('@')[0] || 'A customer',
-          service: booking.service || 'Custom request',
-          amountDollars: (Number(updatePayload.dispute_amount_cents || booking.dispute_amount_cents || 0) / 100).toFixed(2),
-          bookingId: booking_id,
-          scheduledAt,
-          note: booking.note || '',
-        }),
-      }).catch(() => {});
-    }
-
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, refund });
   }
 
   if (req.method === 'GET') {
-    if (!(await rateLimit(req, res, { max: 1000, windowMs: 60_000, keyPrefix: 'book-get' }))) return;
+    if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'book-get' }))) return;
 
     const { business_id, user_id } = req.query;
+    const supabase = getSupabase();
+    if (user_id) {
+      if (!isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
+      const user = await requireAuth(req, res);
+      if (!user) return;
+      if (!(await rateLimitByPrincipal(res, user.id, { max: 60, windowMs: 60_000, keyPrefix: 'book-get-user' }))) return;
+      if (user.id !== user_id) return res.status(403).json({ error: 'Access denied' });
+
+      try {
+        let { data, error } = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+          .eq('user_id', user_id)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (error && isMissingColumnError(error)) {
+          const fallback = await supabase
+            .from('bookings')
+            .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email)')
+            .eq('user_id', user_id)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          data = fallback.data as any;
+          error = fallback.error as any;
+        }
+
+        if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+        const bookings = (data || []).map((b: any) => ({
+          ...b,
+          status: deriveBookingStatus(b),
+          scheduled_at: b.scheduled_start ?? null,
+          business_name: b.businesses?.name ?? null,
+          business_phone: b.businesses?.phone ?? null,
+          business_email: b.businesses?.email ?? null,
+          businesses: undefined,
+        }));
+        return res.status(200).json({ bookings });
+      } catch {
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
 
     if (business_id) {
       if (!isValidUuid(business_id)) return res.status(400).json({ error: 'Invalid business_id' });
       const user = await requireAuth(req, res);
       if (!user) return;
+      if (!(await rateLimitByPrincipal(res, user.id, { max: 60, windowMs: 60_000, keyPrefix: 'book-get-biz-user' }))) return;
 
-      const supabase = getSupabase();
-      const { data: biz } = await supabase.from('businesses')
-        .select('owner_id').eq('id', business_id).maybeSingle();
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('owner_id, owner_email')
+        .eq('id', business_id)
+        .maybeSingle();
       if (!biz) return res.status(404).json({ error: 'Business not found' });
-      if (biz.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
+      const ownerId = typeof (biz as any).owner_id === 'string' ? (biz as any).owner_id : null;
+      const ownerEmail = typeof (biz as any).owner_email === 'string' ? (biz as any).owner_email.toLowerCase().trim() : '';
+      const userEmail = (user.email || '').toLowerCase().trim();
+      const isOwner = ownerId === user.id || (!ownerId && !!ownerEmail && !!userEmail && ownerEmail === userEmail);
+      if (!isOwner) return res.status(403).json({ error: 'Access denied' });
 
       try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*, profiles(id, name, phone, email, avatar_url)')
-        .eq('business_id', business_id)
-        .or('amount_cents.is.null,service.ilike.%custom%,stripe_payment_method_id.not.is.null,status.eq.price_disputed')
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-      const profileCache = new Map<string, any>();
-      const withProfiles = await Promise.all((data || []).map(async (b: any) => {
-        const userId = b.profiles?.id || b.user_id || null;
-        const prof = await hydrateProfileFromAuth(supabase, userId, b.profiles, profileCache);
-        const scheduledAt = b.scheduled_start ?? b.scheduled_end ?? null;
-        const scheduledExact = !!b.scheduled_start && !b.scheduled_end && (() => {
-          try {
-            const d = new Date(b.scheduled_start);
-            return !(d.getHours() === 12 && d.getMinutes() === 0);
-          } catch {
-            return true;
-          }
-        })();
-        return { ...b, profiles: prof || b.profiles, scheduled_at: scheduledAt, scheduled_exact: scheduledExact };
-      }));
-      return res.status(200).json({ bookings: withProfiles || [] });
-      } catch (err) {
-        return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
-      }
-    }
-
-    // Consumer bookings (auth required)
-    const user = await requireAuth(req, res);
-    if (!user) return;
-    if (user_id && !isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
-
-    try {
-      const supabase = getSupabase();
-      const ids = new Set<string>();
-      ids.add(user.id);
-      if (user_id) ids.add(user_id as string);
-
-      if (user.email) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (profile?.id) ids.add(profile.id);
-
-        try {
-          const { data: legacyUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (legacyUser?.id) ids.add(legacyUser.id);
-        } catch {}
-      }
-
-      const idList = Array.from(ids).filter(Boolean);
-      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email), profiles(email, avatar_url)';
-      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email), profiles(email, avatar_url)';
-      let query = supabase
-        .from('bookings')
-        .select(selectWithPrice)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      let data: any[] | null = null;
-      let error: any = null;
-      if (idList.length > 1) {
-        const resq = await query.in('user_id', idList);
-        data = resq.data; error = resq.error;
-      } else {
-        const resq = await query.eq('user_id', idList[0]);
-        data = resq.data; error = resq.error;
-      }
-
-      if (error) {
-        // Retry without relational selects if FK isn't present in this environment
-        const msg = error?.message || '';
-        if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at') || msg.includes('completion_proof_') || msg.includes('consumer_confirmation_due_at') || msg.includes('dispute_reason') || msg.includes('dispute_details') || msg.includes('dispute_media_urls') || msg.includes('disputed_at')) {
-          // Retry without new price fields for older schemas
-          let retryQuery = supabase
-            .from('bookings')
-            .select(selectBase)
-            .order('created_at', { ascending: false })
-            .limit(100);
-          if (idList.length > 1) {
-            const retry = await retryQuery.in('user_id', idList);
-            data = retry.data; error = retry.error;
-          } else {
-            const retry = await retryQuery.eq('user_id', idList[0]);
-            data = retry.data; error = retry.error;
-          }
-        }
-      }
-
-      if (error) {
-        // Retry without relational selects if FK isn't present in this environment
-        let plainQuery = supabase
+        const { data, error } = await supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
+          .select('*, profiles(name, phone, email)')
+          .eq('business_id', business_id)
           .order('created_at', { ascending: false })
-          .limit(100);
-        if (idList.length > 1) {
-          const retry = await plainQuery.in('user_id', idList);
-          data = retry.data; error = retry.error;
-        } else {
-          const retry = await plainQuery.eq('user_id', idList[0]);
-          data = retry.data; error = retry.error;
-        }
-      }
+          .limit(200);
 
-      if (error) {
-        const msg = error?.message || '';
-        if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at')) {
-          let plainLegacy = supabase
-            .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
-            .order('created_at', { ascending: false })
-            .limit(100);
-          if (idList.length > 1) {
-            const retry = await plainLegacy.in('user_id', idList);
-            data = retry.data; error = retry.error;
-          } else {
-            const retry = await plainLegacy.eq('user_id', idList[0]);
-            data = retry.data; error = retry.error;
-          }
-        }
+        if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+        const bookings = (data || []).map((row: any) => ({
+          ...row,
+          status: deriveBookingStatus(row),
+        }));
+        return res.status(200).json({ bookings });
+      } catch {
+        return res.status(500).json({ error: 'Internal server error' });
       }
-
-      if (error) return res.status(500).json({ error: error.message || 'Failed to fetch bookings' });
-      let bizMap: Record<string, { name?: string | null; phone?: string | null; email?: string | null }> = {};
-      const bizIds = Array.from(new Set((data || []).map((b: any) => b.business_id || b.businesses?.id).filter(Boolean)));
-      if (bizIds.length > 0) {
-        const { data: bizData } = await supabase
-          .from('businesses')
-          .select('id, name, phone, email')
-          .in('id', bizIds);
-        (bizData || []).forEach((biz: any) => {
-          bizMap[biz.id] = { name: biz.name, phone: biz.phone, email: biz.email };
-        });
-      }
-      const bookings = (data || []).map((b: any) => {
-        const scheduledAt = b.scheduled_start ?? b.scheduled_end ?? null;
-        const scheduledExact = !!b.scheduled_start && !b.scheduled_end && (() => {
-          try {
-            const d = new Date(b.scheduled_start);
-            return !(d.getHours() === 12 && d.getMinutes() === 0);
-          } catch {
-            return true;
-          }
-        })();
-        return {
-          ...b,
-          scheduled_at: scheduledAt,
-          scheduled_exact: scheduledExact,
-          business_name: b.business_name ?? b.businesses?.name ?? bizMap[b.business_id || b.businesses?.id]?.name ?? null,
-          business_phone: b.businesses?.phone ?? bizMap[b.business_id || b.businesses?.id]?.phone ?? null,
-          business_email: b.businesses?.email ?? bizMap[b.business_id || b.businesses?.id]?.email ?? null,
-        };
-      });
-      const includeUnpaid = String(req.query.include_unpaid || '').toLowerCase() === '1'
-        || String(req.query.include_unpaid || '').toLowerCase() === 'true';
-      const visibleBookings = includeUnpaid
-        ? bookings
-        : bookings.filter((b: any) => {
-            const svc = String(b?.service || '').toLowerCase();
-            const isCustomFlow =
-              svc.includes('custom')
-              || b?.status === 'price_disputed'
-              || b?.status === 'payment_pending'
-              || b?.amount_cents == null
-              || b?.customer_proposed_price_cents != null
-              || b?.provider_proposed_price_cents != null;
-            if (isCustomFlow) return true;
-            // Standard flow: only show in consumer bookings once payment is completed.
-            return !!b?.paid_at;
-          });
-      return res.status(200).json({ bookings: visibleBookings });
-    } catch (err) {
-      return res.status(500).json({ error: (err as any)?.message || 'Internal server error' });
     }
+
+    return res.status(400).json({ error: 'business_id or user_id required' });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

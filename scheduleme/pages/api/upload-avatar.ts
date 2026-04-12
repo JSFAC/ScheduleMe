@@ -35,7 +35,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const base64Data = String(file_data).replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
   if (buffer.length > 8 * 1024 * 1024) {
-    return res.status(400).json({ error: 'File too large' });
+    const sizeMB = (buffer.length / (1024 * 1024)).toFixed(1);
+    return res.status(400).json({ error: `File too large (${sizeMB}MB). Max allowed is 8MB.` });
   }
 
   const dataUrl = String(file_data).startsWith('data:')

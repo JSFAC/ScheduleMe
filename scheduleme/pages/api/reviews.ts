@@ -5,6 +5,32 @@ import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../l
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateUserText, hasHardModerationSignal } from '../../lib/openaiModeration';
 
+const VIDEO_EXTENSIONS = new Set(['mp4', 'mov', 'm4v', 'webm', 'quicktime']);
+
+function isVideoURL(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    const ext = parsed.pathname.split('.').pop()?.toLowerCase() ?? '';
+    return VIDEO_EXTENSIONS.has(ext);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedReviewMediaHost(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.host.toLowerCase();
+    const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host.toLowerCase()
+      : '';
+    if (supabaseHost && host === supabaseHost) return true;
+    return host === 'usescheduleme.com' || host === 'www.usescheduleme.com';
+  } catch {
+    return false;
+  }
+}
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
-    const { booking_id, business_id, rating, comment } = req.body;
+    const { booking_id, business_id, rating, comment, review_media_urls } = req.body;
 
     if (!booking_id || !business_id || !rating)
       return res.status(400).json({ error: 'booking_id, business_id, rating required' });
@@ -30,6 +56,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Invalid IDs' });
     if (typeof rating !== 'number' || rating < 1 || rating > 5)
       return res.status(400).json({ error: 'Rating must be 1-5' });
+
+    const mediaURLs = Array.isArray(review_media_urls)
+      ? review_media_urls.filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
+      : [];
+    if (mediaURLs.length > 3) {
+      return res.status(400).json({ error: 'Reviews can include up to 3 media items.' });
+    }
+    let videoCount = 0;
+    for (const raw of mediaURLs) {
+      const value = raw.trim();
+      try {
+        const parsed = new URL(value);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return res.status(400).json({ error: 'Review media URLs must be http or https.' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'Invalid review media URL.' });
+      }
+      if (!isAllowedReviewMediaHost(value)) {
+        return res.status(400).json({ error: 'Review media must be uploaded through ScheduleMe.' });
+      }
+      if (isVideoURL(value)) videoCount += 1;
+    }
+    if (videoCount > 1) {
+      return res.status(400).json({ error: 'Reviews can include at most 1 video.' });
+    }
 
     // Filter comment if provided
     let cleanComment = '';
@@ -91,8 +143,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_id: user.id,
         rating,
         comment: cleanComment || null,
+        review_media_urls: mediaURLs,
       })
-      .select('id, rating, comment, created_at')
+      .select('id, rating, comment, review_media_urls, created_at')
       .single();
 
     if (error) return res.status(500).json({ error: 'Failed to submit review' });
@@ -128,7 +181,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('reviews')
-      .select('id, rating, comment, created_at, profiles(name)')
+      .select('id, rating, comment, review_media_urls, created_at, profiles(name)')
       .eq('business_id', business_id)
       .order('created_at', { ascending: false })
       .limit(50);

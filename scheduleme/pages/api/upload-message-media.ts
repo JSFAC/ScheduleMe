@@ -59,7 +59,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const maxSize = isVideo ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
   if (buffer.length > maxSize) {
-    return res.status(400).json({ error: 'File too large' });
+    const maxMB = isVideo ? 50 : 8;
+    const sizeMB = (buffer.length / (1024 * 1024)).toFixed(1);
+    return res.status(400).json({ error: `File too large (${sizeMB}MB). Max allowed is ${maxMB}MB.` });
   }
 
   const supabase = getSupabaseService();

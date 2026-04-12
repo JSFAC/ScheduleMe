@@ -2,8 +2,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { filterMessage } from '../../lib/profanity';
-import { moderateUserText } from '../../lib/openaiModeration';
-import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, getUnknownFields } from '../../lib/apiSecurity';
+import { moderateUserText, hasHardModerationSignal } from '../../lib/openaiModeration';
+import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,100 +12,14 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-const MESSAGE_MEDIA_BUCKET = process.env.MESSAGE_MEDIA_BUCKET || 'message-media';
+function isBusinessOwnerForUser(business: any, user: { id: string; email: string }): boolean {
+  const ownerID = typeof business?.owner_id === 'string' ? business.owner_id : null;
+  if (ownerID) return ownerID === user.id;
 
-function parseStorageRef(input: string): { bucket: string; path: string } | null {
-  const value = String(input || '').trim();
-  if (!value) return null;
-
-  if (value.startsWith('storage://')) {
-    const rest = value.slice('storage://'.length);
-    const slash = rest.indexOf('/');
-    if (slash <= 0) return null;
-    return { bucket: rest.slice(0, slash), path: rest.slice(slash + 1) };
-  }
-
-  try {
-    const u = new URL(value);
-    const marker = '/storage/v1/object/';
-    const idx = u.pathname.indexOf(marker);
-    if (idx === -1) return null;
-    const suffix = u.pathname.slice(idx + marker.length);
-    if (suffix.startsWith('public/')) {
-      const body = suffix.slice('public/'.length);
-      const slash = body.indexOf('/');
-      if (slash <= 0) return null;
-      return { bucket: body.slice(0, slash), path: body.slice(slash + 1) };
-    }
-    if (suffix.startsWith('sign/')) {
-      const body = suffix.slice('sign/'.length);
-      const slash = body.indexOf('/');
-      if (slash <= 0) return null;
-      return { bucket: body.slice(0, slash), path: body.slice(slash + 1) };
-    }
-  } catch {}
-
-  return null;
-}
-
-async function hydrateMessageMediaUrls(
-  supabase: ReturnType<typeof getSupabase>,
-  rows: any[],
-  cache: Map<string, string>
-) {
-  for (const row of rows || []) {
-    const raw = String(row?.image_url || '').trim();
-    if (!raw) continue;
-    const parsed = parseStorageRef(raw);
-    if (!parsed) continue;
-    const key = `${parsed.bucket}/${parsed.path}`;
-    const cached = cache.get(key);
-    if (cached) {
-      row.image_url = cached;
-      continue;
-    }
-    const { data } = await supabase.storage.from(parsed.bucket).createSignedUrl(parsed.path, 15 * 60);
-    if (data?.signedUrl) {
-      row.image_url = data.signedUrl;
-      cache.set(key, data.signedUrl);
-    }
-  }
-}
-
-async function hydrateProfileFromAuth(
-  supabase: ReturnType<typeof getSupabase>,
-  userId: string | null | undefined,
-  profile: any,
-  cache: Map<string, any>
-) {
-  if (!userId) return profile;
-  if (cache.has(userId)) return cache.get(userId);
-  let nextProfile = profile;
-  if (nextProfile?.name) {
-    cache.set(userId, nextProfile);
-    return nextProfile;
-  }
-  try {
-    const { data: authData } = await supabase.auth.admin.getUserById(userId);
-    const authUser = authData?.user;
-    const first = String(authUser?.user_metadata?.first_name || '').trim();
-    const last = String(authUser?.user_metadata?.last_name || '').trim();
-    const fromParts = `${first} ${last}`.trim();
-    const metaName =
-      String(authUser?.user_metadata?.full_name || '').trim() ||
-      String(authUser?.user_metadata?.name || '').trim() ||
-      fromParts;
-    if (metaName) {
-      await supabase.from('profiles').upsert({
-        id: userId,
-        name: metaName,
-        email: authUser?.email || nextProfile?.email || null,
-      }, { onConflict: 'id' });
-      nextProfile = { ...(nextProfile || {}), id: userId, name: metaName, email: authUser?.email || nextProfile?.email || null };
-    }
-  } catch {}
-  cache.set(userId, nextProfile);
-  return nextProfile;
+  // Legacy fallback only when owner_id is missing.
+  const ownerEmail = typeof business?.owner_email === 'string' ? business.owner_email.toLowerCase().trim() : '';
+  const userEmail = (user.email || '').toLowerCase().trim();
+  return !!ownerEmail && !!userEmail && ownerEmail === userEmail;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -113,172 +27,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // GET — fetch messages or threads
   if (req.method === 'GET') {
-    // Rate limit: 600 reads/min per IP
-    if (!(await rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-get' }))) return;
+    // Rate limit: 60 reads/min per IP
+    if (!(await rateLimit(req, res, { max: 60, windowMs: 60_000, keyPrefix: 'msg-get' }))) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;
+    if (!(await rateLimitByPrincipal(res, user.id, { max: 120, windowMs: 60_000, keyPrefix: 'msg-get-user' }))) return;
 
-    const { booking_id, user_id, business_id } = req.query;
+    const { booking_id, user_id, business_id, before, after, limit } = req.query;
     const supabase = getSupabase();
-    const mediaUrlCache = new Map<string, string>();
-
-    const { thread_business_id, thread_customer_id } = req.query;
-    const limitNum = Math.min(Number(req.query.limit ?? 40), 200);
-    const before = typeof req.query.before === 'string' ? req.query.before : null;
-    const after = typeof req.query.after === 'string' ? req.query.after : null;
-
-    async function fetchMessages(bookingIds: string[]) {
-      if (!bookingIds.length) return { messages: [], hasMore: false };
-      let query = supabase
-        .from('messages')
-        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
-        .in('booking_id', bookingIds);
-
-      if (after) {
-        const { data, error } = await query
-          .gt('created_at', after)
-          .order('created_at', { ascending: true })
-          .limit(limitNum);
-        if (error) throw error;
-        const rows = data || [];
-        await hydrateMessageMediaUrls(supabase, rows, mediaUrlCache);
-        return { messages: rows, hasMore: false };
-      }
-
-      if (before) query = query.lt('created_at', before);
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(limitNum + 1);
-      if (error) throw error;
-      const rows = data || [];
-      const hasMore = rows.length > limitNum;
-      const trimmed = hasMore ? rows.slice(0, limitNum) : rows;
-      const ordered = trimmed.reverse();
-      await hydrateMessageMediaUrls(supabase, ordered, mediaUrlCache);
-      return { messages: ordered, hasMore };
-    }
-
-    if (thread_business_id) {
-      if (!isValidUuid(thread_business_id)) return res.status(400).json({ error: 'Invalid business_id' });
-
-      // Resolve all user ids (auth, profile, legacy)
-      const ids = new Set([user.id]);
-      if (user.email) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (profile?.id) ids.add(profile.id);
-        try {
-          const { data: legacyUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (legacyUser?.id) ids.add(legacyUser.id);
-        } catch {}
-      }
-      const idList = Array.from(ids).filter(Boolean);
-
-      // Fetch bookings for this user + business
-      let bookings = [] as any[];
-      if (idList.length > 1) {
-        const resq = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, businesses(id, name, phone)')
-          .eq('business_id', thread_business_id)
-          .in('user_id', idList)
-          .order('created_at', { ascending: false });
-        bookings = resq.data || [];
-      } else {
-        const resq = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, businesses(id, name, phone)')
-          .eq('business_id', thread_business_id)
-          .eq('user_id', idList[0])
-          .order('created_at', { ascending: false });
-        bookings = resq.data || [];
-      }
-
-      if (!bookings.length) return res.status(404).json({ error: 'No bookings found' });
-      const bookingIds = bookings.map(b => b.id);
-
-      let data: any[] = [];
-      let hasMore = false;
-      try {
-        const result = await fetchMessages(bookingIds);
-        data = result.messages;
-        hasMore = result.hasMore;
-      } catch {
-        return res.status(500).json({ error: 'Failed to fetch messages' });
-      }
-
-      const latest = bookings[0];
-      const thread = {
-        id: thread_business_id,
-        business_id: thread_business_id,
-        booking_id: latest.id,
-        service: latest.service,
-        status: latest.status,
-        created_at: latest.created_at,
-        businesses: latest.businesses || null,
-        lastMessage: data?.[data.length - 1] ?? null,
-        unreadCount: 0,
-        booking_ids: bookingIds,
-      };
-      return res.status(200).json({ messages: data || [], thread, has_more: hasMore });
-    }
-
-    if (thread_customer_id) {
-      if (!isValidUuid(thread_customer_id)) return res.status(400).json({ error: 'Invalid customer_id' });
-      if (!business_id || !isValidUuid(business_id)) return res.status(400).json({ error: 'Invalid business_id' });
-
-      // Verify caller owns this business
-      const { data: biz } = await supabase.from('businesses')
-        .select('owner_id').eq('id', business_id).maybeSingle();
-      if (!biz) return res.status(404).json({ error: 'Business not found' });
-      if (biz.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
-
-      const resq = await supabase
-        .from('bookings')
-        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone, avatar_url)')
-        .eq('business_id', business_id)
-        .eq('user_id', thread_customer_id)
-        .order('created_at', { ascending: false });
-      const bookings = resq.data || [];
-      if (!bookings.length) return res.status(404).json({ error: 'No bookings found' });
-      const bookingIds = bookings.map(b => b.id);
-
-      let data: any[] = [];
-      let hasMore = false;
-      try {
-        const result = await fetchMessages(bookingIds);
-        data = result.messages;
-        hasMore = result.hasMore;
-      } catch {
-        return res.status(500).json({ error: 'Failed to fetch messages' });
-      }
-
-      const latest = bookings[0];
-      const profileCache = new Map<string, any>();
-      const latestProfile = await hydrateProfileFromAuth(supabase, latest.profiles?.id || latest.user_id, latest.profiles || null, profileCache);
-      const thread = {
-        id: thread_customer_id,
-        customer_id: thread_customer_id,
-        booking_id: latest.id,
-        service: latest.service,
-        status: latest.status,
-        created_at: latest.created_at,
-        profiles: latestProfile,
-        lastMessage: data?.[data.length - 1] ?? null,
-        unreadCount: 0,
-        booking_ids: bookingIds,
-      };
-      return res.status(200).json({ messages: data || [], thread, has_more: hasMore });
-    }
-
 
     if (booking_id) {
       if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
@@ -286,55 +43,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Verify caller is party to this booking
       const { data: booking } = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, user_id, business_id, businesses(id, name, phone, owner_id)')
+        .select('user_id, business_id, businesses(owner_id, owner_email)')
         .eq('id', booking_id)
         .maybeSingle();
 
       if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-      let isUser = booking.user_id === user.id;
-      const isBiz = (booking.businesses as any)?.owner_id === user.id;
-      if (!isUser && user.email) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (profile?.id && booking.user_id === profile.id) isUser = true;
-        if (!isUser) {
-          try {
-            const { data: legacyUser } = await supabase
-              .from('users')
-              .select('id')
-              .eq('email', user.email)
-              .maybeSingle();
-            if (legacyUser?.id && booking.user_id === legacyUser.id) isUser = true;
-          } catch {}
-        }
-      }
+      const isUser = booking.user_id === user.id;
+      const isBiz = isBusinessOwnerForUser(booking.businesses, user);
       if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
-      let data: any[] = [];
-      let hasMore = false;
-      try {
-        const result = await fetchMessages([booking_id]);
-        data = result.messages;
-        hasMore = result.hasMore;
-      } catch {
-        return res.status(500).json({ error: 'Failed to fetch messages' });
+      const parsedLimit = Number(Array.isArray(limit) ? limit[0] : limit);
+      const pageSize = Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(Math.floor(parsedLimit), 100)
+        : 40;
+      const beforeValue = Array.isArray(before) ? before[0] : before;
+      const afterValue = Array.isArray(after) ? after[0] : after;
+      const validBefore = typeof beforeValue === 'string' && !Number.isNaN(Date.parse(beforeValue)) ? beforeValue : null;
+      const validAfter = typeof afterValue === 'string' && !Number.isNaN(Date.parse(afterValue)) ? afterValue : null;
+
+      let query = supabase
+        .from('messages')
+        .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
+        .eq('booking_id', booking_id);
+
+      if (validAfter) {
+        query = query
+          .gt('created_at', validAfter)
+          .order('created_at', { ascending: true })
+          .limit(pageSize);
+      } else if (validBefore) {
+        query = query
+          .lt('created_at', validBefore)
+          .order('created_at', { ascending: false })
+          .limit(pageSize + 1);
+      } else {
+        query = query
+          .order('created_at', { ascending: true });
       }
-      const thread = booking ? {
-        id: (booking.businesses as any)?.id || booking.id,
-        business_id: (booking.businesses as any)?.id || null,
-        booking_id: booking.id,
-        service: booking.service,
-        status: booking.status,
-        created_at: booking.created_at,
-        businesses: (booking.businesses as any) ? { id: (booking.businesses as any).id, name: (booking.businesses as any).name, phone: (booking.businesses as any).phone } : null,
-        lastMessage: data?.[data.length - 1] ?? null,
-        unreadCount: 0,
-      } : null;
-      return res.status(200).json({ messages: data, thread, has_more: hasMore });
+
+      const { data, error } = await query;
+      if (error) return res.status(500).json({ error: 'Failed to fetch messages' });
+
+      if (validBefore) {
+        const hasMore = (data?.length ?? 0) > pageSize;
+        const trimmed = (data ?? []).slice(0, pageSize).reverse();
+        return res.status(200).json({ messages: trimmed, has_more: hasMore });
+      }
+
+      return res.status(200).json({ messages: data ?? [], has_more: false });
     }
 
     if (user_id) {
@@ -342,74 +99,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Can only fetch your own threads
       if (user_id !== user.id) return res.status(403).json({ error: 'Access denied' });
 
-      const ids = new Set([user.id]);
-      if (user.email) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (profile?.id) ids.add(profile.id);
-        try {
-          const { data: legacyUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (legacyUser?.id) ids.add(legacyUser.id);
-        } catch {}
-      }
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('id, service, status, created_at, businesses(id, name, phone)')
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: false });
 
-      const idList = Array.from(ids).filter(Boolean);
-      let bookings = [] as any[];
-      if (idList.length > 1) {
-        const resq = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, businesses(id, name, phone)')
-          .in('user_id', idList)
-          .order('created_at', { ascending: false });
-        bookings = resq.data || [];
-      } else {
-        const resq = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, businesses(id, name, phone)')
-          .eq('user_id', idList[0])
-          .order('created_at', { ascending: false });
-        bookings = resq.data || [];
-      }
-
-      // Group by business
-      const byBiz = new Map();
-      for (const b of bookings || []) {
-        const bizId = b.businesses?.id;
-        if (!bizId) continue;
-        if (!byBiz.has(bizId)) byBiz.set(bizId, []);
-        byBiz.get(bizId).push(b);
-      }
-
-      const threads = await Promise.all(Array.from(byBiz.entries()).map(async ([bizId, list]) => {
-        const sorted = list.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        const latest = sorted[0];
-        const bookingIds = sorted.map((b: any) => b.id);
+      const threads = await Promise.all((bookings || []).map(async (b: any) => {
         const { data: msgs } = await supabase.from('messages')
           .select('id, sender_type, content, image_url, message_type, created_at')
-          .in('booking_id', bookingIds).order('created_at', { ascending: false }).limit(1);
-        await hydrateMessageMediaUrls(supabase, msgs || [], mediaUrlCache);
+          .eq('booking_id', b.id).order('created_at', { ascending: false }).limit(1);
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
-          .in('booking_id', bookingIds).eq('read', false).eq('sender_type', 'business');
-        return {
-          id: bizId,
-          business_id: bizId,
-          booking_id: latest.id,
-          service: latest.service,
-          status: latest.status,
-          created_at: latest.created_at,
-          businesses: latest.businesses || null,
-          lastMessage: msgs?.[0] ?? null,
-          unreadCount: count ?? 0,
-          booking_ids: bookingIds,
-        };
+          .eq('booking_id', b.id).eq('read', false).eq('sender_type', 'business');
+        return { ...b, lastMessage: msgs?.[0] ?? null, unreadCount: count ?? 0 };
       }));
       return res.status(200).json({ threads });
     }
@@ -419,78 +122,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Verify caller owns this business
       const { data: biz } = await supabase.from('businesses')
-        .select('owner_id').eq('id', business_id).maybeSingle();
+        .select('owner_id, owner_email').eq('id', business_id).maybeSingle();
       if (!biz) return res.status(404).json({ error: 'Business not found' });
-      if (biz.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
+      const isOwner = isBusinessOwnerForUser(biz, user);
+      if (!isOwner) return res.status(403).json({ error: 'Access denied' });
 
-      let bookings: any[] = [];
-      const resq = await supabase
+      const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, user_id, profiles(id, name, email, phone, avatar_url)')
+        .select('id, service, status, created_at, profiles(id, name, email, phone)')
         .eq('business_id', business_id)
         .order('created_at', { ascending: false });
-      if (resq.error) {
-        const fallback = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, user_id')
-          .eq('business_id', business_id)
-          .order('created_at', { ascending: false });
-        bookings = fallback.data || [];
-        // Best-effort attach profile data
-        for (const b of bookings) {
-          if (!b.user_id) continue;
-          const { data: prof } = await supabase
-            .from('profiles')
-            .select('id, name, email, phone, avatar_url')
-            .eq('id', b.user_id)
-            .maybeSingle();
-          if (prof) b.profiles = prof;
-        }
-      } else {
-        bookings = resq.data || [];
-      }
 
-      const profileCache = new Map<string, any>();
-      const hydrated = await Promise.all((bookings || []).map(async (b: any) => {
-        const userId = b.profiles?.id || b.user_id || null;
-        const prof = await hydrateProfileFromAuth(supabase, userId, b.profiles || null, profileCache);
-        return { ...b, profiles: prof || b.profiles };
-      }));
-      bookings = hydrated;
-
-      // Group by customer
-      const byCustomer = new Map();
-      for (const b of bookings || []) {
-        const customerId = b.profiles?.id || b.user_id;
-        if (!customerId) continue;
-        if (!byCustomer.has(customerId)) byCustomer.set(customerId, []);
-        byCustomer.get(customerId).push(b);
-      }
-
-      const threads = await Promise.all(Array.from(byCustomer.entries()).map(async ([customerId, list]) => {
-        const sorted = list.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        const latest = sorted[0];
-        const bookingIds = sorted.map((b: any) => b.id);
+      const threads = await Promise.all((bookings || []).map(async (b: any) => {
         const { data: msgs } = await supabase.from('messages')
           .select('id, sender_type, content, image_url, message_type, created_at')
-          .in('booking_id', bookingIds).order('created_at', { ascending: false }).limit(1);
-        await hydrateMessageMediaUrls(supabase, msgs || [], mediaUrlCache);
+          .eq('booking_id', b.id).order('created_at', { ascending: false }).limit(1);
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
-          .in('booking_id', bookingIds).eq('read', false).eq('sender_type', 'user');
-        const normalizedProfile = latest.profiles || null;
-        return {
-          id: customerId,
-          customer_id: customerId,
-          booking_id: latest.id,
-          service: latest.service,
-          status: latest.status,
-          created_at: latest.created_at,
-          profiles: normalizedProfile,
-          lastMessage: msgs?.[0] ?? null,
-          unreadCount: count ?? 0,
-          booking_ids: bookingIds,
-        };
+          .eq('booking_id', b.id).eq('read', false).eq('sender_type', 'user');
+        return { ...b, lastMessage: msgs?.[0] ?? null, unreadCount: count ?? 0 };
       }));
       return res.status(200).json({ threads });
     }
@@ -500,101 +150,87 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // POST — send a message
   if (req.method === 'POST') {
-    // Rate limit: 600 messages/min per IP (prevents flooding)
-    if (!(await rateLimit(req, res, { max: 600, windowMs: 60_000, keyPrefix: 'msg-post' }))) return;
+    // Rate limit: 30 messages/min per IP (prevents flooding)
+    if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'msg-post' }))) return;
 
     const user = await requireAuth(req, res);
     if (!user) return;
+    if (!(await rateLimitByPrincipal(res, user.id, { max: 60, windowMs: 60_000, keyPrefix: 'msg-post-user' }))) return;
 
-    const allowed = ['booking_id','sender_type','content','image_url'];
-    const unknown = getUnknownFields(req.body, allowed);
-    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
-    const { booking_id, sender_type, content, image_url } = req.body;
+    const { booking_id, sender_type, content, image_url, message_type } = req.body;
 
-    if (!booking_id || !sender_type)
-      return res.status(400).json({ error: 'booking_id and sender_type required' });
-    if (!content && !image_url)
-      return res.status(400).json({ error: 'content or image required' });
+    if (!booking_id || !sender_type || !content)
+      return res.status(400).json({ error: 'booking_id, sender_type, content required' });
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
     if (!['user', 'business'].includes(sender_type))
       return res.status(400).json({ error: 'sender_type must be user or business' });
-    if (content && typeof content !== 'string') return res.status(400).json({ error: 'Invalid content' });
-    if (image_url && typeof image_url !== 'string') return res.status(400).json({ error: 'Invalid image_url' });
+    if (typeof content !== 'string') return res.status(400).json({ error: 'Invalid content' });
+    if (image_url !== undefined && image_url !== null && typeof image_url !== 'string') {
+      return res.status(400).json({ error: 'Invalid image_url' });
+    }
+    if (message_type !== undefined && message_type !== null && !['text', 'image', 'video'].includes(String(message_type))) {
+      return res.status(400).json({ error: 'Invalid message_type' });
+    }
 
     const supabase = getSupabase();
 
     // Verify caller is party to this booking
     const { data: booking } = await supabase
       .from('bookings')
-      .select('user_id, business_id, businesses(owner_id)')
+      .select('user_id, business_id, businesses(owner_id, owner_email)')
       .eq('id', booking_id)
       .maybeSingle();
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-    let isUser = booking.user_id === user.id && sender_type === 'user';
-    const isBiz = (booking.businesses as any)?.owner_id === user.id && sender_type === 'business';
-    if (!isUser && sender_type === 'user' && user.email) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', user.email)
-        .maybeSingle();
-      if (profile?.id && booking.user_id === profile.id) isUser = true;
-      if (!isUser) {
-        try {
-          const { data: legacyUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (legacyUser?.id && booking.user_id === legacyUser.id) isUser = true;
-        } catch {}
-      }
-    }
+    const isUser = booking.user_id === user.id && sender_type === 'user';
+    const isBiz = isBusinessOwnerForUser(booking.businesses, user) && sender_type === 'business';
     if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
-    let normalizedImageUrl: string | null = null;
-    if (image_url) {
-      const parsed = parseStorageRef(image_url);
-      if (!parsed) return res.status(400).json({ error: 'Invalid image_url' });
-      if (parsed.bucket !== MESSAGE_MEDIA_BUCKET) return res.status(400).json({ error: 'Invalid media bucket' });
-      if (!parsed.path.startsWith(`messages/${booking_id}/`)) return res.status(400).json({ error: 'Invalid media path' });
-      normalizedImageUrl = `storage://${parsed.bucket}/${parsed.path}`;
+    // Filter profanity / threats
+    const filtered = filterMessage(content.trim());
+    if (!filtered.ok) return res.status(400).json({ error: filtered.error });
+
+    // OpenAI moderation (free endpoint) for text safety.
+    const moderation = await moderateUserText(filtered.filtered);
+    const hasHardSignal = hasHardModerationSignal(moderation.flaggedCategories);
+    if (!moderation.ok && hasHardSignal) {
+      return res.status(400).json({
+        error: 'Message blocked by safety filters. Please revise and try again.',
+        categories: moderation.flaggedCategories,
+      });
     }
 
-    // Blocked check
-    const { data: block } = await supabase
-      .from('blocks')
-      .select('id, blocked_by')
-      .eq('business_id', booking.business_id)
-      .eq('user_id', booking.user_id)
-      .maybeSingle();
-    if (block) return res.status(403).json({ error: 'Messaging is blocked for this booking.' });
-
-    // Filter profanity / threats on text content (local filter only to avoid rate-limit blocks)
-    let filteredContent = '';
-    if (content) {
-      const filtered = filterMessage(content.trim());
-      if (!filtered.ok) return res.status(400).json({ error: filtered.error });
-      filteredContent = filtered.filtered;
-      const moderation = await moderateUserText(filteredContent);
-      if (!moderation.ok) {
-        return res.status(400).json({
-          error: 'Message blocked by safety filters. Please revise and try again.',
-          categories: moderation.flaggedCategories,
-        });
+    const trimmedImageURL = typeof image_url === 'string' ? image_url.trim() : '';
+    let normalizedMessageType = typeof message_type === 'string' ? message_type.trim().toLowerCase() : '';
+    if (!normalizedMessageType) normalizedMessageType = trimmedImageURL ? 'image' : 'text';
+    if (trimmedImageURL) {
+      if (trimmedImageURL.length > 2048) {
+        return res.status(400).json({ error: 'image_url too long' });
+      }
+      try {
+        const parsed = new URL(trimmedImageURL);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return res.status(400).json({ error: 'image_url must be http or https' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'Invalid image_url' });
       }
     }
-    const message_type = normalizedImageUrl ? (filteredContent ? 'mixed' : 'image') : 'text';
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({ booking_id, sender_type, content: filteredContent, image_url: normalizedImageUrl, message_type, read: false })
+      .insert({
+        booking_id,
+        sender_type,
+        content: filtered.filtered,
+        image_url: trimmedImageURL || null,
+        message_type: normalizedMessageType,
+        read: false,
+      })
       .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
       .single();
     if (error) return res.status(500).json({ error: 'Failed to send message' });
-    await hydrateMessageMediaUrls(supabase, data ? [data] : [], new Map<string, string>());
     return res.status(200).json({ message: data });
   }
 
@@ -604,16 +240,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const user = await requireAuth(req, res);
     if (!user) return;
+    if (!(await rateLimitByPrincipal(res, user.id, { max: 120, windowMs: 60_000, keyPrefix: 'msg-patch-user' }))) return;
 
-    const allowed = ['booking_id','reader_type'];
-    const unknown = getUnknownFields(req.body, allowed);
-    if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
     const { booking_id, reader_type } = req.body;
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
     if (!['user', 'business'].includes(reader_type))
       return res.status(400).json({ error: 'Invalid reader_type' });
 
     const supabase = getSupabase();
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('user_id, businesses(owner_id, owner_email)')
+      .eq('id', booking_id)
+      .maybeSingle();
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    const isUser = booking.user_id === user.id;
+    const isBusiness = isBusinessOwnerForUser(booking.businesses, user);
+    if (!isUser && !isBusiness) return res.status(403).json({ error: 'Access denied' });
+
+    // Prevent reader_type spoofing.
+    if ((isUser && reader_type !== 'user') || (isBusiness && reader_type !== 'business')) {
+      return res.status(403).json({ error: 'reader_type does not match authenticated role' });
+    }
+
     await supabase.from('messages').update({ read: true })
       .eq('booking_id', booking_id).neq('sender_type', reader_type);
     return res.status(200).json({ success: true });
