@@ -713,7 +713,7 @@ const AdminPage: NextPage = () => {
                 {pendingCount} pending
               </span>
             )}
-            <button onClick={() => { if (authToken) { loadBusinesses(authToken); loadFeatured(authToken, featuredCampusKey); loadCampusOptions(authToken); } }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
+            <button onClick={() => { if (authToken) handleAdminRefresh(); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
             <button onClick={async () => { const sb = getSupabaseClient(); await sb.auth.signOut(); setAuthed(false); setAuthToken(''); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Log out</button>
           </div>
         </div>
@@ -736,7 +736,7 @@ const AdminPage: NextPage = () => {
                 <p className="text-sm font-bold text-white">Stripe Health</p>
                 <p className="text-xs text-neutral-500 mt-1">Webhook + event status</p>
               </div>
-              <button onClick={() => { if (authToken) { loadBusinesses(authToken); loadFeatured(authToken, featuredCampusKey); loadCampusOptions(authToken); } }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+              <button onClick={() => { if (authToken) handleAdminRefresh(); }} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                 Refresh
               </button>
             </div>
@@ -1067,7 +1067,7 @@ const AdminPage: NextPage = () => {
                       ) : null}
                     </div>
                     {!b.is_onboarded && b.status !== 'rejected' && (
-                      <div className="flex flex-col gap-2 items-end flex-shrink-0">
+                      <div className="flex flex-col gap-2 items-end flex-shrink-0 w-full sm:w-[220px]">
                         {b.campus_provider && (
                           <div className="flex flex-col gap-1">
                             <label className="text-xs text-neutral-500">School domain (e.g. asu.edu)</label>
@@ -1081,12 +1081,12 @@ const AdminPage: NextPage = () => {
                           </div>
                         )}
                         <button onClick={() => approveBusiness(b.id)} disabled={approvingId === b.id}
-                          className="btn-primary text-sm px-5 py-2.5">
+                          className="btn-primary text-sm px-5 py-2.5 w-full">
                           {approvingId === b.id ? 'Approving…' : 'Approve & Send Email'}
                         </button>
                         <button
                           onClick={() => { setRejectModalFor(b); setRejectReason(''); }}
-                          className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-red-500/40 text-red-300 hover:bg-red-500/15"
+                          className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-red-500/40 text-red-300 hover:bg-red-500/15 w-full"
                         >
                           Reject with Reason
                         </button>

@@ -64,6 +64,15 @@ function layout(title: string, body: string, preheader: string = '') {
 </html>`;
 }
 
+function escapeHtml(input: string): string {
+  return String(input)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── Template: booking confirmation ─────────────────────────────────────────
 export function bookingConfirmationHtml(opts: {
   name: string;
@@ -639,6 +648,7 @@ export function businessApplicationRejectedHtml(opts: {
   businessName: string;
   reason: string;
 }) {
+  const safeReason = escapeHtml(opts.reason || '').replace(/\n/g, '<br/>');
   const body = `
     <tr><td bgcolor="#7f1d1d" style="background:#7f1d1d;padding:32px 32px;text-align:center;">
       <div style="width:56px;height:56px;background:rgba(255,255,255,0.12);border-radius:50%;margin:0 auto 14px;text-align:center;line-height:56px;">
@@ -651,7 +661,7 @@ export function businessApplicationRejectedHtml(opts: {
     <tr><td style="padding:28px 32px;">
       <p style="margin:0 0 10px;font-size:14px;color:#64748b;">Reason from review team:</p>
       <div style="background:#fef2f2;border-radius:10px;border:1px solid #fecaca;padding:14px 18px;font-size:13px;color:#7f1d1d;line-height:1.6;">
-        ${opts.reason}
+        ${safeReason}
       </div>
       <p style="margin:14px 0 0;font-size:13px;color:#94a3b8;">You can fix this and re-apply from the provider signup page.</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px auto 0;width:100%;max-width:320px;">

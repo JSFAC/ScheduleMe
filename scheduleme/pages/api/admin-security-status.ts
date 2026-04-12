@@ -29,9 +29,11 @@ const TABLES = [
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!isCronAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
-  const admin = await requireAdmin(req, res);
-  if (!admin) return;
+  const cronAuthorized = isCronAuthorized(req);
+  if (!cronAuthorized) {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+  }
   if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'admin-security-status' }))) return;
 
   const supabase = getSupabase();

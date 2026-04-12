@@ -61,6 +61,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       meta: { reason },
     });
 
+    if (!business.owner_email) {
+      return res.status(500).json({ error: 'Provider rejected but no email address is on file. Add owner email and retry.' });
+    }
+
     try {
       await sendBusinessApplicationRejectedEmail({
         to: business.owner_email,
@@ -70,9 +74,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (emailErr) {
       console.error('[reject-business] email failed', emailErr);
+      return res.status(500).json({ error: 'Provider rejected, but rejection email failed to send. Please retry.' });
     }
 
-    return res.status(200).json({ success: true, message: `Rejected ${business.name}` });
+    return res.status(200).json({ success: true, message: `Rejected ${business.name} and sent rejection email` });
   } catch (err) {
     console.error('[reject-business] Error:', err);
     return res.status(500).json({ error: 'Internal server error' });

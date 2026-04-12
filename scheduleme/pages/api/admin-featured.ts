@@ -35,6 +35,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
 
   if (req.method === 'GET') {
+    // Keep admin panel clean by pruning featured rows whose window has ended.
+    await supabase
+      .from('campus_featured')
+      .delete()
+      .not('ends_at', 'is', null)
+      .lt('ends_at', new Date().toISOString());
+
     const campusKeyRaw = typeof req.query.campus === 'string' ? req.query.campus : '';
     const campusKey = campusKeyRaw ? normalizeCampusKey(campusKeyRaw) || campusKeyRaw : '';
     let query = supabase
