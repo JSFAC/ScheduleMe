@@ -190,9 +190,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'review-get' }))) return;
 
-    const { business_id } = req.query;
+    const { business_id, check_user } = req.query;
     if (!business_id || !isValidUuid(business_id as string))
       return res.status(400).json({ error: 'Valid business_id required' });
+
+    if (check_user === '1') {
+      const user = await requireAuth(req, res);
+      if (!user) return;
+      const supabase = getSupabase();
+      const { data: mine, error: mineError } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('business_id', business_id)
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+      if (mineError) return res.status(500).json({ error: 'Failed to check review status' });
+      return res.status(200).json({ has_user_reviewed: !!mine });
+    }
 
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -203,7 +218,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .limit(50);
 
     if (error) return res.status(500).json({ error: 'Failed to fetch reviews' });
-    return res.status(200).json({ reviews: data });
+    // Public display rule:
+    // Star-only reviews (no comment and no media) still count toward average/count,
+    // but remain anonymous and hidden from the visible review feed.
+    const visibleReviews = (data || []).filter((row: any) => {
+      const comment = typeof row?.comment === 'string' ? row.comment.trim() : '';
+      const media = Array.isArray(row?.review_media_urls) ? row.review_media_urls.filter(Boolean) : [];
+      return comment.length > 0 || media.length > 0;
+    });
+    return res.status(200).json({ reviews: visibleReviews });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
