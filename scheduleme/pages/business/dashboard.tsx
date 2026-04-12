@@ -741,6 +741,9 @@ const BusinessDashboard: NextPage = () => {
   const [confirmAcknowledge, setConfirmAcknowledge] = useState(false);
   const [completeAcknowledge, setCompleteAcknowledge] = useState(false);
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
+  const [completeProofNote, setCompleteProofNote] = useState('');
+  const [completeProofPhotos, setCompleteProofPhotos] = useState<string[]>([]);
+  const [completeProofUploading, setCompleteProofUploading] = useState(false);
   const [actionDone, setActionDone] = useState<{ title: string; message: string } | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const didAutoTabRef = useRef(false);
@@ -768,6 +771,8 @@ const BusinessDashboard: NextPage = () => {
 
   useEffect(() => {
     setCompleteAcknowledge(false);
+    setCompleteProofNote('');
+    setCompleteProofPhotos([]);
   }, [confirmComplete?.id]);
 
   // Messages state
@@ -1471,13 +1476,13 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
-  async function handleUpdateBooking(id: string, status: string) {
+  async function handleUpdateBooking(id: string, status: string, extraPayload: Record<string, any> = {}) {
     try {
       const headers = await getAuthHeaders();
       const res = await fetch('/api/bookings', {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ booking_id: id, status }),
+        body: JSON.stringify({ booking_id: id, status, ...extraPayload }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to update booking');
@@ -1489,6 +1494,39 @@ const BusinessDashboard: NextPage = () => {
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Failed to update booking. Please try again.', false);
       return false;
+    }
+  }
+
+  async function uploadCompleteProofPhoto(bookingId: string, file: File) {
+    if (!file) return;
+    setCompleteProofUploading(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const uploadRes = await fetch('/api/upload-message-media', {
+        method: 'POST',
+        headers: { ...await getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_id: bookingId,
+          file_data: dataUrl,
+          file_type: file.type || 'image/jpeg',
+          file_name: file.name || `completion-proof-${Date.now()}.jpg`,
+        }),
+      });
+      const uploadData = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok || !uploadData?.url) {
+        showToast(uploadData?.error || 'Failed to upload proof photo', false);
+        return;
+      }
+      setCompleteProofPhotos((prev) => [...prev, uploadData.url]);
+    } catch {
+      showToast('Failed to upload proof photo', false);
+    } finally {
+      setCompleteProofUploading(false);
     }
   }
 
@@ -3664,7 +3702,7 @@ const BusinessDashboard: NextPage = () => {
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Mark booking complete?</p>
-                <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>This will notify the customer, release payout, and cannot be undone.</p>
+                <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Add proof below. Completion is automatic and opens a short consumer dispute window.</p>
               </div>
               <button onClick={() => setConfirmComplete(null)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
             </div>
@@ -3673,6 +3711,38 @@ const BusinessDashboard: NextPage = () => {
                 Scheduled for {fmtTime(confirmComplete.scheduled_start)}
               </div>
             )}
+            <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: dm ? '#a1a1aa' : '#6b7280' }}>
+              Completion note (or add photo proof)
+            </label>
+            <textarea
+              rows={3}
+              value={completeProofNote}
+              onChange={(e) => setCompleteProofNote(e.target.value.slice(0, 1000))}
+              placeholder="Completed service at 3:42 PM..."
+              className="w-full rounded-xl border px-3 py-2 text-sm mb-3"
+              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
+            />
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <label className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer"
+                style={{ borderColor: dm ? '#2c2c2e' : '#d1d5db', color: dm ? '#d1d5db' : '#374151' }}>
+                {completeProofUploading ? 'Uploading…' : 'Add Photo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) await uploadCompleteProofPhoto(confirmComplete.id, file);
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+              {completeProofPhotos.length > 0 && (
+                <span className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                  {completeProofPhotos.length} photo(s) attached
+                </span>
+              )}
+            </div>
             <label className="flex items-start gap-2 mb-4 text-xs" style={{ color: dm ? '#d1d5db' : '#374151' }}>
               <input
                 type="checkbox"
@@ -3687,12 +3757,24 @@ const BusinessDashboard: NextPage = () => {
               <button
                 onClick={async () => {
                   if (completeSubmitting) return;
+                  const note = completeProofNote.trim();
+                  if (!note && completeProofPhotos.length === 0) {
+                    showToast('Add at least one proof item (note or photo).', false);
+                    return;
+                  }
                   setCompleteSubmitting(true);
-                  const ok = await handleUpdateBooking(confirmComplete.id, 'completed');
+                  const ok = await handleUpdateBooking(confirmComplete.id, 'completed', {
+                    proof_note: note || '',
+                    proof_photo_urls: completeProofPhotos,
+                    proof_geo_metadata: {
+                      capturedAt: new Date().toISOString(),
+                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    },
+                  });
                   if (ok) {
                     setActionDone({
                       title: 'Booking completed',
-                      message: 'This booking is now marked complete and payout release has started.',
+                      message: 'This booking is complete. Customer can dispute only within the dispute window.',
                     });
                     setConfirmComplete(null);
                   }

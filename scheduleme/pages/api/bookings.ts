@@ -12,6 +12,7 @@ const LIMITS = {
   service: 120,
   note: 500,
 };
+const CONSUMER_DISPUTE_WINDOW_HOURS = Math.min(72, Math.max(24, Number(process.env.CONSUMER_CONFIRMATION_WINDOW_HOURS || 36)));
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -405,22 +406,58 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireAuth(req, res);
     if (!user) return;
 
-    const allowed = ['booking_id','status','dispute_amount_cents','dispute_note','cancellation_reason'];
+    const allowed = [
+      'booking_id',
+      'status',
+      'dispute_amount_cents',
+      'dispute_note',
+      'cancellation_reason',
+      'proof_note',
+      'proof_photo_urls',
+      'proof_geo_metadata',
+      'dispute_reason',
+      'dispute_details',
+      'dispute_media_urls',
+    ];
     const unknown = getUnknownFields(req.body, allowed);
     if (unknown.length > 0) return res.status(400).json({ error: `Unexpected fields: ${unknown.join(', ')}` });
-    const { booking_id, status, dispute_amount_cents, dispute_note, cancellation_reason } = req.body;
+    const {
+      booking_id,
+      status,
+      dispute_amount_cents,
+      dispute_note,
+      cancellation_reason,
+      proof_note,
+      proof_photo_urls,
+      proof_geo_metadata,
+      dispute_reason,
+      dispute_details,
+      dispute_media_urls,
+    } = req.body;
     if (!isValidUuid(booking_id)) return res.status(400).json({ error: 'Invalid booking_id' });
-    const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid', 'price_disputed'];
+    const VALID_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'payment_pending', 'paid', 'price_disputed', 'disputed'];
     if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
     const supabase = getSupabase();
 
     // Verify caller owns the business for this booking
-    const { data: booking, error: bookingErr } = await supabase
+    let booking: any = null;
+    let bookingErr: any = null;
+    let hasCompletionColumns = true;
+    ({ data: booking, error: bookingErr } = await supabase
       .from('bookings')
-      .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+      .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, consumer_confirmation_due_at, completion_proof_submitted_at, businesses(id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
       .eq('id', booking_id)
-      .maybeSingle();
+      .maybeSingle());
+
+    if (bookingErr && (bookingErr.message || '').includes('consumer_confirmation_due_at')) {
+      hasCompletionColumns = false;
+      ({ data: booking, error: bookingErr } = await supabase
+        .from('bookings')
+        .select('id, status, service, user_id, amount_cents, protection_fee_cents, paid_at, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, business_id, scheduled_start, scheduled_end, businesses(id, owner_id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+        .eq('id', booking_id)
+        .maybeSingle());
+    }
 
     if (bookingErr) return res.status(500).json({ error: bookingErr.message || 'Failed to load booking' });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
@@ -436,7 +473,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isBusinessOwner = biz?.owner_id === user.id;
     let canCancelAsConsumer = false;
     let canDisputeAsConsumer = false;
-    let canCompleteAsConsumer = false;
+    let canServiceDisputeAsConsumer = false;
     if (!isBusinessOwner && status === 'cancelled') {
       let canCancel = booking.user_id === user.id;
       if (!canCancel && user.email) {
@@ -481,30 +518,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       canDisputeAsConsumer = canDispute;
     }
-    if (!isBusinessOwner && status === 'completed') {
-      let canComplete = booking.user_id === user.id;
-      if (!canComplete && user.email) {
+    if (!isBusinessOwner && status === 'disputed') {
+      let canDispute = booking.user_id === user.id;
+      if (!canDispute && user.email) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('id')
           .eq('email', user.email)
           .maybeSingle();
-        if (profile?.id && booking.user_id === profile.id) canComplete = true;
-        if (!canComplete) {
+        if (profile?.id && booking.user_id === profile.id) canDispute = true;
+        if (!canDispute) {
           try {
             const { data: legacyUser } = await supabase
               .from('users')
               .select('id')
               .eq('email', user.email)
               .maybeSingle();
-            if (legacyUser?.id && booking.user_id === legacyUser.id) canComplete = true;
+            if (legacyUser?.id && booking.user_id === legacyUser.id) canDispute = true;
           } catch {}
         }
       }
-      canCompleteAsConsumer = canComplete;
+      canServiceDisputeAsConsumer = canDispute;
     }
 
-    if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer && !canCompleteAsConsumer)
+    if (!isBusinessOwner && !canCancelAsConsumer && !canDisputeAsConsumer && !canServiceDisputeAsConsumer)
       return res.status(403).json({ error: 'Access denied' });
     const cancellationReason = typeof cancellation_reason === 'string' ? cancellation_reason.trim().slice(0, LIMITS.note) : '';
     if (status === 'cancelled' && !isBusinessOwner && booking.paid_at && !cancellationReason) {
@@ -518,6 +555,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ success: true, already_cancelled: true });
     }
     if (status === 'completed' && isBusinessOwner) {
+      if (!hasCompletionColumns) {
+        return res.status(500).json({ error: 'Database update required: run supabase/booking_completion_disputes.sql before using completion proof flow.' });
+      }
       // Basic anti-fraud guard: provider cannot complete before the scheduled service time.
       const gateIso = booking.scheduled_end || booking.scheduled_start || null;
       if (gateIso) {
@@ -530,15 +570,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
     if (status === 'completed' && !isBusinessOwner) {
-      if (!booking.paid_at) {
-        return res.status(400).json({ error: 'Payment must be completed before confirming service completion.' });
-      }
-      if (!['confirmed', 'active', 'paid'].includes(booking.status)) {
-        return res.status(400).json({ error: 'This booking cannot be marked complete yet.' });
-      }
+      return res.status(400).json({ error: 'This flow auto-completes when provider submits completion proof.' });
     }
 
     const updatePayload: any = { status };
+    if (status === 'completed' && isBusinessOwner) {
+      const proofNote = typeof proof_note === 'string' ? proof_note.trim().slice(0, 1000) : '';
+      const proofPhotos = Array.isArray(proof_photo_urls)
+        ? proof_photo_urls.map((u: any) => String(u || '').trim()).filter(Boolean).slice(0, 8)
+        : [];
+      if (!proofNote && proofPhotos.length === 0) {
+        return res.status(400).json({ error: 'Completion proof required: add a note or photo.' });
+      }
+      if (booking.status === 'completed' || booking.completion_proof_submitted_at) {
+        return res.status(400).json({ error: 'Completion proof already submitted for this booking.' });
+      }
+      updatePayload.completion_proof_note = proofNote || null;
+      updatePayload.completion_proof_photo_urls = proofPhotos;
+      updatePayload.completion_proof_geo_metadata =
+        proof_geo_metadata && typeof proof_geo_metadata === 'object' ? proof_geo_metadata : null;
+      updatePayload.completion_proof_submitted_at = new Date().toISOString();
+      updatePayload.completion_proof_submitted_by = user.id;
+      updatePayload.completed_at = new Date().toISOString();
+      updatePayload.consumer_confirmation_due_at = new Date(Date.now() + CONSUMER_DISPUTE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
+      updatePayload.consumer_confirmation_mode = 'provider_auto_completed';
+    }
+    if (status === 'disputed') {
+      if (!hasCompletionColumns) {
+        return res.status(500).json({ error: 'Database update required: run supabase/booking_completion_disputes.sql before using disputes.' });
+      }
+      if (isBusinessOwner) {
+        return res.status(400).json({ error: 'Providers cannot open service disputes.' });
+      }
+      if (booking.status !== 'completed') {
+        return res.status(400).json({ error: 'Service disputes are only allowed on completed bookings.' });
+      }
+      const dueAtMs = booking.consumer_confirmation_due_at ? new Date(booking.consumer_confirmation_due_at).getTime() : 0;
+      if (!dueAtMs || dueAtMs <= Date.now()) {
+        return res.status(400).json({ error: 'Dispute window has closed.' });
+      }
+      const reason = typeof dispute_reason === 'string' ? dispute_reason.trim().slice(0, 200) : '';
+      const details = typeof dispute_details === 'string' ? dispute_details.trim().slice(0, 2000) : '';
+      const media = Array.isArray(dispute_media_urls)
+        ? dispute_media_urls.map((u: any) => String(u || '').trim()).filter(Boolean).slice(0, 8)
+        : [];
+      if (!reason) return res.status(400).json({ error: 'dispute_reason is required' });
+      updatePayload.disputed_at = new Date().toISOString();
+      updatePayload.dispute_reason = reason;
+      updatePayload.dispute_details = details || null;
+      updatePayload.dispute_media_urls = media;
+      updatePayload.dispute_opened_by = user.id;
+    }
     if (status === 'price_disputed') {
       if (!dispute_amount_cents || dispute_amount_cents < 500) {
         return res.status(400).json({ error: 'Minimum dispute price is $5.00' });
@@ -723,6 +805,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const isDisputeFieldMissing = status === 'price_disputed' && (msg.includes('dispute_amount_cents') || msg.includes('dispute_note') || msg.includes('dispute_at'));
       const isPriceAcceptMissing = status === 'price_disputed' && (msg.includes('price_accepted_at') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider'));
       const isPriceProposalMissing = status === 'price_disputed' && (msg.includes('provider_proposed_price_cents') || msg.includes('customer_proposed_price_cents'));
+      const isCompletionFlowFieldMissing = (status === 'completed' || status === 'disputed')
+        && (msg.includes('completion_proof_') || msg.includes('consumer_confirmation_due_at') || msg.includes('disputed_at') || msg.includes('dispute_reason') || msg.includes('dispute_details') || msg.includes('dispute_media_urls') || msg.includes('dispute_opened_by'));
       if (isDisputeFieldMissing || isPriceAcceptMissing || isPriceProposalMissing) {
         const fallbackPayload: any = { status };
         if (!isDisputeFieldMissing) {
@@ -746,6 +830,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         const { error: fallbackErr } = await supabase.from('bookings').update(fallbackPayload).eq('id', booking_id);
         if (fallbackErr) return res.status(500).json({ error: fallbackErr.message || 'Failed to update booking' });
+      } else if (isCompletionFlowFieldMissing) {
+        return res.status(500).json({ error: 'Database update required: run supabase/booking_completion_disputes.sql.' });
       } else {
         return res.status(500).json({ error: msg || 'Failed to update booking' });
       }
@@ -1005,8 +1091,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const idList = Array.from(ids).filter(Boolean);
-      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, businesses(name, phone, email), profiles(email, avatar_url)';
-      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, businesses(name, phone, email), profiles(email, avatar_url)';
+      const selectWithPrice = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email), profiles(email, avatar_url)';
+      const selectBase = 'id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email), profiles(email, avatar_url)';
       let query = supabase
         .from('bookings')
         .select(selectWithPrice)
@@ -1026,7 +1112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (error) {
         // Retry without relational selects if FK isn't present in this environment
         const msg = error?.message || '';
-        if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at')) {
+        if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at') || msg.includes('completion_proof_') || msg.includes('consumer_confirmation_due_at') || msg.includes('dispute_reason') || msg.includes('dispute_details') || msg.includes('dispute_media_urls') || msg.includes('disputed_at')) {
           // Retry without new price fields for older schemas
           let retryQuery = supabase
             .from('bookings')
@@ -1047,7 +1133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Retry without relational selects if FK isn't present in this environment
         let plainQuery = supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, customer_proposed_price_cents, provider_proposed_price_cents, dispute_amount_cents, dispute_note, price_accepted_by_customer, price_accepted_by_provider, price_accepted_at, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
           .order('created_at', { ascending: false })
           .limit(100);
         if (idList.length > 1) {
@@ -1064,7 +1150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (msg.includes('customer_proposed_price_cents') || msg.includes('provider_proposed_price_cents') || msg.includes('price_accepted_by_customer') || msg.includes('price_accepted_by_provider') || msg.includes('price_accepted_at')) {
           let plainLegacy = supabase
             .from('bookings')
-            .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, note, reviewed, business_id, business_name, stripe_payment_method_id, stripe_customer_id, dispute_amount_cents, dispute_note, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
             .order('created_at', { ascending: false })
             .limit(100);
           if (idList.length > 1) {

@@ -78,6 +78,15 @@ interface Booking {
   price_accepted_at?: string | null;
   dispute_amount_cents?: number | null;
   dispute_note?: string | null;
+  consumer_confirmation_due_at?: string | null;
+  completion_proof_note?: string | null;
+  completion_proof_photo_urls?: string[] | null;
+  completion_proof_geo_metadata?: any;
+  completion_proof_submitted_at?: string | null;
+  disputed_at?: string | null;
+  dispute_reason?: string | null;
+  dispute_details?: string | null;
+  dispute_media_urls?: string[] | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string; badgeBg: string; badgeText: string }> = {
@@ -86,6 +95,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6', badgeBg: 'rgba(59,130,246,0.12)', badgeText: '#1d4ed8' },
   payment_pending: { label: 'Awaiting Payment',  bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6', badgeBg: 'rgba(139,92,246,0.12)', badgeText: '#5b21b6' },
   paid:            { label: 'Paid Upfront',      bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
+  disputed:        { label: 'Disputed',          bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', barColor: '#d97706', badgeBg: 'rgba(217,119,6,0.12)', badgeText: '#92400e' },
   completed:       { label: 'Completed',         bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
   cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3', badgeBg: 'rgba(163,163,163,0.16)', badgeText: '#6b7280' },
   payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444', badgeBg: 'rgba(239,68,68,0.12)', badgeText: '#b91c1c' },
@@ -330,12 +340,12 @@ function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onS
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete, onRequestReview, onPriceAccepted, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute, onRequestReview, onPriceAccepted, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string, reason: string) => Promise<void>;
-  onConfirmComplete: (id: string) => Promise<void>;
+  onServiceDispute: (id: string, payload: { reason: string; details?: string; media_urls?: string[] }) => Promise<void>;
   onRequestReview: (booking: Booking) => void;
   onPriceAccepted: (id: string, updates: Partial<Booking>) => void;
   dm: boolean;
@@ -358,9 +368,12 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
   const [cancelReason, setCancelReason] = useState('');
   const [cancelErr, setCancelErr] = useState('');
   const [cancelDoneOpen, setCancelDoneOpen] = useState(false);
-  const [completeOpen, setCompleteOpen] = useState(false);
-  const [completing, setCompleting] = useState(false);
-  const [completeErr, setCompleteErr] = useState('');
+  const [serviceDisputeOpen, setServiceDisputeOpen] = useState(false);
+  const [serviceDisputeSending, setServiceDisputeSending] = useState(false);
+  const [serviceDisputeReason, setServiceDisputeReason] = useState('');
+  const [serviceDisputeDetails, setServiceDisputeDetails] = useState('');
+  const [serviceDisputePhotos, setServiceDisputePhotos] = useState<string[]>([]);
+  const [serviceDisputeUpload, setServiceDisputeUpload] = useState(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputePrice, setDisputePrice] = useState('');
   const [disputeNote, setDisputeNote] = useState('');
@@ -407,16 +420,56 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
     }
   }
 
-  async function handleConfirmCompleteSubmit() {
-    setCompleteErr('');
-    setCompleting(true);
+  async function uploadServiceDisputePhoto(file: File) {
+    if (!file) return;
+    setServiceDisputeUpload(true);
     try {
-      await onConfirmComplete(booking.id);
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (!session) throw new Error('Please sign in to upload.');
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const uploadRes = await fetch('/api/upload-message-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          booking_id: booking.id,
+          file_data: dataUrl,
+          file_type: file.type || 'image/jpeg',
+          file_name: file.name || `dispute-${Date.now()}.jpg`,
+        }),
+      });
+      const uploadData = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok || !uploadData?.url) throw new Error(uploadData?.error || 'Image upload failed');
+      setServiceDisputePhotos((prev) => [...prev, uploadData.url]);
+    } catch (e: any) {
+      setErr(e?.message || 'Could not upload photo.');
+    } finally {
+      setServiceDisputeUpload(false);
+    }
+  }
+
+  async function handleServiceDisputeSubmit() {
+    if (!serviceDisputeReason.trim()) {
+      setErr('Select a dispute reason.');
+      return;
+    }
+    setErr('');
+    setServiceDisputeSending(true);
+    try {
+      await onServiceDispute(booking.id, {
+        reason: serviceDisputeReason.trim(),
+        details: serviceDisputeDetails.trim() || undefined,
+        media_urls: serviceDisputePhotos,
+      });
       close();
     } catch (e: any) {
-      setCompleteErr(e?.message || 'Could not confirm completion. Please try again.');
+      setErr(e?.message || 'Could not open dispute. Please try again.');
     } finally {
-      setCompleting(false);
+      setServiceDisputeSending(false);
     }
   }
 
@@ -883,6 +936,31 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
             );
           })()}
 
+          {(booking.completion_proof_submitted_at || booking.completion_proof_note || (booking.completion_proof_photo_urls || []).length > 0) && (
+            <div className="mt-6 pt-5 border-t border-neutral-100">
+              <div className="rounded-2xl p-4" style={{ background: '#eef2ff', border: '1px solid #c7d2fe' }}>
+                <p className="text-sm font-bold text-indigo-900 mb-1">Provider completion proof</p>
+                {booking.completion_proof_submitted_at && (
+                  <p className="text-xs text-indigo-700 mb-2">
+                    Submitted {new Date(booking.completion_proof_submitted_at).toLocaleString()}
+                  </p>
+                )}
+                {booking.completion_proof_note && (
+                  <p className="text-sm text-indigo-900 mb-2">{booking.completion_proof_note}</p>
+                )}
+                {(booking.completion_proof_photo_urls || []).length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {(booking.completion_proof_photo_urls || []).slice(0, 6).map((url: string) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer" className="block">
+                        <img src={url} alt="Completion proof" className="h-20 w-full rounded-lg object-cover border border-indigo-100" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Paid confirmation */}
           {booking.paid_at && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
@@ -918,15 +996,18 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
             </div>
           )}
 
-          {/* Consumer complete confirmation (early payout release) */}
-          {booking.paid_at && ['confirmed', 'active', 'paid'].includes(booking.status) && (
+          {/* Service dispute window after provider auto-completion */}
+          {booking.status === 'completed' && booking.consumer_confirmation_due_at && new Date(booking.consumer_confirmation_due_at).getTime() > Date.now() && !booking.disputed_at && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               <button
-                onClick={() => { setCompleteOpen(true); setCompleteErr(''); }}
-                className="w-full py-3 rounded-xl border-2 border-emerald-200 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-colors"
+                onClick={() => { setServiceDisputeOpen(true); setErr(''); }}
+                className="w-full py-3 rounded-xl border-2 border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-50 hover:border-amber-300 transition-colors"
               >
-                Confirm Service Complete
+                Report Issue / Open Dispute
               </button>
+              <p className="text-[11px] text-neutral-500 mt-2">
+                Dispute window closes {formatShortDateTime(booking.consumer_confirmation_due_at)}.
+              </p>
             </div>
           )}
 
@@ -1049,11 +1130,11 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
         </div>
       )}
 
-      {completeOpen && (
+      {serviceDisputeOpen && (
         <div
           className="fixed inset-0 z-[2150] flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget && !completing) setCompleteOpen(false); }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !serviceDisputeSending) setServiceDisputeOpen(false); }}
         >
           <div
             className="w-full max-w-md mx-4 rounded-2xl p-5"
@@ -1061,39 +1142,86 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onConfirmComplete
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Confirm completion</p>
+              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Report service issue</p>
               <button
-                onClick={() => !completing && setCompleteOpen(false)}
+                onClick={() => !serviceDisputeSending && setServiceDisputeOpen(false)}
                 className="h-8 w-8 rounded-full flex items-center justify-center"
                 style={{ background: dm ? '#1f2937' : '#f3f4f6' }}
-                disabled={completing}
+                disabled={serviceDisputeSending}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <p className="text-sm font-semibold" style={{ color: dm ? '#e5e7eb' : '#111827' }}>
-              You are about to confirm this booking is complete.
+            <p className="text-xs mb-3" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              We will review your dispute and hold payout until this is resolved.
             </p>
-            <p className="text-xs mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-              This releases provider payout immediately. Once confirmed, this booking will not be eligible for a refund.
-            </p>
-            {completeErr && <p className="text-[11px] text-red-500 mt-2">{completeErr}</p>}
+            <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: dm ? '#a1a1aa' : '#6b7280' }}>
+              Reason
+            </label>
+            <select
+              value={serviceDisputeReason}
+              onChange={(e) => setServiceDisputeReason(e.target.value)}
+              className="w-full rounded-xl border px-3 py-2 text-sm mb-3"
+              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
+            >
+              <option value="">Select a reason…</option>
+              <option value="service_not_performed">Service not performed</option>
+              <option value="different_service_delivered">Different service delivered</option>
+              <option value="quality_issue">Quality issue</option>
+              <option value="damage_or_safety_concern">Damage or safety concern</option>
+              <option value="other">Other</option>
+            </select>
+            <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: dm ? '#a1a1aa' : '#6b7280' }}>
+              Details (optional)
+            </label>
+            <textarea
+              value={serviceDisputeDetails}
+              onChange={(e) => setServiceDisputeDetails(e.target.value.slice(0, 2000))}
+              rows={4}
+              placeholder="Tell us what happened..."
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
+            />
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <label
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer"
+                style={{ borderColor: dm ? '#2c2c2e' : '#d1d5db', color: dm ? '#d1d5db' : '#374151' }}
+              >
+                {serviceDisputeUpload ? 'Uploading…' : 'Add photo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) await uploadServiceDisputePhoto(file);
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+              {serviceDisputePhotos.length > 0 && (
+                <span className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                  {serviceDisputePhotos.length} photo(s) attached
+                </span>
+              )}
+            </div>
+            {err && <p className="text-[11px] text-red-500 mt-2">{err}</p>}
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button
-                onClick={() => !completing && setCompleteOpen(false)}
-                disabled={completing}
+                onClick={() => !serviceDisputeSending && setServiceDisputeOpen(false)}
+                disabled={serviceDisputeSending}
                 className="py-2.5 rounded-xl text-sm font-semibold border"
                 style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#d1d5db' : '#374151', background: dm ? '#171717' : '#f9fafb' }}
               >
-                Not yet
+                Cancel
               </button>
               <button
-                onClick={handleConfirmCompleteSubmit}
-                disabled={completing}
+                onClick={handleServiceDisputeSubmit}
+                disabled={serviceDisputeSending}
                 className="py-2.5 rounded-xl text-sm font-semibold text-white"
-                style={{ background: completing ? '#8cd3c8' : '#007e6d' }}
+                style={{ background: serviceDisputeSending ? '#fbbf24' : '#f59e0b' }}
               >
-                {completing ? 'Confirming…' : 'Yes, confirm'}
+                {serviceDisputeSending ? 'Submitting…' : 'Submit dispute'}
               </button>
             </div>
           </div>
@@ -1566,17 +1694,33 @@ function writeCoords(lat: number, lng: number) {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
   }
 
-  async function confirmBookingComplete(id: string) {
+  async function openServiceDispute(id: string, payload: { reason: string; details?: string; media_urls?: string[] }) {
     const { data: { session } } = await getSupabase().auth.getSession();
     if (!session) throw new Error('Please sign in again and retry.');
     const res = await fetch('/api/bookings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ booking_id: id, status: 'completed' }),
+      body: JSON.stringify({
+        booking_id: id,
+        status: 'disputed',
+        dispute_reason: payload.reason,
+        dispute_details: payload.details || '',
+        dispute_media_urls: payload.media_urls || [],
+      }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || 'Failed to confirm booking completion');
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'completed' } : b));
+    if (!res.ok) throw new Error(data?.error || 'Failed to open dispute');
+    setBookings(prev => prev.map(b => b.id === id
+      ? {
+          ...b,
+          status: 'disputed',
+          disputed_at: new Date().toISOString(),
+          dispute_reason: payload.reason,
+          dispute_details: payload.details || null,
+          dispute_media_urls: payload.media_urls || [],
+        }
+      : b
+    ));
   }
 
   useEffect(() => {
@@ -2107,7 +2251,7 @@ function writeCoords(lat: number, lng: number) {
           originRect={originRect}
           onClose={() => { setSelectedBooking(null); setOriginRect(null); }}
           onCancel={cancelBooking}
-          onConfirmComplete={confirmBookingComplete}
+          onServiceDispute={openServiceDispute}
           onRequestReview={(b) => {
             if (!b.business_id) { setPaymentToast('setup_cancelled'); return; }
             setReviewTarget({
