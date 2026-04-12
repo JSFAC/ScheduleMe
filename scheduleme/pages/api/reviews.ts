@@ -31,6 +31,16 @@ function isAllowedReviewMediaHost(value: string): boolean {
   }
 }
 
+function isAllowedReviewMediaPath(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    const path = parsed.pathname.toLowerCase();
+    return path.includes('/messages/') || path.includes('/reviews/');
+  } catch {
+    return false;
+  }
+}
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,6 +87,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isAllowedReviewMediaHost(value)) {
         return res.status(400).json({ error: 'Review media must be uploaded through ScheduleMe.' });
       }
+      if (!isAllowedReviewMediaPath(value)) {
+        return res.status(400).json({ error: 'Review media must use message/review uploads, not provider cover media.' });
+      }
       if (isVideoURL(value)) videoCount += 1;
     }
     if (videoCount > 1) {
@@ -87,7 +100,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let cleanComment = '';
     if (comment) {
       const check = validateAndFilter(comment, { maxLength: 500, fieldName: 'Review' });
-      if (!check.ok) return res.status(400).json({ error: check.error });
+      if (!check.ok) {
+        const reason = 'error' in check ? check.error : 'Review failed validation';
+        return res.status(400).json({ error: reason });
+      }
       const moderation = await moderateUserText(check.value);
       const hardSignal = hasHardModerationSignal(moderation.flaggedCategories);
       if (!moderation.ok && hardSignal) {
