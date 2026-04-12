@@ -79,9 +79,14 @@ function isHardModerationBlock(result: { ok: boolean; flaggedCategories?: string
   return reason.includes('blocked by safety filter');
 }
 
+function isUpdatedAtTriggerMismatch(error: any): boolean {
+  const message = String(error?.message ?? '').toLowerCase();
+  return message.includes('record "new" has no field "updated_at"');
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
-  const limited = await rateLimit(req, res, { max: 60, windowMs: 60000 });
+  const limited = await rateLimit(req, res, { max: 120, windowMs: 60000 });
   if (!limited) return;
 
   try {
@@ -235,8 +240,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id,
         business_id
       );
-      if (error) return res.status(500).json({ error: error.message });
-      return res.status(200).json({ service: data });
+      if (!error) return res.status(200).json({ service: data });
+
+      // Legacy schema repair path:
+      // some deployments have an UPDATE trigger that expects NEW.updated_at even when
+      // the column is missing. In that case, update operations fail but inserts still work.
+      // We preserve user intent by cloning the service with updated fields, then removing old.
+      if (isUpdatedAtTriggerMismatch(error)) {
+        const existingResponse = await supabase
+          .from('services')
+          .select('*')
+          .eq('id', id)
+          .eq('business_id', business_id)
+          .single();
+        if (existingResponse.error || !existingResponse.data) {
+          return res.status(500).json({ error: existingResponse.error?.message || error.message });
+        }
+
+        const existing = existingResponse.data as Record<string, any>;
+        const replacementPayload: Record<string, any> = {
+          business_id,
+          name: safeUpdates.name ?? existing.name,
+          description: safeUpdates.description !== undefined ? safeUpdates.description : existing.description,
+          price_cents: safeUpdates.price_cents ?? existing.price_cents,
+          duration_min: safeUpdates.duration_min ?? existing.duration_min,
+          sort_order: safeUpdates.sort_order ?? existing.sort_order ?? 0,
+          requires_exact_time: safeUpdates.requires_exact_time ?? existing.requires_exact_time ?? false,
+          active: safeUpdates.active ?? existing.active ?? true,
+        };
+
+        const inserted = await insertServiceWithFallback(supabase, replacementPayload);
+        if (inserted.error) return res.status(500).json({ error: inserted.error.message || error.message });
+
+        // Best-effort cleanup of legacy row. If delete fails, still return the replacement.
+        await supabase.from('services').delete().eq('id', id).eq('business_id', business_id);
+
+        return res.status(200).json({
+          service: inserted.data,
+          replaced_legacy_row: true,
+        });
+      }
+
+      return res.status(500).json({ error: error.message });
     }
 
     if (req.method === 'DELETE') {

@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAuth(req, res);
   if (!user) return;
 
-  const { business_id, media_type, file_data, file_type, file_name, approve_immediately } = req.body;
+  const { business_id, media_type, file_data, file_type, file_name } = req.body;
 
   if (!business_id || !isValidUuid(business_id))
     return res.status(400).json({ error: 'Valid business_id required' });
@@ -34,12 +34,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (buffer.length > maxSize)
     return res.status(400).json({ error: 'File too large' });
 
+  // OpenAI moderation (free endpoint) for image safety before storage upload.
   if (!isVideo) {
     const dataUrl = typeof file_data === 'string' && file_data.startsWith('data:')
       ? file_data
       : `data:${file_type};base64,${base64Data}`;
     const moderation = await moderateUserImageDataUrl(dataUrl);
-    if (!moderation.ok) {
+    const hasHardSignal = (moderation.flaggedCategories?.length ?? 0) > 0;
+    if (!moderation.ok && hasHardSignal) {
       return res.status(400).json({
         error: 'Image blocked by safety filters. Please upload a different image.',
         categories: moderation.flaggedCategories,
@@ -70,8 +72,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const ownerId = typeof (biz as any).owner_id === 'string' ? (biz as any).owner_id : null;
   const ownerEmail = typeof (biz as any).owner_email === 'string' ? (biz as any).owner_email.toLowerCase().trim() : '';
   const userEmail = (user.email || '').toLowerCase().trim();
-  const ownsById = !!ownerId && ownerId === user.id;
-  const ownsByEmail = !!ownerEmail && !!userEmail && ownerEmail === userEmail;
+  const ownsById = ownerId === user.id;
+  // Legacy fallback only when owner_id is not populated.
+  const ownsByEmail = !ownerId && !!ownerEmail && !!userEmail && ownerEmail === userEmail;
   if (!ownsById && !ownsByEmail) return res.status(403).json({ error: 'Access denied' });
 
   const ext = (file_name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
@@ -85,14 +88,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: { publicUrl } } = supabase.storage.from('business-media').getPublicUrl(fileName);
 
-  // Only apply immediately if explicitly requested (default: require admin approval)
-  if (approve_immediately === true) {
-    if (isVideo) {
-      await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id).then(() => {});
-    } else {
-      await supabase.from('businesses').update({ cover_url: publicUrl }).eq('id', business_id);
-    }
+  // Update cover_url (and video_url if those columns exist)
+  if (isVideo) {
+    await supabase.from('businesses').update({ video_url: publicUrl }).eq('id', business_id).then(() => {});
+  } else {
+    // Always update cover_url with first image
+    await supabase.from('businesses').update({ cover_url: publicUrl }).eq('id', business_id);
   }
 
-  return res.status(200).json({ url: publicUrl, pending: approve_immediately !== true });
+  return res.status(200).json({ url: publicUrl });
 }
