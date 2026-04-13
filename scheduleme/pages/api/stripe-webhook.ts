@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import stripe from '../../lib/stripe';
 import { createClient } from '@supabase/supabase-js';
+import { logSecurityEvent } from '../../lib/securityEvents';
 
 // Must disable body parsing for Stripe webhooks
 export const config = { api: { bodyParser: false } };
@@ -42,6 +43,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!sig || !webhookSecret) {
+    await logSecurityEvent({
+      eventType: 'webhook_missing_signature_or_secret',
+      severity: 'warning',
+      req,
+      statusCode: 400,
+      message: 'Stripe webhook missing signature header or webhook secret',
+    });
     return res.status(400).json({ error: 'Missing stripe signature or webhook secret' });
   }
 
@@ -51,12 +59,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err) {
     console.error('[webhook] Signature verification failed:', err);
+    await logSecurityEvent({
+      eventType: 'webhook_signature_invalid',
+      severity: 'critical',
+      req,
+      statusCode: 400,
+      message: 'Stripe webhook signature verification failed',
+    });
     return res.status(400).json({ error: 'Invalid signature' });
   }
 
   const supabase = getSupabase();
 
   try {
+    await logSecurityEvent({
+      eventType: 'webhook_event_received',
+      severity: 'info',
+      req,
+      statusCode: 200,
+      message: 'Stripe webhook event received',
+      metadata: { stripeEventType: event.type, livemode: event.livemode },
+    });
+
     switch (event.type) {
 
       // Payment succeeded — mark booking as paid
@@ -171,6 +195,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ received: true });
   } catch (err) {
     console.error('[webhook] Handler error:', err);
+    await logSecurityEvent({
+      eventType: 'webhook_handler_failed',
+      severity: 'critical',
+      req,
+      statusCode: 500,
+      message: 'Stripe webhook handler failed',
+      metadata: { stripeEventType: event?.type || null },
+    });
     return res.status(500).json({ error: 'Webhook handler failed' });
   }
 }

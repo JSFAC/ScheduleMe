@@ -238,6 +238,36 @@ function isSecurityRisky(row: SecurityEvent) {
   return isSecurityAuthFailure(row.event_type) || isSecurityRateLimit(row.event_type);
 }
 
+function isSecurityAdminAction(eventType: string) {
+  return (eventType || '').toLowerCase().startsWith('admin_');
+}
+
+function isSecurityAdminDenied(eventType: string) {
+  const t = (eventType || '').toLowerCase();
+  return t.includes('admin_access_denied') || t.includes('admin_gate_missing');
+}
+
+function isSecurityPrivilegeChange(eventType: string) {
+  const t = (eventType || '').toLowerCase();
+  return t.includes('role') || t.includes('privilege') || t.includes('permission');
+}
+
+function isSecurityWebhookFailure(row: SecurityEvent) {
+  const t = (row.event_type || '').toLowerCase();
+  if (!t.includes('webhook')) return false;
+  if (row.severity === 'warning' || row.severity === 'critical') return true;
+  return (row.status_code || 0) >= 400;
+}
+
+function isSecuritySuspiciousIp(
+  row: SecurityEvent,
+  suspiciousIpSet: Set<string>
+) {
+  if (!row.ip || !isSecurityRisky(row)) return false;
+  if (!suspiciousIpSet.size) return true;
+  return suspiciousIpSet.has(row.ip);
+}
+
 const AdminPage: NextPage = () => {
   const [authToken, setAuthToken] = useState('');
   const [authed, setAuthed] = useState(false);
@@ -286,7 +316,20 @@ const AdminPage: NextPage = () => {
   const [securityIpFilter, setSecurityIpFilter] = useState('');
   const [selectedSecurityDay, setSelectedSecurityDay] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(() => monthKey(new Date()));
-  const [securitySignalFilter, setSecuritySignalFilter] = useState<'all' | 'auth_failures' | 'rate_limit_hits' | 'risky_events' | 'suspicious_ips'>('all');
+  const [securitySignalFilter, setSecuritySignalFilter] = useState<
+    'all'
+    | 'auth_failures'
+    | 'rate_limit_hits'
+    | 'risky_events'
+    | 'suspicious_ips'
+    | 'admin_actions'
+    | 'admin_denied'
+    | 'api_401_403'
+    | 'api_429'
+    | 'api_5xx'
+    | 'webhook_failures'
+    | 'privilege_changes'
+  >('all');
   const [errorIssues, setErrorIssues] = useState<ErrorIssue[]>([]);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
   const [errorIssuesLoading, setErrorIssuesLoading] = useState(false);
@@ -991,12 +1034,66 @@ const AdminPage: NextPage = () => {
   const securityRangeLabel = securityEventSummary?.range
     ? `${new Date(securityEventSummary.range.start).toLocaleDateString()} - ${new Date(securityEventSummary.range.end).toLocaleDateString()}`
     : 'Selected range';
+  const suspiciousIpSet = useMemo(() => {
+    const out = new Set<string>();
+    for (const row of securityEventSummary?.topSuspiciousIps || []) {
+      if (row.ip) out.add(row.ip);
+    }
+    return out;
+  }, [securityEventSummary?.topSuspiciousIps]);
+  const securitySignalCounts = useMemo(() => {
+    const counts = {
+      authFailures: 0,
+      rateLimitHits: 0,
+      riskyEvents: 0,
+      uniqueSuspiciousIps: 0,
+      adminActions: 0,
+      adminDenied: 0,
+      api401403: 0,
+      api429: 0,
+      api5xx: 0,
+      webhookFailures: 0,
+      privilegeChanges: 0,
+    };
+    const suspiciousIps = new Set<string>();
+    for (const row of securityEvents) {
+      if (isSecurityAuthFailure(row.event_type)) counts.authFailures += 1;
+      if (isSecurityRateLimit(row.event_type)) counts.rateLimitHits += 1;
+      if (isSecurityRisky(row)) counts.riskyEvents += 1;
+      if (isSecuritySuspiciousIp(row, suspiciousIpSet) && row.ip) suspiciousIps.add(row.ip);
+      if (isSecurityAdminAction(row.event_type)) counts.adminActions += 1;
+      if (isSecurityAdminDenied(row.event_type)) counts.adminDenied += 1;
+      if (row.status_code === 401 || row.status_code === 403) counts.api401403 += 1;
+      if (row.status_code === 429) counts.api429 += 1;
+      if ((row.status_code || 0) >= 500) counts.api5xx += 1;
+      if (isSecurityWebhookFailure(row)) counts.webhookFailures += 1;
+      if (isSecurityPrivilegeChange(row.event_type)) counts.privilegeChanges += 1;
+    }
+    counts.uniqueSuspiciousIps = suspiciousIps.size;
+    return counts;
+  }, [securityEvents, suspiciousIpSet]);
+  const errorBreakdownCounts = useMemo(() => {
+    const severity = { critical: 0, error: 0, warning: 0, info: 0 };
+    const source = { client: 0, server: 0 };
+    for (const issue of errorIssues) {
+      severity[issue.severity] += 1;
+      source[issue.source] += 1;
+    }
+    return { severity, source };
+  }, [errorIssues]);
   const filteredSecurityEvents = securityEvents.filter((row) => {
     if (securitySignalFilter === 'all') return true;
     if (securitySignalFilter === 'auth_failures') return isSecurityAuthFailure(row.event_type);
     if (securitySignalFilter === 'rate_limit_hits') return isSecurityRateLimit(row.event_type);
     if (securitySignalFilter === 'risky_events') return isSecurityRisky(row);
-    if (securitySignalFilter === 'suspicious_ips') return Boolean(row.ip) && isSecurityRisky(row);
+    if (securitySignalFilter === 'suspicious_ips') return isSecuritySuspiciousIp(row, suspiciousIpSet);
+    if (securitySignalFilter === 'admin_actions') return isSecurityAdminAction(row.event_type);
+    if (securitySignalFilter === 'admin_denied') return isSecurityAdminDenied(row.event_type);
+    if (securitySignalFilter === 'api_401_403') return row.status_code === 401 || row.status_code === 403;
+    if (securitySignalFilter === 'api_429') return row.status_code === 429;
+    if (securitySignalFilter === 'api_5xx') return (row.status_code || 0) >= 500;
+    if (securitySignalFilter === 'webhook_failures') return isSecurityWebhookFailure(row);
+    if (securitySignalFilter === 'privilege_changes') return isSecurityPrivilegeChange(row.event_type);
     return true;
   });
 
@@ -1541,34 +1638,85 @@ const AdminPage: NextPage = () => {
                   </div>
                 </div>
                 {securityEventSummary?.attackSignals ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                     <button
                       onClick={() => setSecuritySignalFilter((prev) => (prev === 'auth_failures' ? 'all' : 'auth_failures'))}
                       className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'auth_failures' ? 'border-red-500/50' : 'border-neutral-800'}`}
                     >
                       <p className="text-[11px] text-neutral-500">Auth failures</p>
-                      <p className="text-sm font-semibold text-red-300">{securityEventSummary.attackSignals.authFailures}</p>
+                      <p className="text-sm font-semibold text-red-300">{securitySignalCounts.authFailures}</p>
                     </button>
                     <button
                       onClick={() => setSecuritySignalFilter((prev) => (prev === 'rate_limit_hits' ? 'all' : 'rate_limit_hits'))}
                       className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'rate_limit_hits' ? 'border-yellow-500/50' : 'border-neutral-800'}`}
                     >
                       <p className="text-[11px] text-neutral-500">Rate-limit hits</p>
-                      <p className="text-sm font-semibold text-yellow-300">{securityEventSummary.attackSignals.rateLimitHits}</p>
+                      <p className="text-sm font-semibold text-yellow-300">{securitySignalCounts.rateLimitHits}</p>
                     </button>
                     <button
                       onClick={() => setSecuritySignalFilter((prev) => (prev === 'risky_events' ? 'all' : 'risky_events'))}
                       className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'risky_events' ? 'border-orange-500/50' : 'border-neutral-800'}`}
                     >
                       <p className="text-[11px] text-neutral-500">Risky events</p>
-                      <p className="text-sm font-semibold text-orange-300">{securityEventSummary.attackSignals.riskyEvents}</p>
+                      <p className="text-sm font-semibold text-orange-300">{securitySignalCounts.riskyEvents}</p>
                     </button>
                     <button
                       onClick={() => setSecuritySignalFilter((prev) => (prev === 'suspicious_ips' ? 'all' : 'suspicious_ips'))}
                       className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'suspicious_ips' ? 'border-cyan-500/50' : 'border-neutral-800'}`}
                     >
                       <p className="text-[11px] text-neutral-500">Suspicious IPs</p>
-                      <p className="text-sm font-semibold text-cyan-300">{securityEventSummary.attackSignals.uniqueSuspiciousIps}</p>
+                      <p className="text-sm font-semibold text-cyan-300">{securitySignalCounts.uniqueSuspiciousIps}</p>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'admin_actions' ? 'all' : 'admin_actions'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'admin_actions' ? 'border-indigo-500/50' : 'border-neutral-800'}`}
+                    >
+                      <p className="text-[11px] text-neutral-500">Admin actions</p>
+                      <p className="text-sm font-semibold text-indigo-300">{securitySignalCounts.adminActions}</p>
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'admin_denied' ? 'all' : 'admin_denied'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'admin_denied' ? 'border-rose-500/50' : 'border-neutral-800'}`}
+                    >
+                      <p className="text-[11px] text-neutral-500">Admin denied</p>
+                      <p className="text-sm font-semibold text-rose-300">{securitySignalCounts.adminDenied}</p>
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'api_401_403' ? 'all' : 'api_401_403'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'api_401_403' ? 'border-amber-500/50' : 'border-neutral-800'}`}
+                    >
+                      <p className="text-[11px] text-neutral-500">API 401/403</p>
+                      <p className="text-sm font-semibold text-amber-300">{securitySignalCounts.api401403}</p>
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'api_429' ? 'all' : 'api_429'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'api_429' ? 'border-yellow-500/50' : 'border-neutral-800'}`}
+                    >
+                      <p className="text-[11px] text-neutral-500">API 429</p>
+                      <p className="text-sm font-semibold text-yellow-300">{securitySignalCounts.api429}</p>
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'api_5xx' ? 'all' : 'api_5xx'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'api_5xx' ? 'border-red-500/50' : 'border-neutral-800'}`}
+                    >
+                      <p className="text-[11px] text-neutral-500">API 5xx</p>
+                      <p className="text-sm font-semibold text-red-300">{securitySignalCounts.api5xx}</p>
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'webhook_failures' ? 'all' : 'webhook_failures'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'webhook_failures' ? 'border-fuchsia-500/50' : 'border-neutral-800'}`}
+                    >
+                      <p className="text-[11px] text-neutral-500">Webhook failures</p>
+                      <p className="text-sm font-semibold text-fuchsia-300">{securitySignalCounts.webhookFailures}</p>
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'privilege_changes' ? 'all' : 'privilege_changes'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'privilege_changes' ? 'border-sky-500/50' : 'border-neutral-800'}`}
+                    >
+                      <p className="text-[11px] text-neutral-500">Privilege changes</p>
+                      <p className="text-sm font-semibold text-sky-300">{securitySignalCounts.privilegeChanges}</p>
                     </button>
                   </div>
                 ) : null}
@@ -1757,23 +1905,23 @@ const AdminPage: NextPage = () => {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
                   <button onClick={() => setErrorSignalFilter((p) => (p === 'critical' ? 'all' : 'critical'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'critical' ? 'border-red-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Critical</p>
-                    <p className="text-sm font-semibold text-red-300">{errorSummary?.severityCounts?.critical ?? 0}</p>
+                    <p className="text-sm font-semibold text-red-300">{errorBreakdownCounts.severity.critical}</p>
                   </button>
                   <button onClick={() => setErrorSignalFilter((p) => (p === 'error' ? 'all' : 'error'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'error' ? 'border-orange-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Error</p>
-                    <p className="text-sm font-semibold text-orange-300">{errorSummary?.severityCounts?.error ?? 0}</p>
+                    <p className="text-sm font-semibold text-orange-300">{errorBreakdownCounts.severity.error}</p>
                   </button>
                   <button onClick={() => setErrorSignalFilter((p) => (p === 'warning' ? 'all' : 'warning'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'warning' ? 'border-yellow-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Warning</p>
-                    <p className="text-sm font-semibold text-yellow-300">{errorSummary?.severityCounts?.warning ?? 0}</p>
+                    <p className="text-sm font-semibold text-yellow-300">{errorBreakdownCounts.severity.warning}</p>
                   </button>
                   <button onClick={() => setErrorSignalFilter((p) => (p === 'client' ? 'all' : 'client'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'client' ? 'border-cyan-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Client</p>
-                    <p className="text-sm font-semibold text-cyan-300">{errorSummary?.sourceCounts?.client ?? 0}</p>
+                    <p className="text-sm font-semibold text-cyan-300">{errorBreakdownCounts.source.client}</p>
                   </button>
                   <button onClick={() => setErrorSignalFilter((p) => (p === 'server' ? 'all' : 'server'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'server' ? 'border-violet-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Server</p>
-                    <p className="text-sm font-semibold text-violet-300">{errorSummary?.sourceCounts?.server ?? 0}</p>
+                    <p className="text-sm font-semibold text-violet-300">{errorBreakdownCounts.source.server}</p>
                   </button>
                 </div>
                 {errorSummary?.series?.length ? (
