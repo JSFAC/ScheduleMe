@@ -41,6 +41,7 @@ interface SecurityEvent {
   route: string | null;
   method: string | null;
   status_code: number | null;
+  ip?: string | null;
   actor_email: string | null;
   message: string | null;
 }
@@ -222,6 +223,21 @@ function ErrorVolumeChart({ points }: { points: ErrorSeriesPoint[] }) {
   );
 }
 
+function isSecurityAuthFailure(eventType: string) {
+  const t = (eventType || '').toLowerCase();
+  return t.includes('auth_') || t.includes('admin_access_denied') || t.includes('forbidden') || t.includes('unauthorized');
+}
+
+function isSecurityRateLimit(eventType: string) {
+  return (eventType || '').toLowerCase().includes('rate_limit');
+}
+
+function isSecurityRisky(row: SecurityEvent) {
+  if (row.severity === 'critical' || row.severity === 'warning') return true;
+  if ((row.status_code || 0) >= 400) return true;
+  return isSecurityAuthFailure(row.event_type) || isSecurityRateLimit(row.event_type);
+}
+
 const AdminPage: NextPage = () => {
   const [authToken, setAuthToken] = useState('');
   const [authed, setAuthed] = useState(false);
@@ -270,6 +286,7 @@ const AdminPage: NextPage = () => {
   const [securityIpFilter, setSecurityIpFilter] = useState('');
   const [selectedSecurityDay, setSelectedSecurityDay] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(() => monthKey(new Date()));
+  const [securitySignalFilter, setSecuritySignalFilter] = useState<'all' | 'auth_failures' | 'rate_limit_hits' | 'risky_events' | 'suspicious_ips'>('all');
   const [errorIssues, setErrorIssues] = useState<ErrorIssue[]>([]);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
   const [errorIssuesLoading, setErrorIssuesLoading] = useState(false);
@@ -284,6 +301,7 @@ const AdminPage: NextPage = () => {
   const [errorComponentFilter, setErrorComponentFilter] = useState('');
   const [selectedErrorDay, setSelectedErrorDay] = useState('');
   const [errorCalendarMonth, setErrorCalendarMonth] = useState(() => monthKey(new Date()));
+  const [errorSignalFilter, setErrorSignalFilter] = useState<'all' | 'open' | 'investigating' | 'resolved' | 'muted' | 'critical' | 'error' | 'warning' | 'info' | 'client' | 'server'>('all');
   const [issueStatusDrafts, setIssueStatusDrafts] = useState<Record<string, string>>({});
   const [updatingIssueId, setUpdatingIssueId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'businesses' | 'requests'>('businesses');
@@ -973,6 +991,23 @@ const AdminPage: NextPage = () => {
   const securityRangeLabel = securityEventSummary?.range
     ? `${new Date(securityEventSummary.range.start).toLocaleDateString()} - ${new Date(securityEventSummary.range.end).toLocaleDateString()}`
     : 'Selected range';
+  const filteredSecurityEvents = securityEvents.filter((row) => {
+    if (securitySignalFilter === 'all') return true;
+    if (securitySignalFilter === 'auth_failures') return isSecurityAuthFailure(row.event_type);
+    if (securitySignalFilter === 'rate_limit_hits') return isSecurityRateLimit(row.event_type);
+    if (securitySignalFilter === 'risky_events') return isSecurityRisky(row);
+    if (securitySignalFilter === 'suspicious_ips') return Boolean(row.ip) && isSecurityRisky(row);
+    return true;
+  });
+
+  const filteredErrorIssues = errorIssues.filter((issue) => {
+    if (errorSignalFilter === 'all') return true;
+    if (errorSignalFilter === 'client' || errorSignalFilter === 'server') return issue.source === errorSignalFilter;
+    if (errorSignalFilter === 'critical' || errorSignalFilter === 'error' || errorSignalFilter === 'warning' || errorSignalFilter === 'info') {
+      return issue.severity === errorSignalFilter;
+    }
+    return issue.status === errorSignalFilter;
+  });
 
   const filteredRequests = requests.filter(r => {
     if (requestFilter === 'pending') return r.status === 'pending';
@@ -1417,6 +1452,7 @@ const AdminPage: NextPage = () => {
                   setSecuritySearch('');
                   setSecurityRouteFilter('');
                   setSecurityIpFilter('');
+                  setSecuritySignalFilter('all');
                 }}
                 className="md:col-span-1 text-xs px-3 py-2 rounded-xl border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors"
               >
@@ -1494,12 +1530,11 @@ const AdminPage: NextPage = () => {
                               setCalendarMonth(cell.date.slice(0, 7));
                             }
                           }}
-                          className={`h-10 rounded-md border text-[10px] transition-colors ${cell.inMonth ? 'border-neutral-800' : 'border-neutral-900 text-neutral-700'} ${selected ? 'ring-1 ring-emerald-400' : ''}`}
-                          style={{ backgroundColor: row ? `rgba(16,185,129,${intensity})` : 'rgba(20,20,20,0.7)' }}
+                          className={`h-8 text-[11px] transition-colors ${cell.inMonth ? 'text-neutral-300' : 'text-neutral-700'} ${selected ? 'font-semibold underline underline-offset-4 decoration-emerald-400' : ''}`}
+                          style={row && !selected ? { color: `rgba(52,211,153,${Math.max(0.45, intensity)})` } : undefined}
                           title={`${cell.date}${row ? ` · ${row.total} events` : ' · no events'}`}
                         >
-                          <div className={`${cell.inMonth ? 'text-neutral-200' : 'text-neutral-600'}`}>{Number(cell.date.slice(8, 10))}</div>
-                          {row ? <div className="text-[9px] text-neutral-100">{row.total}</div> : null}
+                          <div>{Number(cell.date.slice(8, 10))}</div>
                         </button>
                       );
                     })}
@@ -1507,22 +1542,34 @@ const AdminPage: NextPage = () => {
                 </div>
                 {securityEventSummary?.attackSignals ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'auth_failures' ? 'all' : 'auth_failures'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'auth_failures' ? 'border-red-500/50' : 'border-neutral-800'}`}
+                    >
                       <p className="text-[11px] text-neutral-500">Auth failures</p>
                       <p className="text-sm font-semibold text-red-300">{securityEventSummary.attackSignals.authFailures}</p>
-                    </div>
-                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'rate_limit_hits' ? 'all' : 'rate_limit_hits'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'rate_limit_hits' ? 'border-yellow-500/50' : 'border-neutral-800'}`}
+                    >
                       <p className="text-[11px] text-neutral-500">Rate-limit hits</p>
                       <p className="text-sm font-semibold text-yellow-300">{securityEventSummary.attackSignals.rateLimitHits}</p>
-                    </div>
-                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'risky_events' ? 'all' : 'risky_events'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'risky_events' ? 'border-orange-500/50' : 'border-neutral-800'}`}
+                    >
                       <p className="text-[11px] text-neutral-500">Risky events</p>
                       <p className="text-sm font-semibold text-orange-300">{securityEventSummary.attackSignals.riskyEvents}</p>
-                    </div>
-                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    </button>
+                    <button
+                      onClick={() => setSecuritySignalFilter((prev) => (prev === 'suspicious_ips' ? 'all' : 'suspicious_ips'))}
+                      className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${securitySignalFilter === 'suspicious_ips' ? 'border-cyan-500/50' : 'border-neutral-800'}`}
+                    >
                       <p className="text-[11px] text-neutral-500">Suspicious IPs</p>
                       <p className="text-sm font-semibold text-cyan-300">{securityEventSummary.attackSignals.uniqueSuspiciousIps}</p>
-                    </div>
+                    </button>
                   </div>
                 ) : null}
                 {securityEventSummary?.topSuspiciousIps?.length ? (
@@ -1543,11 +1590,17 @@ const AdminPage: NextPage = () => {
                     </div>
                   </div>
                 ) : null}
-                {securityEvents.length === 0 ? (
+                {securitySignalFilter !== 'all' ? (
+                  <div className="text-[11px] text-neutral-500 mb-3">
+                    Signal filter active: <span className="text-neutral-300">{securitySignalFilter}</span>{' '}
+                    <button onClick={() => setSecuritySignalFilter('all')} className="text-emerald-300 hover:text-emerald-200">show all</button>
+                  </div>
+                ) : null}
+                {filteredSecurityEvents.length === 0 ? (
                   <div className="text-xs text-neutral-500">No security events recorded yet.</div>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-auto pr-1">
-                    {securityEvents.slice(0, 20).map((row) => (
+                    {filteredSecurityEvents.slice(0, 20).map((row) => (
                       <div key={row.id} className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-xs text-neutral-200 truncate">
@@ -1665,6 +1718,7 @@ const AdminPage: NextPage = () => {
                   setErrorRouteFilter('');
                   setErrorComponentFilter('');
                   setErrorFilter('open');
+                  setErrorSignalFilter('all');
                 }}
                 className="md:col-span-1 text-xs px-3 py-2 rounded-xl border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors"
               >
@@ -1683,44 +1737,44 @@ const AdminPage: NextPage = () => {
                     <p className="text-[11px] text-neutral-500">Issues (range)</p>
                     <p className="text-sm font-semibold text-white">{errorSummary?.total ?? issueCounts.total}</p>
                   </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'open' ? 'all' : 'open'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'open' ? 'border-red-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Open</p>
                     <p className="text-sm font-semibold text-red-300">{errorSummary?.statusCounts?.open ?? issueCounts.open}</p>
-                  </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  </button>
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'investigating' ? 'all' : 'investigating'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'investigating' ? 'border-yellow-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Investigating</p>
                     <p className="text-sm font-semibold text-yellow-300">{errorSummary?.statusCounts?.investigating ?? issueCounts.investigating}</p>
-                  </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  </button>
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'resolved' ? 'all' : 'resolved'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'resolved' ? 'border-emerald-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Resolved</p>
                     <p className="text-sm font-semibold text-emerald-300">{errorSummary?.statusCounts?.resolved ?? issueCounts.resolved}</p>
-                  </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  </button>
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'muted' ? 'all' : 'muted'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'muted' ? 'border-neutral-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Muted</p>
                     <p className="text-sm font-semibold text-neutral-300">{errorSummary?.statusCounts?.muted ?? issueCounts.muted}</p>
-                  </div>
+                  </button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'critical' ? 'all' : 'critical'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'critical' ? 'border-red-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Critical</p>
                     <p className="text-sm font-semibold text-red-300">{errorSummary?.severityCounts?.critical ?? 0}</p>
-                  </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  </button>
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'error' ? 'all' : 'error'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'error' ? 'border-orange-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Error</p>
                     <p className="text-sm font-semibold text-orange-300">{errorSummary?.severityCounts?.error ?? 0}</p>
-                  </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  </button>
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'warning' ? 'all' : 'warning'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'warning' ? 'border-yellow-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Warning</p>
                     <p className="text-sm font-semibold text-yellow-300">{errorSummary?.severityCounts?.warning ?? 0}</p>
-                  </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  </button>
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'client' ? 'all' : 'client'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'client' ? 'border-cyan-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Client</p>
                     <p className="text-sm font-semibold text-cyan-300">{errorSummary?.sourceCounts?.client ?? 0}</p>
-                  </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                  </button>
+                  <button onClick={() => setErrorSignalFilter((p) => (p === 'server' ? 'all' : 'server'))} className={`text-left bg-neutral-950 border rounded-xl px-3 py-2 ${errorSignalFilter === 'server' ? 'border-violet-500/50' : 'border-neutral-800'}`}>
                     <p className="text-[11px] text-neutral-500">Server</p>
                     <p className="text-sm font-semibold text-violet-300">{errorSummary?.sourceCounts?.server ?? 0}</p>
-                  </div>
+                  </button>
                 </div>
                 {errorSummary?.series?.length ? (
                   <div className="mb-4">
@@ -1768,12 +1822,11 @@ const AdminPage: NextPage = () => {
                               setErrorCalendarMonth(cell.date.slice(0, 7));
                             }
                           }}
-                          className={`h-10 rounded-md border text-[10px] transition-colors ${cell.inMonth ? 'border-neutral-800' : 'border-neutral-900 text-neutral-700'} ${selected ? 'ring-1 ring-orange-400' : ''}`}
-                          style={{ backgroundColor: row ? `rgba(251,146,60,${intensity})` : 'rgba(20,20,20,0.7)' }}
+                          className={`h-8 text-[11px] transition-colors ${cell.inMonth ? 'text-neutral-300' : 'text-neutral-700'} ${selected ? 'font-semibold underline underline-offset-4 decoration-orange-400' : ''}`}
+                          style={row && !selected ? { color: `rgba(251,146,60,${Math.max(0.45, intensity)})` } : undefined}
                           title={`${cell.date}${row ? ` · ${row.total} issues` : ' · no issues'}`}
                         >
-                          <div className={`${cell.inMonth ? 'text-neutral-200' : 'text-neutral-600'}`}>{Number(cell.date.slice(8, 10))}</div>
-                          {row ? <div className="text-[9px] text-neutral-100">{row.total}</div> : null}
+                          <div>{Number(cell.date.slice(8, 10))}</div>
                         </button>
                       );
                     })}
@@ -1788,11 +1841,17 @@ const AdminPage: NextPage = () => {
                     ))}
                   </div>
                 ) : null}
-                {errorIssues.length === 0 ? (
+                {errorSignalFilter !== 'all' ? (
+                  <div className="text-[11px] text-neutral-500 mb-3">
+                    Signal filter active: <span className="text-neutral-300">{errorSignalFilter}</span>{' '}
+                    <button onClick={() => setErrorSignalFilter('all')} className="text-orange-300 hover:text-orange-200">show all</button>
+                  </div>
+                ) : null}
+                {filteredErrorIssues.length === 0 ? (
                   <div className="text-xs text-neutral-500">No issues for this filter.</div>
                 ) : (
                   <div className="space-y-2 max-h-72 overflow-auto pr-1">
-                    {errorIssues.slice(0, 25).map((issue) => (
+                    {filteredErrorIssues.slice(0, 25).map((issue) => (
                       <div key={issue.id} className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-xs text-neutral-200 truncate">
