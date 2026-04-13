@@ -3,6 +3,7 @@
 // OWASP-aligned: rate limiting, auth verification, input validation, security headers
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { createHash } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { sendWelcomeEmail } from './email';
 import { logSecurityEvent } from './securityEvents';
@@ -346,6 +347,66 @@ export async function requireAdmin(
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+  let isAdminUser = false;
+
+  if (email && allowlist.includes(email)) {
+    isAdminUser = true;
+  } else {
+    // Fallback: explicit admin role in profiles
+    try {
+      const adminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+      );
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if ((profile as any)?.role === 'admin') {
+        isAdminUser = true;
+      }
+    } catch {}
+  }
+
+  if (!isAdminUser) {
+    await logSecurityEvent({
+      eventType: 'admin_access_denied',
+      severity: 'warning',
+      req,
+      statusCode: 403,
+      actorUserId: user.id,
+      actorEmail: user.email,
+      message: 'Admin access denied',
+    });
+    res.status(403).json({ error: 'Admin access required.' });
+    return null;
+  }
+
+  const gateSecret = process.env.NOTIFY_SECRET || '';
+  const expectedGateToken = gateSecret
+    ? createHash('sha256').update(`admin-gate:${gateSecret}`).digest('hex')
+    : '';
+  const cookies = (req.headers.cookie || '').split(';').map((c) => c.trim());
+  const gateCookie = cookies.find((c) => c.startsWith('sm_admin_gate='));
+  const gateToken = gateCookie ? gateCookie.slice('sm_admin_gate='.length) : '';
+  const hasAdminGate = Boolean(expectedGateToken && gateToken && gateToken === expectedGateToken);
+  if (!hasAdminGate) {
+    await logSecurityEvent({
+      eventType: 'admin_gate_missing',
+      severity: 'warning',
+      req,
+      statusCode: 403,
+      actorUserId: user.id,
+      actorEmail: user.email,
+      message: 'Admin access code gate missing',
+    });
+    res.status(403).json({ error: 'Admin code verification required.' });
+    return null;
+  }
+
   if (email && allowlist.includes(email)) {
     void logSecurityEvent({
       eventType: 'admin_access_granted',
@@ -359,44 +420,16 @@ export async function requireAdmin(
     return user;
   }
 
-  // Fallback: explicit admin role in profiles
-  try {
-    const adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false } }
-    );
-    const { data: profile } = await adminClient
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if ((profile as any)?.role === 'admin') {
-      void logSecurityEvent({
-        eventType: 'admin_access_granted',
-        severity: 'info',
-        req,
-        statusCode: 200,
-        actorUserId: user.id,
-        actorEmail: user.email,
-        message: 'Admin access granted via profile role',
-      });
-      return user;
-    }
-  } catch {}
-
-  await logSecurityEvent({
-    eventType: 'admin_access_denied',
-    severity: 'warning',
+  void logSecurityEvent({
+    eventType: 'admin_access_granted',
+    severity: 'info',
     req,
-    statusCode: 403,
+    statusCode: 200,
     actorUserId: user.id,
     actorEmail: user.email,
-    message: 'Admin access denied',
+    message: 'Admin access granted via profile role',
   });
-  res.status(403).json({ error: 'Admin access required.' });
-  return null;
+  return user;
 }
 
 // ─── Input Validation ─────────────────────────────────────────────────────────

@@ -1052,7 +1052,7 @@ const AdminPage: NextPage = () => {
             <p className="text-neutral-500 text-sm mt-3">Admin access required.</p>
           </div>
           <div className="space-y-3">
-            <Link href="/signin?next=/admin&admin=1" className="btn-primary w-full py-3 text-center block">Sign in</Link>
+            <Link href="/admin/login" className="btn-primary w-full py-3 text-center block">Sign in</Link>
             <p className="text-xs text-neutral-500 text-center">Use an admin account to continue.</p>
           </div>
         </div>
@@ -1075,7 +1075,7 @@ const AdminPage: NextPage = () => {
           <p className="text-white font-semibold">Admin access required.</p>
           {adminVerifyError && <p className="text-xs text-neutral-500 mt-2">{adminVerifyError}</p>}
           <div className="mt-4 space-y-2">
-            <Link href="/signin?next=/admin&admin=1" className="btn-primary w-full py-3 text-center block">Try another account</Link>
+            <Link href="/admin/login" className="btn-primary w-full py-3 text-center block">Try another account</Link>
             <Link href="/admin/login" className="text-xs text-neutral-500 hover:text-neutral-300 block">Enter admin code again</Link>
           </div>
         </div>

@@ -13,6 +13,18 @@ function getSupabase() {
   return getSupabaseClient();
 }
 
+function hasValidAdminCodeSession() {
+  if (typeof window === 'undefined') return false;
+  const raw = sessionStorage.getItem('sm_admin_code_ok');
+  if (!raw) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed?.exp && Date.now() < Number(parsed.exp));
+  } catch {
+    return false;
+  }
+}
+
 const SignIn: NextPage = () => {
   const router = useRouter();
   const { next, admin } = router.query;
@@ -130,9 +142,14 @@ const SignIn: NextPage = () => {
   async function handleGoogle() {
     const supabase = getSupabase();
     localStorage.setItem('auth_source', 'consumer');
-    const isAdminSignin = admin === '1' || next === '/admin';
+    const adminIntentRequested = admin === '1' || next === '/admin';
+    const isAdminSignin = adminIntentRequested && hasValidAdminCodeSession();
+    if (adminIntentRequested && !isAdminSignin) {
+      router.replace('/admin/login');
+      return;
+    }
     if (isAdminSignin && typeof window !== 'undefined') {
-      localStorage.setItem('sm_admin_next', '/admin');
+      sessionStorage.setItem('sm_admin_next', '/admin');
     }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -197,8 +214,16 @@ const SignIn: NextPage = () => {
           throw error;
         }
         setFailedCount(0);
-        const isAdminSignin = admin === '1' || next === '/admin';
+        const adminIntentRequested = admin === '1' || next === '/admin';
+        const isAdminSignin = adminIntentRequested && hasValidAdminCodeSession();
+        if (adminIntentRequested && !isAdminSignin) {
+          router.push('/admin/login');
+          return;
+        }
         const nextTarget = typeof next === 'string' ? next : '';
+        if (isAdminSignin && typeof window !== 'undefined') {
+          sessionStorage.setItem('sm_admin_next', '/admin');
+        }
         const redirectTarget = safeRedirect(nextTarget || (isAdminSignin ? '/admin' : '/home'), isAdminSignin ? '/admin' : '/home');
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.id) {

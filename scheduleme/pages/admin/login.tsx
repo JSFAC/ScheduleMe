@@ -28,7 +28,7 @@ const AdminLogin: NextPage = () => {
         sessionStorage.setItem('sm_admin_code_ok', JSON.stringify({ exp }));
         sessionStorage.setItem('sm_admin_next', '/admin');
       }
-      window.location.href = '/signin?next=/admin&admin=1';
+      window.location.href = '/signin?next=/admin';
     } catch (err: any) {
       setError(err?.message || 'Invalid code');
     } finally {

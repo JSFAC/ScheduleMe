@@ -9,6 +9,18 @@ function getSupabase() {
   return getSupabaseClient();
 }
 
+function hasValidAdminCodeSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  const raw = sessionStorage.getItem('sm_admin_code_ok');
+  if (!raw) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed?.exp && Date.now() < Number(parsed.exp));
+  } catch {
+    return false;
+  }
+}
+
 const AuthCallback: NextPage = () => {
   const router = useRouter();
 
@@ -69,6 +81,7 @@ const AuthCallback: NextPage = () => {
 
           // Admin redirect override (set from /admin/login)
           const adminNext = typeof window !== 'undefined' ? sessionStorage.getItem('sm_admin_next') : null;
+          const allowAdminRedirect = adminNext === '/admin' && hasValidAdminCodeSession();
 
           // Check if they've seen the welcome screen
           const { data: userRow } = await supabase
@@ -79,10 +92,12 @@ const AuthCallback: NextPage = () => {
 
           const isNewUser = !userRow || userRow.has_seen_welcome === false;
 
-          if (adminNext) {
+          if (adminNext && allowAdminRedirect) {
             if (typeof window !== 'undefined') sessionStorage.removeItem('sm_admin_next');
             router.replace(adminNext);
             return;
+          } else if (adminNext) {
+            if (typeof window !== 'undefined') sessionStorage.removeItem('sm_admin_next');
           }
           if (isNewUser) {
             router.replace('/home');

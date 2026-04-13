@@ -9,6 +9,18 @@ function getSupabase() {
   return getSupabaseClient();
 }
 
+function hasValidAdminCodeSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  const raw = sessionStorage.getItem('sm_admin_code_ok');
+  if (!raw) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed?.exp && Date.now() < Number(parsed.exp));
+  } catch {
+    return false;
+  }
+}
+
 function deriveNameFromMetadata(user: any): string {
   const first = String(user?.user_metadata?.first_name || '').trim();
   const last = String(user?.user_metadata?.last_name || '').trim();
@@ -80,9 +92,12 @@ const VerifiedPage: NextPage = () => {
           }, { onConflict: 'id', ignoreDuplicates: true });
 
           const adminNext = sessionStorage.getItem('sm_admin_next');
-          if (adminNext) {
+          const allowAdminRedirect = adminNext === '/admin' && hasValidAdminCodeSession();
+          if (adminNext && allowAdminRedirect) {
             sessionStorage.removeItem('sm_admin_next');
             target = adminNext;
+          } else if (adminNext) {
+            sessionStorage.removeItem('sm_admin_next');
           } else {
             const { data: userRow } = await supabase
               .from('profiles')
