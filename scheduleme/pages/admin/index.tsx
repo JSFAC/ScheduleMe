@@ -4,7 +4,7 @@ import type { NextPage } from 'next';
 import dynamic from 'next/dynamic';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 
 interface Business {
@@ -73,17 +73,33 @@ interface SecuritySeriesPoint {
   critical: number;
 }
 
+interface SecurityCalendarDay {
+  date: string;
+  total: number;
+  info: number;
+  warning: number;
+  critical: number;
+}
+
 interface SecuritySummary24h {
   total: number;
   severityCounts: { info: number; warning: number; critical: number };
   topEventTypes: Array<{ event_type: string; count: number }>;
   series?: SecuritySeriesPoint[];
+  range?: {
+    preset: string;
+    day: string | null;
+    start: string;
+    end: string;
+  };
   attackSignals?: {
     authFailures: number;
     rateLimitHits: number;
     riskyEvents: number;
     uniqueSuspiciousIps: number;
   };
+  calendar?: SecurityCalendarDay[];
+  availableEventTypes?: string[];
   topSuspiciousIps?: Array<{
     ip: string;
     count: number;
@@ -98,11 +114,36 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function dateKey(input: Date) {
+  const y = input.getUTCFullYear();
+  const m = String(input.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(input.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function monthKey(input: Date) {
+  const y = input.getUTCFullYear();
+  const m = String(input.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function shiftMonth(key: string, delta: number) {
+  const [year, month] = key.split('-').map((n) => Number(n));
+  const base = new Date(Date.UTC(year, (month || 1) - 1, 1));
+  base.setUTCMonth(base.getUTCMonth() + delta);
+  return monthKey(base);
+}
+
+function readableMonth(key: string) {
+  const [year, month] = key.split('-').map((n) => Number(n));
+  return new Date(Date.UTC(year, (month || 1) - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 function SecurityVolumeChart({ points }: { points: SecuritySeriesPoint[] }) {
   const max = Math.max(1, ...points.map((p) => p.total || 0));
   return (
     <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-3">
-      <p className="text-[11px] text-neutral-500 mb-2">24h volume trend</p>
+      <p className="text-[11px] text-neutral-500 mb-2">Volume trend</p>
       <div className="h-20 flex items-end gap-1">
         {points.map((p) => (
           <div key={p.ts} className="flex-1 h-full flex flex-col justify-end">
@@ -160,6 +201,16 @@ const AdminPage: NextPage = () => {
   const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
   const [securityEventsLoading, setSecurityEventsLoading] = useState(false);
   const [securityEventSummary, setSecurityEventSummary] = useState<SecuritySummary24h | null>(null);
+  const [securityRangePreset, setSecurityRangePreset] = useState<'24h' | '7d' | '30d' | 'custom'>('24h');
+  const [securityStartDate, setSecurityStartDate] = useState('');
+  const [securityEndDate, setSecurityEndDate] = useState('');
+  const [securitySeverity, setSecuritySeverity] = useState<'all' | 'info' | 'warning' | 'critical'>('all');
+  const [securityEventType, setSecurityEventType] = useState('');
+  const [securitySearch, setSecuritySearch] = useState('');
+  const [securityRouteFilter, setSecurityRouteFilter] = useState('');
+  const [securityIpFilter, setSecurityIpFilter] = useState('');
+  const [selectedSecurityDay, setSelectedSecurityDay] = useState('');
+  const [calendarMonth, setCalendarMonth] = useState(() => monthKey(new Date()));
   const [errorIssues, setErrorIssues] = useState<ErrorIssue[]>([]);
   const [errorIssuesLoading, setErrorIssuesLoading] = useState(false);
   const [errorFilter, setErrorFilter] = useState<'open' | 'investigating' | 'resolved' | 'muted' | 'all'>('open');
@@ -292,7 +343,24 @@ const AdminPage: NextPage = () => {
   const loadSecurityEvents = useCallback(async (token: string) => {
     setSecurityEventsLoading(true);
     try {
-      const res = await fetch('/api/admin-security-events?limit=120', {
+      const qs = new URLSearchParams();
+      qs.set('limit', '120');
+      if (selectedSecurityDay) {
+        qs.set('day', selectedSecurityDay);
+      } else {
+        qs.set('preset', securityRangePreset);
+        if (securityRangePreset === 'custom') {
+          if (securityStartDate) qs.set('start', securityStartDate);
+          if (securityEndDate) qs.set('end', securityEndDate);
+        }
+      }
+      if (securitySeverity !== 'all') qs.set('severity', securitySeverity);
+      if (securityEventType) qs.set('event_type', securityEventType);
+      if (securitySearch.trim()) qs.set('q', securitySearch.trim());
+      if (securityRouteFilter.trim()) qs.set('route', securityRouteFilter.trim());
+      if (securityIpFilter.trim()) qs.set('ip', securityIpFilter.trim());
+
+      const res = await fetch(`/api/admin-security-events?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -304,7 +372,7 @@ const AdminPage: NextPage = () => {
     } finally {
       setSecurityEventsLoading(false);
     }
-  }, []);
+  }, [selectedSecurityDay, securityRangePreset, securityStartDate, securityEndDate, securitySeverity, securityEventType, securitySearch, securityRouteFilter, securityIpFilter]);
 
   const loadErrorIssues = useCallback(async (token: string, status: 'open' | 'investigating' | 'resolved' | 'muted' | 'all' = errorFilter) => {
     setErrorIssuesLoading(true);
@@ -535,6 +603,11 @@ const AdminPage: NextPage = () => {
     loadErrorIssues(authToken, errorFilter);
   }, [authed, authToken, adminVerified, errorFilter, loadErrorIssues]);
 
+  useEffect(() => {
+    if (!authed || !authToken || adminVerified !== true) return;
+    loadSecurityEvents(authToken);
+  }, [authed, authToken, adminVerified, loadSecurityEvents]);
+
   async function approveBusiness(id: string) {
     setApprovingId(id);
     try {
@@ -747,6 +820,40 @@ const AdminPage: NextPage = () => {
   const topIssueFingerprints = [...errorIssues]
     .sort((a, b) => (b.occurrences || 0) - (a.occurrences || 0))
     .slice(0, 6);
+  const calendarMap = useMemo(() => {
+    const out = new Map<string, SecurityCalendarDay>();
+    for (const day of securityEventSummary?.calendar || []) out.set(day.date, day);
+    return out;
+  }, [securityEventSummary?.calendar]);
+  const calendarDaysInMonth = useMemo(() => {
+    const [yy, mm] = calendarMonth.split('-').map((n) => Number(n));
+    const year = Number.isFinite(yy) ? yy : new Date().getUTCFullYear();
+    const month = Number.isFinite(mm) ? mm : new Date().getUTCMonth() + 1;
+    const first = new Date(Date.UTC(year, month - 1, 1));
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const leading = first.getUTCDay();
+    const cells: Array<{ date: string; inMonth: boolean }> = [];
+    for (let i = 0; i < leading; i += 1) {
+      const d = new Date(first);
+      d.setUTCDate(d.getUTCDate() - (leading - i));
+      cells.push({ date: dateKey(d), inMonth: false });
+    }
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push({ date: dateKey(new Date(Date.UTC(year, month - 1, day))), inMonth: true });
+    }
+    while (cells.length % 7 !== 0) {
+      const last = new Date(`${cells[cells.length - 1].date}T00:00:00Z`);
+      last.setUTCDate(last.getUTCDate() + 1);
+      cells.push({ date: dateKey(last), inMonth: false });
+    }
+    return cells;
+  }, [calendarMonth]);
+  const maxCalendarCount = useMemo(() => {
+    return Math.max(1, ...(securityEventSummary?.calendar || []).map((d) => d.total || 0));
+  }, [securityEventSummary?.calendar]);
+  const securityRangeLabel = securityEventSummary?.range
+    ? `${new Date(securityEventSummary.range.start).toLocaleDateString()} - ${new Date(securityEventSummary.range.end).toLocaleDateString()}`
+    : 'Selected range';
 
   const filteredRequests = requests.filter(r => {
     if (requestFilter === 'pending') return r.status === 'pending';
@@ -1106,14 +1213,99 @@ const AdminPage: NextPage = () => {
             )}
           </div>
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-start justify-between mb-4 gap-3">
               <div>
                 <p className="text-sm font-bold text-white">Security Events</p>
-                <p className="text-xs text-neutral-500 mt-1">Auth, admin, and rate-limit detections (last 24h + recent feed)</p>
+                <p className="text-xs text-neutral-500 mt-1">Auth, admin, rate-limit, and incident timeline with historical drill-down</p>
               </div>
-              <button onClick={() => authToken && loadSecurityEvents(authToken)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
-                Refresh
+              <div className="flex items-center gap-2">
+                <button onClick={() => authToken && loadSecurityEvents(authToken)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                  Refresh
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-8 gap-2 mb-4">
+              <select
+                value={securityRangePreset}
+                onChange={(e) => { setSelectedSecurityDay(''); setSecurityRangePreset(e.target.value as any); }}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="24h">Last 24h</option>
+                <option value="7d">Last 7d</option>
+                <option value="30d">Last 30d</option>
+                <option value="custom">Custom</option>
+              </select>
+              <input
+                type="date"
+                value={securityStartDate}
+                onChange={(e) => { setSelectedSecurityDay(''); setSecurityRangePreset('custom'); setSecurityStartDate(e.target.value); }}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              />
+              <input
+                type="date"
+                value={securityEndDate}
+                onChange={(e) => { setSelectedSecurityDay(''); setSecurityRangePreset('custom'); setSecurityEndDate(e.target.value); }}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              />
+              <select
+                value={securitySeverity}
+                onChange={(e) => setSecuritySeverity(e.target.value as any)}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="all">All severity</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+              </select>
+              <select
+                value={securityEventType}
+                onChange={(e) => setSecurityEventType(e.target.value)}
+                className="md:col-span-2 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="">All categories</option>
+                {(securityEventSummary?.availableEventTypes || []).map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <input
+                value={securitySearch}
+                onChange={(e) => setSecuritySearch(e.target.value)}
+                placeholder="Search event/route/message"
+                className="md:col-span-2 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-8 gap-2 mb-4">
+              <input
+                value={securityRouteFilter}
+                onChange={(e) => setSecurityRouteFilter(e.target.value)}
+                placeholder="Route contains"
+                className="md:col-span-3 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
+              />
+              <input
+                value={securityIpFilter}
+                onChange={(e) => setSecurityIpFilter(e.target.value)}
+                placeholder="IP contains"
+                className="md:col-span-2 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
+              />
+              <button
+                onClick={() => {
+                  setSelectedSecurityDay('');
+                  setSecurityRangePreset('24h');
+                  setSecurityStartDate('');
+                  setSecurityEndDate('');
+                  setSecuritySeverity('all');
+                  setSecurityEventType('');
+                  setSecuritySearch('');
+                  setSecurityRouteFilter('');
+                  setSecurityIpFilter('');
+                }}
+                className="md:col-span-1 text-xs px-3 py-2 rounded-xl border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors"
+              >
+                Reset
               </button>
+              <div className="md:col-span-2 text-[11px] text-neutral-500 flex items-center justify-end">
+                {selectedSecurityDay ? `Focused day: ${selectedSecurityDay}` : securityRangeLabel}
+              </div>
             </div>
             {securityEventsLoading ? (
               <div className="text-xs text-neutral-500">Loading security events…</div>
@@ -1121,7 +1313,7 @@ const AdminPage: NextPage = () => {
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                   <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
-                    <p className="text-[11px] text-neutral-500">Events 24h</p>
+                    <p className="text-[11px] text-neutral-500">Events (range)</p>
                     <p className="text-sm font-semibold text-white">{securityEventSummary?.total ?? 0}</p>
                   </div>
                   <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
@@ -1145,12 +1337,55 @@ const AdminPage: NextPage = () => {
                 {securityEventSummary?.topEventTypes?.length ? (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {securityEventSummary.topEventTypes.slice(0, 6).map((t) => (
-                      <span key={t.event_type} className="text-[11px] px-2 py-1 rounded-full bg-neutral-950 border border-neutral-800 text-neutral-300">
+                      <button
+                        key={t.event_type}
+                        onClick={() => setSecurityEventType((prev) => (prev === t.event_type ? '' : t.event_type))}
+                        className={`text-[11px] px-2 py-1 rounded-full border ${securityEventType === t.event_type ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200' : 'bg-neutral-950 border-neutral-800 text-neutral-300'}`}
+                      >
                         {t.event_type}: {t.count}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 ) : null}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] uppercase tracking-wide text-neutral-500">Incident calendar</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setCalendarMonth(shiftMonth(calendarMonth, -1))} className="text-xs text-neutral-400 hover:text-neutral-200">Prev</button>
+                      <span className="text-xs text-neutral-300">{readableMonth(calendarMonth)}</span>
+                      <button onClick={() => setCalendarMonth(shiftMonth(calendarMonth, 1))} className="text-xs text-neutral-400 hover:text-neutral-200">Next</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-[10px] text-neutral-600 mb-1">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => <div key={w} className="text-center">{w}</div>)}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {calendarDaysInMonth.map((cell) => {
+                      const row = calendarMap.get(cell.date);
+                      const intensity = row ? Math.max(0.15, Math.min(1, (row.total || 0) / maxCalendarCount)) : 0;
+                      const selected = selectedSecurityDay === cell.date;
+                      return (
+                        <button
+                          key={cell.date}
+                          onClick={() => {
+                            if (selectedSecurityDay === cell.date) {
+                              setSelectedSecurityDay('');
+                            } else {
+                              setSelectedSecurityDay(cell.date);
+                              setCalendarMonth(cell.date.slice(0, 7));
+                            }
+                          }}
+                          className={`h-10 rounded-md border text-[10px] transition-colors ${cell.inMonth ? 'border-neutral-800' : 'border-neutral-900 text-neutral-700'} ${selected ? 'ring-1 ring-emerald-400' : ''}`}
+                          style={{ backgroundColor: row ? `rgba(16,185,129,${intensity})` : 'rgba(20,20,20,0.7)' }}
+                          title={`${cell.date}${row ? ` · ${row.total} events` : ' · no events'}`}
+                        >
+                          <div className={`${cell.inMonth ? 'text-neutral-200' : 'text-neutral-600'}`}>{Number(cell.date.slice(8, 10))}</div>
+                          {row ? <div className="text-[9px] text-neutral-100">{row.total}</div> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 {securityEventSummary?.attackSignals ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                     <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
@@ -1173,7 +1408,7 @@ const AdminPage: NextPage = () => {
                 ) : null}
                 {securityEventSummary?.topSuspiciousIps?.length ? (
                   <div className="mb-4">
-                    <p className="text-[11px] uppercase tracking-wide text-neutral-500 mb-2">Top suspicious IP activity (24h)</p>
+                    <p className="text-[11px] uppercase tracking-wide text-neutral-500 mb-2">Top suspicious IP activity (selected range)</p>
                     <div className="space-y-2 max-h-44 overflow-auto pr-1">
                       {securityEventSummary.topSuspiciousIps.slice(0, 6).map((ipRow) => (
                         <div key={ipRow.ip} className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
