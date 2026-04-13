@@ -33,6 +33,18 @@ interface ChangeRequest {
   businesses?: { name?: string; owner_email?: string; owner_name?: string } | null;
 }
 
+interface SecurityEvent {
+  id: string;
+  created_at: string;
+  event_type: string;
+  severity: 'info' | 'warning' | 'critical';
+  route: string | null;
+  method: string | null;
+  status_code: number | null;
+  actor_email: string | null;
+  message: string | null;
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
@@ -72,6 +84,13 @@ const AdminPage: NextPage = () => {
   const [rlsLoading, setRlsLoading] = useState(false);
   const [securityStatus, setSecurityStatus] = useState<any[]>([]);
   const [securityLoading, setSecurityLoading] = useState(false);
+  const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
+  const [securityEventsLoading, setSecurityEventsLoading] = useState(false);
+  const [securityEventSummary, setSecurityEventSummary] = useState<{
+    total: number;
+    severityCounts: { info: number; warning: number; critical: number };
+    topEventTypes: Array<{ event_type: string; count: number }>;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<'businesses' | 'requests'>('businesses');
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
@@ -193,6 +212,23 @@ const AdminPage: NextPage = () => {
       showToast(err?.message || 'Failed to load security status', false);
     } finally {
       setSecurityLoading(false);
+    }
+  }, []);
+
+  const loadSecurityEvents = useCallback(async (token: string) => {
+    setSecurityEventsLoading(true);
+    try {
+      const res = await fetch('/api/admin-security-events?limit=120', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to load security events');
+      setSecurityEvents(data.events || []);
+      setSecurityEventSummary(data.summary?.last24h || null);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to load security events', false);
+    } finally {
+      setSecurityEventsLoading(false);
     }
   }, []);
 
@@ -396,6 +432,7 @@ const AdminPage: NextPage = () => {
     await loadCampusOptions(authToken);
     await loadRlsStatus(authToken);
     await loadSecurityStatus(authToken);
+    await loadSecurityEvents(authToken);
     await loadRequests(authToken);
   }
 
@@ -938,6 +975,71 @@ const AdminPage: NextPage = () => {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-bold text-white">Security Events</p>
+                <p className="text-xs text-neutral-500 mt-1">Auth, admin, and rate-limit detections (last 24h + recent feed)</p>
+              </div>
+              <button onClick={() => authToken && loadSecurityEvents(authToken)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                Refresh
+              </button>
+            </div>
+            {securityEventsLoading ? (
+              <div className="text-xs text-neutral-500">Loading security events…</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Events 24h</p>
+                    <p className="text-sm font-semibold text-white">{securityEventSummary?.total ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Critical</p>
+                    <p className="text-sm font-semibold text-red-400">{securityEventSummary?.severityCounts?.critical ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Warning</p>
+                    <p className="text-sm font-semibold text-yellow-400">{securityEventSummary?.severityCounts?.warning ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Info</p>
+                    <p className="text-sm font-semibold text-emerald-400">{securityEventSummary?.severityCounts?.info ?? 0}</p>
+                  </div>
+                </div>
+                {securityEventSummary?.topEventTypes?.length ? (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {securityEventSummary.topEventTypes.slice(0, 6).map((t) => (
+                      <span key={t.event_type} className="text-[11px] px-2 py-1 rounded-full bg-neutral-950 border border-neutral-800 text-neutral-300">
+                        {t.event_type}: {t.count}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {securityEvents.length === 0 ? (
+                  <div className="text-xs text-neutral-500">No security events recorded yet.</div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-auto pr-1">
+                    {securityEvents.slice(0, 20).map((row) => (
+                      <div key={row.id} className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs text-neutral-200 truncate">
+                            <span className={`font-semibold ${row.severity === 'critical' ? 'text-red-400' : row.severity === 'warning' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                              {row.severity.toUpperCase()}
+                            </span>
+                            {' '}· {row.event_type}
+                            {row.route ? ` · ${row.route}` : ''}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 whitespace-nowrap">{formatDate(row.created_at)}</p>
+                        </div>
+                        {row.message ? <p className="text-[11px] text-neutral-500 mt-1 truncate">{row.message}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-3 mb-6">

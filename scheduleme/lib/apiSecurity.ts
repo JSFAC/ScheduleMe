@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { sendWelcomeEmail } from './email';
+import { logSecurityEvent } from './securityEvents';
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
 // Apply to every API response to prevent common attacks
@@ -129,6 +130,18 @@ export async function rateLimit(
   res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
 
   if (!result.allowed) {
+    await logSecurityEvent({
+      eventType: 'rate_limit_triggered',
+      severity: 'warning',
+      req,
+      statusCode: 429,
+      message: 'Request rate limit exceeded',
+      metadata: {
+        keyPrefix: opts.keyPrefix ?? 'rl',
+        max: opts.max,
+        windowMs: opts.windowMs,
+      },
+    });
     res.status(429).json({
       error: 'Too many requests. Please slow down and try again shortly.',
     });
@@ -154,6 +167,18 @@ export async function rateLimitByPrincipal(
   res.setHeader('X-User-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
 
   if (!result.allowed) {
+    void logSecurityEvent({
+      eventType: 'principal_rate_limit_triggered',
+      severity: 'warning',
+      statusCode: 429,
+      actorUserId: normalizedPrincipal,
+      message: 'Principal-based rate limit exceeded',
+      metadata: {
+        keyPrefix: opts.keyPrefix ?? 'rl-user',
+        max: opts.max,
+        windowMs: opts.windowMs,
+      },
+    });
     res.status(429).json({
       error: 'Too many requests for this account. Please try again shortly.',
     });
@@ -228,6 +253,13 @@ export async function requireAuth(
   const token = authHeader?.replace('Bearer ', '').trim();
 
   if (!token) {
+    await logSecurityEvent({
+      eventType: 'auth_missing_token',
+      severity: 'warning',
+      req,
+      statusCode: 401,
+      message: 'Authorization token missing',
+    });
     res.status(401).json({ error: 'Authentication required. Please sign in.' });
     return null;
   }
@@ -244,6 +276,18 @@ export async function requireAuth(
         hasAnon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
         hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       });
+      await logSecurityEvent({
+        eventType: 'auth_server_misconfigured',
+        severity: 'critical',
+        req,
+        statusCode: 500,
+        message: 'Missing Supabase auth env vars in requireAuth',
+        metadata: {
+          hasURL: !!supabaseURL,
+          hasAnon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        },
+      });
       res.status(500).json({ error: 'Server auth configuration is missing.' });
       return null;
     }
@@ -255,6 +299,13 @@ export async function requireAuth(
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
+      await logSecurityEvent({
+        eventType: 'auth_invalid_session',
+        severity: 'warning',
+        req,
+        statusCode: 401,
+        message: 'Invalid or expired session token',
+      });
       res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
       return null;
     }
@@ -265,6 +316,13 @@ export async function requireAuth(
 
     return { id: user.id, email: user.email ?? '' };
   } catch {
+    await logSecurityEvent({
+      eventType: 'auth_exception',
+      severity: 'warning',
+      req,
+      statusCode: 401,
+      message: 'Exception thrown during auth verification',
+    });
     res.status(401).json({ error: 'Authentication failed.' });
     return null;
   }
@@ -289,6 +347,15 @@ export async function requireAdmin(
     .filter(Boolean);
 
   if (email && allowlist.includes(email)) {
+    void logSecurityEvent({
+      eventType: 'admin_access_granted',
+      severity: 'info',
+      req,
+      statusCode: 200,
+      actorUserId: user.id,
+      actorEmail: user.email,
+      message: 'Admin access granted via allowlist',
+    });
     return user;
   }
 
@@ -305,9 +372,29 @@ export async function requireAdmin(
       .eq('id', user.id)
       .maybeSingle();
 
-    if ((profile as any)?.role === 'admin') return user;
+    if ((profile as any)?.role === 'admin') {
+      void logSecurityEvent({
+        eventType: 'admin_access_granted',
+        severity: 'info',
+        req,
+        statusCode: 200,
+        actorUserId: user.id,
+        actorEmail: user.email,
+        message: 'Admin access granted via profile role',
+      });
+      return user;
+    }
   } catch {}
 
+  await logSecurityEvent({
+    eventType: 'admin_access_denied',
+    severity: 'warning',
+    req,
+    statusCode: 403,
+    actorUserId: user.id,
+    actorEmail: user.email,
+    message: 'Admin access denied',
+  });
   res.status(403).json({ error: 'Admin access required.' });
   return null;
 }
