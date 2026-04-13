@@ -17,6 +17,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const [overlayFade, setOverlayFade] = useState(false);
   const [toBusiness, setToBusiness] = useState(false);
   const isTransitioning = useRef(false);
+  const recentErrorMap = useRef<Map<string, number>>(new Map());
 
   // We track scroll position and restore it ourselves so Next's
   // built-in scroll-restoration doesn't cause the jarring jump.
@@ -115,6 +116,87 @@ export default function App({ Component, pageProps }: AppProps) {
       router.events.off('routeChangeError', onError);
     };
   }, [router]);
+
+  useEffect(() => {
+    function stringify(value: unknown, maxLen = 4000): string {
+      if (!value) return '';
+      if (typeof value === 'string') return value.slice(0, maxLen);
+      try {
+        return JSON.stringify(value).slice(0, maxLen);
+      } catch {
+        return String(value).slice(0, maxLen);
+      }
+    }
+
+    function shouldSend(fingerprint: string): boolean {
+      const now = Date.now();
+      for (const [key, ts] of recentErrorMap.current.entries()) {
+        if (now - ts > 60_000) recentErrorMap.current.delete(key);
+      }
+      const prev = recentErrorMap.current.get(fingerprint);
+      if (prev && now - prev < 10_000) return false;
+      recentErrorMap.current.set(fingerprint, now);
+      return true;
+    }
+
+    function reportClientError(payload: Record<string, unknown>) {
+      const body = JSON.stringify(payload);
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const sent = navigator.sendBeacon('/api/client-error', new Blob([body], { type: 'application/json' }));
+        if (sent) return;
+      }
+      void fetch('/api/client-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    }
+
+    function onWindowError(event: ErrorEvent) {
+      const message = stringify(event.message || 'Unknown client error', 1000);
+      const stack = stringify((event.error as any)?.stack || '', 8000);
+      const component = stringify(event.filename || '', 200);
+      const fingerprint = `${message}|${stack.slice(0, 200)}|${router.asPath}`;
+      if (!shouldSend(fingerprint)) return;
+      reportClientError({
+        message,
+        stack,
+        route: router.asPath || null,
+        component,
+        severity: 'error',
+        payload: {
+          line: event.lineno || null,
+          column: event.colno || null,
+        },
+      });
+    }
+
+    function onUnhandledRejection(event: PromiseRejectionEvent) {
+      const reason = event.reason as any;
+      const message = stringify(reason?.message || reason || 'Unhandled promise rejection', 1000);
+      const stack = stringify(reason?.stack || '', 8000);
+      const fingerprint = `${message}|${stack.slice(0, 200)}|${router.asPath}|promise`;
+      if (!shouldSend(fingerprint)) return;
+      reportClientError({
+        message,
+        stack,
+        route: router.asPath || null,
+        component: 'promise',
+        severity: 'warning',
+        payload: {
+          type: typeof reason,
+        },
+      });
+    }
+
+    window.addEventListener('error', onWindowError);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', onWindowError);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+    };
+  }, [router.asPath]);
 
   return (
     <>

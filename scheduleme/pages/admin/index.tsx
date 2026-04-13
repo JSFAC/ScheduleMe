@@ -45,8 +45,81 @@ interface SecurityEvent {
   message: string | null;
 }
 
+interface ErrorIssue {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  first_seen: string;
+  last_seen: string;
+  source: 'client' | 'server' | string;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  status: 'open' | 'investigating' | 'resolved' | 'muted';
+  fingerprint: string;
+  message: string;
+  route: string | null;
+  component: string | null;
+  occurrences: number;
+  notes?: string | null;
+  resolution_notes?: string | null;
+  resolved_at?: string | null;
+}
+
+interface SecuritySeriesPoint {
+  ts: string;
+  label: string;
+  total: number;
+  info: number;
+  warning: number;
+  critical: number;
+}
+
+interface SecuritySummary24h {
+  total: number;
+  severityCounts: { info: number; warning: number; critical: number };
+  topEventTypes: Array<{ event_type: string; count: number }>;
+  series?: SecuritySeriesPoint[];
+  attackSignals?: {
+    authFailures: number;
+    rateLimitHits: number;
+    riskyEvents: number;
+    uniqueSuspiciousIps: number;
+  };
+  topSuspiciousIps?: Array<{
+    ip: string;
+    count: number;
+    critical: number;
+    warning: number;
+    lastSeen: string;
+    topEventTypes: Array<{ eventType: string; count: number }>;
+  }>;
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function SecurityVolumeChart({ points }: { points: SecuritySeriesPoint[] }) {
+  const max = Math.max(1, ...points.map((p) => p.total || 0));
+  return (
+    <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-3">
+      <p className="text-[11px] text-neutral-500 mb-2">24h volume trend</p>
+      <div className="h-20 flex items-end gap-1">
+        {points.map((p) => (
+          <div key={p.ts} className="flex-1 h-full flex flex-col justify-end">
+            <div
+              title={`${p.label}: ${p.total} events`}
+              className="w-full rounded-sm bg-emerald-400/80 hover:bg-emerald-300 transition-colors"
+              style={{ height: `${Math.max(6, Math.round((p.total / max) * 100))}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-600">
+        <span>{points[0]?.label || ''}</span>
+        <span>{points[points.length - 1]?.label || ''}</span>
+      </div>
+    </div>
+  );
 }
 
 const AdminPage: NextPage = () => {
@@ -86,11 +159,12 @@ const AdminPage: NextPage = () => {
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
   const [securityEventsLoading, setSecurityEventsLoading] = useState(false);
-  const [securityEventSummary, setSecurityEventSummary] = useState<{
-    total: number;
-    severityCounts: { info: number; warning: number; critical: number };
-    topEventTypes: Array<{ event_type: string; count: number }>;
-  } | null>(null);
+  const [securityEventSummary, setSecurityEventSummary] = useState<SecuritySummary24h | null>(null);
+  const [errorIssues, setErrorIssues] = useState<ErrorIssue[]>([]);
+  const [errorIssuesLoading, setErrorIssuesLoading] = useState(false);
+  const [errorFilter, setErrorFilter] = useState<'open' | 'investigating' | 'resolved' | 'muted' | 'all'>('open');
+  const [issueStatusDrafts, setIssueStatusDrafts] = useState<Record<string, string>>({});
+  const [updatingIssueId, setUpdatingIssueId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'businesses' | 'requests'>('businesses');
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
@@ -231,6 +305,25 @@ const AdminPage: NextPage = () => {
       setSecurityEventsLoading(false);
     }
   }, []);
+
+  const loadErrorIssues = useCallback(async (token: string, status: 'open' | 'investigating' | 'resolved' | 'muted' | 'all' = errorFilter) => {
+    setErrorIssuesLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set('limit', '120');
+      if (status !== 'all') qs.set('status', status);
+      const res = await fetch(`/api/admin-error-tracker?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to load error tracker');
+      setErrorIssues(data.issues || []);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to load error tracker', false);
+    } finally {
+      setErrorIssuesLoading(false);
+    }
+  }, [errorFilter]);
 
   const loadRequests = useCallback(async (token: string) => {
     setRequestsLoading(true);
@@ -433,8 +526,14 @@ const AdminPage: NextPage = () => {
     await loadRlsStatus(authToken);
     await loadSecurityStatus(authToken);
     await loadSecurityEvents(authToken);
+    await loadErrorIssues(authToken, errorFilter);
     await loadRequests(authToken);
   }
+
+  useEffect(() => {
+    if (!authed || !authToken || adminVerified !== true) return;
+    loadErrorIssues(authToken, errorFilter);
+  }, [authed, authToken, adminVerified, errorFilter, loadErrorIssues]);
 
   async function approveBusiness(id: string) {
     setApprovingId(id);
@@ -605,6 +704,27 @@ const AdminPage: NextPage = () => {
     }
   }
 
+  async function updateErrorIssueStatus(id: string) {
+    const nextStatus = (issueStatusDrafts[id] || '').trim();
+    if (!nextStatus) return;
+    setUpdatingIssueId(id);
+    try {
+      const res = await fetch('/api/admin-error-tracker', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ id, status: nextStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to update issue');
+      showToast('Issue status updated', true);
+      await loadErrorIssues(authToken, errorFilter);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to update issue', false);
+    } finally {
+      setUpdatingIssueId(null);
+    }
+  }
+
   const filtered = businesses.filter(b => {
     if (campusFilter !== 'all') {
       const key = getBusinessCampusKey(b);
@@ -619,6 +739,14 @@ const AdminPage: NextPage = () => {
     : featuredRows.filter(row => normalizeCampusKey(row.campus_key) === featuredCampusKey);
   const pendingCount = businesses.filter(b => !b.is_onboarded && b.status !== 'rejected').length;
   const pendingRequests = requests.filter(r => r.status === 'pending').length;
+  const issueCounts = errorIssues.reduce((acc, issue) => {
+    acc.total += 1;
+    acc[issue.status] = (acc[issue.status] || 0) + 1;
+    return acc;
+  }, { total: 0, open: 0, investigating: 0, resolved: 0, muted: 0 } as Record<string, number>);
+  const topIssueFingerprints = [...errorIssues]
+    .sort((a, b) => (b.occurrences || 0) - (a.occurrences || 0))
+    .slice(0, 6);
 
   const filteredRequests = requests.filter(r => {
     if (requestFilter === 'pending') return r.status === 'pending';
@@ -1009,6 +1137,11 @@ const AdminPage: NextPage = () => {
                     <p className="text-sm font-semibold text-emerald-400">{securityEventSummary?.severityCounts?.info ?? 0}</p>
                   </div>
                 </div>
+                {securityEventSummary?.series?.length ? (
+                  <div className="mb-4">
+                    <SecurityVolumeChart points={securityEventSummary.series} />
+                  </div>
+                ) : null}
                 {securityEventSummary?.topEventTypes?.length ? (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {securityEventSummary.topEventTypes.slice(0, 6).map((t) => (
@@ -1016,6 +1149,44 @@ const AdminPage: NextPage = () => {
                         {t.event_type}: {t.count}
                       </span>
                     ))}
+                  </div>
+                ) : null}
+                {securityEventSummary?.attackSignals ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                      <p className="text-[11px] text-neutral-500">Auth failures</p>
+                      <p className="text-sm font-semibold text-red-300">{securityEventSummary.attackSignals.authFailures}</p>
+                    </div>
+                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                      <p className="text-[11px] text-neutral-500">Rate-limit hits</p>
+                      <p className="text-sm font-semibold text-yellow-300">{securityEventSummary.attackSignals.rateLimitHits}</p>
+                    </div>
+                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                      <p className="text-[11px] text-neutral-500">Risky events</p>
+                      <p className="text-sm font-semibold text-orange-300">{securityEventSummary.attackSignals.riskyEvents}</p>
+                    </div>
+                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                      <p className="text-[11px] text-neutral-500">Suspicious IPs</p>
+                      <p className="text-sm font-semibold text-cyan-300">{securityEventSummary.attackSignals.uniqueSuspiciousIps}</p>
+                    </div>
+                  </div>
+                ) : null}
+                {securityEventSummary?.topSuspiciousIps?.length ? (
+                  <div className="mb-4">
+                    <p className="text-[11px] uppercase tracking-wide text-neutral-500 mb-2">Top suspicious IP activity (24h)</p>
+                    <div className="space-y-2 max-h-44 overflow-auto pr-1">
+                      {securityEventSummary.topSuspiciousIps.slice(0, 6).map((ipRow) => (
+                        <div key={ipRow.ip} className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-neutral-200">{ipRow.ip}</p>
+                            <p className="text-[11px] text-neutral-500">{ipRow.count} events</p>
+                          </div>
+                          <p className="text-[11px] text-neutral-500 mt-1">
+                            critical {ipRow.critical} · warning {ipRow.warning} · last {formatDate(ipRow.lastSeen)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
                 {securityEvents.length === 0 ? (
@@ -1035,6 +1206,112 @@ const AdminPage: NextPage = () => {
                           <p className="text-[11px] text-neutral-500 whitespace-nowrap">{formatDate(row.created_at)}</p>
                         </div>
                         {row.message ? <p className="text-[11px] text-neutral-500 mt-1 truncate">{row.message}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4 gap-3">
+              <div>
+                <p className="text-sm font-bold text-white">Error Tracker</p>
+                <p className="text-xs text-neutral-500 mt-1">Client and server errors grouped by fingerprint for triage</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={errorFilter}
+                  onChange={(e) => setErrorFilter(e.target.value as any)}
+                  className="bg-neutral-950 border border-neutral-800 rounded-lg px-2 py-1.5 text-xs text-neutral-200"
+                >
+                  <option value="open">Open</option>
+                  <option value="investigating">Investigating</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="muted">Muted</option>
+                  <option value="all">All</option>
+                </select>
+                <button onClick={() => authToken && loadErrorIssues(authToken, errorFilter)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                  Refresh
+                </button>
+              </div>
+            </div>
+            {errorIssuesLoading ? (
+              <div className="text-xs text-neutral-500">Loading error issues…</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Issues</p>
+                    <p className="text-sm font-semibold text-white">{issueCounts.total}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Open</p>
+                    <p className="text-sm font-semibold text-red-300">{issueCounts.open}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Investigating</p>
+                    <p className="text-sm font-semibold text-yellow-300">{issueCounts.investigating}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Resolved</p>
+                    <p className="text-sm font-semibold text-emerald-300">{issueCounts.resolved}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Muted</p>
+                    <p className="text-sm font-semibold text-neutral-300">{issueCounts.muted}</p>
+                  </div>
+                </div>
+                {topIssueFingerprints.length ? (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {topIssueFingerprints.map((issue) => (
+                      <span key={issue.id} className="text-[11px] px-2 py-1 rounded-full bg-neutral-950 border border-neutral-800 text-neutral-300">
+                        {issue.occurrences}x · {issue.message.slice(0, 70)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {errorIssues.length === 0 ? (
+                  <div className="text-xs text-neutral-500">No issues for this filter.</div>
+                ) : (
+                  <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                    {errorIssues.slice(0, 25).map((issue) => (
+                      <div key={issue.id} className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs text-neutral-200 truncate">
+                            <span className={`font-semibold ${issue.severity === 'critical' ? 'text-red-400' : issue.severity === 'warning' ? 'text-yellow-400' : issue.severity === 'error' ? 'text-orange-300' : 'text-emerald-400'}`}>
+                              {issue.severity.toUpperCase()}
+                            </span>
+                            {' '}· {issue.source} · {issue.status}
+                            {issue.route ? ` · ${issue.route}` : ''}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 whitespace-nowrap">{formatDate(issue.last_seen)}</p>
+                        </div>
+                        <p className="text-[11px] text-neutral-400 mt-1 truncate">{issue.message}</p>
+                        <div className="flex items-center justify-between gap-3 mt-2">
+                          <p className="text-[11px] text-neutral-500">
+                            {issue.occurrences} occurrences · first {formatDate(issue.first_seen)}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={issueStatusDrafts[issue.id] || issue.status}
+                              onChange={(e) => setIssueStatusDrafts((prev) => ({ ...prev, [issue.id]: e.target.value }))}
+                              className="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-[11px] text-neutral-200"
+                            >
+                              <option value="open">open</option>
+                              <option value="investigating">investigating</option>
+                              <option value="resolved">resolved</option>
+                              <option value="muted">muted</option>
+                            </select>
+                            <button
+                              onClick={() => updateErrorIssueStatus(issue.id)}
+                              disabled={updatingIssueId === issue.id}
+                              className="text-[11px] px-2.5 py-1 rounded-lg border border-neutral-700 text-neutral-300 hover:text-white hover:border-neutral-500 disabled:opacity-50"
+                            >
+                              {updatingIssueId === issue.id ? 'Saving…' : 'Apply'}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
