@@ -64,6 +64,41 @@ interface ErrorIssue {
   resolved_at?: string | null;
 }
 
+interface ErrorSeriesPoint {
+  ts: string;
+  label: string;
+  total: number;
+  critical: number;
+  error: number;
+  warning: number;
+  info: number;
+}
+
+interface ErrorCalendarDay {
+  date: string;
+  total: number;
+  critical: number;
+  error: number;
+  warning: number;
+  info: number;
+}
+
+interface ErrorSummary {
+  range: {
+    preset: string;
+    day: string | null;
+    start: string;
+    end: string;
+  };
+  total: number;
+  severityCounts: { info: number; warning: number; error: number; critical: number };
+  statusCounts: { open: number; investigating: number; resolved: number; muted: number };
+  sourceCounts: { client: number; server: number };
+  topRoutes: Array<{ route: string; count: number }>;
+  series: ErrorSeriesPoint[];
+  calendar: ErrorCalendarDay[];
+}
+
 interface SecuritySeriesPoint {
   ts: string;
   label: string;
@@ -163,6 +198,30 @@ function SecurityVolumeChart({ points }: { points: SecuritySeriesPoint[] }) {
   );
 }
 
+function ErrorVolumeChart({ points }: { points: ErrorSeriesPoint[] }) {
+  const max = Math.max(1, ...points.map((p) => p.total || 0));
+  return (
+    <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-3">
+      <p className="text-[11px] text-neutral-500 mb-2">Error trend</p>
+      <div className="h-20 flex items-end gap-1">
+        {points.map((p) => (
+          <div key={p.ts} className="flex-1 h-full flex flex-col justify-end">
+            <div
+              title={`${p.label}: ${p.total} issues`}
+              className="w-full rounded-sm bg-orange-400/80 hover:bg-orange-300 transition-colors"
+              style={{ height: `${Math.max(6, Math.round((p.total / max) * 100))}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-600">
+        <span>{points[0]?.label || ''}</span>
+        <span>{points[points.length - 1]?.label || ''}</span>
+      </div>
+    </div>
+  );
+}
+
 const AdminPage: NextPage = () => {
   const [authToken, setAuthToken] = useState('');
   const [authed, setAuthed] = useState(false);
@@ -212,8 +271,19 @@ const AdminPage: NextPage = () => {
   const [selectedSecurityDay, setSelectedSecurityDay] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(() => monthKey(new Date()));
   const [errorIssues, setErrorIssues] = useState<ErrorIssue[]>([]);
+  const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
   const [errorIssuesLoading, setErrorIssuesLoading] = useState(false);
   const [errorFilter, setErrorFilter] = useState<'open' | 'investigating' | 'resolved' | 'muted' | 'all'>('open');
+  const [errorRangePreset, setErrorRangePreset] = useState<'24h' | '7d' | '30d' | 'custom'>('7d');
+  const [errorStartDate, setErrorStartDate] = useState('');
+  const [errorEndDate, setErrorEndDate] = useState('');
+  const [errorSeverityFilter, setErrorSeverityFilter] = useState<'all' | 'info' | 'warning' | 'error' | 'critical'>('all');
+  const [errorSourceFilter, setErrorSourceFilter] = useState<'all' | 'client' | 'server'>('all');
+  const [errorSearch, setErrorSearch] = useState('');
+  const [errorRouteFilter, setErrorRouteFilter] = useState('');
+  const [errorComponentFilter, setErrorComponentFilter] = useState('');
+  const [selectedErrorDay, setSelectedErrorDay] = useState('');
+  const [errorCalendarMonth, setErrorCalendarMonth] = useState(() => monthKey(new Date()));
   const [issueStatusDrafts, setIssueStatusDrafts] = useState<Record<string, string>>({});
   const [updatingIssueId, setUpdatingIssueId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'businesses' | 'requests'>('businesses');
@@ -374,24 +444,39 @@ const AdminPage: NextPage = () => {
     }
   }, [selectedSecurityDay, securityRangePreset, securityStartDate, securityEndDate, securitySeverity, securityEventType, securitySearch, securityRouteFilter, securityIpFilter]);
 
-  const loadErrorIssues = useCallback(async (token: string, status: 'open' | 'investigating' | 'resolved' | 'muted' | 'all' = errorFilter) => {
+  const loadErrorIssues = useCallback(async (token: string) => {
     setErrorIssuesLoading(true);
     try {
       const qs = new URLSearchParams();
       qs.set('limit', '120');
-      if (status !== 'all') qs.set('status', status);
+      if (selectedErrorDay) {
+        qs.set('day', selectedErrorDay);
+      } else {
+        qs.set('preset', errorRangePreset);
+        if (errorRangePreset === 'custom') {
+          if (errorStartDate) qs.set('start', errorStartDate);
+          if (errorEndDate) qs.set('end', errorEndDate);
+        }
+      }
+      if (errorFilter !== 'all') qs.set('status', errorFilter);
+      if (errorSeverityFilter !== 'all') qs.set('severity', errorSeverityFilter);
+      if (errorSourceFilter !== 'all') qs.set('source', errorSourceFilter);
+      if (errorSearch.trim()) qs.set('q', errorSearch.trim());
+      if (errorRouteFilter.trim()) qs.set('route', errorRouteFilter.trim());
+      if (errorComponentFilter.trim()) qs.set('component', errorComponentFilter.trim());
       const res = await fetch(`/api/admin-error-tracker?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to load error tracker');
       setErrorIssues(data.issues || []);
+      setErrorSummary(data.summary || null);
     } catch (err: any) {
       showToast(err?.message || 'Failed to load error tracker', false);
     } finally {
       setErrorIssuesLoading(false);
     }
-  }, [errorFilter]);
+  }, [selectedErrorDay, errorRangePreset, errorStartDate, errorEndDate, errorFilter, errorSeverityFilter, errorSourceFilter, errorSearch, errorRouteFilter, errorComponentFilter]);
 
   const loadRequests = useCallback(async (token: string) => {
     setRequestsLoading(true);
@@ -594,14 +679,14 @@ const AdminPage: NextPage = () => {
     await loadRlsStatus(authToken);
     await loadSecurityStatus(authToken);
     await loadSecurityEvents(authToken);
-    await loadErrorIssues(authToken, errorFilter);
+    await loadErrorIssues(authToken);
     await loadRequests(authToken);
   }
 
   useEffect(() => {
     if (!authed || !authToken || adminVerified !== true) return;
-    loadErrorIssues(authToken, errorFilter);
-  }, [authed, authToken, adminVerified, errorFilter, loadErrorIssues]);
+    loadErrorIssues(authToken);
+  }, [authed, authToken, adminVerified, loadErrorIssues]);
 
   useEffect(() => {
     if (!authed || !authToken || adminVerified !== true) return;
@@ -790,7 +875,7 @@ const AdminPage: NextPage = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to update issue');
       showToast('Issue status updated', true);
-      await loadErrorIssues(authToken, errorFilter);
+      await loadErrorIssues(authToken);
     } catch (err: any) {
       showToast(err?.message || 'Failed to update issue', false);
     } finally {
@@ -820,6 +905,40 @@ const AdminPage: NextPage = () => {
   const topIssueFingerprints = [...errorIssues]
     .sort((a, b) => (b.occurrences || 0) - (a.occurrences || 0))
     .slice(0, 6);
+  const errorCalendarMap = useMemo(() => {
+    const out = new Map<string, ErrorCalendarDay>();
+    for (const day of errorSummary?.calendar || []) out.set(day.date, day);
+    return out;
+  }, [errorSummary?.calendar]);
+  const errorCalendarDaysInMonth = useMemo(() => {
+    const [yy, mm] = errorCalendarMonth.split('-').map((n) => Number(n));
+    const year = Number.isFinite(yy) ? yy : new Date().getUTCFullYear();
+    const month = Number.isFinite(mm) ? mm : new Date().getUTCMonth() + 1;
+    const first = new Date(Date.UTC(year, month - 1, 1));
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const leading = first.getUTCDay();
+    const cells: Array<{ date: string; inMonth: boolean }> = [];
+    for (let i = 0; i < leading; i += 1) {
+      const d = new Date(first);
+      d.setUTCDate(d.getUTCDate() - (leading - i));
+      cells.push({ date: dateKey(d), inMonth: false });
+    }
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push({ date: dateKey(new Date(Date.UTC(year, month - 1, day))), inMonth: true });
+    }
+    while (cells.length % 7 !== 0) {
+      const last = new Date(`${cells[cells.length - 1].date}T00:00:00Z`);
+      last.setUTCDate(last.getUTCDate() + 1);
+      cells.push({ date: dateKey(last), inMonth: false });
+    }
+    return cells;
+  }, [errorCalendarMonth]);
+  const maxErrorCalendarCount = useMemo(() => {
+    return Math.max(1, ...(errorSummary?.calendar || []).map((d) => d.total || 0));
+  }, [errorSummary?.calendar]);
+  const errorRangeLabel = errorSummary?.range
+    ? `${new Date(errorSummary.range.start).toLocaleDateString()} - ${new Date(errorSummary.range.end).toLocaleDateString()}`
+    : 'Selected range';
   const calendarMap = useMemo(() => {
     const out = new Map<string, SecurityCalendarDay>();
     for (const day of securityEventSummary?.calendar || []) out.set(day.date, day);
@@ -1449,10 +1568,10 @@ const AdminPage: NextPage = () => {
             )}
           </div>
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 mb-8">
-            <div className="flex items-center justify-between mb-4 gap-3">
+            <div className="flex items-start justify-between mb-4 gap-3">
               <div>
                 <p className="text-sm font-bold text-white">Error Tracker</p>
-                <p className="text-xs text-neutral-500 mt-1">Client and server errors grouped by fingerprint for triage</p>
+                <p className="text-xs text-neutral-500 mt-1">Issue history with filtering, category drill-down, and calendar view</p>
               </div>
               <div className="flex items-center gap-2">
                 <select
@@ -1466,9 +1585,93 @@ const AdminPage: NextPage = () => {
                   <option value="muted">Muted</option>
                   <option value="all">All</option>
                 </select>
-                <button onClick={() => authToken && loadErrorIssues(authToken, errorFilter)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+                <button onClick={() => authToken && loadErrorIssues(authToken)} className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
                   Refresh
                 </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-8 gap-2 mb-4">
+              <select
+                value={errorRangePreset}
+                onChange={(e) => { setSelectedErrorDay(''); setErrorRangePreset(e.target.value as any); }}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="24h">Last 24h</option>
+                <option value="7d">Last 7d</option>
+                <option value="30d">Last 30d</option>
+                <option value="custom">Custom</option>
+              </select>
+              <input
+                type="date"
+                value={errorStartDate}
+                onChange={(e) => { setSelectedErrorDay(''); setErrorRangePreset('custom'); setErrorStartDate(e.target.value); }}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              />
+              <input
+                type="date"
+                value={errorEndDate}
+                onChange={(e) => { setSelectedErrorDay(''); setErrorRangePreset('custom'); setErrorEndDate(e.target.value); }}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              />
+              <select
+                value={errorSeverityFilter}
+                onChange={(e) => setErrorSeverityFilter(e.target.value as any)}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="all">All severity</option>
+                <option value="critical">Critical</option>
+                <option value="error">Error</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+              </select>
+              <select
+                value={errorSourceFilter}
+                onChange={(e) => setErrorSourceFilter(e.target.value as any)}
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+              >
+                <option value="all">All sources</option>
+                <option value="client">Client</option>
+                <option value="server">Server</option>
+              </select>
+              <input
+                value={errorRouteFilter}
+                onChange={(e) => setErrorRouteFilter(e.target.value)}
+                placeholder="Route contains"
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
+              />
+              <input
+                value={errorComponentFilter}
+                onChange={(e) => setErrorComponentFilter(e.target.value)}
+                placeholder="Component contains"
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
+              />
+              <input
+                value={errorSearch}
+                onChange={(e) => setErrorSearch(e.target.value)}
+                placeholder="Search message/fingerprint"
+                className="md:col-span-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-8 gap-2 mb-4">
+              <button
+                onClick={() => {
+                  setSelectedErrorDay('');
+                  setErrorRangePreset('7d');
+                  setErrorStartDate('');
+                  setErrorEndDate('');
+                  setErrorSeverityFilter('all');
+                  setErrorSourceFilter('all');
+                  setErrorSearch('');
+                  setErrorRouteFilter('');
+                  setErrorComponentFilter('');
+                  setErrorFilter('open');
+                }}
+                className="md:col-span-1 text-xs px-3 py-2 rounded-xl border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors"
+              >
+                Reset
+              </button>
+              <div className="md:col-span-7 text-[11px] text-neutral-500 flex items-center justify-end">
+                {selectedErrorDay ? `Focused day: ${selectedErrorDay}` : errorRangeLabel}
               </div>
             </div>
             {errorIssuesLoading ? (
@@ -1477,24 +1680,103 @@ const AdminPage: NextPage = () => {
               <>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
                   <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
-                    <p className="text-[11px] text-neutral-500">Issues</p>
-                    <p className="text-sm font-semibold text-white">{issueCounts.total}</p>
+                    <p className="text-[11px] text-neutral-500">Issues (range)</p>
+                    <p className="text-sm font-semibold text-white">{errorSummary?.total ?? issueCounts.total}</p>
                   </div>
                   <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
                     <p className="text-[11px] text-neutral-500">Open</p>
-                    <p className="text-sm font-semibold text-red-300">{issueCounts.open}</p>
+                    <p className="text-sm font-semibold text-red-300">{errorSummary?.statusCounts?.open ?? issueCounts.open}</p>
                   </div>
                   <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
                     <p className="text-[11px] text-neutral-500">Investigating</p>
-                    <p className="text-sm font-semibold text-yellow-300">{issueCounts.investigating}</p>
+                    <p className="text-sm font-semibold text-yellow-300">{errorSummary?.statusCounts?.investigating ?? issueCounts.investigating}</p>
                   </div>
                   <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
                     <p className="text-[11px] text-neutral-500">Resolved</p>
-                    <p className="text-sm font-semibold text-emerald-300">{issueCounts.resolved}</p>
+                    <p className="text-sm font-semibold text-emerald-300">{errorSummary?.statusCounts?.resolved ?? issueCounts.resolved}</p>
                   </div>
                   <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
                     <p className="text-[11px] text-neutral-500">Muted</p>
-                    <p className="text-sm font-semibold text-neutral-300">{issueCounts.muted}</p>
+                    <p className="text-sm font-semibold text-neutral-300">{errorSummary?.statusCounts?.muted ?? issueCounts.muted}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Critical</p>
+                    <p className="text-sm font-semibold text-red-300">{errorSummary?.severityCounts?.critical ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Error</p>
+                    <p className="text-sm font-semibold text-orange-300">{errorSummary?.severityCounts?.error ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Warning</p>
+                    <p className="text-sm font-semibold text-yellow-300">{errorSummary?.severityCounts?.warning ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Client</p>
+                    <p className="text-sm font-semibold text-cyan-300">{errorSummary?.sourceCounts?.client ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                    <p className="text-[11px] text-neutral-500">Server</p>
+                    <p className="text-sm font-semibold text-violet-300">{errorSummary?.sourceCounts?.server ?? 0}</p>
+                  </div>
+                </div>
+                {errorSummary?.series?.length ? (
+                  <div className="mb-4">
+                    <ErrorVolumeChart points={errorSummary.series} />
+                  </div>
+                ) : null}
+                {errorSummary?.topRoutes?.length ? (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {errorSummary.topRoutes.slice(0, 8).map((t) => (
+                      <button
+                        key={t.route}
+                        onClick={() => setErrorRouteFilter((prev) => (prev === t.route ? '' : t.route))}
+                        className={`text-[11px] px-2 py-1 rounded-full border ${errorRouteFilter === t.route ? 'bg-orange-500/20 border-orange-500/40 text-orange-200' : 'bg-neutral-950 border-neutral-800 text-neutral-300'}`}
+                      >
+                        {t.route}: {t.count}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] uppercase tracking-wide text-neutral-500">Error calendar</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setErrorCalendarMonth(shiftMonth(errorCalendarMonth, -1))} className="text-xs text-neutral-400 hover:text-neutral-200">Prev</button>
+                      <span className="text-xs text-neutral-300">{readableMonth(errorCalendarMonth)}</span>
+                      <button onClick={() => setErrorCalendarMonth(shiftMonth(errorCalendarMonth, 1))} className="text-xs text-neutral-400 hover:text-neutral-200">Next</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-[10px] text-neutral-600 mb-1">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((w) => <div key={w} className="text-center">{w}</div>)}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {errorCalendarDaysInMonth.map((cell) => {
+                      const row = errorCalendarMap.get(cell.date);
+                      const intensity = row ? Math.max(0.15, Math.min(1, (row.total || 0) / maxErrorCalendarCount)) : 0;
+                      const selected = selectedErrorDay === cell.date;
+                      return (
+                        <button
+                          key={cell.date}
+                          onClick={() => {
+                            if (selectedErrorDay === cell.date) {
+                              setSelectedErrorDay('');
+                            } else {
+                              setSelectedErrorDay(cell.date);
+                              setErrorCalendarMonth(cell.date.slice(0, 7));
+                            }
+                          }}
+                          className={`h-10 rounded-md border text-[10px] transition-colors ${cell.inMonth ? 'border-neutral-800' : 'border-neutral-900 text-neutral-700'} ${selected ? 'ring-1 ring-orange-400' : ''}`}
+                          style={{ backgroundColor: row ? `rgba(251,146,60,${intensity})` : 'rgba(20,20,20,0.7)' }}
+                          title={`${cell.date}${row ? ` · ${row.total} issues` : ' · no issues'}`}
+                        >
+                          <div className={`${cell.inMonth ? 'text-neutral-200' : 'text-neutral-600'}`}>{Number(cell.date.slice(8, 10))}</div>
+                          {row ? <div className="text-[9px] text-neutral-100">{row.total}</div> : null}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 {topIssueFingerprints.length ? (
