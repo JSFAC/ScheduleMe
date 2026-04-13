@@ -1638,6 +1638,7 @@ const AdminPage: NextPage = () => {
                   </div>
                 </div>
                 {securityEventSummary?.attackSignals ? (
+                  <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                     <button
                       onClick={() => setSecuritySignalFilter((prev) => (prev === 'auth_failures' ? 'all' : 'auth_failures'))}
@@ -1719,6 +1720,7 @@ const AdminPage: NextPage = () => {
                       <p className="text-sm font-semibold text-sky-300">{securitySignalCounts.privilegeChanges}</p>
                     </button>
                   </div>
+                  </>
                 ) : null}
                 {securityEventSummary?.topSuspiciousIps?.length ? (
                   <div className="mb-4">
