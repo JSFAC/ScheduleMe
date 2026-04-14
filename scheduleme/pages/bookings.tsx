@@ -1612,7 +1612,7 @@ function writeCoords(lat: number, lng: number) {
         getSupabase().auth.getSession().then(async ({ data: { session } }) => {
           if (!session) return;
           try {
-            const res = await fetch(`/api/bookings`, { headers: { 'Authorization': `Bearer ${session.access_token}` }, cache: 'no-store' });
+            const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, { headers: { 'Authorization': `Bearer ${session.access_token}` }, cache: 'no-store' });
             const data = await res.json();
             if (res.ok) {
               const normalized = normalizeBookings(data?.bookings || []);
@@ -1732,7 +1732,7 @@ function writeCoords(lat: number, lng: number) {
         let bookingsData: any[] = [];
 
         try {
-          const res = await fetch(`/api/bookings`, {
+          const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
             headers: { 'Authorization': `Bearer ${session.access_token}` },
             cache: 'no-store',
           });

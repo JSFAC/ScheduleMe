@@ -15,6 +15,17 @@ function getSupabase() {
   );
 }
 
+async function sendNotifyEmail(payload: Record<string, any>) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
+  const secret = process.env.NOTIFY_SECRET || '';
+  if (!siteUrl || !secret) return;
+  await fetch(`${siteUrl}/api/notify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-notify-secret': secret },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -29,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+    .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
     .eq('id', booking_id)
     .maybeSingle();
 
@@ -180,12 +191,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('bookings')
       .update({
         paid_at: new Date().toISOString(),
+        status: 'paid',
         protection_fee_cents: protectionFeeCents,
         stripe_payment_intent_id: pi.id,
         stripe_customer_id: customerId,
         stripe_payment_method_id: paymentMethodId,
       })
       .eq('id', booking.id);
+
+    const amountDollars = (totalChargeCents / 100).toFixed(2);
+    if (user.email) {
+      await sendNotifyEmail({
+        type: 'payment_receipt_customer',
+        to: user.email,
+        name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0] || 'there',
+        service: booking.service || 'Service',
+        businessName: biz.name || 'Your provider',
+        amountDollars,
+        scheduledAt: booking.scheduled_start || undefined,
+        bookingId: booking.id,
+      });
+    }
+    if (biz.email) {
+      await sendNotifyEmail({
+        type: 'payment_notification_business',
+        to: biz.email,
+        businessName: biz.name || 'Your business',
+        customerName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'A customer',
+        service: booking.service || 'Service',
+        amountDollars,
+        platformFeePercent,
+        payoutDollars: ((booking.amount_cents - platformFeeCents) / 100).toFixed(2),
+        bookingId: booking.id,
+      });
+    }
 
     return res.status(200).json({ ok: true, booking_id: booking.id, payment_intent_id: pi.id });
   } catch (e: any) {

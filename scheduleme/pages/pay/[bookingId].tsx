@@ -143,18 +143,6 @@ const PayPage: NextPage = () => {
     } catch {}
   }
 
-  async function sendPaymentSavedEmail() {
-    try {
-      const { data: { session } } = await getSupabase().auth.getSession();
-      if (!session) return;
-      await fetch('/api/payment-method-saved', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-        body: JSON.stringify({ booking_id: bookingId }),
-      });
-    } catch {}
-  }
-
   useEffect(() => {
     if (!bookingId) return;
     let mounted = true;
@@ -386,7 +374,6 @@ const PayPage: NextPage = () => {
                         setErr(payData.error || 'Payment failed. Please try again.');
                         return;
                       }
-                      await sendPaymentSavedEmail();
                       setBooking((prev: any) => prev ? { ...prev, paid_at: new Date().toISOString(), status: 'paid' } : prev);
                       setShowConfirm(true);
                     } finally {

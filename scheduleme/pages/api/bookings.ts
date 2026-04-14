@@ -664,7 +664,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    return res.status(400).json({ error: 'business_id or user_id required' });
+    // Fallback: if caller is authenticated, return their own bookings even
+    // when user_id is omitted (defensive compatibility with older clients).
+    const user = await requireAuth(req, res);
+    if (!user) return;
+    if (!(await rateLimitByPrincipal(res, user.id, { max: 60, windowMs: 60_000, keyPrefix: 'book-get-user-fallback' }))) return;
+
+    try {
+      let { data, error } = await supabase
+        .from('bookings')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error && isMissingColumnError(error)) {
+        const fallbackLegacyProof = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        data = fallbackLegacyProof.data as any;
+        error = fallbackLegacyProof.error as any;
+      }
+
+      if (error && isMissingColumnError(error)) {
+        const fallback = await supabase
+          .from('bookings')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        data = fallback.data as any;
+        error = fallback.error as any;
+      }
+
+      if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+      const bookings = (data || []).map((b: any) => ({
+        ...b,
+        status: deriveBookingStatus(b),
+        scheduled_at: b.scheduled_start ?? null,
+        completion_proof_note: b.completion_proof_note ?? b.completion_proof_message ?? null,
+        completion_proof_photo_urls: b.completion_proof_photo_urls ?? b.completion_proof_photos ?? [],
+        completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
+        business_name: b.businesses?.name ?? null,
+        business_phone: b.businesses?.phone ?? null,
+        business_email: b.businesses?.email ?? null,
+        businesses: undefined,
+      }));
+      return res.status(200).json({ bookings });
+    } catch {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
