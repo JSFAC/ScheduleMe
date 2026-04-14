@@ -18,7 +18,7 @@ const DEFAULT_TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 
 
 function parseSlotMinutes(slot: string): number {
   const m = slot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-  if (!m) return 0;
+  if (!m) return Number.NaN;
   let h = parseInt(m[1]);
   const mn = parseInt(m[2]);
   const ap = m[3].toUpperCase();
@@ -62,49 +62,117 @@ function normalizeHours(hours: HourEntry[] | Record<string, string> | undefined)
   return out;
 }
 
+const FULL_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAY_ABBREV_TO_FULL: Record<string, string> = {
+  sun: 'Sunday',
+  mon: 'Monday',
+  tue: 'Tuesday',
+  tues: 'Tuesday',
+  wed: 'Wednesday',
+  thu: 'Thursday',
+  thur: 'Thursday',
+  thurs: 'Thursday',
+  fri: 'Friday',
+  sat: 'Saturday',
+};
+
+function normalizeDayNameToken(input: string): string {
+  const raw = String(input || '').trim().toLowerCase().replace(/\./g, '');
+  if (!raw) return '';
+  if (DAY_ABBREV_TO_FULL[raw]) return DAY_ABBREV_TO_FULL[raw];
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function dayPatternMatchesDate(pattern: string, date: Date): boolean {
+  const dayName = FULL_DAY_NAMES[date.getDay()];
+  const normalizedPattern = String(pattern || '').trim();
+  if (!normalizedPattern) return false;
+
+  const lower = normalizedPattern.toLowerCase();
+  if (lower.includes('daily') || lower.includes('every day')) return true;
+
+  const rangeMatch = normalizedPattern.match(/(.+?)\s*(?:–|—|-|\bto\b)\s*(.+)/i);
+  if (rangeMatch) {
+    const startName = normalizeDayNameToken(rangeMatch[1]);
+    const endName = normalizeDayNameToken(rangeMatch[2]);
+    const s = FULL_DAY_NAMES.indexOf(startName);
+    const e = FULL_DAY_NAMES.indexOf(endName);
+    const d = FULL_DAY_NAMES.indexOf(dayName);
+    if (s >= 0 && e >= 0 && d >= 0) {
+      return s <= e ? (d >= s && d <= e) : (d >= s || d <= e);
+    }
+  }
+
+  const tokens = normalizedPattern.split(/[,&/]/).map((t) => normalizeDayNameToken(t)).filter(Boolean);
+  if (tokens.some((t) => t === dayName)) return true;
+
+  const patternLower = normalizedPattern.toLowerCase();
+  const fullLower = dayName.toLowerCase();
+  const shortLower = fullLower.slice(0, 3);
+  return patternLower.includes(fullLower) || patternLower.includes(shortLower);
+}
+
+function parseTimeTokenToMinutes(token: string): number | null {
+  const v = String(token || '').trim();
+  if (!v) return null;
+
+  // 12-hour with minutes: 8:30 AM
+  let m = v.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const mins = parseInt(m[2], 10);
+    const ap = m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60 + mins;
+  }
+
+  // 12-hour no minutes: 9 AM
+  m = v.match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const ap = m[2].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60;
+  }
+
+  // 24-hour: 17:30
+  m = v.match(/^(\d{1,2}):(\d{2})$/);
+  if (m) {
+    const h = parseInt(m[1], 10);
+    const mins = parseInt(m[2], 10);
+    if (h >= 0 && h <= 23 && mins >= 0 && mins <= 59) return h * 60 + mins;
+  }
+
+  return null;
+}
+
 function getHoursForDate(hoursInput: HourEntry[] | Record<string, string> | undefined, date: Date): { open: number; close: number } | null {
   const hours = normalizeHours(hoursInput);
   if (!hours.length) return null;
-  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const dayName = dayNames[date.getDay()];
-  const abbrev: Record<string, string> = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
-  function dayMatches(pattern: string): boolean {
-    if (pattern.toLowerCase().includes('closed')) return false;
-    if (pattern.includes('–') || pattern.includes('-')) {
-      const all = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-      const sep = pattern.includes('–') ? '–' : '-';
-      const pts = pattern.split(sep).map(p => p.trim());
-      const s = all.indexOf(abbrev[pts[0]] || pts[0]);
-      const e = all.indexOf(abbrev[pts[1]] || pts[1]);
-      const d = all.indexOf(dayName);
-      if (s < 0 || e < 0 || d < 0) return false;
-      return s <= e ? (d >= s && d <= e) : (d >= s || d <= e);
-    }
-    return pattern.includes(dayName) || pattern.includes(dayName.slice(0, 3));
-  }
-  function parseT(t: string): number | null {
-    const mx = t.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-    if (!mx) return null;
-    let h = parseInt(mx[1]);
-    const mn = parseInt(mx[2]);
-    const ap = mx[3].toUpperCase();
-    if (ap === 'PM' && h !== 12) h += 12;
-    if (ap === 'AM' && h === 12) h = 0;
-    return h * 60 + mn;
-  }
+  let sawNonClosedMatch = false;
   for (const h of hours) {
-    if (dayMatches(h.day)) {
-      const lower = h.time.toLowerCase();
-      if (lower === 'by appointment') return { open: 8 * 60, close: 20 * 60 };
-      if (lower === '24 hours') return { open: 0, close: 24 * 60 };
-      const sep = h.time.includes('–') ? '–' : '-';
-      const parts = h.time.split(sep).map(p => p.trim());
-      if (parts.length < 2) continue;
-      const open = parseT(parts[0]);
-      const close = parseT(parts[1]);
-      if (open !== null && close !== null) return { open, close };
+    if (!dayPatternMatchesDate(h.day, date)) continue;
+    const timeRaw = String(h.time || '').trim();
+    if (!timeRaw) continue;
+    const lower = timeRaw.toLowerCase();
+    if (lower.includes('closed')) continue;
+
+    sawNonClosedMatch = true;
+    if (lower === 'by appointment') return { open: 8 * 60, close: 20 * 60 };
+    if (lower === '24 hours' || lower === '24hrs' || lower === '24 hr') return { open: 0, close: 24 * 60 };
+
+    const parts = timeRaw.split(/\s*(?:–|—|-|\bto\b)\s*/i).map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const open = parseTimeTokenToMinutes(parts[0]);
+      const close = parseTimeTokenToMinutes(parts[1]);
+      if (open !== null && close !== null && close > open) return { open, close };
     }
   }
+  // Provider configured this day but used a non-standard format.
+  // Keep booking flow available with sane daytime defaults instead of blocking all dates.
+  if (sawNonClosedMatch) return { open: 8 * 60, close: 20 * 60 };
   return null;
 }
 
@@ -150,7 +218,7 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
         {cells.map((date, i) => {
           if (!date) return <div key={i} />;
           const isPast = date < today;
-          const dateKey = date.toISOString().split('T')[0];
+          const dateKey = localDateKey(date);
           const isFullyBooked = bookedDates?.has(dateKey);
           const norm = normalizeHours(hours);
           const hasHours = norm.length ? !!getHoursForDate(norm, date) : true;
