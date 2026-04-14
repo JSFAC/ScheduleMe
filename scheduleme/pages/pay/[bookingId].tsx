@@ -113,8 +113,11 @@ const PayPage: NextPage = () => {
       const res = await fetch('/api/payment-methods', { headers: { Authorization: 'Bearer ' + session.access_token } });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setPaymentMethods(data.methods || []);
+        const methods = data.methods || [];
+        setPaymentMethods(methods);
         setPaymentDefaultId(data.defaultId || null);
+        // A saved card is enough to attempt charge; backend resolves final PM binding.
+        if (methods.length > 0) setPaymentReady(true);
       }
     } catch {}
   }
@@ -243,7 +246,7 @@ const PayPage: NextPage = () => {
                   )}
                 </div>
                 <div className="mt-3 text-xs" style={{ color: textMuted }}>
-                  {booking?.paid_at ? 'Payment completed for this booking.' : (paymentReady ? 'Payment method saved. Ready to charge.' : 'Payment method not saved yet.')}
+                  {booking?.paid_at ? 'Payment completed for this booking.' : ((paymentReady || paymentMethods.length > 0) ? 'Payment method saved. Ready to charge.' : 'Payment method not saved yet.')}
                 </div>
               </div>
 
@@ -361,7 +364,7 @@ const PayPage: NextPage = () => {
                       setShowConfirm(true);
                       return;
                     }
-                    if (!paymentReady) {
+                    if (!paymentReady && paymentMethods.length === 0) {
                       setErr('Please save a payment method first.');
                       return;
                     }
