@@ -48,20 +48,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let canAccess = booking.user_id === user.id;
   if (!canAccess && user.email) {
+    const normalizedEmail = user.email.trim().toLowerCase();
     const { data: profile } = await supabase
       .from('profiles')
       .select('id')
-      .eq('email', user.email)
-      .maybeSingle();
-    if (profile?.id && booking.user_id === profile.id) canAccess = true;
+      .ilike('email', normalizedEmail)
+      .limit(20);
+    if ((profile || []).some((p: any) => p?.id && p.id === booking.user_id)) canAccess = true;
     if (!canAccess) {
       try {
-        const { data: legacyUser } = await supabase
+        const { data: legacyUsers } = await supabase
           .from('users')
           .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (legacyUser?.id && booking.user_id === legacyUser.id) canAccess = true;
+          .ilike('email', normalizedEmail)
+          .limit(20);
+        if ((legacyUsers || []).some((u: any) => u?.id && u.id === booking.user_id)) canAccess = true;
+      } catch {}
+    }
+    if (!canAccess && booking.stripe_customer_id) {
+      try {
+        const customer = await stripe.customers.retrieve(booking.stripe_customer_id);
+        const customerEmail = String((customer as any)?.email || '').trim().toLowerCase();
+        if (!(customer as any)?.deleted && customerEmail && customerEmail === normalizedEmail) canAccess = true;
       } catch {}
     }
   }

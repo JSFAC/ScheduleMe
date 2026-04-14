@@ -3,6 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import stripe from '../../lib/stripe';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     let { data, error } = await supabase
       .from('bookings')
-      .select('id, user_id, business_id, service, status, created_at, note, notes, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, stripe_payment_method_id, businesses(name)')
+      .select('id, user_id, business_id, service, status, created_at, note, notes, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, stripe_customer_id, stripe_payment_method_id, businesses(name)')
       .eq('id', bookingId)
       .maybeSingle();
 
@@ -34,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (error) {
       const fallback = await supabase
         .from('bookings')
-        .select('id, user_id, business_id, service, status, created_at, notes, scheduled_start, scheduled_end, amount_cents, paid_at, stripe_payment_method_id')
+        .select('id, user_id, business_id, service, status, created_at, notes, scheduled_start, scheduled_end, amount_cents, paid_at, stripe_customer_id, stripe_payment_method_id')
         .eq('id', bookingId)
         .maybeSingle();
       data = fallback.data as any;
@@ -71,6 +72,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .ilike('email', normalizedEmail)
             .limit(20);
           if ((legacyUsers || []).some((u: any) => u?.id && u.id === data.user_id)) canAccess = true;
+        } catch {}
+      }
+      if (!canAccess && (data as any)?.stripe_customer_id) {
+        try {
+          const customer = await stripe.customers.retrieve((data as any).stripe_customer_id);
+          const customerEmail = String((customer as any)?.email || '').trim().toLowerCase();
+          if (!(customer as any)?.deleted && customerEmail && customerEmail === normalizedEmail) canAccess = true;
         } catch {}
       }
     }
