@@ -1708,7 +1708,7 @@ const BusinessDashboard: NextPage = () => {
 
   const platformFeeRate = business?.founder50 ? 0.06 : 0.12;
   const toProviderNet = (grossCents: number) => Math.max(0, Math.round(grossCents * (1 - platformFeeRate)));
-  const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid';
+  const isProviderPendingBooking = (b: any) => b.status === 'pending';
   // Only completed jobs count as earned payout.
   const totalCompletedGross = bookings
     .filter(b => b.status === 'completed' && b.amount_cents)
@@ -1750,7 +1750,9 @@ const BusinessDashboard: NextPage = () => {
     return waitingOnCustomer || providerHasNotAcceptedCustomer;
   };
   const isActiveBookingFlow = (b: any) =>
-    b.status === 'confirmed' || (b.status === 'payment_pending' && !isDisputedPricingFlow(b));
+    b.status === 'confirmed'
+    || b.status === 'paid'
+    || (b.status === 'payment_pending' && !isDisputedPricingFlow(b));
 
   const filteredBookings = bookings.filter(b => {
     if (bkFilter === 'all') return true;
@@ -2348,7 +2350,7 @@ const BusinessDashboard: NextPage = () => {
                             </div>
                           )}
                           
-                          {(['pending', 'confirmed', 'active', 'payment_pending', 'price_disputed'].includes(b.status)) && (
+                          {(['pending', 'confirmed', 'active', 'paid', 'payment_pending', 'price_disputed'].includes(b.status)) && (
                             <div className="flex items-start gap-2">
                               {/* Price setting — required before confirm */}
                               {(b.status === 'pending') && isCustom && (
@@ -2418,7 +2420,7 @@ const BusinessDashboard: NextPage = () => {
                                   <p className="text-[10px]" style={{ color: dm ? '#636366' : '#9ca3af' }}>No price required — standard service</p>
                                 </div>
                               )}
-                              {b.status === 'confirmed' && (
+                              {(b.status === 'confirmed' || b.status === 'paid') && (
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => setConfirmComplete(b)}
