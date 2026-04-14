@@ -40,14 +40,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   let { data: booking, error: bookingErr } = await supabase
     .from('bookings')
-    .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
+    .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded)')
     .eq('id', booking_id)
     .maybeSingle();
 
   if (bookingErr) {
     const fallback = await supabase
       .from('bookings')
-      .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status)')
+      .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded)')
       .eq('id', booking_id)
       .maybeSingle();
     booking = fallback.data as any;
@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (booking && !bookingErr && booking.business_id) {
       const { data: biz } = await supabase
         .from('businesses')
-        .select('id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status')
+        .select('id, name, email, stripe_account_id, stripe_onboarded')
         .eq('id', booking.business_id)
         .maybeSingle();
       booking = { ...booking, businesses: biz || null } as any;
@@ -116,6 +116,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
     return res.status(400).json({ error: 'Business is not ready to accept online payments yet.' });
   }
+
+  // Optional fee-policy fields can be absent on older schemas; keep payment flow resilient.
+  let feeBusiness: any = biz;
+  try {
+    const { data: feeMeta } = await supabase
+      .from('businesses')
+      .select('founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
+      .eq('id', biz.id)
+      .maybeSingle();
+    if (feeMeta) feeBusiness = { ...biz, ...feeMeta };
+  } catch {}
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -187,8 +198,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Save a payment method before paying.' });
   }
 
-  const platformFeePercent = getPlatformFeePercent(biz);
-  if (!assertPlatformFeePercent(biz, platformFeePercent)) {
+  const platformFeePercent = getPlatformFeePercent(feeBusiness);
+  if (!assertPlatformFeePercent(feeBusiness, platformFeePercent)) {
     return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
   }
   const platformFeeCents = Math.round(booking.amount_cents * platformFeePercent / 100);

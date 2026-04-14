@@ -247,7 +247,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data: businessRow } = await supabase
         .from('businesses')
-        .select('id, availability_status')
+        .select('id, availability_status, stripe_onboarded, stripe_account_id')
         .eq('id', business_id)
         .maybeSingle();
       if (!businessRow) return res.status(404).json({ error: 'Provider not found' });
@@ -256,6 +256,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(409).json({
           error: `Provider is currently ${availabilityStatus} and not accepting bookings.`,
         });
+      }
+      if (!isCustomService) {
+        const canAcceptPayments = !!(businessRow as any).stripe_onboarded && !!(businessRow as any).stripe_account_id;
+        if (!canAcceptPayments) {
+          return res.status(409).json({ error: 'This provider can’t accept payments yet.' });
+        }
       }
 
       let resolvedUserId = user_id;
@@ -601,7 +607,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         let { data, error } = await supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
           .eq('user_id', user_id)
           .order('created_at', { ascending: false })
           .limit(100);
@@ -609,7 +615,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (error && isMissingColumnError(error)) {
           const fallbackLegacyProof = await supabase
             .from('bookings')
-            .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+            .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
             .eq('user_id', user_id)
             .order('created_at', { ascending: false })
             .limit(100);
@@ -620,7 +626,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (error && isMissingColumnError(error)) {
           const fallback = await supabase
             .from('bookings')
-            .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email)')
+            .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
             .eq('user_id', user_id)
             .order('created_at', { ascending: false })
             .limit(100);
@@ -639,6 +645,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           business_name: b.businesses?.name ?? null,
           business_phone: b.businesses?.phone ?? null,
           business_email: b.businesses?.email ?? null,
+          business_stripe_onboarded: b.businesses?.stripe_onboarded ?? null,
+          business_stripe_account_id: b.businesses?.stripe_account_id ?? null,
           businesses: undefined,
         }));
         return res.status(200).json({ bookings });
@@ -693,7 +701,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       let { data, error } = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+        .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -701,7 +709,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (error && isMissingColumnError(error)) {
         const fallbackLegacyProof = await supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(100);
@@ -712,7 +720,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (error && isMissingColumnError(error)) {
         const fallback = await supabase
           .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email)')
+          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(100);
@@ -731,6 +739,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         business_name: b.businesses?.name ?? null,
         business_phone: b.businesses?.phone ?? null,
         business_email: b.businesses?.email ?? null,
+        business_stripe_onboarded: b.businesses?.stripe_onboarded ?? null,
+        business_stripe_account_id: b.businesses?.stripe_account_id ?? null,
         businesses: undefined,
       }));
       return res.status(200).json({ bookings });

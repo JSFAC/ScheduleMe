@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     let { data, error } = await supabase
       .from('bookings')
-      .select('id, user_id, business_id, service, status, created_at, note, notes, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, stripe_customer_id, stripe_payment_method_id, businesses(name)')
+      .select('id, user_id, business_id, service, status, created_at, note, notes, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, stripe_customer_id, stripe_payment_method_id, businesses(name, stripe_onboarded, stripe_account_id)')
       .eq('id', bookingId)
       .maybeSingle();
 
@@ -85,18 +85,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!canAccess) return res.status(403).json({ error: 'Access denied' });
 
     let businessName: string | null = (data as any)?.businesses?.name || null;
+    let businessStripeOnboarded: boolean | null | undefined = (data as any)?.businesses?.stripe_onboarded;
+    let businessStripeAccountId: string | null | undefined = (data as any)?.businesses?.stripe_account_id;
     if (!businessName && data.business_id) {
       const { data: biz } = await supabase
         .from('businesses')
-        .select('name')
+        .select('name, stripe_onboarded, stripe_account_id')
         .eq('id', data.business_id)
         .maybeSingle();
       businessName = (biz as any)?.name || null;
+      if (typeof businessStripeOnboarded === 'undefined') {
+        businessStripeOnboarded = (biz as any)?.stripe_onboarded;
+      }
+      if (typeof businessStripeAccountId === 'undefined') {
+        businessStripeAccountId = (biz as any)?.stripe_account_id;
+      }
     }
 
     const booking = {
       ...data,
       business_name: businessName,
+      business_stripe_onboarded: businessStripeOnboarded,
+      business_stripe_account_id: businessStripeAccountId,
       businesses: undefined,
       note: data.note ?? data.notes ?? null,
     };

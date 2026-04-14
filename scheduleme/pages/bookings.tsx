@@ -64,6 +64,8 @@ interface Booking {
   business_phone?: string;
   business_email?: string;
   business_id?: string;
+  business_stripe_onboarded?: boolean | null;
+  business_stripe_account_id?: string | null;
   amount_cents?: number;
   protection_fee_cents?: number | null;
   paid_at?: string;
@@ -170,12 +172,16 @@ function normalizeBookings(list: any[]): Booking[] {
     const businessId = b.business_id ?? b.businesses?.id ?? b.business?.id ?? null;
     const businessPhone = b.business_phone ?? b.businesses?.phone ?? b.business?.phone ?? null;
     const businessEmail = b.business_email ?? b.businesses?.email ?? b.business?.email ?? null;
+    const businessStripeOnboarded = b.business_stripe_onboarded ?? b.businesses?.stripe_onboarded ?? b.business?.stripe_onboarded ?? null;
+    const businessStripeAccountId = b.business_stripe_account_id ?? b.businesses?.stripe_account_id ?? b.business?.stripe_account_id ?? null;
     return {
       ...b,
       business_name: businessName,
       business_id: businessId,
       business_phone: businessPhone,
       business_email: businessEmail,
+      business_stripe_onboarded: businessStripeOnboarded,
+      business_stripe_account_id: businessStripeAccountId,
     };
   });
 }
@@ -783,7 +789,15 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
           {/* Message provider + payment authorized note */}
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
-              {booking.amount_cents && !booking.paid_at && (
+              {booking.amount_cents && !booking.paid_at && !(booking.business_stripe_onboarded && booking.business_stripe_account_id) && (
+                <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#2a1212' : '#fef2f2', border: `1px solid ${dm ? '#7f1d1d' : '#fecaca'}` }}>
+                  <p className="text-sm font-bold mb-0.5" style={{ color: dm ? '#fecaca' : '#b91c1c' }}>Provider can&apos;t accept online payments yet</p>
+                  <p className="text-xs" style={{ color: dm ? '#fca5a5' : '#991b1b' }}>
+                    This booking cannot be paid until the provider reconnects payouts. You can still message them for an update.
+                  </p>
+                </div>
+              )}
+              {booking.amount_cents && !booking.paid_at && !!booking.business_stripe_onboarded && !!booking.business_stripe_account_id && (
                 booking.stripe_payment_method_id ? (
                   <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#0f1f1c' : '#ecfdf3', border: `1px solid ${panelBorder}` }}>
                     <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Ready to pay</p>
