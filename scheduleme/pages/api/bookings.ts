@@ -258,7 +258,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
       if (!isCustomService) {
-        const canAcceptPayments = !!(businessRow as any).stripe_onboarded && !!(businessRow as any).stripe_account_id;
+        const canAcceptPayments = !!(businessRow as any).stripe_account_id;
         if (!canAcceptPayments) {
           return res.status(409).json({ error: 'This provider can’t accept payments yet.' });
         }

@@ -40,14 +40,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   let { data: booking, error: bookingErr } = await supabase
     .from('bookings')
-    .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded)')
+    .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id')
     .eq('id', booking_id)
     .maybeSingle();
 
   if (bookingErr) {
     const fallback = await supabase
       .from('bookings')
-      .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded)')
+      .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id')
       .eq('id', booking_id)
       .maybeSingle();
     booking = fallback.data as any;
@@ -62,14 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .maybeSingle();
     booking = fallbackMinimal.data as any;
     bookingErr = fallbackMinimal.error as any;
-    if (booking && !bookingErr && booking.business_id) {
-      const { data: biz } = await supabase
-        .from('businesses')
-        .select('id, name, email, stripe_account_id, stripe_onboarded')
-        .eq('id', booking.business_id)
-        .maybeSingle();
-      booking = { ...booking, businesses: biz || null } as any;
-    }
   }
 
   if (bookingErr) return res.status(500).json({ error: 'Failed to load booking for payment' });
@@ -112,21 +104,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Payment amount is not set for this booking.' });
   }
 
-  const biz = booking.businesses as any;
+  let biz: any = null;
+  if (booking.business_id) {
+    const primaryBiz = await supabase
+      .from('businesses')
+      .select('id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
+      .eq('id', booking.business_id)
+      .maybeSingle();
+    if (!primaryBiz.error && primaryBiz.data) {
+      biz = primaryBiz.data;
+    } else {
+      const fallbackBiz = await supabase
+        .from('businesses')
+        .select('id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status')
+        .eq('id', booking.business_id)
+        .maybeSingle();
+      if (!fallbackBiz.error && fallbackBiz.data) {
+        biz = fallbackBiz.data;
+      } else {
+        const minimalBiz = await supabase
+          .from('businesses')
+          .select('id, name, email, stripe_account_id, stripe_onboarded')
+          .eq('id', booking.business_id)
+          .maybeSingle();
+        if (!minimalBiz.error && minimalBiz.data) biz = minimalBiz.data;
+      }
+    }
+  }
+
+  // Auto-recover stale stripe_onboarded flag when account is already enabled in Stripe.
+  if (biz?.stripe_account_id && !biz?.stripe_onboarded) {
+    try {
+      const account = await stripe.accounts.retrieve(biz.stripe_account_id);
+      if ((account as any)?.charges_enabled) {
+        biz = { ...biz, stripe_onboarded: true };
+        await supabase
+          .from('businesses')
+          .update({ stripe_onboarded: true })
+          .eq('id', biz.id);
+      }
+    } catch {}
+  }
+
   if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
     return res.status(400).json({ error: 'Business is not ready to accept online payments yet.' });
   }
 
-  // Optional fee-policy fields can be absent on older schemas; keep payment flow resilient.
-  let feeBusiness: any = biz;
-  try {
-    const { data: feeMeta } = await supabase
-      .from('businesses')
-      .select('founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
-      .eq('id', biz.id)
-      .maybeSingle();
-    if (feeMeta) feeBusiness = { ...biz, ...feeMeta };
-  } catch {}
+  const feeBusiness: any = biz;
 
   const { data: profile } = await supabase
     .from('profiles')

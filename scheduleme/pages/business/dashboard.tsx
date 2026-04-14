@@ -1708,7 +1708,7 @@ const BusinessDashboard: NextPage = () => {
 
   const platformFeeRate = business?.founder50 ? 0.06 : 0.12;
   const toProviderNet = (grossCents: number) => Math.max(0, Math.round(grossCents * (1 - platformFeeRate)));
-  const isProviderPendingBooking = (b: any) => b.status === 'pending';
+  const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid';
   // Only completed jobs count as earned payout.
   const totalCompletedGross = bookings
     .filter(b => b.status === 'completed' && b.amount_cents)
@@ -1751,7 +1751,6 @@ const BusinessDashboard: NextPage = () => {
   };
   const isActiveBookingFlow = (b: any) =>
     b.status === 'confirmed'
-    || b.status === 'paid'
     || (b.status === 'payment_pending' && !isDisputedPricingFlow(b));
 
   const filteredBookings = bookings.filter(b => {
@@ -2420,7 +2419,7 @@ const BusinessDashboard: NextPage = () => {
                                   <p className="text-[10px]" style={{ color: dm ? '#636366' : '#9ca3af' }}>No price required — standard service</p>
                                 </div>
                               )}
-                              {(b.status === 'confirmed' || b.status === 'paid') && (
+                              {b.status === 'confirmed' && (
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => setConfirmComplete(b)}
@@ -2435,6 +2434,19 @@ const BusinessDashboard: NextPage = () => {
                                       {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
                                     </span>
                                   )}
+                                </div>
+                              )}
+                              {b.status === 'paid' && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setConfirmAction({ booking: b, action: 'confirm' })}
+                                    className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white">
+                                    Accept booking
+                                  </button>
+                                  <span className="text-xs font-bold text-emerald-600 px-1">
+                                    ✓ Payment secured
+                                    {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
+                                  </span>
                                 </div>
                               )}
                               {b.status !== 'confirmed' && b.paid_at && (
