@@ -71,12 +71,70 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('stripe_customer_id, stripe_payment_method_id')
-    .eq('id', booking.user_id || user.id)
+    .select('id, email, stripe_customer_id, stripe_payment_method_id, stripe_setup_intent_id')
+    .eq('id', user.id)
     .maybeSingle();
 
-  const customerId = booking.stripe_customer_id || profile?.stripe_customer_id || null;
-  const paymentMethodId = booking.stripe_payment_method_id || profile?.stripe_payment_method_id || null;
+  // booking.user_id can be legacy/misaligned; always trust authenticated user profile first.
+  let customerId = booking.stripe_customer_id || profile?.stripe_customer_id || null;
+  let paymentMethodId = booking.stripe_payment_method_id || profile?.stripe_payment_method_id || null;
+
+  if (!customerId && user.email) {
+    try {
+      const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+      if (customers.data?.length) {
+        const best = customers.data.sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+        if (best?.id) {
+          customerId = best.id;
+          await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
+          await supabase.from('bookings').update({ stripe_customer_id: customerId }).eq('id', booking.id);
+        }
+      }
+    } catch {}
+  }
+
+  if (customerId && !paymentMethodId) {
+    // Try recently created SetupIntent path first (card just added on pay page).
+    try {
+      const setupIntentId = profile?.stripe_setup_intent_id;
+      if (setupIntentId) {
+        const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+        const pm = (setupIntent as any)?.payment_method;
+        if (typeof pm === 'string' && pm) paymentMethodId = pm;
+      }
+    } catch {}
+  }
+
+  if (customerId && !paymentMethodId) {
+    // Fallback to Stripe customer default / first available card.
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      const defaultPm = (customer as any)?.invoice_settings?.default_payment_method;
+      if (typeof defaultPm === 'string' && defaultPm) paymentMethodId = defaultPm;
+    } catch {}
+  }
+
+  if (customerId && !paymentMethodId) {
+    try {
+      const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 10 });
+      if (methods.data?.length) {
+        paymentMethodId = methods.data[0].id;
+      }
+    } catch {}
+  }
+
+  if (paymentMethodId) {
+    // Persist resolved PM for future payments.
+    await supabase
+      .from('profiles')
+      .update({ stripe_payment_method_id: paymentMethodId })
+      .eq('id', user.id);
+    await supabase
+      .from('bookings')
+      .update({ stripe_payment_method_id: paymentMethodId })
+      .eq('id', booking.id);
+  }
+
   if (!customerId || !paymentMethodId) {
     return res.status(400).json({ error: 'Save a payment method before paying.' });
   }
