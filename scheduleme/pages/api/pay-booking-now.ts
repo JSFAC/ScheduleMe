@@ -38,12 +38,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!booking_id || !isValidUuid(booking_id)) return res.status(400).json({ error: 'Valid booking_id required' });
 
   const supabase = getSupabase();
-  const { data: booking } = await supabase
+  let { data: booking, error: bookingErr } = await supabase
     .from('bookings')
     .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until)')
     .eq('id', booking_id)
     .maybeSingle();
 
+  if (bookingErr) {
+    const fallback = await supabase
+      .from('bookings')
+      .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id, businesses(id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status)')
+      .eq('id', booking_id)
+      .maybeSingle();
+    booking = fallback.data as any;
+    bookingErr = fallback.error as any;
+  }
+
+  if (bookingErr) {
+    const fallbackMinimal = await supabase
+      .from('bookings')
+      .select('id, service, status, paid_at, amount_cents, protection_fee_cents, user_id, business_id, scheduled_start, stripe_payment_intent_id, stripe_customer_id, stripe_payment_method_id')
+      .eq('id', booking_id)
+      .maybeSingle();
+    booking = fallbackMinimal.data as any;
+    bookingErr = fallbackMinimal.error as any;
+    if (booking && !bookingErr && booking.business_id) {
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('id, name, email, stripe_account_id, stripe_onboarded, founder50, founder50_status')
+        .eq('id', booking.business_id)
+        .maybeSingle();
+      booking = { ...booking, businesses: biz || null } as any;
+    }
+  }
+
+  if (bookingErr) return res.status(500).json({ error: 'Failed to load booking for payment' });
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
   let canAccess = booking.user_id === user.id;
