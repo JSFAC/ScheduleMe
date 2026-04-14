@@ -296,6 +296,7 @@ export default function BizPage() {
   const [viewerEduVerified, setViewerEduVerified] = useState(false);
   const [viewerSchoolDomain, setViewerSchoolDomain] = useState<string | null>(null);
   const [viewerEmail, setViewerEmail] = useState<string | null>(null);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -383,6 +384,7 @@ export default function BizPage() {
               .select('edu_verified, school_domain, school_email')
               .eq('id', session.user.id)
               .maybeSingle();
+            setViewerUserId(session.user.id || null);
             setViewerEmail(session.user.email || null);
             setViewerEduVerified(profile?.edu_verified === true);
             const emailDomain = profile?.school_email?.includes('@') ? profile.school_email.split('@').pop() : null;
@@ -708,6 +710,10 @@ export default function BizPage() {
     if (editMode) { setErr('Exit edit mode to book'); return; }
     const { data: { session } } = await getSB().auth.getSession();
     if (!session) { router.push('/signin?next=/biz/' + slug); return; }
+    if ((biz?.owner_id && biz.owner_id === session.user.id) || ((biz?.owner_email || '').toLowerCase().trim() === (session.user.email || '').toLowerCase().trim())) {
+      setErr('You cannot book your own business.');
+      return;
+    }
     if (!selectedSvc) { setErr('Select a service to continue.'); return; }
     if (!date || (requiresTime && !slot)) { setErr(requiresTime ? 'Pick a date and time' : 'Pick a due date'); return; }
     if (isCustom && !customServiceName.trim()) { setErr('Name the service you need.'); return; }
@@ -847,6 +853,10 @@ export default function BizPage() {
     : 0;
   const customPriceTooLow = isCustom && customProposedPrice.length > 0 && (!Number.isFinite(customProposedCents) || customProposedCents < 500);
   const providerCannotAcceptPayments = !biz?.stripe_onboarded || !biz?.stripe_account_id;
+  const isSelfOwnedBusiness = !!(
+    (biz?.owner_id && viewerUserId && biz.owner_id === viewerUserId) ||
+    (biz?.owner_email && viewerEmail && String(biz.owner_email).toLowerCase().trim() === String(viewerEmail).toLowerCase().trim())
+  );
   const bookingDisabled =
     !date
     || (requiresTime && !slot)
@@ -854,6 +864,7 @@ export default function BizPage() {
     || done
     || (isCustom && (!customServiceName.trim() || !note.trim() || customPriceTooLow))
     || isPreview
+    || isSelfOwnedBusiness
     || providerCannotAcceptPayments;
 
   const availableSlots = date && requiresTime ? (() => {
@@ -1455,6 +1466,11 @@ export default function BizPage() {
               This provider can&apos;t accept payments yet, so booking is temporarily unavailable.
             </div>
           )}
+          {isSelfOwnedBusiness && (
+            <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(156,163,175,0.18)' : 'rgba(156,163,175,0.16)', color: dm ? '#d1d5db' : '#4b5563', border: '1px solid ' + (dm ? '#4b5563' : '#d1d5db') }}>
+              You can&apos;t book your own business listing from this account.
+            </div>
+          )}
           <div className="space-y-4" style={{ opacity: (editMode || isPreview) ? 0.5 : 1, pointerEvents: (editMode || isPreview) ? 'none' : 'auto' }}>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>{requiresTime ? 'Preferred date' : 'Due date'}</p>
@@ -1516,6 +1532,11 @@ export default function BizPage() {
           {providerCannotAcceptPayments && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
               Provider can&apos;t accept payments yet.
+            </p>
+          )}
+          {isSelfOwnedBusiness && (
+            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
+              You can&apos;t book your own business.
             </p>
           )}
         </div>
