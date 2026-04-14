@@ -174,6 +174,7 @@ const PayPage: NextPage = () => {
           headers: { Authorization: 'Bearer ' + session.access_token },
         });
         const data = await res.json().catch(() => ({}));
+        const detailError = !res.ok ? (data?.error || null) : null;
         let found = res.ok ? data.booking : null;
         if (!found) {
           try {
@@ -187,7 +188,7 @@ const PayPage: NextPage = () => {
             found = await fallbackLoadFromBookings(session.access_token, userId);
           } catch {}
         }
-        if (!found) throw new Error('Booking not found');
+        if (!found) throw new Error(detailError || 'Booking not found');
         if (mounted) {
           setBooking(found);
           setPaymentReady(!!found.stripe_payment_method_id);

@@ -56,20 +56,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let canAccess = data.user_id === user.id;
     if (!canAccess && user.email) {
-      const { data: profile } = await supabase
+      const normalizedEmail = user.email.trim().toLowerCase();
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id')
-        .eq('email', user.email)
-        .maybeSingle();
-      if (profile?.id && data.user_id === profile.id) canAccess = true;
+        .ilike('email', normalizedEmail)
+        .limit(20);
+      if ((profiles || []).some((p: any) => p?.id && p.id === data.user_id)) canAccess = true;
       if (!canAccess) {
         try {
-          const { data: legacyUser } = await supabase
+          const { data: legacyUsers } = await supabase
             .from('users')
             .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (legacyUser?.id && data.user_id === legacyUser.id) canAccess = true;
+            .ilike('email', normalizedEmail)
+            .limit(20);
+          if ((legacyUsers || []).some((u: any) => u?.id && u.id === data.user_id)) canAccess = true;
         } catch {}
       }
     }
