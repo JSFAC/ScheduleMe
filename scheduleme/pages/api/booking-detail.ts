@@ -30,15 +30,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('id', bookingId)
       .maybeSingle();
 
-    // Backward-compat fallback for DBs missing newer columns.
+    // Backward-compat fallback for DBs missing newer columns and/or relation joins.
     if (error) {
       const fallback = await supabase
         .from('bookings')
-        .select('id, user_id, business_id, service, status, created_at, notes, scheduled_start, scheduled_end, amount_cents, paid_at, stripe_payment_method_id, businesses(name)')
+        .select('id, user_id, business_id, service, status, created_at, notes, scheduled_start, scheduled_end, amount_cents, paid_at, stripe_payment_method_id')
         .eq('id', bookingId)
         .maybeSingle();
       data = fallback.data as any;
       error = fallback.error as any;
+    }
+
+    if (error) {
+      // Last-resort minimal shape so pay page can still render.
+      const fallbackMinimal = await supabase
+        .from('bookings')
+        .select('id, user_id, business_id, service, status, created_at')
+        .eq('id', bookingId)
+        .maybeSingle();
+      data = fallbackMinimal.data as any;
+      error = fallbackMinimal.error as any;
     }
 
     if (error || !data) return res.status(404).json({ error: 'Booking not found' });
@@ -64,9 +75,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (!canAccess) return res.status(403).json({ error: 'Access denied' });
 
+    let businessName: string | null = (data as any)?.businesses?.name || null;
+    if (!businessName && data.business_id) {
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('name')
+        .eq('id', data.business_id)
+        .maybeSingle();
+      businessName = (biz as any)?.name || null;
+    }
+
     const booking = {
       ...data,
-      business_name: (data as any)?.businesses?.name || null,
+      business_name: businessName,
       businesses: undefined,
       note: data.note ?? data.notes ?? null,
     };
