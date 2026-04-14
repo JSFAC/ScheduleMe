@@ -34,8 +34,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-  if (booking.status !== 'pending' && booking.status !== 'confirmed')
-    return res.status(400).json({ error: 'Booking must be pending or confirmed before saving a card' });
+  const allowedStatuses = new Set(['pending', 'confirmed', 'payment_pending']);
+  if (!allowedStatuses.has(String(booking.status || '')))
+    return res.status(400).json({ error: 'Booking must be pending, payment_pending, or confirmed before saving a card' });
 
   // Ensure caller is the booking owner (by auth id or email)
   let canAccess = booking.user_id === user.id;
