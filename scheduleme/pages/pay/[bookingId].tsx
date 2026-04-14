@@ -146,6 +146,17 @@ const PayPage: NextPage = () => {
   useEffect(() => {
     if (!bookingId) return;
     let mounted = true;
+    async function fallbackLoadFromBookings(accessToken: string, userId: string) {
+      const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(userId)}`, {
+        headers: { Authorization: 'Bearer ' + accessToken },
+        cache: 'no-store',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to load booking');
+      const list = Array.isArray(data?.bookings) ? data.bookings : [];
+      const found = list.find((b: any) => b?.id === bookingId) || null;
+      return found;
+    }
     async function load() {
       setLoading(true);
       setErr('');
@@ -163,8 +174,19 @@ const PayPage: NextPage = () => {
           headers: { Authorization: 'Bearer ' + session.access_token },
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Failed to load booking');
-        const found = data.booking;
+        let found = res.ok ? data.booking : null;
+        if (!found) {
+          try {
+            found = await fallbackLoadFromBookings(session.access_token, userId);
+          } catch {}
+        }
+        if (!found) {
+          // One short retry handles rare eventual-consistency races after create.
+          await new Promise((r) => setTimeout(r, 700));
+          try {
+            found = await fallbackLoadFromBookings(session.access_token, userId);
+          } catch {}
+        }
         if (!found) throw new Error('Booking not found');
         if (mounted) {
           setBooking(found);
