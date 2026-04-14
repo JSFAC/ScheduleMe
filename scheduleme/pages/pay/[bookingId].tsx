@@ -221,11 +221,6 @@ const PayPage: NextPage = () => {
   const bookingCreatedLabel = booking?.created_at
     ? new Date(booking.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
     : 'Not available';
-  const providerStripeOnboarded = booking?.business_stripe_onboarded ?? booking?.businesses?.stripe_onboarded;
-  const providerStripeAccountId = booking?.business_stripe_account_id ?? booking?.businesses?.stripe_account_id;
-  const providerReadinessKnown =
-    typeof providerStripeOnboarded !== 'undefined' || typeof providerStripeAccountId !== 'undefined';
-  const providerCanAcceptPayments = providerStripeOnboarded === true && !!providerStripeAccountId;
 
   return (
     <>
@@ -384,10 +379,6 @@ const PayPage: NextPage = () => {
                       setErr('Please save a payment method first.');
                       return;
                     }
-                    if (providerReadinessKnown && !providerCanAcceptPayments) {
-                      setErr('Business is not ready to accept online payments yet.');
-                      return;
-                    }
                     setErr('');
                     setPaying(true);
                     try {
@@ -412,17 +403,12 @@ const PayPage: NextPage = () => {
                       setPaying(false);
                     }
                   }}
-                  disabled={paying || (providerReadinessKnown && !providerCanAcceptPayments)}
+                  disabled={paying}
                   className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-70"
                   style={{ background: '#007e6d' }}>
                   {booking?.paid_at ? 'Already paid' : (paying ? 'Processing…' : `Confirm & Pay ${totalChargeCents > 0 ? `$${(totalChargeCents / 100).toFixed(2)}` : ''}`)}
                 </button>
               </div>
-              {providerReadinessKnown && !providerCanAcceptPayments && (
-                <div className="rounded-xl border px-4 py-3 text-xs mt-3" style={{ background: dm ? '#2a1212' : '#fef2f2', borderColor: dm ? '#7f1d1d' : '#fecaca', color: dm ? '#fecaca' : '#b91c1c' }}>
-                  This provider can&apos;t accept online payments yet. Ask them to reconnect payouts, then try again.
-                </div>
-              )}
             </div>
           )}
         </div>

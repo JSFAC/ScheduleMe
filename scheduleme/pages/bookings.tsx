@@ -789,15 +789,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
           {/* Message provider + payment authorized note */}
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
-              {booking.amount_cents && !booking.paid_at && !(booking.business_stripe_onboarded && booking.business_stripe_account_id) && (
-                <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#2a1212' : '#fef2f2', border: `1px solid ${dm ? '#7f1d1d' : '#fecaca'}` }}>
-                  <p className="text-sm font-bold mb-0.5" style={{ color: dm ? '#fecaca' : '#b91c1c' }}>Provider can&apos;t accept online payments yet</p>
-                  <p className="text-xs" style={{ color: dm ? '#fca5a5' : '#991b1b' }}>
-                    This booking cannot be paid until the provider reconnects payouts. You can still message them for an update.
-                  </p>
-                </div>
-              )}
-              {booking.amount_cents && !booking.paid_at && !!booking.business_stripe_onboarded && !!booking.business_stripe_account_id && (
+              {booking.amount_cents && !booking.paid_at && (
                 booking.stripe_payment_method_id ? (
                   <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#0f1f1c' : '#ecfdf3', border: `1px solid ${panelBorder}` }}>
                     <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Ready to pay</p>

@@ -132,22 +132,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // Auto-recover stale stripe_onboarded flag when account is already enabled in Stripe.
-  if (biz?.stripe_account_id && !biz?.stripe_onboarded) {
-    try {
-      const account = await stripe.accounts.retrieve(biz.stripe_account_id);
-      if ((account as any)?.charges_enabled) {
-        biz = { ...biz, stripe_onboarded: true };
-        await supabase
-          .from('businesses')
-          .update({ stripe_onboarded: true })
-          .eq('id', biz.id);
-      }
-    } catch {}
-  }
-
-  if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
-    return res.status(400).json({ error: 'Business is not ready to accept online payments yet.' });
+  // Web pay flow can charge and hold funds on-platform even if provider payouts are not fully reconnected yet.
+  // We only require a valid business record for attribution/notifications.
+  if (!biz?.id) {
+    return res.status(400).json({ error: 'Business details missing for this booking.' });
   }
 
   const feeBusiness: any = biz;
