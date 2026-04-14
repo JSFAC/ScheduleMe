@@ -197,6 +197,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     if (!(await rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
+    const authUser = req.headers.authorization ? await requireAuth(req, res) : null;
+    if (req.headers.authorization && !authUser) return;
 
     const {
       business_id,
@@ -257,7 +259,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       let resolvedUserId = user_id;
-      if (!resolvedUserId && user_email) {
+      if (authUser?.id) {
+        if (resolvedUserId && resolvedUserId !== authUser.id) {
+          return res.status(403).json({ error: 'Authenticated user does not match booking user_id' });
+        }
+        resolvedUserId = authUser.id;
+        await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: authUser.id,
+              email: user_email || authUser.email || null,
+              name: user_name?.slice(0, 100) || null,
+              phone: user_phone?.slice(0, 20) || null,
+            },
+            { onConflict: 'id' }
+          );
+      } else if (!resolvedUserId && user_email) {
         const { data: userData } = await supabase
           .from('profiles')
           .upsert(
