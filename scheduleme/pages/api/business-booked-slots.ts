@@ -31,13 +31,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('bookings')
-      .select('id, status, scheduled_start, scheduled_end')
+      .select('id, status, service, paid_at, scheduled_start, scheduled_end')
       .eq('business_id', businessId)
-      .in('status', ['pending', 'confirmed', 'active', 'payment_pending', 'paid', 'price_disputed'])
+      .in('status', ['pending', 'confirmed', 'active', 'payment_pending', 'paid', 'awaiting_consumer_confirmation', 'completed', 'disputed'])
       .limit(500);
 
     if (error) return res.status(500).json({ error: 'Failed to fetch booked slots' });
+
+    const shouldReserveSlot = (row: any): boolean => {
+      const status = String(row?.status || '').toLowerCase();
+      const service = String(row?.service || '').toLowerCase();
+      const isCustomFlow = service.includes('custom') || status === 'payment_pending';
+      const isPaidOrConfirmed =
+        Boolean(row?.paid_at) ||
+        ['paid', 'confirmed', 'active', 'awaiting_consumer_confirmation', 'completed', 'disputed'].includes(status);
+      // Standard bookings only reserve after payment/confirmation.
+      // Custom bookings can reserve earlier to preserve negotiation flow.
+      return isCustomFlow ? ['pending', 'payment_pending', 'confirmed', 'active', 'paid', 'awaiting_consumer_confirmation', 'completed', 'disputed'].includes(status) : isPaidOrConfirmed;
+    };
+
     const rows = (data || []).filter((row: any) => {
+      if (!shouldReserveSlot(row)) return false;
       const when = row?.scheduled_start || row?.scheduled_end;
       if (!when) return false;
       const t = new Date(when).getTime();

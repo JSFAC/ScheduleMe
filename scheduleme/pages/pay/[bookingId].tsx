@@ -168,12 +168,12 @@ const PayPage: NextPage = () => {
         if (!session) { setErr('Please sign in to continue.'); return; }
         const userId = session.user?.id;
         if (!userId) { setErr('Please sign in to continue.'); return; }
-        const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(userId)}&include_unpaid=1`, {
+        const res = await fetch(`/api/booking-detail?booking_id=${encodeURIComponent(bookingId)}`, {
           headers: { Authorization: 'Bearer ' + session.access_token },
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Failed to load booking');
-        const found = (data.bookings || []).find((b: any) => b.id === bookingId);
+        const found = data.booking;
         if (!found) throw new Error('Booking not found');
         if (mounted) {
           setBooking(found);
