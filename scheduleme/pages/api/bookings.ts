@@ -202,6 +202,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       business_id,
       user_id,
       service,
+      service_price_cents,
+      customer_proposed_price_cents,
       user_name,
       user_phone,
       user_email,
@@ -225,6 +227,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const safeAddress = typeof address === 'string' ? address.trim().slice(0, 300) : null;
     const safeNote = typeof note === 'string' ? note.trim().slice(0, 2000) : null;
     const scheduledStart = buildScheduledStart(scheduled_date, scheduled_slot, scheduled_start);
+    const normalizedService = service?.slice(0, 500) ?? 'General Service';
+    const normalizedServiceLower = String(normalizedService || '').toLowerCase();
+    const isCustomService = normalizedServiceLower.includes('custom');
+
+    const parsedServicePriceCents = Number(service_price_cents);
+    const safeServicePriceCents = Number.isFinite(parsedServicePriceCents) && parsedServicePriceCents >= 500
+      ? Math.round(parsedServicePriceCents)
+      : null;
+    const parsedCustomerProposedCents = Number(customer_proposed_price_cents);
+    const safeCustomerProposedCents = Number.isFinite(parsedCustomerProposedCents) && parsedCustomerProposedCents >= 500
+      ? Math.round(parsedCustomerProposedCents)
+      : null;
 
     try {
       const supabase = getSupabase();
@@ -264,9 +278,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .insert({
           business_id,
           user_id: resolvedUserId ?? null,
-          service: service?.slice(0, 500) ?? 'General Service',
+          service: normalizedService,
           status: 'pending',
           requires_manual_action: true,
+          amount_cents: isCustomService ? null : safeServicePriceCents,
+          customer_proposed_price_cents: isCustomService ? safeCustomerProposedCents : null,
           notes: safeNote,
           address: safeAddress,
           scheduled_start: scheduledStart,
