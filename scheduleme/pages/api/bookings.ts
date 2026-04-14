@@ -279,7 +279,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           business_id,
           user_id: resolvedUserId ?? null,
           service: normalizedService,
-          status: 'pending',
+          status: isCustomService ? 'pending' : 'payment_pending',
           requires_manual_action: true,
           amount_cents: isCustomService ? null : safeServicePriceCents,
           customer_proposed_price_cents: isCustomService ? safeCustomerProposedCents : null,
@@ -292,7 +292,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (error) return res.status(500).json({ error: 'Failed to create booking' });
 
-      notifyNewBooking(data.id, supabase);
+      // Only notify provider immediately for custom requests.
+      // Standard priced bookings notify after payment succeeds.
+      if (isCustomService) notifyNewBooking(data.id, supabase);
 
       return res.status(200).json({ booking: data });
     } catch {

@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const shouldReserveSlot = (row: any): boolean => {
       const status = String(row?.status || '').toLowerCase();
       const service = String(row?.service || '').toLowerCase();
-      const isCustomFlow = service.includes('custom') || status === 'payment_pending';
+      const isCustomFlow = service.includes('custom');
       const isPaidOrConfirmed =
         Boolean(row?.paid_at) ||
         ['paid', 'confirmed', 'active', 'awaiting_consumer_confirmation', 'completed', 'disputed'].includes(status);

@@ -224,6 +224,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         payoutDollars: ((booking.amount_cents - platformFeeCents) / 100).toFixed(2),
         bookingId: booking.id,
       });
+
+      const isCustomService = String(booking.service || '').toLowerCase().includes('custom');
+      if (!isCustomService) {
+        await sendNotifyEmail({
+          type: 'new_booking_business',
+          to: biz.email,
+          name: biz.name || 'Your business',
+          service: booking.service || 'Service',
+          customerName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'A customer',
+          bookingId: booking.id,
+        });
+      }
     }
 
     return res.status(200).json({ ok: true, booking_id: booking.id, payment_intent_id: pi.id });

@@ -24,14 +24,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = getSupabase();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('bookings')
       .select('id, user_id, business_id, service, status, created_at, note, notes, scheduled_start, scheduled_end, amount_cents, protection_fee_cents, paid_at, stripe_payment_method_id, businesses(name)')
       .eq('id', bookingId)
       .maybeSingle();
 
+    // Backward-compat fallback for DBs missing newer columns.
+    if (error) {
+      const fallback = await supabase
+        .from('bookings')
+        .select('id, user_id, business_id, service, status, created_at, notes, scheduled_start, scheduled_end, amount_cents, paid_at, stripe_payment_method_id, businesses(name)')
+        .eq('id', bookingId)
+        .maybeSingle();
+      data = fallback.data as any;
+      error = fallback.error as any;
+    }
+
     if (error || !data) return res.status(404).json({ error: 'Booking not found' });
-    if (data.user_id !== user.id) return res.status(403).json({ error: 'Access denied' });
+
+    let canAccess = data.user_id === user.id;
+    if (!canAccess && user.email) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+      if (profile?.id && data.user_id === profile.id) canAccess = true;
+      if (!canAccess) {
+        try {
+          const { data: legacyUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (legacyUser?.id && data.user_id === legacyUser.id) canAccess = true;
+        } catch {}
+      }
+    }
+    if (!canAccess) return res.status(403).json({ error: 'Access denied' });
 
     const booking = {
       ...data,
@@ -45,4 +76,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-
