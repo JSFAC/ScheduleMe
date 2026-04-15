@@ -95,6 +95,11 @@ function isMissingColumnError(err: any): boolean {
   return msg.includes('column') || msg.includes('does not exist') || details.includes('does not exist');
 }
 
+function isUuidLike(value: unknown): value is string {
+  const s = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+}
+
 async function resolveUserIdsByEmail(supabase: ReturnType<typeof getSupabase>, email?: string | null): Promise<string[]> {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail) return [];
@@ -106,7 +111,7 @@ async function resolveUserIdsByEmail(supabase: ReturnType<typeof getSupabase>, e
       .ilike('email', normalizedEmail)
       .limit(50);
     for (const p of profiles || []) {
-      if (typeof (p as any)?.id === 'string' && (p as any).id) ids.add((p as any).id);
+      if (isUuidLike((p as any)?.id)) ids.add((p as any).id);
     }
   } catch {}
   try {
@@ -116,7 +121,7 @@ async function resolveUserIdsByEmail(supabase: ReturnType<typeof getSupabase>, e
       .ilike('email', normalizedEmail)
       .limit(50);
     for (const u of users || []) {
-      if (typeof (u as any)?.id === 'string' && (u as any).id) ids.add((u as any).id);
+      if (isUuidLike((u as any)?.id)) ids.add((u as any).id);
     }
   } catch {}
   return Array.from(ids);
@@ -126,7 +131,7 @@ async function fetchBookingsForUserIds(
   supabase: ReturnType<typeof getSupabase>,
   userIds: string[]
 ) {
-  const ids = (userIds || []).filter((v) => typeof v === 'string' && !!v);
+  const ids = (userIds || []).filter((v) => isUuidLike(v));
   if (ids.length === 0) return { data: [], error: null as any };
 
   let query = supabase
@@ -137,7 +142,7 @@ async function fetchBookingsForUserIds(
     .limit(100);
   let result = await query;
 
-  if (result.error && isMissingColumnError(result.error)) {
+  if (result.error) {
     result = await supabase
       .from('bookings')
       .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
@@ -146,10 +151,19 @@ async function fetchBookingsForUserIds(
       .limit(100);
   }
 
-  if (result.error && isMissingColumnError(result.error)) {
+  if (result.error) {
     result = await supabase
       .from('bookings')
       .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
+      .in('user_id', ids)
+      .order('created_at', { ascending: false })
+      .limit(100);
+  }
+
+  if (result.error) {
+    result = await supabase
+      .from('bookings')
+      .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, business_id')
       .in('user_id', ids)
       .order('created_at', { ascending: false })
       .limit(100);

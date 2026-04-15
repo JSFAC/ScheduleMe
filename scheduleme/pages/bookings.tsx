@@ -1593,6 +1593,27 @@ const BookingsPage: NextPage = () => {
   const [showAddCard, setShowAddCard] = useState(false);
   const [reviewBanner, setReviewBanner] = useState<Booking | null>(null);
 
+  async function fetchUserBookings(accessToken: string, userId: string): Promise<Booking[]> {
+    const endpoints = [
+      '/api/bookings',
+      `/api/bookings?user_id=${encodeURIComponent(userId)}`,
+    ];
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: 'no-store',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) continue;
+        return normalizeBookings(data?.bookings || []);
+      } catch {
+        // try next endpoint
+      }
+    }
+    return [];
+  }
+
   function updateBookingLocal(id: string, updates: Partial<Booking>) {
     setBookings((bs) => bs.map((b) => (b.id === id ? { ...b, ...updates } : b)));
     setSelectedBooking((b) => (b && b.id === id ? { ...b, ...updates } : b));
@@ -1641,12 +1662,8 @@ function writeCoords(lat: number, lng: number) {
         getSupabase().auth.getSession().then(async ({ data: { session } }) => {
           if (!session) return;
           try {
-            const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, { headers: { 'Authorization': `Bearer ${session.access_token}` }, cache: 'no-store' });
-            const data = await res.json();
-            if (res.ok) {
-              const normalized = normalizeBookings(data?.bookings || []);
-              setBookings(normalized);
-            }
+            const normalized = await fetchUserBookings(session.access_token, session.user.id);
+            setBookings(normalized);
           } catch {}
         });
       }
@@ -1761,17 +1778,8 @@ function writeCoords(lat: number, lng: number) {
         let bookingsData: any[] = [];
 
         try {
-          const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
-            headers: { 'Authorization': `Bearer ${session.access_token}` },
-            cache: 'no-store',
-          });
-          const data = await res.json();
-          if (res.ok) {
-            bookingsData = normalizeBookings(data?.bookings || []);
-            setBookings(bookingsData);
-          } else {
-            setBookings([]);
-          }
+          bookingsData = await fetchUserBookings(session.access_token, session.user.id);
+          setBookings(bookingsData);
         } catch {
           setBookings([]);
         } finally {
