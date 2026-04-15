@@ -89,12 +89,6 @@ function deriveBookingStatus(row: any): string {
   return row?.status || 'pending';
 }
 
-function isMissingColumnError(err: any): boolean {
-  const msg = String(err?.message || '').toLowerCase();
-  const details = String(err?.details || '').toLowerCase();
-  return msg.includes('column') || msg.includes('does not exist') || details.includes('does not exist');
-}
-
 function isUuidLike(value: unknown): value is string {
   const s = String(value || '').trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
@@ -134,42 +128,35 @@ async function fetchBookingsForUserIds(
   const ids = (userIds || []).filter((v) => isUuidLike(v));
   if (ids.length === 0) return { data: [], error: null as any };
 
-  let query = supabase
+  return await supabase
     .from('bookings')
-    .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
+    .select('*')
     .in('user_id', ids)
     .order('created_at', { ascending: false })
     .limit(100);
-  let result = await query;
+}
 
-  if (result.error) {
-    result = await supabase
-      .from('bookings')
-      .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-      .in('user_id', ids)
-      .order('created_at', { ascending: false })
-      .limit(100);
+async function buildBusinessByIdMap(
+  supabase: ReturnType<typeof getSupabase>,
+  rows: any[]
+): Promise<Record<string, any>> {
+  const ids = Array.from(
+    new Set(
+      (rows || [])
+        .map((r: any) => r?.business_id)
+        .filter((id: any) => isUuidLike(id))
+    )
+  );
+  if (ids.length === 0) return {};
+  const { data } = await supabase
+    .from('businesses')
+    .select('id, name, phone, email, stripe_onboarded, stripe_account_id')
+    .in('id', ids);
+  const map: Record<string, any> = {};
+  for (const b of data || []) {
+    if (isUuidLike((b as any)?.id)) map[(b as any).id] = b;
   }
-
-  if (result.error) {
-    result = await supabase
-      .from('bookings')
-      .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-      .in('user_id', ids)
-      .order('created_at', { ascending: false })
-      .limit(100);
-  }
-
-  if (result.error) {
-    result = await supabase
-      .from('bookings')
-      .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, business_id')
-      .in('user_id', ids)
-      .order('created_at', { ascending: false })
-      .limit(100);
-  }
-
-  return result;
+  return map;
 }
 
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
@@ -682,34 +669,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (user.id !== user_id) return res.status(403).json({ error: 'Access denied' });
 
       try {
-        let { data, error } = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-          .eq('user_id', user_id)
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        if (error && isMissingColumnError(error)) {
-          const fallbackLegacyProof = await supabase
-            .from('bookings')
-            .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false })
-            .limit(100);
-          data = fallbackLegacyProof.data as any;
-          error = fallbackLegacyProof.error as any;
-        }
-
-        if (error && isMissingColumnError(error)) {
-          const fallback = await supabase
-            .from('bookings')
-            .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false })
-            .limit(100);
-          data = fallback.data as any;
-          error = fallback.error as any;
-        }
+        let { data, error } = await fetchBookingsForUserIds(supabase, [String(user_id)]);
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
         if ((!data || data.length === 0) && user.email) {
@@ -720,6 +680,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (!altQuery.error && altQuery.data) data = altQuery.data as any;
           }
         }
+        const businessById = await buildBusinessByIdMap(supabase, data || []);
         const bookings = (data || []).map((b: any) => ({
           ...b,
           status: deriveBookingStatus(b),
@@ -727,11 +688,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           completion_proof_note: b.completion_proof_note ?? b.completion_proof_message ?? null,
           completion_proof_photo_urls: b.completion_proof_photo_urls ?? b.completion_proof_photos ?? [],
           completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
-          business_name: b.businesses?.name ?? null,
-          business_phone: b.businesses?.phone ?? null,
-          business_email: b.businesses?.email ?? null,
-          business_stripe_onboarded: b.businesses?.stripe_onboarded ?? null,
-          business_stripe_account_id: b.businesses?.stripe_account_id ?? null,
+          business_name: b.businesses?.name ?? businessById[b.business_id]?.name ?? null,
+          business_phone: b.businesses?.phone ?? businessById[b.business_id]?.phone ?? null,
+          business_email: b.businesses?.email ?? businessById[b.business_id]?.email ?? null,
+          business_stripe_onboarded: b.businesses?.stripe_onboarded ?? businessById[b.business_id]?.stripe_onboarded ?? null,
+          business_stripe_account_id: b.businesses?.stripe_account_id ?? businessById[b.business_id]?.stripe_account_id ?? null,
           businesses: undefined,
         }));
         return res.status(200).json({ bookings });
@@ -784,34 +745,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!(await rateLimitByPrincipal(res, user.id, { max: 60, windowMs: 60_000, keyPrefix: 'book-get-user-fallback' }))) return;
 
     try {
-      let { data, error } = await supabase
-        .from('bookings')
-        .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error && isMissingColumnError(error)) {
-        const fallbackLegacyProof = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100);
-        data = fallbackLegacyProof.data as any;
-        error = fallbackLegacyProof.error as any;
-      }
-
-      if (error && isMissingColumnError(error)) {
-        const fallback = await supabase
-          .from('bookings')
-          .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100);
-        data = fallback.data as any;
-        error = fallback.error as any;
-      }
+      let { data, error } = await fetchBookingsForUserIds(supabase, [user.id]);
 
       if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
       if ((!data || data.length === 0) && user.email) {
@@ -822,6 +756,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (!altQuery.error && altQuery.data) data = altQuery.data as any;
         }
       }
+      const businessById = await buildBusinessByIdMap(supabase, data || []);
       const bookings = (data || []).map((b: any) => ({
         ...b,
         status: deriveBookingStatus(b),
@@ -829,11 +764,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         completion_proof_note: b.completion_proof_note ?? b.completion_proof_message ?? null,
         completion_proof_photo_urls: b.completion_proof_photo_urls ?? b.completion_proof_photos ?? [],
         completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
-        business_name: b.businesses?.name ?? null,
-        business_phone: b.businesses?.phone ?? null,
-        business_email: b.businesses?.email ?? null,
-        business_stripe_onboarded: b.businesses?.stripe_onboarded ?? null,
-        business_stripe_account_id: b.businesses?.stripe_account_id ?? null,
+        business_name: b.businesses?.name ?? businessById[b.business_id]?.name ?? null,
+        business_phone: b.businesses?.phone ?? businessById[b.business_id]?.phone ?? null,
+        business_email: b.businesses?.email ?? businessById[b.business_id]?.email ?? null,
+        business_stripe_onboarded: b.businesses?.stripe_onboarded ?? businessById[b.business_id]?.stripe_onboarded ?? null,
+        business_stripe_account_id: b.businesses?.stripe_account_id ?? businessById[b.business_id]?.stripe_account_id ?? null,
         businesses: undefined,
       }));
       return res.status(200).json({ bookings });
