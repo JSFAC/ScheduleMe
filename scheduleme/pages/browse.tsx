@@ -35,6 +35,29 @@ function displayNameForCard(biz: Business): string {
   return isPreviewLocked(biz) ? 'Student provider' : (biz.name || 'Provider');
 }
 
+function RatingStars({ rating, size = 12 }: { rating: number; size?: number }) {
+  const safe = Math.max(0, Math.min(5, Number(rating) || 0));
+  return (
+    <div className="flex items-center gap-0.5" aria-label={`${safe.toFixed(1)} stars`}>
+      {[0, 1, 2, 3, 4].map((i) => {
+        const fill = Math.max(0, Math.min(1, safe - i));
+        return (
+          <div key={i} className="relative" style={{ width: size, height: size }}>
+            <svg className="absolute inset-0" width={size} height={size} viewBox="0 0 20 20" fill="#d1d5db">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+              <svg width={size} height={size} viewBox="0 0 20 20" fill="#facc15">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function renderCover(opts: {
   src?: string | null;
   name: string;
@@ -303,15 +326,9 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
             )}
           </div>
         )}
-          {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
+        {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
             <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="flex items-center gap-0.5">
-                {[1,2,3,4,5].map(i => (
-                  <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
+              <RatingStars rating={Number(biz.rating)} size={12} />
               <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
               <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
             </div>
@@ -800,13 +817,7 @@ function writeCoords(lat: number, lng: number) {
                         {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
 
                         <div className="flex items-center gap-1.5">
-                          <div className="flex items-center gap-0.5">
-                            {[1,2,3,4,5].map(i => (
-                              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? (dm ? 'text-neutral-300' : 'text-neutral-500') : (dm ? 'text-neutral-700' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            ))}
-                          </div>
+                          <RatingStars rating={Number(biz.rating)} size={12} />
                           <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
                           <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews} reviews)</span>
                         </div>

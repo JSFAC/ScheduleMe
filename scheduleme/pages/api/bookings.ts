@@ -95,6 +95,69 @@ function isMissingColumnError(err: any): boolean {
   return msg.includes('column') || msg.includes('does not exist') || details.includes('does not exist');
 }
 
+async function resolveUserIdsByEmail(supabase: ReturnType<typeof getSupabase>, email?: string | null): Promise<string[]> {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return [];
+  const ids = new Set<string>();
+  try {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .limit(50);
+    for (const p of profiles || []) {
+      if (typeof (p as any)?.id === 'string' && (p as any).id) ids.add((p as any).id);
+    }
+  } catch {}
+  try {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .limit(50);
+    for (const u of users || []) {
+      if (typeof (u as any)?.id === 'string' && (u as any).id) ids.add((u as any).id);
+    }
+  } catch {}
+  return Array.from(ids);
+}
+
+async function fetchBookingsForUserIds(
+  supabase: ReturnType<typeof getSupabase>,
+  userIds: string[]
+) {
+  const ids = (userIds || []).filter((v) => typeof v === 'string' && !!v);
+  if (ids.length === 0) return { data: [], error: null as any };
+
+  let query = supabase
+    .from('bookings')
+    .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
+    .in('user_id', ids)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  let result = await query;
+
+  if (result.error && isMissingColumnError(result.error)) {
+    result = await supabase
+      .from('bookings')
+      .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
+      .in('user_id', ids)
+      .order('created_at', { ascending: false })
+      .limit(100);
+  }
+
+  if (result.error && isMissingColumnError(result.error)) {
+    result = await supabase
+      .from('bookings')
+      .select('id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, businesses(name, phone, email, stripe_onboarded, stripe_account_id)')
+      .in('user_id', ids)
+      .order('created_at', { ascending: false })
+      .limit(100);
+  }
+
+  return result;
+}
+
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
   try {
     const { data: booking } = await supabase
@@ -635,6 +698,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+        if ((!data || data.length === 0) && user.email) {
+          const altIds = await resolveUserIdsByEmail(supabase, user.email);
+          const mergedIds = Array.from(new Set([String(user_id), user.id, ...altIds].filter(Boolean)));
+          if (mergedIds.length > 0) {
+            const altQuery = await fetchBookingsForUserIds(supabase, mergedIds);
+            if (!altQuery.error && altQuery.data) data = altQuery.data as any;
+          }
+        }
         const bookings = (data || []).map((b: any) => ({
           ...b,
           status: deriveBookingStatus(b),
@@ -729,6 +800,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+      if ((!data || data.length === 0) && user.email) {
+        const altIds = await resolveUserIdsByEmail(supabase, user.email);
+        const mergedIds = Array.from(new Set([user.id, ...altIds].filter(Boolean)));
+        if (mergedIds.length > 0) {
+          const altQuery = await fetchBookingsForUserIds(supabase, mergedIds);
+          if (!altQuery.error && altQuery.data) data = altQuery.data as any;
+        }
+      }
       const bookings = (data || []).map((b: any) => ({
         ...b,
         status: deriveBookingStatus(b),

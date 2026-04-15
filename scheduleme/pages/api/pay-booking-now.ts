@@ -132,13 +132,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // Web pay flow can charge and hold funds on-platform even if provider payouts are not fully reconnected yet.
-  // We only require a valid business record for attribution/notifications.
-  if (!biz?.id) {
-    return res.status(400).json({ error: 'Business details missing for this booking.' });
-  }
-
-  const feeBusiness: any = biz;
+  // Web pay flow can still proceed when legacy rows are missing business relation data.
+  const feeBusiness: any = biz || {};
+  const bizName = String(biz?.name || 'provider');
+  const bizId = String(biz?.id || booking.business_id || '');
+  const bizEmail = typeof biz?.email === 'string' ? biz.email : null;
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -227,12 +225,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       payment_method: paymentMethodId,
       confirm: true,
       off_session: true,
-      description: `ScheduleMe booking: ${booking.service || 'Service'} with ${biz.name || 'provider'}`,
+      description: `ScheduleMe booking: ${booking.service || 'Service'} with ${bizName}`,
       metadata: {
         bookingId: booking.id,
-        businessId: biz.id,
+        businessId: bizId,
         service: booking.service || '',
-        business_name: biz.name || '',
+        business_name: bizName,
         flow: 'upfront_pay_page',
         hold_in_platform: 'true',
         platform_fee_percent: String(platformFeePercent),
@@ -266,17 +264,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         to: user.email,
         name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0] || 'there',
         service: booking.service || 'Service',
-        businessName: biz.name || 'Your provider',
+        businessName: bizName || 'Your provider',
         amountDollars,
         scheduledAt: booking.scheduled_start || undefined,
         bookingId: booking.id,
       });
     }
-    if (biz.email) {
+    if (bizEmail) {
       await sendNotifyEmail({
         type: 'payment_notification_business',
-        to: biz.email,
-        businessName: biz.name || 'Your business',
+        to: bizEmail,
+        businessName: bizName || 'Your business',
         customerName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'A customer',
         service: booking.service || 'Service',
         amountDollars,
@@ -289,8 +287,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isCustomService) {
         await sendNotifyEmail({
           type: 'new_booking_business',
-          to: biz.email,
-          name: biz.name || 'Your business',
+          to: bizEmail,
+          name: bizName || 'Your business',
           service: booking.service || 'Service',
           customerName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'A customer',
           bookingId: booking.id,
