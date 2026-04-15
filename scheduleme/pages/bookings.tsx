@@ -115,11 +115,11 @@ interface Booking {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string; badgeBg: string; badgeText: string }> = {
-  pending:         { label: 'Pending Review',   bg: 'bg-emerald-50  border-emerald-100',  text: 'text-emerald-700',  dot: 'bg-emerald-500', barColor: '#10b981', badgeBg: 'rgba(16,185,129,0.12)', badgeText: '#047857' },
+  pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-200',  text: 'text-amber-700',  dot: 'bg-amber-500', barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.16)', badgeText: '#92400e' },
   price_disputed:  { label: 'Disputing Price',  bg: 'bg-amber-100   border-amber-200',    text: 'text-amber-800',    dot: 'bg-amber-500',   barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.18)', badgeText: '#92400e' },
   confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6', badgeBg: 'rgba(59,130,246,0.12)', badgeText: '#1d4ed8' },
   payment_pending: { label: 'Awaiting Payment',  bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6', badgeBg: 'rgba(139,92,246,0.12)', badgeText: '#5b21b6' },
-  paid:            { label: 'Paid Upfront',      bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
+  paid:            { label: 'Pending Review',    bg: 'bg-amber-50  border-amber-200',  text: 'text-amber-700',  dot: 'bg-amber-500', barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.16)', badgeText: '#92400e' },
   disputed:        { label: 'Disputed',          bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', barColor: '#d97706', badgeBg: 'rgba(217,119,6,0.12)', badgeText: '#92400e' },
   completed:       { label: 'Completed',         bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
   cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3', badgeBg: 'rgba(163,163,163,0.16)', badgeText: '#6b7280' },
@@ -430,11 +430,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
   }, []);
 
   async function handleCancelSubmit() {
-    const reason = cancelReason.trim();
-    if (!reason) {
-      setCancelErr('Please share why you are cancelling.');
-      return;
-    }
+    const reason = cancelReason.trim() || 'Cancelled by customer';
     setCancelling(true);
     setCancelErr('');
     try {

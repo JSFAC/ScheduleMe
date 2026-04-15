@@ -2142,12 +2142,6 @@ const BusinessDashboard: NextPage = () => {
                           New Stripe accounts may take up to 7 days for the first payout to arrive.
                         </p>
                       )}
-                      {business?.stripe_onboarded && payoutBalance && (
-                        <div className="flex items-center gap-3 mt-2 text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>
-                          <span>Available: {fmt(payoutBalance.available)}</span>
-                          <span>Pending: {fmt(payoutBalance.pending)}</span>
-                        </div>
-                      )}
                       {stripeShowsZeroButHeld && (
                         <p className="text-[11px] mt-1" style={{ color: dm ? '#fbbf24' : '#b45309' }}>
                           Stripe shows $0 because funds are still held in-platform until provider confirmation/completion.
@@ -2449,7 +2443,7 @@ const BusinessDashboard: NextPage = () => {
                                   </span>
                                 </div>
                               )}
-                              {b.status !== 'confirmed' && b.paid_at && (
+                              {b.status !== 'confirmed' && b.status !== 'paid' && b.paid_at && (
                                 <span className="text-xs font-bold text-emerald-600 px-1">
                                   ✓ Payment secured
                                   {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}

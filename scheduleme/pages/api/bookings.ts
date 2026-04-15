@@ -412,7 +412,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ownerEmail = ((booking.businesses as any)?.owner_email || '').toLowerCase().trim();
     const userEmail = (user.email || '').toLowerCase().trim();
     const isBusinessOwner = ownerID === user.id || (!ownerID && !!ownerEmail && !!userEmail && ownerEmail === userEmail);
-    const isCustomer = booking.user_id === user.id;
+    let isCustomer = booking.user_id === user.id;
+    if (!isCustomer && booking.user_id && user.email) {
+      const altIds = await resolveUserIdsByEmail(supabase, user.email);
+      if (altIds.length > 0) isCustomer = altIds.includes(String(booking.user_id));
+    }
+    if (!isCustomer) {
+      const consumerEmail = ((booking.profiles as any)?.email || '').toLowerCase().trim();
+      if (consumerEmail && userEmail) isCustomer = consumerEmail === userEmail;
+    }
     const consumer = booking.profiles as any;
     const businessName = (booking.businesses as any)?.name || 'Your provider';
 
