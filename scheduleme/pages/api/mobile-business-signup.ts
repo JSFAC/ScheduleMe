@@ -161,36 +161,67 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .replace(/[^a-z0-9 ]/g, '')
       .replace(/\s+/g, '_');
 
-    const { data, error } = await supabase
-      .from('businesses')
-      .insert({
-        name: cleanBusinessName,
-        slug,
-        description: `${categoryForDescription} service in ${cleanCity}`,
-        address: cleanCity,
-        lat: geo?.lat ?? null,
-        lng: geo?.lng ?? null,
-        service_tags: [serviceTag || 'other'],
-        keywords: [categoryLabel.toLowerCase(), cleanOwnerName.toLowerCase()].filter(Boolean),
-        rating: 0,
-        website: website || null,
-        instagram: instagram || null,
-        phone: phone || null,
-        owner_name: cleanOwnerName,
-        owner_email: email,
-        is_onboarded: false,
+    const baseInsert: Record<string, unknown> = {
+      name: cleanBusinessName,
+      slug,
+      description: `${categoryForDescription} service in ${cleanCity}`,
+      address: cleanCity,
+      lat: geo?.lat ?? null,
+      lng: geo?.lng ?? null,
+      service_tags: [serviceTag || 'other'],
+      keywords: [categoryLabel.toLowerCase(), cleanOwnerName.toLowerCase()].filter(Boolean),
+      rating: 0,
+      website: website || null,
+      instagram: instagram || null,
+      phone: phone || null,
+      owner_name: cleanOwnerName,
+      owner_email: email,
+      is_onboarded: false,
+    };
+
+    const payloadCandidates: Record<string, unknown>[] = [
+      {
+        ...baseInsert,
         campus_provider: campusProvider,
         campus_school_name: campusProvider ? schoolName.slice(0, 100) : null,
-      })
-      .select('id')
-      .single();
+      },
+      {
+        ...baseInsert,
+        school_domain: campusProvider ? schoolName.slice(0, 100) : null,
+      },
+      baseInsert,
+    ];
 
-    if (error) {
-      if (error.code === '23505') return res.status(409).json({ error: 'A business with this email already exists' });
-      return res.status(500).json({ error: 'Failed to submit application' });
+    let insertedID: string | null = null;
+    let lastInsertError: any = null;
+
+    for (const candidate of payloadCandidates) {
+      const { data, error } = await supabase
+        .from('businesses')
+        .insert(candidate)
+        .select('id')
+        .single();
+
+      if (!error && data?.id) {
+        insertedID = data.id;
+        break;
+      }
+
+      lastInsertError = error;
+      if (error?.code === '23505') {
+        return res.status(409).json({ error: 'A business with this email already exists' });
+      }
     }
 
-    return res.status(200).json({ success: true, businessId: data.id });
+    if (!insertedID) {
+      const message =
+        (lastInsertError?.message as string | undefined) ||
+        (lastInsertError?.details as string | undefined) ||
+        'Failed to submit application';
+      return res.status(500).json({ error: message });
+    }
+
+    return res.status(200).json({ success: true, businessId: insertedID });
   } catch (error) {
     console.error('[mobile-business-signup]', error);
     return res.status(500).json({ error: 'Internal server error' });
