@@ -157,11 +157,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: existingByEmail } = await supabase
       .from('businesses')
       .select('id')
-      .eq('owner_email', email)
+      .ilike('owner_email', email)
       .limit(1)
       .maybeSingle();
     if (existingByEmail?.id) {
-      return res.status(200).json({ success: true, businessId: existingByEmail.id });
+      return res.status(409).json({ error: 'A business with this email already exists' });
     }
 
     const geo = await geocodeLocation(cleanCity);
