@@ -21,21 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = getSupabase();
-    const { data: profileData, error } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('edu_verified, school_domain, school_email, campus_key')
       .eq('id', user.id)
       .maybeSingle();
-
-    if (error) {
-      return res.status(200).json({
-        verified: false,
-        edu_verified: false,
-        school_domain: null,
-        school_email: null,
-        campus_key: null,
-      });
-    }
 
     const { data: businessData } = await supabase
       .from('businesses')
