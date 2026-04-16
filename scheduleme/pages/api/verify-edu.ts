@@ -93,6 +93,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!school_email || !isValidEmail(school_email)) return res.status(400).json({ error: 'Valid .edu email required' });
   const normalizedSchoolEmail = String(school_email).trim().toLowerCase();
   if (!normalizedSchoolEmail.endsWith('.edu')) return res.status(400).json({ error: 'Must be a .edu email address' });
+  const { data: ownBusiness } = await supabase
+    .from('businesses')
+    .select('id')
+    .eq('owner_id', user.id)
+    .maybeSingle();
 
   const { data: _existEdu, error: _existEduErr } = await supabase
     .from('profiles')
@@ -108,6 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from('businesses')
     .select('id')
     .eq('school_email', normalizedSchoolEmail)
+    .neq('id', ownBusiness?.id ?? '')
     .limit(1)
     .maybeSingle();
   if (_existBizErr) return res.status(500).json({ error: 'Unable to validate school email uniqueness.' });
@@ -118,10 +124,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: biz } = await supabase.from('businesses').select('id, school_domain').eq('owner_id', user.id).maybeSingle();
     if (!biz) return res.status(404).json({ error: 'Business account not found' });
     if (!biz.school_domain) return res.status(400).json({ error: 'Your business was not approved for campus listing. Contact support.' });
-    if (submittedDomain !== biz.school_domain) return res.status(400).json({ error: `This email doesn't match your approved school (${biz.school_domain}). Use your ${biz.school_domain} email address.` });
+    if (submittedDomain !== biz.school_domain) {
+      return res.status(400).json({ error: `Email did not match listed school domain (${biz.school_domain}). Contact support.` });
+    }
     const verifyCode = generate6DigitCode();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    await supabase.from('businesses').update({ edu_code: verifyCode, edu_code_expires_at: expiresAt }).eq('id', biz.id);
+    await supabase
+      .from('businesses')
+      .update({
+        school_email: normalizedSchoolEmail,
+        edu_code: verifyCode,
+        edu_code_expires_at: expiresAt,
+      })
+      .eq('id', biz.id);
     await sendVerificationEmail(normalizedSchoolEmail, verifyCode, getResend());
     return res.status(200).json({ success: true, message: `Code sent to ${normalizedSchoolEmail}` });
   } else {
