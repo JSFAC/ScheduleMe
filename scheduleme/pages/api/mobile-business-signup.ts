@@ -95,6 +95,40 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function normalizeCampusSchoolName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+
+  const collapsed = trimmed.replace(/\s+/g, ' ');
+  const lower = collapsed.toLowerCase();
+
+  const known: Record<string, string> = {
+    ucsc: 'UCSC',
+    ucla: 'UCLA',
+    ucsb: 'UCSB',
+    ucsd: 'UCSD',
+    ucd: 'UCD',
+    'uc davis': 'UC Davis',
+    sjsu: 'SJSU',
+    sfsu: 'SFSU',
+    nyu: 'NYU',
+    usc: 'USC',
+    mit: 'MIT',
+    'ucla extension': 'UCLA Extension',
+  };
+  if (known[lower]) return known[lower];
+
+  if (/^[a-z]{2,6}$/.test(lower)) return lower.toUpperCase();
+
+  return collapsed
+    .split(' ')
+    .map((part) => {
+      if (/^[A-Za-z]+$/.test(part) && part.length <= 4) return part.toUpperCase();
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
 async function resolveOwnerIdForEmail(supabase: ReturnType<typeof getSupabase>, email: string): Promise<string | null> {
   const normalizedEmail = email.trim().toLowerCase();
   const redirectBase = (process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com').replace(/\/+$/, '');
@@ -168,6 +202,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const categoryLabel = toCategoryLabel(serviceCategoryInput);
   if (!categoryLabel) return res.status(400).json({ error: 'Invalid service category' });
   const categoryForDescription = categoryLabel === 'Other' && otherCategoryInput ? otherCategoryInput : categoryLabel;
+  const normalizedSchoolName = normalizeCampusSchoolName(schoolName);
 
   const nameCheck = validateAndFilter(businessName, { maxLength: 100, fieldName: 'Business name' });
   if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
@@ -233,11 +268,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       {
         ...baseInsert,
         campus_provider: campusProvider,
-        campus_school_name: campusProvider ? schoolName.slice(0, 100) : null,
+        campus_school_name: campusProvider ? normalizedSchoolName.slice(0, 100) : null,
       },
       {
         ...baseInsert,
-        school_domain: campusProvider ? schoolName.slice(0, 100) : null,
+        school_domain: campusProvider ? normalizedSchoolName.slice(0, 100) : null,
       },
       baseInsert,
     ];
