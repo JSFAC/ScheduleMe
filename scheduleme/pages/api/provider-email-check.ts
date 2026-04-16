@@ -24,14 +24,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data } = await supabase
       .from('businesses')
-      .select('id')
+      .select('id, is_onboarded')
       .ilike('owner_email', email)
       .limit(1)
       .maybeSingle();
 
-    return res.status(200).json({ exists: !!data?.id });
+    const exists = !!data?.id;
+    const status = !exists
+      ? null
+      : data?.is_onboarded === true
+        ? 'approved'
+        : 'pending';
+
+    return res.status(200).json({ exists, status });
   } catch {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-

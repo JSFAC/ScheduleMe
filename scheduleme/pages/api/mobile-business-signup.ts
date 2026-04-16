@@ -7,6 +7,7 @@ import {
   isValidPhone,
 } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
+import { sendNewBusinessApplicationEmail } from '../../lib/email';
 
 type MobileBusinessSignupBody = {
   businessName?: string;
@@ -305,6 +306,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         'Failed to submit application';
       return res.status(500).json({ error: message });
     }
+
+    const adminNotificationEmail =
+      process.env.NEW_PROVIDER_APPLICATION_EMAIL ||
+      process.env.PROVIDER_APPLICATION_ALERT_EMAIL ||
+      'usescheduleme@gmail.com';
+    sendNewBusinessApplicationEmail({
+      to: adminNotificationEmail,
+      name: cleanBusinessName,
+      ownerName: cleanOwnerName,
+      email,
+      phone: phone || 'not provided',
+      category: categoryForDescription,
+      city: cleanCity,
+      campusProvider,
+      schoolName: campusProvider ? normalizedSchoolName : undefined,
+    }).catch((notifyError) => {
+      console.error('[mobile-business-signup] admin notify failed', notifyError);
+    });
 
     return res.status(200).json({ success: true, businessId: insertedID });
   } catch (error) {
