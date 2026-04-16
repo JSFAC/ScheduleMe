@@ -99,20 +99,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('owner_id', user.id)
     .maybeSingle();
 
-  const { data: _existEdu, error: _existEduErr } = await supabase
-    .from('profiles')
-    .select('id, edu_verified')
-    .eq('school_email', normalizedSchoolEmail)
-    .neq('id', user.id)
-    .limit(1)
-    .maybeSingle();
-  if (_existEduErr) return res.status(500).json({ error: 'Unable to validate school email uniqueness.' });
-  if (_existEdu) {
-    return res.status(409).json({
-      error: _existEdu.edu_verified
-        ? 'This .edu email is already linked to another verified user account.'
-        : 'This .edu email is already linked to another user account (consumer or provider).',
-    });
+  if (account_type !== 'business') {
+    const { data: _existEdu, error: _existEduErr } = await supabase
+      .from('profiles')
+      .select('id, edu_verified')
+      .eq('school_email', normalizedSchoolEmail)
+      .neq('id', user.id)
+      .limit(1)
+      .maybeSingle();
+    if (_existEduErr) return res.status(500).json({ error: 'Unable to validate school email uniqueness.' });
+    if (_existEdu) {
+      return res.status(409).json({
+        error: _existEdu.edu_verified
+          ? 'This .edu email is already linked to another verified user account.'
+          : 'This .edu email is already linked to another user account.',
+      });
+    }
   }
 
   const { data: _existBiz, error: _existBizErr } = await supabase
