@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'crypto';
 import {
   setSecurityHeaders,
   rateLimit,
@@ -96,19 +95,49 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
-function stableOwnerIdFromEmail(email: string): string {
-  const hex = createHash('sha256')
-    .update(`scheduleme-provider:${email.trim().toLowerCase()}`)
-    .digest('hex')
-    .slice(0, 32)
-    .split('');
+async function resolveOwnerIdForEmail(supabase: ReturnType<typeof getSupabase>, email: string): Promise<string | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const redirectBase = (process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com').replace(/\/+$/, '');
 
-  hex[12] = '4';
-  const variantNibble = parseInt(hex[16], 16);
-  hex[16] = ((variantNibble & 0x3) | 0x8).toString(16);
+  const findProfileOwnerId = async (): Promise<string | null> => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .limit(1)
+      .maybeSingle();
+    return typeof data?.id === 'string' ? data.id : null;
+  };
 
-  const compact = hex.join('');
-  return `${compact.slice(0, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}-${compact.slice(16, 20)}-${compact.slice(20, 32)}`;
+  const existingOwnerId = await findProfileOwnerId();
+  if (existingOwnerId) return existingOwnerId;
+
+  const { data: magicLinkData } = await supabase.auth.admin.generateLink({
+    type: 'magiclink',
+    email: normalizedEmail,
+    options: {
+      redirectTo: `${redirectBase}/business/dashboard`,
+    },
+  });
+
+  const magicLinkUserId =
+    (magicLinkData as any)?.user?.id ??
+    (magicLinkData as any)?.properties?.user?.id ??
+    null;
+  if (typeof magicLinkUserId === 'string' && magicLinkUserId.length > 0) {
+    return magicLinkUserId;
+  }
+
+  const { data: createdUser } = await supabase.auth.admin.createUser({
+    email: normalizedEmail,
+    email_confirm: false,
+  });
+  const createdUserId = (createdUser as any)?.user?.id;
+  if (typeof createdUserId === 'string' && createdUserId.length > 0) {
+    return createdUserId;
+  }
+
+  return await findProfileOwnerId();
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -156,17 +185,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = getSupabase();
-    const ownerId = stableOwnerIdFromEmail(email);
-
-    const { data: existingByOwner } = await supabase
-      .from('businesses')
-      .select('id')
-      .eq('owner_id', ownerId)
-      .limit(1)
-      .maybeSingle();
-    if (existingByOwner?.id) {
-      return res.status(409).json({ error: 'A business with this email already exists' });
-    }
 
     const { data: existingByEmail } = await supabase
       .from('businesses')
@@ -176,6 +194,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .maybeSingle();
     if (existingByEmail?.id) {
       return res.status(409).json({ error: 'A business with this email already exists' });
+    }
+    const ownerId = await resolveOwnerIdForEmail(supabase, email);
+    if (!ownerId) {
+      return res.status(500).json({ error: 'Unable to provision account for this email. Please try again.' });
     }
 
     const geo = await geocodeLocation(cleanCity);
