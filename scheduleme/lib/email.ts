@@ -740,12 +740,12 @@ export async function sendStatusUpdate(opts: {
 }
 
 export async function sendBusinessApprovalEmail(opts: {
-  to: string; ownerName: string; businessName: string; magicLink: string;
+  to: string; ownerName: string; businessName: string; magicLink: string; passwordSetupLink?: string;
 }) {
   const resend = getResend();
   const encodedEmail = encodeURIComponent(opts.to);
   const googleLoginUrl = `${SITE_URL}/business/auth/login?method=google&email=${encodedEmail}`;
-  const passwordSetupUrl = `${SITE_URL}/business/auth/login?setup=password&email=${encodedEmail}`;
+  const passwordSetupUrl = opts.passwordSetupLink || `${SITE_URL}/business/auth/login?setup=password&email=${encodedEmail}`;
   const body = `
     <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
       <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">You&rsquo;re approved! 🎉</h1>

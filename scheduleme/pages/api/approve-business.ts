@@ -131,7 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Generate a magic link for them to set up their account
+    // Generate sign-in link + dedicated first-time password setup link
     const { data: magicLinkData, error: magicError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: business.owner_email,
@@ -145,12 +145,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to generate magic link' });
     }
 
+    const { data: passwordSetupData, error: passwordSetupError } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: business.owner_email,
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/business/auth/set-password`,
+      },
+    });
+    if (passwordSetupError || !passwordSetupData) {
+      console.error('[approve-business] Password setup link error:', passwordSetupError);
+      return res.status(500).json({ error: 'Failed to generate password setup link' });
+    }
+
     // Send approval email with magic link
     await sendBusinessApprovalEmail({
       to: business.owner_email,
       ownerName: business.owner_name ?? 'there',
       businessName: business.name,
       magicLink: magicLinkData.properties?.action_link ?? `${process.env.NEXT_PUBLIC_SITE_URL}/business/auth/login`,
+      passwordSetupLink: passwordSetupData.properties?.action_link || undefined,
     });
 
     console.log(`[approve-business] Approved ${business.name} (${business.owner_email})`);

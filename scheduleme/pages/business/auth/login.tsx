@@ -28,7 +28,7 @@ const BusinessLoginPage: NextPage = () => {
   const captchaRef = useRef<HTMLDivElement | null>(null);
   const isDark = true;
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
-  const captchaRequired = !!siteKey && failedCount >= 3;
+  const captchaRequired = !!siteKey && (failedCount >= 3 || mode === 'reset');
 
   // Read error from query string (set by /auth/callback)
   useEffect(() => {
@@ -183,7 +183,8 @@ const BusinessLoginPage: NextPage = () => {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/business/dashboard`,
+          redirectTo: `${window.location.origin}/business/auth/set-password`,
+          ...(captchaToken ? { captchaToken } : {}),
         });
         if (error) throw error;
         setSuccess('Check your email for a reset link.');
