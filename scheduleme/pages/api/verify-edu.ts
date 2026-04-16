@@ -101,29 +101,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: _existEdu, error: _existEduErr } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, edu_verified')
     .eq('school_email', normalizedSchoolEmail)
     .neq('id', user.id)
     .limit(1)
     .maybeSingle();
   if (_existEduErr) return res.status(500).json({ error: 'Unable to validate school email uniqueness.' });
-  if (_existEdu) return res.status(409).json({ error: 'This .edu email is already linked to another account.' });
+  if (_existEdu) {
+    return res.status(409).json({
+      error: _existEdu.edu_verified
+        ? 'This .edu email is already linked to another verified user account.'
+        : 'This .edu email is already linked to another user account (consumer or provider).',
+    });
+  }
 
   const { data: _existBiz, error: _existBizErr } = await supabase
     .from('businesses')
-    .select('id')
+    .select('id, edu_verified')
     .eq('school_email', normalizedSchoolEmail)
     .neq('id', ownBusiness?.id ?? '')
     .limit(1)
     .maybeSingle();
   if (_existBizErr) return res.status(500).json({ error: 'Unable to validate school email uniqueness.' });
-  if (_existBiz) return res.status(409).json({ error: 'This .edu email is already linked to a business account.' });
+  if (_existBiz) {
+    return res.status(409).json({
+      error: _existBiz.edu_verified
+        ? 'This .edu email is already linked to another verified provider account.'
+        : 'This .edu email is already linked to another provider account.',
+    });
+  }
   const submittedDomain = extractDomain(normalizedSchoolEmail);
 
   if (account_type === 'business') {
-    const { data: biz } = await supabase.from('businesses').select('id, school_domain').eq('owner_id', user.id).maybeSingle();
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('id, school_domain, campus_provider, campus_school_name')
+      .eq('owner_id', user.id)
+      .maybeSingle();
     if (!biz) return res.status(404).json({ error: 'Business account not found' });
-    if (!biz.school_domain) return res.status(400).json({ error: 'Your business was not approved for campus listing. Contact support.' });
+    if (!biz.school_domain) {
+      if (biz.campus_provider === true) {
+        return res.status(400).json({
+          error: 'Campus listing is still pending approval. Your approved school domain is not set yet. Contact support.',
+        });
+      }
+      return res.status(400).json({
+        error: 'Your business is not enabled for campus listing. Contact support.',
+      });
+    }
     if (submittedDomain !== biz.school_domain) {
       return res.status(400).json({ error: `Email did not match listed school domain (${biz.school_domain}). Contact support.` });
     }

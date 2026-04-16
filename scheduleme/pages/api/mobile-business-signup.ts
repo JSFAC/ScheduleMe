@@ -273,7 +273,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       {
         ...baseInsert,
-        school_domain: campusProvider ? normalizedSchoolName.slice(0, 100) : null,
+        // Legacy fallback payload for older schemas: never set school_domain from school name.
+        // school_domain must be an approved domain like "ucsc.edu" and is set during admin approval.
+        school_domain: null,
       },
       baseInsert,
     ];
