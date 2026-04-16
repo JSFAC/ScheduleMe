@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
 import {
   setSecurityHeaders,
   rateLimit,
-  requireAuth,
   isValidEmail,
   isValidPhone,
 } from '../../lib/apiSecurity';
@@ -96,12 +96,25 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function stableOwnerIdFromEmail(email: string): string {
+  const hex = createHash('sha256')
+    .update(`scheduleme-provider:${email.trim().toLowerCase()}`)
+    .digest('hex')
+    .slice(0, 32)
+    .split('');
+
+  hex[12] = '4';
+  const variantNibble = parseInt(hex[16], 16);
+  hex[16] = ((variantNibble & 0x3) | 0x8).toString(16);
+
+  const compact = hex.join('');
+  return `${compact.slice(0, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}-${compact.slice(16, 20)}-${compact.slice(20, 32)}`;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!(await rateLimit(req, res, { max: 10, windowMs: 60 * 60_000, keyPrefix: 'mobile-biz-signup' }))) return;
-  const auth = await requireAuth(req, res);
-  if (!auth) return;
 
   const body = (req.body ?? {}) as MobileBusinessSignupBody;
   const businessName = normalizeText(body.businessName);
@@ -143,15 +156,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = getSupabase();
+    const ownerId = stableOwnerIdFromEmail(email);
 
     const { data: existingByOwner } = await supabase
       .from('businesses')
       .select('id')
-      .eq('owner_id', auth.id)
+      .eq('owner_id', ownerId)
       .limit(1)
       .maybeSingle();
     if (existingByOwner?.id) {
-      return res.status(200).json({ success: true, businessId: existingByOwner.id });
+      return res.status(409).json({ error: 'A business with this email already exists' });
     }
 
     const { data: existingByEmail } = await supabase
@@ -189,7 +203,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       phone: phone || null,
       owner_name: cleanOwnerName,
       owner_email: email,
-      owner_id: auth.id,
+      owner_id: ownerId,
       is_onboarded: false,
     };
 
