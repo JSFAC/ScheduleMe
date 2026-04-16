@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   setSecurityHeaders,
   rateLimit,
+  requireAuth,
   isValidEmail,
   isValidPhone,
 } from '../../lib/apiSecurity';
@@ -99,6 +100,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!(await rateLimit(req, res, { max: 10, windowMs: 60 * 60_000, keyPrefix: 'mobile-biz-signup' }))) return;
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
 
   const body = (req.body ?? {}) as MobileBusinessSignupBody;
   const businessName = normalizeText(body.businessName);
@@ -141,6 +144,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const supabase = getSupabase();
 
+    const { data: existingByOwner } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', auth.id)
+      .limit(1)
+      .maybeSingle();
+    if (existingByOwner?.id) {
+      return res.status(200).json({ success: true, businessId: existingByOwner.id });
+    }
+
     const { data: existingByEmail } = await supabase
       .from('businesses')
       .select('id')
@@ -176,6 +189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       phone: phone || null,
       owner_name: cleanOwnerName,
       owner_email: email,
+      owner_id: auth.id,
       is_onboarded: false,
     };
 
