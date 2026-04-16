@@ -743,6 +743,9 @@ export async function sendBusinessApprovalEmail(opts: {
   to: string; ownerName: string; businessName: string; magicLink: string;
 }) {
   const resend = getResend();
+  const encodedEmail = encodeURIComponent(opts.to);
+  const googleLoginUrl = `${SITE_URL}/business/auth/login?method=google&email=${encodedEmail}`;
+  const passwordSetupUrl = `${SITE_URL}/business/auth/login?setup=password&email=${encodedEmail}`;
   const body = `
     <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
       <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">You&rsquo;re approved! 🎉</h1>
@@ -763,7 +766,7 @@ export async function sendBusinessApprovalEmail(opts: {
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 16px;width:100%;max-width:360px;">
         <tr><td bgcolor="#1d4ed8" style="background:#1d4ed8;border-radius:12px;text-align:center;">
-          <a href="${opts.magicLink}" style="display:block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
+          <a href="${googleLoginUrl}" style="display:block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
             Sign In with Google →
           </a>
         </td></tr>
@@ -777,11 +780,14 @@ export async function sendBusinessApprovalEmail(opts: {
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px;width:100%;max-width:360px;">
         <tr><td style="border:2px solid #1d4ed8;border-radius:12px;text-align:center;">
-          <a href="${SITE_URL}/business/auth/login?setup=password&email=${encodeURIComponent(opts.to)}" style="display:block;padding:14px 40px;font-size:15px;font-weight:700;color:#1d4ed8;text-decoration:none;letter-spacing:-0.01em;">
+          <a href="${passwordSetupUrl}" style="display:block;padding:14px 40px;font-size:15px;font-weight:700;color:#1d4ed8;text-decoration:none;letter-spacing:-0.01em;">
             Create a Password Instead
           </a>
         </td></tr>
       </table>
+      <p style="margin:0 0 12px;font-size:12px;color:#94a3b8;text-align:center;">
+        Prefer one-tap sign-in? <a href="${opts.magicLink}" style="color:#1d4ed8;">Use this secure link</a>.
+      </p>
       <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">Sign-in link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:#1d4ed8;">${SITE_URL}/business/auth/login</a></p>
       <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Questions? Reply to this email or contact <a href="mailto:hello@usescheduleme.com" style="color:#1d4ed8;">hello@usescheduleme.com</a></p>
     </td></tr>

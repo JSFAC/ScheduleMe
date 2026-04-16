@@ -38,6 +38,7 @@ const BusinessLoginPage: NextPage = () => {
     }
   }, [router.query.error, router]);
   const [success, setSuccess] = useState<string | null>(null);
+  const [autoGoogleStarted, setAutoGoogleStarted] = useState(false);
 
   async function findBusinessForSession(session: any) {
     const supabase = getSupabase();
@@ -129,6 +130,24 @@ const BusinessLoginPage: NextPage = () => {
       }
     });
   }, [router]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const queryEmail = typeof router.query.email === 'string' ? router.query.email : '';
+    const method = typeof router.query.method === 'string' ? router.query.method : '';
+    const setup = typeof router.query.setup === 'string' ? router.query.setup : '';
+
+    if (queryEmail) setEmail(queryEmail);
+    if (setup === 'password') {
+      setMode('reset');
+      setShowEmail(false);
+      return;
+    }
+    if (method === 'google' && !autoGoogleStarted) {
+      setAutoGoogleStarted(true);
+      handleGoogle();
+    }
+  }, [router.isReady, router.query.email, router.query.method, router.query.setup, autoGoogleStarted]);
 
   async function handleGoogle() {
     const supabase = getSupabase();
