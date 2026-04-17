@@ -4,73 +4,17 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useRef, useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { useEffect, useState } from 'react';
 import Nav from '../components/Nav';
 import ReviewModal from '../components/ReviewModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
-import { getSupabaseClient } from '../lib/supabaseClient';
-import { PROTECTION_FEE_CENTS } from '../lib/fees';
-import { issuePaymentAccessTicket } from '../lib/paymentAccess';
+import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
+import { createClient } from '@supabase/supabase-js';
 
 
 function getSupabase() {
-  return getSupabaseClient();
-}
-
-const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-
-function isRealCover(src?: string | null): boolean {
-  return !!src && src !== TRANSPARENT_PIXEL;
-}
-
-function initials(name: string): string {
-  return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
-
-function renderCover(opts: {
-  src?: string | null;
-  name: string;
-  className: string;
-  style?: any;
-  fallbackClassName?: string;
-  fallbackStyle?: any;
-  showLabel?: boolean;
-  label?: string;
-}) {
-  if (isRealCover(opts.src)) {
-    return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} />;
-  }
-  return (
-    <div className={opts.fallbackClassName || 'flex items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
-      <span className="text-xs font-bold" style={{ color: '#6b7280' }}>{initials(opts.name)}</span>
-    </div>
-  );
-}
-
-function RatingStars({ rating, size = 10 }: { rating: number; size?: number }) {
-  const safe = Math.max(0, Math.min(5, Number(rating) || 0));
-  return (
-    <div className="flex items-center gap-0.5" aria-label={`${safe.toFixed(1)} stars`}>
-      {[0, 1, 2, 3, 4].map((i) => {
-        const fill = Math.max(0, Math.min(1, safe - i));
-        return (
-          <div key={i} className="relative" style={{ width: size, height: size }}>
-            <svg className="absolute inset-0" width={size} height={size} viewBox="0 0 20 20" fill="#d1d5db">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-            <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
-              <svg width={size} height={size} viewBox="0 0 20 20" fill="#facc15">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
 interface Booking {
@@ -80,69 +24,39 @@ interface Booking {
   status: string;
   created_at: string;
   scheduled_at?: string;
-  scheduled_exact?: boolean | null;
   address?: string;
-  note?: string; notes?: string;
+  notes?: string;
   business_name?: string;
   business_phone?: string;
   business_email?: string;
-  business_id?: string;
-  business_stripe_onboarded?: boolean | null;
-  business_stripe_account_id?: string | null;
   amount_cents?: number;
-  protection_fee_cents?: number | null;
   paid_at?: string;
-  stripe_payment_method_id?: string;
-  stripe_customer_id?: string;
-  stripe_setup_intent_id?: string;
-  reviewed?: boolean;
-  customer_proposed_price_cents?: number | null;
-  provider_proposed_price_cents?: number | null;
-  price_accepted_by_customer?: boolean | null;
-  price_accepted_by_provider?: boolean | null;
-  price_accepted_at?: string | null;
-  dispute_amount_cents?: number | null;
-  dispute_note?: string | null;
-  consumer_confirmation_due_at?: string | null;
-  completion_proof_note?: string | null;
-  completion_proof_photo_urls?: string[] | null;
+  consumer_confirmation_due_at?: string;
+  completion_proof_note?: string;
+  completion_proof_photo_urls?: string[];
+  completion_proof_submitted_at?: string;
   completion_proof_geo_metadata?: any;
-  completion_proof_submitted_at?: string | null;
-  disputed_at?: string | null;
-  dispute_reason?: string | null;
-  dispute_details?: string | null;
-  dispute_media_urls?: string[] | null;
+  disputed_at?: string;
+  dispute_reason?: string;
+  dispute_details?: string;
+  dispute_media_urls?: string[];
 }
+const PROTECTION_FEE_CENTS = 99;
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string; badgeBg: string; badgeText: string }> = {
-  pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-200',  text: 'text-amber-700',  dot: 'bg-amber-500', barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.16)', badgeText: '#92400e' },
-  price_disputed:  { label: 'Disputing Price',  bg: 'bg-amber-100   border-amber-200',    text: 'text-amber-800',    dot: 'bg-amber-500',   barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.18)', badgeText: '#92400e' },
-  confirmed:       { label: 'Confirmed',         bg: 'bg-blue-50   border-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',  barColor: '#3b82f6', badgeBg: 'rgba(59,130,246,0.12)', badgeText: '#1d4ed8' },
-  payment_pending: { label: 'Awaiting Payment',  bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6', badgeBg: 'rgba(139,92,246,0.12)', badgeText: '#5b21b6' },
-  paid:            { label: 'Pending Review',    bg: 'bg-amber-50  border-amber-200',  text: 'text-amber-700',  dot: 'bg-amber-500', barColor: '#f59e0b', badgeBg: 'rgba(245,158,11,0.16)', badgeText: '#92400e' },
-  disputed:        { label: 'Disputed',          bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', barColor: '#d97706', badgeBg: 'rgba(217,119,6,0.12)', badgeText: '#92400e' },
-  completed:       { label: 'Completed',         bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e', badgeBg: 'rgba(34,197,94,0.12)', badgeText: '#15803d' },
-  cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3', badgeBg: 'rgba(163,163,163,0.16)', badgeText: '#6b7280' },
-  payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444', badgeBg: 'rgba(239,68,68,0.12)', badgeText: '#b91c1c' },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
+  pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-400', barColor: '#f59e0b' },
+  confirmed:       { label: 'Confirmed',         bg: 'bg-accent-light   border-accent/20',   text: 'text-accent',   dot: 'bg-accent-light0',  barColor: '#0F766E' },
+  payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6' },
+  paid:            { label: 'Paid',              bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e' },
+  awaiting_consumer_confirmation: { label: 'Awaiting Your Confirmation', bg: 'bg-indigo-50 border-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500', barColor: '#6366f1' },
+  disputed:       { label: 'Disputed',           bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', barColor: '#d97706' },
+  completed:       { label: 'Completed',         bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e' },
+  cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3' },
+  payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444' },
 };
 
-const STEPS = ['pending', 'confirmed', 'paid', 'completed'];
-const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Done'];
-const STEPS_NO_PAID = ['pending', 'confirmed', 'completed'];
-const STEP_LABELS_NO_PAID = ['Submitted', 'Confirmed', 'Done'];
-
-function shouldShowPaidStep(booking: Booking): boolean {
-  const serviceLabel = String(booking.service || '').toLowerCase();
-  const isCustomFlow = serviceLabel.includes('custom')
-    || booking.status === 'payment_pending'
-    || booking.status === 'price_disputed'
-    || !!booking.customer_proposed_price_cents
-    || !!booking.provider_proposed_price_cents
-    || !!booking.dispute_amount_cents;
-  return isCustomFlow;
-}
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+const STEPS = ['pending', 'confirmed', 'paid', 'awaiting_consumer_confirmation', 'completed'];
+const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Review', 'Done'];
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -160,97 +74,6 @@ function formatDateLong(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function formatTimeUntil(iso: string) {
-  const target = new Date(iso).getTime();
-  const now = Date.now();
-  const diff = target - now;
-  if (!Number.isFinite(diff)) return '';
-  if (diff <= 0) return 'Now';
-  const mins = Math.round(diff / 60000);
-  if (mins < 60) return `in ${mins}m`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `in ${hrs}h`;
-  const days = Math.round(hrs / 24);
-  return `in ${days}d`;
-}
-
-function formatShortDateTime(iso: string) {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  return `${date} · ${time}`;
-}
-
-function formatBusinessName(name?: string | null): string | null {
-  if (!name) return null;
-  const cleaned = String(name).trim();
-  if (!cleaned) return null;
-  if (cleaned.toLowerCase() === 'provider pending') return null;
-  return cleaned;
-}
-
-function normalizeBookings(list: any[]): Booking[] {
-  return (list || []).map((b: any) => {
-    const businessName = b.business_name ?? b.businesses?.name ?? b.business?.name ?? null;
-    const businessId = b.business_id ?? b.businesses?.id ?? b.business?.id ?? null;
-    const businessPhone = b.business_phone ?? b.businesses?.phone ?? b.business?.phone ?? null;
-    const businessEmail = b.business_email ?? b.businesses?.email ?? b.business?.email ?? null;
-    const businessStripeOnboarded = b.business_stripe_onboarded ?? b.businesses?.stripe_onboarded ?? b.business?.stripe_onboarded ?? null;
-    const businessStripeAccountId = b.business_stripe_account_id ?? b.businesses?.stripe_account_id ?? b.business?.stripe_account_id ?? null;
-    return {
-      ...b,
-      business_name: businessName,
-      business_id: businessId,
-      business_phone: businessPhone,
-      business_email: businessEmail,
-      business_stripe_onboarded: businessStripeOnboarded,
-      business_stripe_account_id: businessStripeAccountId,
-    };
-  });
-}
-
-function toCalDate(d: Date) {
-  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-}
-
-function buildGoogleCalendarUrl(opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: opts.title,
-    dates: `${toCalDate(opts.start)}/${toCalDate(opts.end)}`,
-    details: opts.details || '',
-    location: opts.location || '',
-  });
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
-}
-
-function downloadIcs(filename: string, opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
-  const ics = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//ScheduleMe//EN',
-    'BEGIN:VEVENT',
-    `UID:${Date.now()}@scheduleme`,
-    `DTSTAMP:${toCalDate(new Date())}`,
-    `DTSTART:${toCalDate(opts.start)}`,
-    `DTEND:${toCalDate(opts.end)}`,
-    `SUMMARY:${opts.title}`,
-    opts.details ? `DESCRIPTION:${opts.details.replace(/\n/g, '\\n')}` : '',
-    opts.location ? `LOCATION:${opts.location}` : '',
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].filter(Boolean).join('\r\n');
-  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   return (
@@ -261,15 +84,19 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ProgressBar({ status, steps, labels }: { status: string; steps: string[]; labels: string[] }) {
-  const effective = steps.includes(status) ? status : (status === 'payment_pending' ? 'pending' : status);
-  const idx = Math.max(0, steps.indexOf(effective));
+function ProgressBar({ status }: { status: string }) {
+  const normalized = status === 'payment_pending'
+    ? 'confirmed'
+    : status === 'disputed'
+      ? 'awaiting_consumer_confirmation'
+      : status;
+  const idx = STEPS.indexOf(normalized);
   return (
     <div className="mt-5">
       <div className="flex items-center">
-        {steps.map((s, i) => {
+        {STEPS.map((s, i) => {
           const done = i <= idx;
-          const isLast = i === steps.length - 1;
+          const isLast = i === STEPS.length - 1;
           return (
             <div key={s} className={`flex items-center ${isLast ? '' : 'flex-1'}`}>
               <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 transition-colors ${done ? 'bg-accent' : 'bg-neutral-200'}`} />
@@ -279,7 +106,7 @@ function ProgressBar({ status, steps, labels }: { status: string; steps: string[
         })}
       </div>
       <div className="flex justify-between mt-1.5">
-        {labels.map((l, i) => (
+        {STEP_LABELS.map((l, i) => (
           <span key={l} className={`text-[10px] font-medium ${i <= idx ? 'text-accent' : 'text-neutral-400'}`}>{l}</span>
         ))}
       </div>
@@ -287,139 +114,31 @@ function ProgressBar({ status, steps, labels }: { status: string; steps: string[
   );
 }
 
-
-function SaveCardForm({ booking, onSaved, onError, dm }: { booking: Booking; onSaved: (pmId: string | null) => void; onError: (msg: string) => void; dm: boolean }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      if (!booking?.id) return;
-      try {
-        const { data: { session } } = await getSupabase().auth.getSession();
-        if (!session) return;
-        const res = await fetch('/api/create-setup-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-          body: JSON.stringify({ booking_id: booking.id }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Unable to start card setup');
-        if (mounted) setClientSecret(data.client_secret || null);
-      } catch (e: any) {
-        onError(e?.message || 'Unable to start card setup');
-      }
-    }
-    load();
-    return () => { mounted = false; };
-  }, [booking?.id]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements || !clientSecret) return;
-    setLoading(true);
-    try {
-      const card = elements.getElement(CardElement);
-      if (!card) {
-        onError('Card input is not ready. Please try again.');
-        return;
-      }
-      const result = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: { card },
-      });
-      if (result.error) {
-        onError(result.error.message || 'Card setup failed');
-        return;
-      }
-      const setupIntent = (result as any)?.setupIntent;
-      if (!setupIntent) {
-        onError('Card setup did not complete. Please try again.');
-        return;
-      }
-      const paymentMethodId = setupIntent?.payment_method || null;
-      onSaved(paymentMethodId || null);
-    } catch (e: any) {
-      onError(e?.message || 'Card setup failed');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (booking.stripe_payment_method_id) {
-    return <div className="mt-3 text-xs font-semibold text-emerald-700">Card saved. You are ready to pay now.</div>;
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-3 space-y-3">
-      <div className="rounded-xl border px-3 py-3" style={{ borderColor: dm ? '#1e554c' : '#c7f0e3', background: dm ? '#0f1f1c' : '#ffffff' }}>
-        <CardElement options={{ hidePostalCode: false, style: { base: { fontSize: '14px' } } }} />
-      </div>
-      <button
-        type="submit"
-        disabled={!stripe || !elements || !clientSecret || loading}
-        className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm"
-        style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)', opacity: (!stripe || !elements || !clientSecret || loading) ? 0.6 : 1 }}
-      >
-        {loading ? 'Saving…' : 'Save card'}
-      </button>
-    </form>
-  );
-}
-
-function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute, onRequestReview, onPriceAccepted, dm, paymentMethods, paymentDefaultId, paymentLoading, showAddCard, setShowAddCard, fetchPaymentMethods, setDefaultPaymentMethod, setPaymentToast }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, onUploadDisputeMedia }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
-  onCancel: (id: string, reason: string) => Promise<void>;
-  onServiceDispute: (id: string, payload: { reason: string; details?: string; media_urls?: string[] }) => Promise<void>;
-  onRequestReview: (booking: Booking) => void;
-  onPriceAccepted: (id: string, updates: Partial<Booking>) => void;
-  dm: boolean;
-  paymentMethods: any[];
-  paymentDefaultId: string | null;
-  paymentLoading: boolean;
-  showAddCard: boolean;
-  setShowAddCard: (value: boolean) => void;
-  fetchPaymentMethods: () => void;
-  setDefaultPaymentMethod: (id: string) => void;
-  setPaymentToast: (value: 'cancelled' | 'setup_success' | 'setup_cancelled' | null) => void;
+  onCancel: (id: string) => void;
+  onOpenDispute: (id: string, payload: { reason: string; details?: string; media_urls?: string[] }) => Promise<void>;
+  onUploadDisputeMedia: (bookingId: string, file: File) => Promise<string | null>;
 }) {
-  const displayBizName = booking.business_name || (booking as any)?.businesses?.name;
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
+  const serviceAmountCents = booking.amount_cents || 0;
+  const totalAmountCents = serviceAmountCents > 0 ? serviceAmountCents + PROTECTION_FEE_CENTS : 0;
   const [mounted, setMounted] = useState(false);
-  const [err, setErr] = useState<string>('');
   const [closing, setClosing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelErr, setCancelErr] = useState('');
-  const [cancelDoneOpen, setCancelDoneOpen] = useState(false);
-  const [serviceDisputeOpen, setServiceDisputeOpen] = useState(false);
-  const [serviceDisputeSending, setServiceDisputeSending] = useState(false);
-  const [serviceDisputeReason, setServiceDisputeReason] = useState('');
-  const [serviceDisputeDetails, setServiceDisputeDetails] = useState('');
-  const [serviceDisputePhotos, setServiceDisputePhotos] = useState<string[]>([]);
-  const [serviceDisputeUpload, setServiceDisputeUpload] = useState(false);
-  const [disputeOpen, setDisputeOpen] = useState(false);
-  const [disputePrice, setDisputePrice] = useState('');
-  const [disputeNote, setDisputeNote] = useState('');
-  const [disputeSending, setDisputeSending] = useState(false);
-  const [disputeSent, setDisputeSent] = useState(false);
-  const [acceptingPrice, setAcceptingPrice] = useState(false);
-  const [priceAccepted, setPriceAccepted] = useState(false);
+  const [disputing, setDisputing] = useState(false);
+  const [uploadingDisputeMedia, setUploadingDisputeMedia] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDetails, setDisputeDetails] = useState('');
+  const [disputeMediaUrls, setDisputeMediaUrls] = useState<string[]>([]);
 
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
-
-  useEffect(() => {
-    setPriceAccepted(false);
-  }, [booking.id]);
 
   function close() { setClosing(true); setTimeout(onClose, 220); }
 
@@ -429,100 +148,23 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
     return () => document.removeEventListener('keydown', h);
   }, []);
 
-  async function handleCancelSubmit() {
-    const reason = cancelReason.trim() || 'Cancelled by customer';
+  async function handleCancel() {
     setCancelling(true);
-    setCancelErr('');
-    try {
-      await onCancel(booking.id, reason);
-      setCancelOpen(false);
-      setCancelReason('');
-      setCancelDoneOpen(true);
-    } catch (e: any) {
-      setCancelErr(e?.message || 'Could not cancel booking. Please try again.');
-    } finally {
-      setCancelling(false);
-    }
+    await new Promise(r => setTimeout(r, 600));
+    onCancel(booking.id);
+    close();
   }
 
-  async function uploadServiceDisputePhoto(file: File) {
-    if (!file) return;
-    setServiceDisputeUpload(true);
-    try {
-      const { data: { session } } = await getSupabase().auth.getSession();
-      if (!session) throw new Error('Please sign in to upload.');
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
-      const uploadRes = await fetch('/api/upload-message-media', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({
-          booking_id: booking.id,
-          file_data: dataUrl,
-          file_type: file.type || 'image/jpeg',
-          file_name: file.name || `dispute-${Date.now()}.jpg`,
-        }),
-      });
-      const uploadData = await uploadRes.json().catch(() => ({}));
-      if (!uploadRes.ok || !uploadData?.url) throw new Error(uploadData?.error || 'Image upload failed');
-      setServiceDisputePhotos((prev) => [...prev, uploadData.url]);
-    } catch (e: any) {
-      setErr(e?.message || 'Could not upload photo.');
-    } finally {
-      setServiceDisputeUpload(false);
-    }
-  }
-
-  async function handleServiceDisputeSubmit() {
-    if (!serviceDisputeReason.trim()) {
-      setErr('Select a dispute reason.');
-      return;
-    }
-    setErr('');
-    setServiceDisputeSending(true);
-    try {
-      await onServiceDispute(booking.id, {
-        reason: serviceDisputeReason.trim(),
-        details: serviceDisputeDetails.trim() || undefined,
-        media_urls: serviceDisputePhotos,
-      });
-      close();
-    } catch (e: any) {
-      setErr(e?.message || 'Could not open dispute. Please try again.');
-    } finally {
-      setServiceDisputeSending(false);
-    }
-  }
-
-  async function handleAcceptPrice() {
-    setErr('');
-    setAcceptingPrice(true);
-    try {
-      const { data: { session } } = await getSupabase().auth.getSession();
-      if (!session) { setErr('Please sign in to accept the price.'); setAcceptingPrice(false); return; }
-      const res = await fetch('/api/accept-provider-price', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-        body: JSON.stringify({ booking_id: booking.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setErr(data.error || 'Failed to accept price'); setAcceptingPrice(false); return; }
-      onPriceAccepted(booking.id, {
-        price_accepted_by_customer: true,
-        price_accepted_at: data.price_accepted_at || new Date().toISOString(),
-        status: data.status || 'payment_pending',
-        amount_cents: typeof data.amount_cents === 'number' ? data.amount_cents : booking.amount_cents,
-      });
-      setPriceAccepted(true);
-    } catch (e) {
-      setErr('Failed to accept price. Please try again.');
-    } finally {
-      setAcceptingPrice(false);
-    }
+  async function handleOpenDispute() {
+    if (!disputeReason.trim()) return;
+    setDisputing(true);
+    await onOpenDispute(booking.id, {
+      reason: disputeReason.trim(),
+      details: disputeDetails.trim() || undefined,
+      media_urls: disputeMediaUrls,
+    });
+    setDisputing(false);
+    close();
   }
 
   const ready = mounted && !closing;
@@ -555,44 +197,6 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
   const tx = ready ? 0 : cardCX - modalCX;
   const ty = ready ? 0 : cardCY - modalCY;
 
-  const accent = '#007e6d';
-  const accentDark = '#1e554c';
-  const panelBg = dm ? '#0f1f1c' : '#ecfdf3';
-  const panelBorder = dm ? '#1e554c' : '#a7f3d0';
-  const panelTitle = dm ? '#a7f3d0' : '#065f46';
-  const panelText = dm ? '#8dd9c9' : '#0f766e';
-  const inputBg = dm ? '#0b1513' : '#ffffff';
-  const inputBorder = dm ? '#1e554c' : '#c7f0e3';
-  const inputText = dm ? '#e5f9f4' : '#0f3d35';
-  const isCustom =
-    String(booking.service || '').toLowerCase().includes('custom')
-    || booking.status === 'price_disputed'
-    || booking.status === 'payment_pending'
-    || booking.customer_proposed_price_cents != null
-    || booking.provider_proposed_price_cents != null
-    || booking.dispute_amount_cents != null;
-  const inferredCustomerPriceCents =
-    booking.customer_proposed_price_cents != null
-      ? booking.customer_proposed_price_cents
-      : (
-        booking.status === 'price_disputed'
-        && booking.dispute_amount_cents != null
-        && booking.provider_proposed_price_cents == null
-      )
-        ? booking.dispute_amount_cents
-        : null;
-  const inferredProviderPriceCents =
-    booking.provider_proposed_price_cents != null
-      ? booking.provider_proposed_price_cents
-      : (
-        booking.status === 'price_disputed'
-        && booking.dispute_amount_cents != null
-        && inferredCustomerPriceCents != null
-        && booking.dispute_amount_cents !== inferredCustomerPriceCents
-      )
-        ? booking.dispute_amount_cents
-        : null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
@@ -602,9 +206,9 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
           ? 'background 0.22s ease, backdrop-filter 0.22s ease'
           : 'background 0.35s ease, backdrop-filter 0.35s ease',
       }}
-      onMouseDown={(e) => { if (disputeOpen) return; if (e.target === e.currentTarget) close(); }}>
+      onClick={close}>
 
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-y-auto"
         style={{
           maxHeight: '88vh',
           // Opening: morph from card. Closing: fade out only (no scale) so text stays legible
@@ -620,6 +224,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
               : 'none',
         }}
         onClick={e => e.stopPropagation()}>
+
         {/* Close */}
         <button onClick={close} className="absolute top-4 right-4 z-10 h-8 w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-colors">
           <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -627,96 +232,35 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
           </svg>
         </button>
 
-        <div className="max-h-[88vh] overflow-y-auto">
         <div className="px-6 pb-8 pt-6 max-w-xl mx-auto">
-                      <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service || 'Custom Request'}</h2>
-          {formatBusinessName(displayBizName) && (
-            <p className="text-sm font-semibold text-neutral-700 mt-0.5">
-              {formatBusinessName(displayBizName)}
-            </p>
-          )}
+          <h2 className="text-lg font-bold text-neutral-900 leading-snug pr-8">{booking.service}</h2>
           <p className="text-xs text-neutral-400 mt-1 mb-5">Submitted {formatDate(booking.created_at)}</p>
 
           <StatusBadge status={booking.status} />
-          {!['cancelled', 'payment_failed'].includes(booking.status) && (() => {
-            const showPaidStep = shouldShowPaidStep(booking);
-            const steps = showPaidStep ? STEPS : STEPS_NO_PAID;
-            const labels = showPaidStep ? STEP_LABELS : STEP_LABELS_NO_PAID;
-            return <ProgressBar status={booking.status} steps={steps} labels={labels} />;
-          })()}
+          {!['cancelled', 'payment_failed'].includes(booking.status) && (
+            <ProgressBar status={booking.status} />
+          )}
 
           <div className="h-px bg-neutral-100 my-6" />
 
           <div className="space-y-3.5">
             {booking.scheduled_at && (
               <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <div className="h-8 w-8 rounded-lg bg-accent-light flex items-center justify-center flex-shrink-0">
                   <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{booking.scheduled_exact ? 'Scheduled' : 'Due by'}</p>
-                  <p className="text-sm text-neutral-800 mt-0.5">
-                    {booking.scheduled_exact ? formatDateLong(booking.scheduled_at) : formatDate(booking.scheduled_at)}
-                  </p>
-                </div>
-              </div>
-            )}
-            {isCustom && inferredCustomerPriceCents && !booking.price_accepted_by_provider && (
-              <div className="rounded-2xl border px-3 py-2" style={{ borderColor: '#e0e7ff', background: '#eef2ff' }}>
-                <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#4338ca' }}>Your proposed price</p>
-                <p className="text-sm font-semibold" style={{ color: '#3730a3' }}>${(inferredCustomerPriceCents / 100).toFixed(2)}</p>
-              </div>
-            )}
-
-            {booking.scheduled_at && booking.scheduled_exact && (
-              <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                  <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h4m-6 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Add to calendar</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <a
-                      href={buildGoogleCalendarUrl({
-                        title: `${booking.service} — ${displayBizName || 'ScheduleMe'}`,
-                        details: booking.note || booking.notes || '',
-                        location: booking.address || '',
-                        start: new Date(booking.scheduled_at),
-                        end: new Date(new Date(booking.scheduled_at).getTime() + 60 * 60 * 1000),
-                      })}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
-                    >
-                      Google Calendar
-                    </a>
-                    <button
-                      onClick={() => downloadIcs(
-                        `scheduleme-${booking.id}.ics`,
-                        {
-                          title: `${booking.service} — ${displayBizName || 'ScheduleMe'}`,
-                          details: booking.note || booking.notes || '',
-                          location: booking.address || '',
-                          start: new Date(booking.scheduled_at),
-                          end: new Date(new Date(booking.scheduled_at).getTime() + 60 * 60 * 1000),
-                        }
-                      )}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-100 transition-colors"
-                    >
-                      Download .ics
-                    </button>
-                  </div>
+                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Scheduled</p>
+                  <p className="text-sm text-neutral-800 mt-0.5">{formatDateLong(booking.scheduled_at)}</p>
                 </div>
               </div>
             )}
 
             {booking.address && (
               <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <div className="h-8 w-8 rounded-lg bg-accent-light flex items-center justify-center flex-shrink-0">
                   <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                   </svg>
@@ -728,22 +272,21 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
               </div>
             )}
 
-            {displayBizName && (
+            {booking.business_name && (
               <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <div className="h-8 w-8 rounded-lg bg-accent-light flex items-center justify-center flex-shrink-0">
                   <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Business</p>
-                  <p className="text-sm font-semibold text-neutral-800 mt-0.5">{displayBizName}</p>
+                  <p className="text-sm font-semibold text-neutral-800 mt-0.5">{booking.business_name}</p>
                   {(booking.business_phone || booking.business_email) && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      
                       {booking.business_phone && (
                         <a href={`tel:${booking.business_phone}`}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-accent bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-accent bg-accent-light border border-accent/20 px-3 py-1.5 rounded-lg hover:brightness-95 transition-colors">
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                           </svg>
@@ -765,7 +308,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
               </div>
             )}
 
-            {(booking.note || booking.notes) && (
+            {booking.notes && (
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
                   <svg className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -774,7 +317,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
                 </div>
                 <div>
                   <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Your Notes</p>
-                  <p className="text-sm text-neutral-600 mt-0.5 leading-relaxed">{booking.note || booking.notes}</p>
+                  <p className="text-sm text-neutral-600 mt-0.5 leading-relaxed">{booking.notes}</p>
                 </div>
               </div>
             )}
@@ -787,180 +330,60 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{booking.paid_at ? 'Amount Paid' : 'Amount Due'}</p>
-                  {(() => {
-                    const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
-                    const totalCents = booking.amount_cents + protectionFee;
-                    return (
-                      <>
-                        <p className="text-sm font-bold text-neutral-900 mt-0.5">{'$'}{(totalCents / 100).toFixed(2)}</p>
-                        <p className="text-[11px] text-neutral-500 mt-0.5">
-                          Includes ${'$'}{(protectionFee / 100).toFixed(2)} protection fee
-                        </p>
-                      </>
-                    );
-                  })()}
+                  <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Price Breakdown</p>
+                  <p className="text-sm text-neutral-700 mt-0.5">Service: {'$'}{(serviceAmountCents / 100).toFixed(2)}</p>
+                  <p className="text-sm text-neutral-700">Protection fee: {'$'}{(PROTECTION_FEE_CENTS / 100).toFixed(2)}</p>
+                  <p className="text-sm font-bold text-neutral-900 mt-1">Total: {'$'}{(totalAmountCents / 100).toFixed(2)}</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Message provider + payment authorized note */}
-          {!['cancelled', 'payment_failed'].includes(booking.status) && (
+          {/* Pay Now — shown when booking is confirmed and has amount set */}
+          {booking.status === 'confirmed' && booking.amount_cents && !booking.paid_at && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
-              {booking.amount_cents && !booking.paid_at && (
-                booking.stripe_payment_method_id ? (
-                  <div className="rounded-2xl p-4 mb-4" style={{ background: dm ? '#0f1f1c' : '#ecfdf3', border: `1px solid ${panelBorder}` }}>
-                    <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Ready to pay</p>
-                    <p className="text-xs" style={{ color: panelText }}>Your payment method is saved. Complete payment now to secure this booking.</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        issuePaymentAccessTicket(booking.id);
-                        window.location.href = `/pay/${booking.id}`;
-                      }}
-                      className="mt-3 inline-flex items-center text-xs font-semibold"
-                      style={{ color: accent }}
-                    >
-                      Pay now →
-                    </button>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl p-4 mb-4" style={{ background: panelBg, border: `1px solid ${panelBorder}` }}>
-                    <p className="text-sm font-bold mb-0.5" style={{ color: panelTitle }}>Payment method required</p>
-                    <p className="text-xs" style={{ color: panelText }}>Save a card to continue to payment and secure your booking.</p>
-                    {paymentLoading ? (
-                      <div className="mt-3 text-xs" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Loading payment methods…</div>
-                    ) : paymentMethods.length > 0 && !showAddCard ? (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-xs font-semibold" style={{ color: panelTitle }}>Saved payment method</p>
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={paymentDefaultId || paymentMethods[0]?.id}
-                            onChange={(e) => setDefaultPaymentMethod(e.target.value)}
-                            className="flex-1 rounded-lg border px-3 py-2 text-xs bg-transparent"
-                            style={{ borderColor: inputBorder, color: inputText, background: inputBg }}
-                          >
-                            {paymentMethods.map((m) => (
-                              <option key={m.id} value={m.id}>{`${m.brand?.toUpperCase() || 'CARD'} •••• ${m.last4} (exp ${m.exp_month}/${String(m.exp_year).slice(-2)})`}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => setShowAddCard(true)}
-                            className="px-3 py-2 rounded-lg text-xs font-semibold"
-                            style={{ background: accentDark, color: 'white' }}
-                          >
-                            Add new
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mt-3">
-                        {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
-                          <Elements stripe={stripePromise} options={{ appearance: { theme: dm ? 'night' : 'stripe', variables: { colorPrimary: accent, colorText: dm ? '#e5f9f4' : '#0f3d35', colorBackground: dm ? '#0b1513' : '#ffffff', colorTextSecondary: dm ? '#8dd9c9' : '#0f766e' } } }}>
-                            <SaveCardForm
-                              booking={booking}
-                              dm={dm}
-                              onSaved={(pmId) => {
-                                setShowAddCard(false);
-                                fetchPaymentMethods();
-                                if (pmId) setDefaultPaymentMethod(pmId);
-                                setPaymentToast('setup_success');
-                              }}
-                              onError={(msg) => {
-                                setPaymentToast('setup_cancelled');
-                                setErr(msg);
-                              }}
-                            />
-                          </Elements>
-                        ) : (
-                          <div className="text-xs" style={{ color: panelText }}>Stripe key missing. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
-                        )}
-                        {err && <div className="mt-2 text-xs" style={{ color: dm ? '#fca5a5' : '#b91c1c' }}>{err}</div>}
-                      </div>
-                    )}
-                  </div>
-                )
-              )}
-              <Link href={`/messages?booking=${booking.id}`} scroll={false}
-                onClick={() => close()}
-                className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm"
-                style={{ background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' }}>
-                Message provider
-              </Link>
+              <div className="rounded-2xl p-4 mb-4" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <p className="text-sm font-bold text-green-800 mb-0.5">Ready to pay</p>
+                <p className="text-xs text-green-700">{booking.business_name} has confirmed your booking. Complete payment to secure your appointment.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) return;
+                  const res = await fetch('/api/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                    body: JSON.stringify({ booking_id: booking.id }),
+                  });
+                  const data = await res.json();
+                  if (data.url) window.location.href = data.url;
+                  else alert(data.error || 'Could not start checkout');
+                }}
+                className="w-full py-3.5 rounded-xl text-white font-bold text-sm"
+                style={{ background: 'linear-gradient(135deg,#0F766E 0%,#0B5C56 100%)' }}>
+                Pay ${(totalAmountCents / 100).toFixed(2)} Now →
+              </button>
+              <p className="text-[11px] text-neutral-500 mt-2 text-center">
+                Includes ${(PROTECTION_FEE_CENTS / 100).toFixed(2)} protection fee.
+              </p>
             </div>
           )}
 
-          {isCustom && (booking.amount_cents || inferredProviderPriceCents || inferredCustomerPriceCents || booking.dispute_amount_cents) && !booking.paid_at && (() => {
-            const providerAccepted = !!booking.price_accepted_by_provider && !!inferredCustomerPriceCents;
-            const customerAccepted = !!booking.price_accepted_by_customer && !!inferredProviderPriceCents;
-            const waitingOnProviderResponse =
-              booking.status === 'price_disputed'
-              && !!inferredCustomerPriceCents
-              && !inferredProviderPriceCents;
-            const disputeDisabled = disputeSent || waitingOnProviderResponse;
-            const showConfirm = !!inferredProviderPriceCents && !booking.price_accepted_by_customer;
-            if (providerAccepted) {
-              return (
-                <div className="mt-6 pt-5 border-t border-neutral-100">
-                  <div className="rounded-xl border px-3 py-2 text-[11px] font-semibold" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
-                    Set price accepted
-                  </div>
+          {/* Paid confirmation */}
+          {booking.paid_at && (
+            <div className="mt-6 pt-5 border-t border-neutral-100">
+              <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <svg className="h-5 w-5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div>
+                  <p className="text-sm font-bold text-green-800">Payment confirmed</p>
+                  <p className="text-xs text-green-700">{'$'}{(totalAmountCents / 100).toFixed(2)} paid (incl. {'$'}{(PROTECTION_FEE_CENTS / 100).toFixed(2)} protection fee) · {new Date(booking.paid_at).toLocaleDateString()}</p>
                 </div>
-              );
-            }
-            if (customerAccepted || priceAccepted) {
-              return (
-                <div className="mt-6 pt-5 border-t border-neutral-100">
-                  <div className="rounded-xl border px-3 py-2 text-[11px] font-semibold" style={{ borderColor: '#bbf7d0', background: '#f0fdf4', color: '#166534' }}>
-                    Price accepted
-                  </div>
-                </div>
-              );
-            }
-            const hasDispute = !!inferredCustomerPriceCents;
-            const providerPriceLabel = `Provider price $${inferredProviderPriceCents ? (inferredProviderPriceCents / 100).toFixed(2) : '—'}`;
-            const disputeLabel = `Your price $${inferredCustomerPriceCents ? (inferredCustomerPriceCents / 100).toFixed(2) : '—'}`;
-            return (
-              <div className="mt-6 pt-5 border-t border-neutral-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex-1 text-center text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#374151' }}>
-                    {providerPriceLabel}
-                  </div>
-                  {hasDispute && (
-                    <div className="flex-1 text-center text-xs font-semibold px-2 py-1 rounded-full" style={{ background: '#fff7ed', color: '#9a3412' }}>
-                      {disputeLabel}
-                    </div>
-                  )}
-                  {inferredProviderPriceCents && booking.price_accepted_by_customer && (
-                    <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ background: '#dcfce7', color: '#166534' }}>Price accepted</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  {showConfirm && (
-                    <button
-                      onClick={handleAcceptPrice}
-                      disabled={acceptingPrice}
-                      className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-50"
-                      style={{ background: acceptingPrice ? '#6fb2a7' : '#0f766e' }}>
-                      {acceptingPrice ? 'Confirming…' : `Confirm price $${(inferredProviderPriceCents! / 100).toFixed(2)}`}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setDisputeOpen(true)}
-                    disabled={disputeDisabled}
-                    className="w-full py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
-                    style={disputeDisabled ? { color: '#9ca3af', background: '#f9fafb' } : { color: 'white', background: '#d97706' }}>
-                    {disputeDisabled ? 'Dispute in process' : 'Dispute price'}
-                  </button>
-                </div>
-                {disputeSent && (
-                  <p className="text-[11px] text-emerald-600 mt-2">Dispute in process. We’ll notify you when the provider responds.</p>
-                )}
               </div>
-            );
-          })()}
+            </div>
+          )}
 
+          {/* Provider completion proof */}
           {(booking.completion_proof_submitted_at || booking.completion_proof_note || (booking.completion_proof_photo_urls || []).length > 0) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               <div className="rounded-2xl p-4" style={{ background: '#eef2ff', border: '1px solid #c7d2fe' }}>
@@ -975,7 +398,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
                 )}
                 {(booking.completion_proof_photo_urls || []).length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {(booking.completion_proof_photo_urls || []).slice(0, 6).map((url: string) => (
+                    {(booking.completion_proof_photo_urls || []).slice(0, 6).map((url) => (
                       <a key={url} href={url} target="_blank" rel="noreferrer" className="block">
                         <img src={url} alt="Completion proof" className="h-20 w-full rounded-lg object-cover border border-indigo-100" />
                       </a>
@@ -986,58 +409,73 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
             </div>
           )}
 
-          {/* Paid confirmation */}
-          {booking.paid_at && (
+          {/* Consumer dispute window */}
+          {booking.status === 'completed' && booking.consumer_confirmation_due_at && new Date(booking.consumer_confirmation_due_at).getTime() > Date.now() && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
-              <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                <svg className="h-5 w-5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <div>
-                  <p className="text-sm font-bold text-green-800">Payment confirmed</p>
-                  {(() => {
-                    const protectionFee = typeof booking.protection_fee_cents === 'number' ? booking.protection_fee_cents : PROTECTION_FEE_CENTS;
-                    const totalCents = booking.amount_cents! + protectionFee;
-                    return (
-                      <p className="text-xs text-green-700">
-                        {'$'}{(totalCents / 100).toFixed(2)} paid · {new Date(booking.paid_at).toLocaleDateString()}
-                      </p>
-                    );
-                  })()}
-                </div>
+              <div className="rounded-2xl p-4 mb-4" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                <p className="text-sm font-bold text-accent mb-0.5">Service auto-completed from provider proof</p>
+                <p className="text-xs text-accent">
+                  If something is wrong, open a dispute before {new Date(booking.consumer_confirmation_due_at).toLocaleString()}.
+                </p>
               </div>
-            </div>
-          )}
-          {['completed', 'paid'].includes(booking.status) && !booking.reviewed && booking.business_id && (
-            <div className="mt-4">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRequestReview(booking);
-                }}
-                className="w-full py-3 rounded-xl text-sm font-bold text-white"
-                style={{ background: '#007e6d' }}
-              >
-                Leave a review
-              </button>
-            </div>
-          )}
 
-          {/* Service dispute window after provider auto-completion */}
-          {booking.status === 'completed' && booking.consumer_confirmation_due_at && new Date(booking.consumer_confirmation_due_at).getTime() > Date.now() && !booking.disputed_at && (
-            <div className="mt-6 pt-5 border-t border-neutral-100">
-              <button
-                onClick={() => { setServiceDisputeOpen(true); setErr(''); }}
-                className="w-full py-3 rounded-xl border-2 border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-50 hover:border-amber-300 transition-colors"
-              >
-                Report Issue / Open Dispute
-              </button>
-              <p className="text-[11px] text-neutral-500 mt-2">
-                Dispute window closes {formatShortDateTime(booking.consumer_confirmation_due_at)}.
-              </p>
+              <div className="rounded-2xl p-4 border border-amber-200 bg-amber-50">
+                <p className="text-sm font-bold text-amber-800 mb-2">Report issue / dispute</p>
+                <select
+                  className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm mb-2 bg-white"
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                >
+                  <option value="">Select reason</option>
+                  <option value="service_not_completed">Service not completed</option>
+                  <option value="quality_issue">Quality issue</option>
+                  <option value="wrong_service">Wrong service delivered</option>
+                  <option value="provider_no_show">Provider no-show</option>
+                  <option value="other">Other</option>
+                </select>
+                <textarea
+                  rows={3}
+                  value={disputeDetails}
+                  onChange={(e) => setDisputeDetails(e.target.value)}
+                  placeholder="What went wrong?"
+                  className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm mb-2"
+                />
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800 border border-amber-300 px-3 py-1.5 rounded-lg cursor-pointer bg-white">
+                    {uploadingDisputeMedia ? 'Uploading…' : 'Add Photo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUploadingDisputeMedia(true);
+                        const url = await onUploadDisputeMedia(booking.id, file);
+                        if (url) setDisputeMediaUrls((prev) => [...prev, url]);
+                        setUploadingDisputeMedia(false);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                  {disputeMediaUrls.length > 0 && (
+                    <span className="text-xs text-amber-800">{disputeMediaUrls.length} photo(s) attached</span>
+                  )}
+                </div>
+                <button
+                  onClick={handleOpenDispute}
+                  disabled={!disputeReason || disputing}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ background: '#b45309' }}
+                >
+                  {disputing ? 'Opening Dispute...' : 'Report Issue / Open Dispute'}
+                </button>
+              </div>
             </div>
           )}
 
           {/* Cancel action */}
-          {!['completed', 'cancelled', 'payment_failed'].includes(booking.status) && (
+          {['pending', 'confirmed', 'payment_pending', 'paid'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               {cancelling ? (
                 <div className="flex items-center justify-center gap-2 py-3">
@@ -1045,7 +483,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
                   <span className="text-sm text-red-500">Cancelling...</span>
                 </div>
               ) : (
-                <button onClick={() => { setCancelOpen(true); setCancelErr(''); }}
+                <button onClick={handleCancel}
                   className="w-full py-3 rounded-xl border-2 border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 hover:border-red-300 transition-colors">
                   Cancel Booking
                 </button>
@@ -1053,299 +491,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onServiceDispute,
             </div>
           )}
         </div>
-        </div>
       </div>
-
-      {cancelOpen && (
-        <div
-          className="fixed inset-0 z-[2150] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget && !cancelling) setCancelOpen(false); }}
-        >
-          <div
-            className="w-full max-w-md mx-4 rounded-2xl p-5"
-            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Cancel booking</p>
-              <button
-                onClick={() => !cancelling && setCancelOpen(false)}
-                className="h-8 w-8 rounded-full flex items-center justify-center"
-                style={{ background: dm ? '#1f2937' : '#f3f4f6' }}
-                disabled={cancelling}
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <p className="text-xs mb-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-              This reason will be emailed to the provider.
-            </p>
-            <textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value.slice(0, 400))}
-              rows={4}
-              placeholder="Reason for cancellation..."
-              className="w-full rounded-xl border px-3 py-2 text-sm"
-              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
-            />
-            <div className="mt-1 text-[10px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>{cancelReason.length}/400</div>
-            {cancelErr && <p className="text-[11px] text-red-500 mt-2">{cancelErr}</p>}
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => !cancelling && setCancelOpen(false)}
-                disabled={cancelling}
-                className="py-2.5 rounded-xl text-sm font-semibold border"
-                style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#d1d5db' : '#374151', background: dm ? '#171717' : '#f9fafb' }}
-              >
-                Keep booking
-              </button>
-              <button
-                onClick={handleCancelSubmit}
-                disabled={cancelling}
-                className="py-2.5 rounded-xl text-sm font-semibold text-white"
-                style={{ background: cancelling ? '#ef9a9a' : '#dc2626' }}
-              >
-                {cancelling ? 'Cancelling…' : 'Confirm cancel'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {cancelDoneOpen && (
-        <div
-          className="fixed inset-0 z-[2150] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget) { setCancelDoneOpen(false); close(); } }}
-        >
-          <div
-            className="w-full max-w-md mx-4 rounded-2xl p-5"
-            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: '#dcfce7' }}>
-                <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>
-                Booking cancelled
-              </p>
-            </div>
-            <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-              {booking.paid_at
-                ? 'Your booking has been cancelled. Your service amount refund is now processing to your original payment method.'
-                : 'Your booking request has been cancelled. No charge was made, so no refund was needed.'}
-            </p>
-            {booking.paid_at && (
-              <p className="text-[11px] mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                The $0.99 protection fee is non-refundable. Refund timing depends on your bank and card network.
-              </p>
-            )}
-            <button
-              onClick={() => { setCancelDoneOpen(false); close(); }}
-              className="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-              style={{ background: '#007e6d' }}
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
-
-      {serviceDisputeOpen && (
-        <div
-          className="fixed inset-0 z-[2150] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget && !serviceDisputeSending) setServiceDisputeOpen(false); }}
-        >
-          <div
-            className="w-full max-w-md mx-4 rounded-2xl p-5"
-            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Report service issue</p>
-              <button
-                onClick={() => !serviceDisputeSending && setServiceDisputeOpen(false)}
-                className="h-8 w-8 rounded-full flex items-center justify-center"
-                style={{ background: dm ? '#1f2937' : '#f3f4f6' }}
-                disabled={serviceDisputeSending}
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <p className="text-xs mb-3" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-              We will review your dispute and hold payout until this is resolved.
-            </p>
-            <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: dm ? '#a1a1aa' : '#6b7280' }}>
-              Reason
-            </label>
-            <select
-              value={serviceDisputeReason}
-              onChange={(e) => setServiceDisputeReason(e.target.value)}
-              className="w-full rounded-xl border px-3 py-2 text-sm mb-3"
-              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
-            >
-              <option value="">Select a reason…</option>
-              <option value="service_not_performed">Service not performed</option>
-              <option value="different_service_delivered">Different service delivered</option>
-              <option value="quality_issue">Quality issue</option>
-              <option value="damage_or_safety_concern">Damage or safety concern</option>
-              <option value="other">Other</option>
-            </select>
-            <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: dm ? '#a1a1aa' : '#6b7280' }}>
-              Details (optional)
-            </label>
-            <textarea
-              value={serviceDisputeDetails}
-              onChange={(e) => setServiceDisputeDetails(e.target.value.slice(0, 2000))}
-              rows={4}
-              placeholder="Tell us what happened..."
-              className="w-full rounded-xl border px-3 py-2 text-sm"
-              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
-            />
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <label
-                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer"
-                style={{ borderColor: dm ? '#2c2c2e' : '#d1d5db', color: dm ? '#d1d5db' : '#374151' }}
-              >
-                {serviceDisputeUpload ? 'Uploading…' : 'Add photo'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) await uploadServiceDisputePhoto(file);
-                    e.currentTarget.value = '';
-                  }}
-                />
-              </label>
-              {serviceDisputePhotos.length > 0 && (
-                <span className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                  {serviceDisputePhotos.length} photo(s) attached
-                </span>
-              )}
-            </div>
-            {err && <p className="text-[11px] text-red-500 mt-2">{err}</p>}
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => !serviceDisputeSending && setServiceDisputeOpen(false)}
-                disabled={serviceDisputeSending}
-                className="py-2.5 rounded-xl text-sm font-semibold border"
-                style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#d1d5db' : '#374151', background: dm ? '#171717' : '#f9fafb' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleServiceDisputeSubmit}
-                disabled={serviceDisputeSending}
-                className="py-2.5 rounded-xl text-sm font-semibold text-white"
-                style={{ background: serviceDisputeSending ? '#fbbf24' : '#f59e0b' }}
-              >
-                {serviceDisputeSending ? 'Submitting…' : 'Submit dispute'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {disputeOpen && (
-        <div
-          className="fixed inset-0 z-[2100] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onMouseDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) setDisputeOpen(false); }}
-          onClick={(e) => { e.stopPropagation(); }}
-        >
-          <div
-            className="w-full max-w-md mx-4 rounded-2xl p-5"
-            style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111' }}>Propose a new price</p>
-              <button onClick={() => setDisputeOpen(false)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#1f2937' : '#f3f4f6' }}>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">Your proposed price</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
-              <input
-                value={disputePrice ? (Number(disputePrice) / 100).toFixed(2) : ''}
-                onChange={(e) => {
-                  const digits = (e.target.value || '').replace(/[^\d]/g, '').slice(0, 7);
-                  setDisputePrice(digits);
-                }}
-                inputMode="numeric"
-                placeholder="0.00"
-                className="w-full rounded-xl border pl-7 pr-3 py-2 text-sm"
-                style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
-              />
-            </div>
-            <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mt-3 mb-1">Notes (optional)</label>
-            <textarea
-              value={disputeNote}
-              onChange={(e) => setDisputeNote(e.target.value)}
-              rows={3}
-              className="w-full rounded-xl border px-3 py-2 text-sm"
-              style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : 'white', color: dm ? '#f3f4f6' : '#111' }}
-            />
-            <button
-              onClick={async () => {
-                const cents = parseInt(disputePrice || '0', 10);
-                if (!(cents >= 500)) { setErr('Minimum price is $5.00'); return; }
-                setDisputeSending(true);
-                try {
-                  const headers = await getAuthHeaders();
-                  const res = await fetch('/api/bookings', {
-                    method: 'PATCH',
-                    headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      booking_id: booking.id,
-                      status: 'price_disputed',
-                      dispute_amount_cents: cents,
-                      dispute_note: disputeNote || null,
-                    }),
-                  });
-                  if (!res.ok) {
-                    const d = await res.json().catch(() => ({}));
-                    setErr(d.error || 'Failed to send proposal');
-                  } else {
-                    setDisputeSent(true);
-                    setDisputeOpen(false);
-                    setDisputePrice('');
-                    setDisputeNote('');
-                    setBookings(prev => prev.map(b => b.id === booking.id
-                      ? {
-                        ...b,
-                        status: 'price_disputed',
-                        dispute_amount_cents: cents,
-                        dispute_note: disputeNote || null,
-                        customer_proposed_price_cents: cents,
-                        provider_proposed_price_cents: null,
-                        price_accepted_by_customer: false,
-                        price_accepted_by_provider: false,
-                      }
-                      : b
-                    ));
-                  }
-                } finally {
-                  setDisputeSending(false);
-                }
-              }}
-              disabled={disputeSending}
-              className="w-full mt-4 py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 disabled:opacity-60">
-              {disputeSending ? 'Sending…' : 'Send proposal'}
-            </button>
-            {err && <p className="text-[11px] text-red-500 mt-2">{err}</p>}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1386,13 +532,9 @@ function CantFindThem() {
       <div className="bg-white rounded-2xl border border-neutral-100 p-6 space-y-4">
         <div>
           <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Business name <span className="text-red-400">*</span></label>
-          <div className="relative">
-            <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
-              placeholder="e.g. Joe's Plumbing, Maria's Cleaning Service"
-              maxLength={60}
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
-            <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{bizName.length}/60</span>
-          </div>
+          <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
+            placeholder="e.g. Joe's Plumbing, Maria's Cleaning Service"
+            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -1407,24 +549,17 @@ function CantFindThem() {
           </div>
           <div>
             <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Their area</label>
-          <div className="relative">
             <input type="text" value={bizLocation} onChange={e => setBizLocation(e.target.value)}
               placeholder="e.g. Mission District"
-              maxLength={120}
               className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
-            <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{bizLocation.length}/120</span>
-          </div>
           </div>
         </div>
         <div>
           <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Why do you recommend them?</label>
-          <div className="relative">
-            <textarea value={note} maxLength={500} onChange={e => setNote(e.target.value)}
-              placeholder="What did they do for you? How was the experience? Any contact info you have is helpful..."
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" />
-            <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{note.length}/500</span>
-          </div>
+          <textarea value={note} onChange={e => setNote(e.target.value)}
+            placeholder="What did they do for you? How was the experience? Any contact info you have is helpful..."
+            rows={3}
+            className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none" />
         </div>
         <button
           disabled={!bizName.trim()}
@@ -1432,7 +567,7 @@ function CantFindThem() {
           className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${
             bizName.trim() ? 'text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
           }`}
-          style={bizName.trim() ? { background: 'linear-gradient(135deg,#007e6d 0%,#1e554c 100%)' } : {}}>
+          style={bizName.trim() ? { background: 'linear-gradient(135deg,#0F766E 0%,#0B5C56 100%)' } : {}}>
           Submit recommendation
         </button>
         <p className="text-center text-xs text-neutral-400">We'll contact them on your behalf. Your name won't be shared.</p>
@@ -1509,7 +644,7 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
         <div className="flex justify-center gap-2">
           {ONBOARDING_STEPS.map((_, i) => (
             <div key={i} className="rounded-full transition-all duration-300"
-              style={{ width: i === step ? 20 : 6, height: 6, background: i === step ? '#007e6d' : 'rgba(255,255,255,0.2)' }} />
+              style={{ width: i === step ? 20 : 6, height: 6, background: i === step ? '#0F766E' : 'rgba(255,255,255,0.2)' }} />
           ))}
         </div>
 
@@ -1526,7 +661,7 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
         style={{ opacity: animating ? 0 : 1 }}>
         <div className="mb-8 flex items-center justify-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: 'rgba(10,132,255,0.15)', border: '1px solid rgba(10,132,255,0.3)' }}>
+            style={{ background: 'rgba(15,118,110,0.15)', border: '1px solid rgba(15,118,110,0.3)' }}>
             {s.icon === 'search' && (
               <svg className="w-7 h-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -1552,7 +687,7 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
         </p>
         <button onClick={next}
           className="w-full py-4 rounded-2xl text-base font-bold transition-all active:scale-95"
-          style={{ background: '#007e6d', color: 'white', boxShadow: '0 8px 32px rgba(10,132,255,0.4)' }}>
+          style={{ background: '#0F766E', color: 'white', boxShadow: '0 8px 32px rgba(15,118,110,0.4)' }}>
           {s.cta}
         </button>
       </div>
@@ -1567,215 +702,199 @@ function OnboardingCarousel({ userName, userInitials, fading, onDone }: {
   );
 }
 
+type Phase = 'loading' | 'welcome' | 'transitioning' | 'done';
+
+
 const BookingsPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [userName, setUserName] = useState('');
+  const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [nearbyBizList, setNearbyBizList] = useState<any[]>([]);
-  const hasNearbyRef = useRef(false);
   const [nearbyLoading, setNearbyLoading] = useState(true);
-  function setNearbySafe(list: any[]) {
-    hasNearbyRef.current = list.length > 0;
-    setNearbyBizList(list);
-  }
   const [reviewTarget, setReviewTarget] = useState<{ bookingId: string; businessId: string; businessName: string; serviceName: string } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
-  const [paymentToast, setPaymentToast] = useState<'cancelled' | 'setup_success' | 'setup_cancelled' | null>(null);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
-  const [paymentDefaultId, setPaymentDefaultId] = useState<string | null>(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [showAddCard, setShowAddCard] = useState(false);
-  const [reviewBanner, setReviewBanner] = useState<Booking | null>(null);
+  const [paymentToast, setPaymentToast] = useState<'cancelled' | null>(null);
+  const [actionToast, setActionToast] = useState<string | null>(null);
 
-  async function fetchUserBookings(accessToken: string, userId: string): Promise<Booking[]> {
-    const endpoints = [
-      '/api/bookings',
-      `/api/bookings?user_id=${encodeURIComponent(userId)}`,
-    ];
-    for (const endpoint of endpoints) {
-      try {
-        const res = await fetch(endpoint, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          cache: 'no-store',
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) continue;
-        return normalizeBookings(data?.bookings || []);
-      } catch {
-        // try next endpoint
-      }
-    }
-    return [];
-  }
-
-  function updateBookingLocal(id: string, updates: Partial<Booking>) {
-    setBookings((bs) => bs.map((b) => (b.id === id ? { ...b, ...updates } : b)));
-    setSelectedBooking((b) => (b && b.id === id ? { ...b, ...updates } : b));
-  }
-
-const COORDS_KEY = 'sm_last_coords';
-function readCoords(): { lat: number; lng: number } | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(COORDS_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw);
-    if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') return null;
-    return v;
-  } catch { return null; }
-}
-function writeCoords(lat: number, lng: number) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
-}
-
-  // Show toast if redirected back after cancelled payment / card setup
+  // Show toast if redirected back after cancelled payment
   useEffect(() => {
     if (router.query.payment === 'cancelled') {
       setPaymentToast('cancelled');
-      const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
-      if (bookingId) {
-        getSupabase().auth.getSession().then(async ({ data: { session } }) => {
-          if (!session) return;
-          await fetch('/api/bookings', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-            body: JSON.stringify({ booking_id: bookingId, status: 'cancelled' }),
-          }).catch(() => {});
-        });
-      }
       const t = setTimeout(() => setPaymentToast(null), 5000);
       router.replace('/bookings', undefined, { shallow: true });
       return () => clearTimeout(t);
     }
-
-    if (router.query.setup === 'success') {
-      setPaymentToast('setup_success');
-      const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
-      if (bookingId) {
-        getSupabase().auth.getSession().then(async ({ data: { session } }) => {
-          if (!session) return;
-          try {
-            const normalized = await fetchUserBookings(session.access_token, session.user.id);
-            setBookings(normalized);
-          } catch {}
-        });
-      }
-      const t = setTimeout(() => setPaymentToast(null), 5000);
-      router.replace('/bookings', undefined, { shallow: true });
-      return () => clearTimeout(t);
-    }
-
-    if (router.query.setup === 'cancelled') {
-      setPaymentToast('setup_cancelled');
-      const t = setTimeout(() => setPaymentToast(null), 5000);
-      router.replace('/bookings', undefined, { shallow: true });
-      return () => clearTimeout(t);
-    }
-  }, [router.query.payment, router.query.booking, router.query.setup]);
-
-  useEffect(() => {
-    if (router.query.setup === 'required' && typeof router.query.booking === 'string' && bookings.length > 0) {
-      const b = bookings.find(b => b.id === router.query.booking);
-      if (b) {
-        setSelectedBooking(b);
-      }
-    }
-  }, [router.query.setup, router.query.booking, bookings]);
-
-  async function fetchPaymentMethods() {
-    setPaymentLoading(true);
-    try {
-      const { data: { session } } = await getSupabase().auth.getSession();
-      if (!session) { setPaymentMethods([]); setPaymentDefaultId(null); return; }
-      const res = await fetch('/api/payment-methods', { headers: { Authorization: 'Bearer ' + session.access_token } });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setPaymentMethods(data.methods || []);
-        setPaymentDefaultId(data.defaultId || null);
-      }
-    } catch {
-      setPaymentMethods([]);
-      setPaymentDefaultId(null);
-    } finally {
-      setPaymentLoading(false);
-    }
-  }
-
-  async function setDefaultPaymentMethod(id: string) {
-    try {
-      const { data: { session } } = await getSupabase().auth.getSession();
-      if (!session) return;
-      const res = await fetch('/api/set-default-payment-method', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
-        body: JSON.stringify({ payment_method_id: id }),
-      });
-      if (res.ok) setPaymentDefaultId(id);
-    } catch {}
-  }
+  }, [router.query.payment]);
 
   function openBooking(b: Booking, e: React.MouseEvent) {
     setOriginRect((e.currentTarget as HTMLElement).getBoundingClientRect());
     setSelectedBooking(b);
-    fetchPaymentMethods();
   }
 
-  async function cancelBooking(id: string, reason: string) {
-    const { data: { session } } = await getSupabase().auth.getSession();
-    if (!session) throw new Error('Please sign in again and retry.');
-    const res = await fetch('/api/bookings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ booking_id: id, status: 'cancelled', cancellation_reason: reason }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || 'Failed to cancel booking');
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
+  async function cancelBooking(id: string) {
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setActionToast('Please log in again to cancel this booking.');
+        return;
+      }
+      const res = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ booking_id: id, status: 'cancelled' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionToast(data.error || 'Could not cancel booking.');
+        return;
+      }
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
+      const refunded = !!data?.refund?.refunded;
+      setActionToast(refunded ? 'Booking cancelled. Payment refunded.' : 'Booking cancelled.');
+    } catch {
+      setActionToast('Could not cancel booking.');
+    } finally {
+      setTimeout(() => setActionToast(null), 5000);
+    }
   }
 
-  async function openServiceDispute(id: string, payload: { reason: string; details?: string; media_urls?: string[] }) {
-    const { data: { session } } = await getSupabase().auth.getSession();
-    if (!session) throw new Error('Please sign in again and retry.');
-    const res = await fetch('/api/bookings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({
-        booking_id: id,
+  async function openDispute(id: string, payload: { reason: string; details?: string; media_urls?: string[] }) {
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setActionToast('Please log in again to open a dispute.');
+        return;
+      }
+      const res = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          booking_id: id,
+          action: 'consumer_open_dispute',
+          dispute_reason: payload.reason,
+          dispute_details: payload.details || '',
+          dispute_media_urls: payload.media_urls || [],
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionToast(data.error || 'Could not open dispute.');
+        return;
+      }
+      setBookings(prev => prev.map(b => b.id === id ? {
+        ...b,
         status: 'disputed',
         dispute_reason: payload.reason,
         dispute_details: payload.details || '',
         dispute_media_urls: payload.media_urls || [],
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || 'Failed to open dispute');
-    setBookings(prev => prev.map(b => b.id === id
-      ? {
-          ...b,
-          status: 'disputed',
-          disputed_at: new Date().toISOString(),
-          dispute_reason: payload.reason,
-          dispute_details: payload.details || null,
-          dispute_media_urls: payload.media_urls || [],
-        }
-      : b
-    ));
+      } : b));
+      setSelectedBooking(prev => prev && prev.id === id ? {
+        ...prev,
+        status: 'disputed',
+        dispute_reason: payload.reason,
+        dispute_details: payload.details || '',
+        dispute_media_urls: payload.media_urls || [],
+      } : prev);
+      setActionToast('Dispute opened. Funds are on hold while we review.');
+    } catch {
+      setActionToast('Could not open dispute.');
+    } finally {
+      setTimeout(() => setActionToast(null), 5000);
+    }
+  }
+
+  async function uploadDisputeMedia(bookingId: string, file: File): Promise<string | null> {
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return null;
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+      const res = await fetch('/api/upload-message-media', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          booking_id: bookingId,
+          media_type: mediaType,
+          file_data: base64,
+          file_type: file.type || 'image/jpeg',
+          file_name: file.name || `dispute-${Date.now()}.jpg`,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionToast(data.error || 'Could not upload photo.');
+        setTimeout(() => setActionToast(null), 5000);
+        return null;
+      }
+      return data.url || null;
+    } catch {
+      setActionToast('Could not upload photo.');
+      setTimeout(() => setActionToast(null), 5000);
+      return null;
+    }
   }
 
   useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        const fullName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
+        const firstName = fullName.split(' ')[0];
+        const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
+        const { data: profile } = await supabase
+          .from('profiles').select('has_seen_welcome').eq('id', session.user.id).maybeSingle();
+
+        const isFirstVisit = profile !== null && profile.has_seen_welcome === false;
+
+        if (isFirstVisit) {
+          await supabase.from('profiles').update({ has_seen_welcome: true }).eq('id', session.user.id);
+          setUserName(firstName);
+          setUserInitials(initials);
+          setPhase('welcome');
+          if (session.user.email) {
+            maybeSendWelcomeEmail(session.user.email, fullName, session.access_token);
+          }
+        } else {
+          setPhase('done');
+
+        }
 
         // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
-
         try {
-          bookingsData = await fetchUserBookings(session.access_token, session.user.id);
-          setBookings(bookingsData);
+          const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            bookingsData = data.bookings || [];
+            setBookings(bookingsData);
+          } else {
+            setBookings([]);
+          }
         } catch {
           setBookings([]);
         } finally {
@@ -1783,116 +902,64 @@ function writeCoords(lat: number, lng: number) {
           // Also fetch nearby businesses for the "Available near you" section
           try {
             const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
-
-            const cached = readCoords();
-            if (cached?.lat && cached?.lng) {
-              fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 6, radius: 25 }).then((real) => {
-                if (real.length > 0) { setNearbySafe(real); }
-              });
-            }
-
-            // IP geo fallback
-            try {
-              const _ipRes = await fetch('https://ipapi.co/json/');
-              const _ipData = await _ipRes.json();
-              if (_ipData.latitude && _ipData.longitude) {
-                const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 6, radius: 25 });
-                if (_ipBiz.length > 0) {
-                  setNearbySafe(_ipBiz);
-                  setNearbyLoading(false);
-                }
-              }
-            } catch (_e) {}
-
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  if (nearby.length > 0) setNearbySafe(nearby);
-                  // if empty, keep existing list
+                  setNearbyBizList(nearby);
                   setNearbyLoading(false);
                 },
-                () => { if (!hasNearbyRef.current) setNearbySafe([]); setNearbyLoading(false); },
+                () => { setNearbyBizList([]); setNearbyLoading(false); },
                 { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
               );
               return; // setNearbyLoading handled in callbacks above
             }
-            if (!hasNearbyRef.current) setNearbySafe([]);
-          } catch { if (!hasNearbyRef.current) setNearbySafe([]); }
+            setNearbyBizList([]);
+          } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
-          // Check for unreviewed completed bookings — show review banner
+          // Check for unreviewed completed bookings — show review prompt
           const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
           );
-          if (unreviewed) {
-            const key = `sm_review_dismissed_${unreviewed.id}`;
-            const dismissed = typeof window !== 'undefined' && localStorage.getItem(key);
-            if (!dismissed) {
-              setReviewBanner(unreviewed);
-            }
+          if (unreviewed && unreviewed.business_name) {
+            setTimeout(() => setReviewTarget({
+              bookingId: unreviewed.id,
+              businessId: unreviewed.business_id,
+              businessName: unreviewed.business_name,
+              serviceName: unreviewed.service,
+            }), 800);
           }
         }
       } else {
+        setPhase('done');
         setLoadingBookings(false);
           // Also fetch nearby businesses for the "Available near you" section
           try {
             const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
-
-            const cached = readCoords();
-            if (cached?.lat && cached?.lng) {
-              fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 6, radius: 25 }).then((real) => {
-                if (real.length > 0) { setNearbySafe(real); }
-              });
-            }
-
-            // IP geo fallback
-            try {
-              const _ipRes = await fetch('https://ipapi.co/json/');
-              const _ipData = await _ipRes.json();
-              if (_ipData.latitude && _ipData.longitude) {
-                const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 6, radius: 25 });
-                if (_ipBiz.length > 0) {
-                  setNearbySafe(_ipBiz);
-                  setNearbyLoading(false);
-                }
-              }
-            } catch (_e) {}
-
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  if (nearby.length > 0) setNearbySafe(nearby);
-                  // if empty, keep existing list
+                  setNearbyBizList(nearby);
                   setNearbyLoading(false);
                 },
-                () => { if (!hasNearbyRef.current) setNearbySafe([]); setNearbyLoading(false); },
+                () => { setNearbyBizList([]); setNearbyLoading(false); },
                 { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
               );
               return; // setNearbyLoading handled in callbacks above
             }
-            if (!hasNearbyRef.current) setNearbySafe([]);
-          } catch { if (!hasNearbyRef.current) setNearbySafe([]); }
+            setNearbyBizList([]);
+          } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
       }
     });
   }, []);
 
+  const showOverlay = phase === 'welcome' || phase === 'transitioning';
+  const overlayOut = phase === 'transitioning';
   const filteredBookings = bookings; // category filter removed - column doesn't exist in DB
   const activeBookings = filteredBookings.filter(b => !['completed', 'cancelled'].includes(b.status));
   const pastBookings   = filteredBookings.filter(b => ['completed', 'cancelled'].includes(b.status));
-  const PAGE_SIZE = 2;
-  const [activePage, setActivePage] = useState(0);
-  const [pastPage, setPastPage] = useState(0);
-  const activePages = Math.max(1, Math.ceil(activeBookings.length / PAGE_SIZE));
-  const pastPages = Math.max(1, Math.ceil(pastBookings.length / PAGE_SIZE));
-  const activeSlice = activeBookings.slice(activePage * PAGE_SIZE, activePage * PAGE_SIZE + PAGE_SIZE);
-  const pastSlice = pastBookings.slice(pastPage * PAGE_SIZE, pastPage * PAGE_SIZE + PAGE_SIZE);
-
-  useEffect(() => {
-    setActivePage(0);
-    setPastPage(0);
-  }, [activeBookings.length, pastBookings.length]);
 
   return (
     <>
@@ -1900,15 +967,24 @@ function writeCoords(lat: number, lng: number) {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Bookings — ScheduleMe</title></Head>
 
+      {/* Onboarding carousel — first time users only */}
+      {showOverlay && (
+        <OnboardingCarousel
+          userName={userName}
+          userInitials={userInitials}
+          fading={overlayOut}
+          onDone={() => { setPhase('transitioning'); setTimeout(() => setPhase('done'), 500); }}
+        />
+      )}
+
       <Nav />
 
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
-        {/* Header — flat solid blue */}
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F9F7F2' }}>
         <div className="border-b" style={{
-          background: '#007e6d',
+          background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
         }}>
-          <div className="relative mx-auto max-w-3xl px-6 pt-8 pb-7">
+          <div className="relative mx-auto max-w-3xl px-4 sm:px-6 pt-8 pb-7">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.65)' }}>Your activity</p>
@@ -1917,7 +993,7 @@ function writeCoords(lat: number, lng: number) {
               </div>
               <Link href="/browse" scroll={false}
                 className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl transition-colors mt-1"
-                style={{ background: dm ? 'rgb(17,17,17)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#007e6d', border: '1px solid rgba(255,255,255,0.3)' }}>
+                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#0F766E', border: '1px solid rgba(255,255,255,0.3)' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -1932,8 +1008,8 @@ function writeCoords(lat: number, lng: number) {
                 { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
                 { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
-                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgb(20,20,20)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
-                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#007e6d' : '#007e6d' }}>{s.value}</p>
+                <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
+                  <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0F766E' }}>{s.value}</p>
                   <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>{s.label}</p>
                 </div>
               ))}
@@ -1942,61 +1018,23 @@ function writeCoords(lat: number, lng: number) {
           </div>
         </div>
 
-        <div className="relative mx-auto max-w-3xl px-6 py-10">
-          {/* Soft ambient glow for a little warmth */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -top-8 left-1/2 h-48 w-[38rem] -translate-x-1/2 rounded-full blur-3xl"
-            style={{
-              opacity: dm ? 0.2 : 0.45,
-              background: dm
-                ? 'radial-gradient(closest-side, rgba(0,126,109,0.35), transparent 70%)'
-                : 'radial-gradient(closest-side, rgba(0,126,109,0.25), transparent 70%)',
-            }}
-          />
-          <div className="relative z-10 space-y-6">
-            {reviewBanner && (
-              <div className="rounded-2xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.12)', boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.25)' : '0 12px 30px rgba(0, 73, 128, 0.08)' }}>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>How was your recent booking?</p>
-                  <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                    Leave a review for {reviewBanner.business_name || 'your provider'}.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setReviewTarget({
-                        bookingId: reviewBanner.id,
-                        businessId: reviewBanner.business_id,
-                        businessName: reviewBanner.business_name,
-                        serviceName: reviewBanner.service,
-                      });
-                      setReviewBanner(null);
-                    }}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-white"
-                    style={{ background: '#007e6d' }}>
-                    Leave review
-                  </button>
-                  <button
-                    onClick={() => {
-                      try { localStorage.setItem(`sm_review_dismissed_${reviewBanner.id}`, 'true'); } catch {}
-                      setReviewBanner(null);
-                    }}
-                    className="px-3 py-2 rounded-xl text-xs font-semibold"
-                    style={{ background: dm ? '#1f2937' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            )}
-            {loadingBookings ? (
-            <div className="space-y-4">
+        {actionToast && (
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-4">
+            <div className="rounded-xl border px-4 py-3 text-sm font-medium"
+              style={{ background: '#f8fafc', borderColor: '#e2e8f0', color: '#334155' }}>
+              {actionToast}
+            </div>
+          </div>
+        )}
+
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 sm:py-8">
+          <div className="space-y-3.5">
+              {loadingBookings ? (
+            <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => <SkeletonBookingCard key={i} dm={dm} />)}
             </div>
           ) : bookings.length === 0 ? (
-                <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.08)', boxShadow: dm ? '0 12px 24px rgba(0,0,0,0.35)' : '0 18px 40px rgba(0, 73, 128, 0.08)' }}>
+                <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.08)' }}>
                   <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
@@ -2010,106 +1048,43 @@ function writeCoords(lat: number, lng: number) {
               ) : (
                 <>
                   {activeBookings.length > 0 && (
-                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 16px 40px rgba(0,0,0,0.08)' }}>
-                      <div className="flex items-center justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-3 flex-1">
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>Active</span>
-                          <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
-                        </div>
-                        {activeBookings.length > PAGE_SIZE && (
-                          <div className="flex items-center gap-2 text-[11px] font-semibold" style={{ color: dm ? '#d1d5db' : '#374151' }}>
-                            <button
-                              type="button"
-                              onClick={() => setActivePage(p => Math.max(0, p - 1))}
-                              disabled={activePage === 0}
-                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
-                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
-                            >
-                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
-                            </button>
-                            <span>{activePage + 1}/{activePages}</span>
-                            <button
-                              type="button"
-                              onClick={() => setActivePage(p => Math.min(activePages - 1, p + 1))}
-                              disabled={activePage >= activePages - 1}
-                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
-                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
-                            >
-                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 6l6 6-6 6" /></svg>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-4">
-                        {activeSlice.map(b => {
+                    <div>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: '#0F766E' }}>Active</h2>
+                      <div className="space-y-3">
+                        {activeBookings.map(b => {
                           const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
-                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
-                          const primaryTime = b.scheduled_at ? formatTimeUntil(b.scheduled_at) : formatDate(b.created_at);
-                          const scheduledLabel = b.scheduled_at && b.scheduled_exact ? formatShortDateTime(b.scheduled_at) : (b.scheduled_at ? `Due by ${formatDate(b.scheduled_at)}` : null);
-                          const priceAcceptedLabel =
-                            (b.price_accepted_by_provider && b.customer_proposed_price_cents)
-                              ? 'Set price accepted'
-                              : (b.price_accepted_by_customer && b.provider_proposed_price_cents)
-                                ? 'Price accepted'
-                                : null;
                           return (
                             <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left booking-card group overflow-hidden transition-all hover:-translate-y-0.5"
-                              style={{
-                                background: dm ? '#1c1c1e' : 'white',
-                                border: dm ? '1px solid #2c2c2e' : '1px solid #e5e7eb',
-                                borderRadius: 16,
-                                boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.35)' : '0 12px 28px rgba(0,0,0,0.08)',
-                              }}>
-                              <div className="p-6 pt-5 pb-5">
+                              className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                              {/* Left accent bar — status color */}
+                              <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
+                              <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>
-                                      {b.service || 'Custom Request'}
-                                    </h3>
-                                    {bizName && (
-                                      <p className="text-xs font-semibold mt-0.5" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>
-                                        {bizName}
-                                      </p>
-                                    )}
+                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
+                                    {b.business_name
+                                      ? <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>
+                                      : <p className="text-xs mt-0.5 italic" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>Matching you with a pro…</p>}
                                     <div className="flex items-center gap-2 mt-1.5">
-                                      <p className="text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#64748b' }}>{primaryTime}</p>
-                                      {scheduledLabel && (
+                                      <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
+                                      {b.scheduled_at && (
                                         <>
                                           <span className="text-neutral-200">·</span>
                                           <span className="text-[10px] font-semibold" style={{ color: cfg.barColor }}>
-                                            {scheduledLabel}
+                                            {new Date(b.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                           </span>
                                         </>
                                       )}
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    {b.amount_cents != null && (() => {
-                                      const protectionFee = typeof b.protection_fee_cents === 'number' ? b.protection_fee_cents : PROTECTION_FEE_CENTS;
-                                      const totalCents = b.amount_cents + protectionFee;
-                                      return (
-                                        <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#e5e7eb' : '#111827' }}>
-                                          {'$'}{(totalCents / 100).toFixed(2)}
-                                        </span>
-                                      );
-                                    })()}
-                                    {priceAcceptedLabel && (
-                                      <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(16,185,129,0.2)' : '#dcfce7', color: dm ? '#86efac' : '#166534' }}>
-                                        {priceAcceptedLabel}
-                                      </span>
-                                    )}
-                                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: cfg.badgeBg, color: cfg.badgeText }}>{cfg.label}</span>
+                                    <StatusBadge status={b.status} />
                                     <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                     </svg>
                                   </div>
                                 </div>
-                                <ProgressBar
-                                  status={b.status}
-                                  steps={shouldShowPaidStep(b) ? STEPS : STEPS_NO_PAID}
-                                  labels={shouldShowPaidStep(b) ? STEP_LABELS : STEP_LABELS_NO_PAID}
-                                />
+                                <ProgressBar status={b.status} />
                               </div>
                             </button>
                           );
@@ -2119,91 +1094,36 @@ function writeCoords(lat: number, lng: number) {
                   )}
 
                   {pastBookings.length > 0 && (
-                    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 16px 40px rgba(0,0,0,0.06)' }}>
-                      <div className="flex items-center justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-3 flex-1">
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>Past</span>
-                          <div className="h-px flex-1" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#e5e7eb' }} />
-                        </div>
-                        {pastBookings.length > PAGE_SIZE && (
-                          <div className="flex items-center gap-2 text-[11px] font-semibold" style={{ color: dm ? '#d1d5db' : '#374151' }}>
-                            <button
-                              type="button"
-                              onClick={() => setPastPage(p => Math.max(0, p - 1))}
-                              disabled={pastPage === 0}
-                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
-                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
-                            >
-                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
-                            </button>
-                            <span>{pastPage + 1}/{pastPages}</span>
-                            <button
-                              type="button"
-                              onClick={() => setPastPage(p => Math.min(pastPages - 1, p + 1))}
-                              disabled={pastPage >= pastPages - 1}
-                              className="h-7 w-7 rounded-full border flex items-center justify-center disabled:opacity-40"
-                              style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#1f2937' : 'white' }}
-                            >
-                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 6l6 6-6 6" /></svg>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-4">
-                        {pastSlice.map(b => {
-                          const bizName = formatBusinessName(b.business_name || (b as any).businesses?.name);
-                          const priceAcceptedLabel =
-                            (b.price_accepted_by_provider && b.customer_proposed_price_cents)
-                              ? 'Set price accepted'
-                              : (b.price_accepted_by_customer && b.provider_proposed_price_cents)
-                                ? 'Price accepted'
-                                : null;
-                          return (
+                    <div>
+                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>Past</h2>
+                      <div className="space-y-3">
+                        {pastBookings.map(b => (
                           <button key={b.id} onClick={e => openBooking(b, e)}
-                            className="w-full text-left booking-card group overflow-hidden opacity-80 hover:opacity-100 transition-all hover:-translate-y-0.5"
-                            style={{
-                              background: dm ? '#1c1c1e' : 'white',
-                              border: dm ? '1px solid #2c2c2e' : '1px solid #e5e7eb',
-                              borderRadius: 16,
-                              boxShadow: dm ? '0 6px 16px rgba(0,0,0,0.3)' : '0 12px 26px rgba(0,0,0,0.06)',
-                            }}>
-                            <div className="p-6 pt-5 pb-5 flex items-start justify-between gap-3">
+                            className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                            <div className="w-[6px] shrink-0 bg-neutral-200" />
+                            <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service || 'Custom Request'}</h3>
-                                {bizName && (
-                                  <p className="text-xs mt-0.5 font-semibold" style={{ color: dm ? '#9ca3af' : '#737373' }}>{bizName}</p>
-                                )}
+                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
+                                {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
                                   {b.amount_cents && (
                                     <>
                                       <span className="text-neutral-200">·</span>
-                                      {(() => {
-                                        const protectionFee = typeof b.protection_fee_cents === 'number' ? b.protection_fee_cents : PROTECTION_FEE_CENTS;
-                                        const totalCents = b.amount_cents + protectionFee;
-                                        return (
-                                          <p className="text-[10px] font-bold text-neutral-500">{'$'}{(totalCents / 100).toFixed(2)} paid</p>
-                                        );
-                                      })()}
+                                      <p className="text-[10px] font-bold text-neutral-500">{'$'}{((b.amount_cents + PROTECTION_FEE_CENTS) / 100).toFixed(2)} paid</p>
                                     </>
                                   )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                {priceAcceptedLabel && (
-                                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: dm ? 'rgba(16,185,129,0.2)' : '#dcfce7', color: dm ? '#86efac' : '#166534' }}>
-                                    {priceAcceptedLabel}
-                                  </span>
-                                )}
-                                <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>{b.status}</span>
+                                <StatusBadge status={b.status} />
                                 <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                 </svg>
                               </div>
                             </div>
                           </button>
-                        );
-                        })}
+                        ))}
                       </div>
                     </div>
                   )}
@@ -2211,7 +1131,7 @@ function writeCoords(lat: number, lng: number) {
               )}
 
           {/* Nearby pros — horizontal scroll row, no grid */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(10,132,255,0.09)', boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.35)' : '0 18px 50px rgba(0, 73, 128, 0.08)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.09)' }}>
             <div className="px-5 pt-5 pb-2 flex items-center justify-between">
               <div>
                 <h3 className="text-[1rem] font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>Available near you</h3>
@@ -2227,18 +1147,12 @@ function writeCoords(lat: number, lng: number) {
                 ? Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="animate-shimmer rounded-xl flex-shrink-0" style={{ width: 200, height: 180 }} />
                   ))
-                : nearbyBizList.slice(0, 8).map(biz => (
-                <Link key={biz.id} href={`/biz/${biz.slug || biz.realId || biz.id}`} scroll={false}
+                : nearbyBizList.map(biz => (
+                <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
-                  style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(10,132,255,0.12)', background: dm ? '#171717' : 'white' }}>
+                  style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(15,118,110,0.12)', background: dm ? '#171717' : 'white' }}>
                   <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
-                    {renderCover({
-                      src: biz.coverUrl,
-                      name: biz.name,
-                      className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]',
-                      fallbackClassName: 'w-full h-full flex items-center justify-center',
-                      fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
-                    })}
+                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
                     {biz.available && (
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full px-2 py-0.5"
@@ -2252,18 +1166,14 @@ function writeCoords(lat: number, lng: number) {
                     </div>
                   </div>
                   <div className="px-3 py-2.5" style={{ background: dm ? '#171717' : 'white' }}>
-                    {(biz.reviews ?? 0) > 0 && biz.rating != null ? (
                     <div className="flex items-center gap-1">
-                      <RatingStars rating={Number(biz.rating)} size={10} />
+                      <svg className="h-2.5 w-2.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
                       <span className="text-[10px] font-semibold" style={{ color: dm ? '#d1d5db' : '#404040' }}>{biz.rating}</span>
                       <span className="text-neutral-300 text-[10px]">·</span>
                       <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</span>
                     </div>
-                    ) : (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px]" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</span>
-                    </div>
-                    )}
                     <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
                   </div>
                 </Link>
@@ -2280,63 +1190,22 @@ function writeCoords(lat: number, lng: number) {
         <DetailSheet
           booking={selectedBooking}
           originRect={originRect}
-          onClose={() => { setSelectedBooking(null); setOriginRect(null); }}
+          onClose={() => setSelectedBooking(null)}
           onCancel={cancelBooking}
-          onServiceDispute={openServiceDispute}
-          onRequestReview={(b) => {
-            if (!b.business_id) { setPaymentToast('setup_cancelled'); return; }
-            setReviewTarget({
-              bookingId: b.id,
-              businessId: b.business_id,
-              businessName: b.business_name || 'Provider',
-              serviceName: b.service || 'Booking',
-            });
-            setTimeout(() => setSelectedBooking(null), 120);
-          }}
-          onPriceAccepted={(id, updates) => updateBookingLocal(id, updates)}
-          dm={dm}
-          paymentMethods={paymentMethods}
-          paymentDefaultId={paymentDefaultId}
-          paymentLoading={paymentLoading}
-          showAddCard={showAddCard}
-          setShowAddCard={setShowAddCard}
-          fetchPaymentMethods={fetchPaymentMethods}
-          setDefaultPaymentMethod={setDefaultPaymentMethod}
-          setPaymentToast={setPaymentToast}
+          onOpenDispute={openDispute}
+          onUploadDisputeMedia={uploadDisputeMedia}
         />
       )}
 
-      {reviewTarget && (
-        <ReviewModal
-          bookingId={reviewTarget.bookingId}
-          businessId={reviewTarget.businessId}
-          businessName={reviewTarget.businessName}
-          serviceName={reviewTarget.serviceName}
-          onDone={() => {
-            setReviewTarget(null);
-            setReviewBanner(null);
-            setBookings((prev) => prev.map((b) => b.id === reviewTarget.bookingId ? { ...b, reviewed: true } : b));
-          }}
-        />
-      )}
-
-      {/* Payment/capture toasts */}
-      {paymentToast && (
+      {/* Payment cancelled toast */}
+      {paymentToast === 'cancelled' && (
         <div
           className="fixed bottom-24 md:bottom-6 left-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl"
           style={{ transform: 'translateX(-50%)', background: '#1a1d27', border: '1px solid #2a2d3a', animation: 'fade-up 0.3s ease both' }}>
-          {paymentToast === 'setup_success' ? (
-            <svg className="h-4 w-4 shrink-0" style={{ color: '#10b981' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          ) : (
-            <svg className="h-4 w-4 shrink-0" style={{ color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-          )}
-          <p className="text-sm font-semibold text-white">
-            {paymentToast === 'cancelled' && 'Payment cancelled — no charge was made.'}
-            {paymentToast === 'setup_cancelled' && 'Card setup cancelled — no charge was made.'}
-            {paymentToast === 'setup_success' && 'Card saved. You can pay now to secure your booking.'}
-          </p>
+          <svg className="h-4 w-4 shrink-0" style={{ color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p className="text-sm font-semibold text-white">Payment cancelled — no charge was made.</p>
           <button onClick={() => setPaymentToast(null)} className="ml-1 text-neutral-400 hover:text-white transition-colors">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>

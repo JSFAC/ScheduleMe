@@ -37,13 +37,10 @@ const ICONS: Record<string, JSX.Element> = {
   zap: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>,
   calendar: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>,
   shield: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>,
-  clock: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" /></svg>,
-  graduation: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 10v4a7 7 0 0014 0v-4" /></svg>,
-  dollar: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m0 0a4 4 0 004-4H8a4 4 0 004 4zm0-12a4 4 0 00-4 4h8a4 4 0 00-4-4z" /></svg>,
 };
 
 const STATS = [
-  { value: '2,400+', label: 'Student users' },
+  { value: '2,400+', label: 'Local businesses' },
   { value: '98%', label: 'Match accuracy' },
   { value: '<60s', label: 'Avg. booking time' },
   { value: '4.9★', label: 'Customer rating' },
@@ -61,8 +58,8 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
   return (
     <>
       <Head>
-        <title>ScheduleMe — Student-First Local Service Booking</title>
-        <meta name="description" content="Describe what you need, get matched with campus pros, and book in seconds." />
+        <title>ScheduleMe — AI-Powered Local Service Booking</title>
+        <meta name="description" content="Describe your issue, get instantly triaged, and book a vetted local pro — in seconds." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -83,18 +80,10 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           <div className="mx-auto max-w-5xl px-6">
             <ul className="grid grid-cols-2 md:grid-cols-4 gap-8" role="list">
               {STATS.map((s) => (
-            <li key={s.label} className="js-stat text-center">
-              <p className="text-3xl md:text-4xl font-black" style={{ letterSpacing: '-0.03em' }}>
-                <span className="inline-block bg-accent px-1.5 py-0.5 text-white">
-                  {s.value}
-                </span>
-              </p>
-              <p className="text-sm mt-1.5">
-                <span className="inline-block bg-accent px-1.5 py-0.5 text-white/95">
-                  {s.label}
-                </span>
-              </p>
-            </li>
+                <li key={s.label} className="js-stat text-center">
+                  <p className="text-3xl md:text-4xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>{s.value}</p>
+                  <p className="text-sm text-neutral-400 mt-1.5">{s.label}</p>
+                </li>
               ))}
             </ul>
           </div>
@@ -109,13 +98,13 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 Everything you need,<br className="hidden md:block" /> nothing you don&apos;t.
               </h2>
               <p className="mt-5 text-lg max-w-xl mx-auto leading-relaxed" style={{ color: dm ? '#737373' : '#737373' }}>
-                Built for the moment you need help fast — and for the providers that show up.
+                Built for the moment you need help fast — and for the businesses that show up.
               </p>
             </div>
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
               {features.map((feature) => (
                 <li key={feature.title} className="js-feat p-7 group hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)', boxShadow: dm ? 'none' : '0 1px 3px rgba(0,0,0,0.06)' }}>
-                  <div className="h-11 w-11 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300" style={{ background: dm ? 'rgba(213, 225, 222, 0.15)' : 'rgb(213, 225, 222)', color: '#007e6d' }}>
+                  <div className="h-11 w-11 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300" style={{ background: dm ? 'rgba(15,118,110,0.15)' : '#DCEEEB', color: '#0F766E' }}>
                     {ICONS[feature.icon] ?? null}
                   </div>
                   <h3 className="text-base font-semibold mb-2" style={{ color: dm ? 'white' : '#171717' }}>{feature.title}</h3>
@@ -135,9 +124,9 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
             </div>
             <ul className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
               {[
-                { quote: "Found a student photographer for grad pics in ten minutes. Super easy and the portfolio helped me choose.", name: "Maya R.", location: "UCSC", service: "Photography" },
-                { quote: "Booked a haircut between classes. The pro was on campus and I got a confirmation right away.", name: "Eli T.", location: "UCSC", service: "Salon / Beauty" },
-                { quote: "Needed a tutor before midterms. I posted once and got matched with two options the same day.", name: "Jada K.", location: "UCSC", service: "Tutoring" },
+                { quote: "Described a leaking pipe, got three plumbers within 2 minutes. Booked in 45 seconds. Incredible.", name: "Maria L.", location: "Austin, TX", service: "Plumbing" },
+                { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "James T.", location: "Phoenix, AZ", service: "HVAC" },
+                { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Sandra K.", location: "Denver, CO", service: "Home Repair" },
               ].map((t) => (
                 <li key={t.name} className="js-testimonial p-7 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
                   <div className="flex gap-0.5 mb-4" aria-label="5 stars">
@@ -145,7 +134,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                   </div>
                   <blockquote className="text-sm leading-relaxed mb-5" style={{ color: dm ? '#a3a3a3' : '#404040' }}>&ldquo;{t.quote}&rdquo;</blockquote>
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full flex items-center justify-center text-accent font-bold text-sm flex-shrink-0" style={{ background: dm ? 'rgba(213, 225, 222,0.15)' : 'rgb(213, 225, 222)' }}>{t.name.charAt(0)}</div>
+                    <div className="h-9 w-9 rounded-full flex items-center justify-center text-accent font-bold text-sm flex-shrink-0" style={{ background: dm ? 'rgba(15,118,110,0.15)' : '#DCEEEB' }}>{t.name.charAt(0)}</div>
                     <div>
                       <p className="text-sm font-semibold" style={{ color: dm ? 'white' : '#171717' }}>{t.name}</p>
                       <p className="text-xs" style={{ color: dm ? '#525252' : '#a3a3a3' }}>{t.location} · {t.service}</p>
@@ -186,12 +175,12 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           </div>
         </section>
 
-        {/* Provider teaser */}
+        {/* Business teaser */}
         <section className="py-24 bg-neutral-950" aria-labelledby="biz-teaser-heading">
           <div className="mx-auto max-w-5xl px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-12">
               <div className="max-w-lg js-section">
-                <span className="section-eyebrow mb-4 block">For Service Providers</span>
+                <span className="section-eyebrow mb-4 block">For Service Businesses</span>
                 <h2 id="biz-teaser-heading" className="text-3xl md:text-4xl font-bold text-white mb-5">
                   Get pre-qualified leads delivered directly to you.
                 </h2>
@@ -201,17 +190,17 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 <div className="flex flex-wrap gap-3">
                   <Link href="/business" className="btn-primary px-7 py-3">Learn More</Link>
                   <Link href="/business/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Join for Free</Link>
-                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Provider Dashboard →</Link>
+                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Business Dashboard →</Link>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-4 w-full md:w-auto md:flex-shrink-0" role="list">
                 {[
                   { label: 'Instant lead alerts' },
                   { label: 'Pre-qualified matches' },
-                  { label: 'Provider dashboard' },
+                  { label: 'Business dashboard' },
                   { label: 'Pay per lead' },
                 ].map((item) => (
-                  <li key={item.label} className="js-biz-item bg-neutral-900 border border-neutral-800 rounded-2xl px-5 py-4 flex items-center justify-center text-center gap-3">
+                  <li key={item.label} className="js-biz-item bg-neutral-900 border border-neutral-800 rounded-2xl px-5 py-4 flex items-center gap-3">
                     <span className="text-2xl" aria-hidden="true"></span>
                     <span className="text-sm font-medium text-neutral-200">{item.label}</span>
                   </li>
@@ -264,7 +253,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 </ul>
               </div>
               <div>
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Providers</p>
+                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Business</p>
                 <ul className="space-y-2" role="list">
                   {[{ label: 'Join as a Pro', href: '/business' }, { label: 'Sign Up', href: '/business/signup' }, { label: 'Dashboard', href: '/dashboard' }].map((l) => (
                     <li key={l.href}><Link href={l.href} className="text-sm text-neutral-500 hover:text-neutral-200 transition-colors">{l.label}</Link></li>

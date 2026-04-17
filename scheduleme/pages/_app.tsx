@@ -1,11 +1,11 @@
 // @ts-nocheck
 // pages/_app.tsx
 import type { AppProps } from 'next/app';
+import { Analytics } from '@vercel/analytics/react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/globals.css';
-import 'leaflet/dist/leaflet.css';
 import { DarkModeProvider } from '../lib/DarkModeContext';
 
 const isBiz = (url: string) => url.startsWith('/business') || url.startsWith('/auth');
@@ -30,7 +30,7 @@ export default function App({ Component, pageProps }: AppProps) {
         document.documentElement.classList.contains('dark') ||
         window.matchMedia('(prefers-color-scheme: dark)').matches;
       const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', isDark ? '#0a0a0a' : '#EDF5FF');
+      if (meta) meta.setAttribute('content', isDark ? '#0a0a0a' : '#F9F7F2');
     }
     updateThemeColor();
     const observer = new MutationObserver(updateThemeColor);
@@ -47,23 +47,10 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     const isDark = localStorage.getItem('sm_dark_mode') === 'true';
     const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
-    if (meta) meta.content = isDark ? '#0a0a0a' : '#EDF5FF';
+    if (meta) meta.content = isDark ? '#0a0a0a' : '#F9F7F2';
     // Start visible immediately — no fade-in on mount
     setVisible(true);
     return () => {};
-  }, []);
-
-
-  // Hard reset scroll lock on mount (fix Chrome no-scroll)
-  useEffect(() => {
-    document.documentElement.style.overflow = '';
-    document.body && (document.body.style.overflow = '');
-    const onFocus = () => {
-      document.documentElement.style.overflow = '';
-      document.body && (document.body.style.overflow = '');
-    };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   useEffect(() => {
@@ -84,8 +71,6 @@ export default function App({ Component, pageProps }: AppProps) {
     };
 
     const onDone = () => {
-      document.documentElement.style.overflow = '';
-      document.body && (document.body.style.overflow = '');
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
       if (isTransitioning.current) {
         isTransitioning.current = false;
@@ -101,8 +86,6 @@ export default function App({ Component, pageProps }: AppProps) {
     };
 
     const onError = () => {
-      document.documentElement.style.overflow = '';
-      document.body && (document.body.style.overflow = '');
       setVisible(true);
       setShowOverlay(false);
     };
@@ -202,11 +185,7 @@ export default function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <link rel="manifest" href="/manifest.json" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-        />
-        <meta name="theme-color" content="#EDF5FF" id="theme-color-meta" />
+        <meta name="theme-color" content="#F9F7F2" id="theme-color-meta" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -214,7 +193,7 @@ export default function App({ Component, pageProps }: AppProps) {
   try {
     var dark = localStorage.getItem('sm_dark_mode') === 'true';
     var meta = document.getElementById('theme-color-meta');
-    if (meta) meta.content = dark ? '#0a0a0a' : '#EDF5FF';
+    if (meta) meta.content = dark ? '#0a0a0a' : '#F9F7F2';
     if (dark) document.documentElement.classList.add('dark');
     document.documentElement.style.overflowX = 'hidden';
     document.body && (document.body.style.overflowX = 'hidden');
@@ -228,8 +207,6 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ScheduleMe" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="icon" href="/icon-192.png" sizes="192x192" />
-        <link rel="icon" href="/icon-512.png" sizes="512x512" />
         <meta name="mobile-web-app-capable" content="yes" />
       </Head>
 
@@ -263,8 +240,8 @@ export default function App({ Component, pageProps }: AppProps) {
             <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toBusiness ? '#fff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: 4 }}>
               ScheduleMe
             </p>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#007e6d', marginBottom: 20 }}>
-              {toBusiness ? 'for Providers' : 'for Everyone'}
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0F766E', marginBottom: 20 }}>
+              {toBusiness ? 'for Business' : 'for Everyone'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <div
@@ -272,8 +249,8 @@ export default function App({ Component, pageProps }: AppProps) {
                   width: 18,
                   height: 18,
                   borderRadius: '50%',
-                  border: '2px solid rgba(10,132,255,0.25)',
-                  borderTopColor: '#007e6d',
+                  border: '2px solid rgba(15,118,110,0.25)',
+                  borderTopColor: '#0F766E',
                   animation: 'spin 0.7s linear infinite',
                 }}
               />
@@ -296,6 +273,7 @@ export default function App({ Component, pageProps }: AppProps) {
         </DarkModeProvider>
       </div>
 
+      <Analytics />
     </>
   );
 }

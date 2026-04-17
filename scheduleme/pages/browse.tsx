@@ -5,107 +5,24 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
-import { getSupabaseClient } from '../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
+import BusinessProfile from '../components/BusinessProfile';
 import type { Business } from '../lib/mockBusinesses';
 import { SkeletonCard, SkeletonBrowseCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
-import { shouldShowNewBadge } from '../lib/newBadge';
 
 function getSupabase() {
-  return getSupabaseClient();
-}
-
-const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-
-function isRealCover(src?: string | null): boolean {
-  return !!src && src !== TRANSPARENT_PIXEL;
-}
-
-function initials(name: string): string {
-  return name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
-
-function isPreviewLocked(biz: Business): boolean {
-  return (biz as any)?.preview_locked === true;
-}
-
-function displayNameForCard(biz: Business): string {
-  return isPreviewLocked(biz) ? 'Student provider' : (biz.name || 'Provider');
-}
-
-function RatingStars({ rating, size = 12 }: { rating: number; size?: number }) {
-  const safe = Math.max(0, Math.min(5, Number(rating) || 0));
-  return (
-    <div className="flex items-center gap-0.5" aria-label={`${safe.toFixed(1)} stars`}>
-      {[0, 1, 2, 3, 4].map((i) => {
-        const fill = Math.max(0, Math.min(1, safe - i));
-        return (
-          <div key={i} className="relative" style={{ width: size, height: size }}>
-            <svg className="absolute inset-0" width={size} height={size} viewBox="0 0 20 20" fill="#d1d5db">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-            <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
-              <svg width={size} height={size} viewBox="0 0 20 20" fill="#facc15">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function renderCover(opts: {
-  src?: string | null;
-  name: string;
-  className: string;
-  style?: any;
-  fallbackClassName?: string;
-  fallbackStyle?: any;
-  showLabel?: boolean;
-  label?: string;
-  onLoad?: () => void;
-  onError?: () => void;
-}) {
-  if (isRealCover(opts.src)) {
-    return <img src={opts.src!} alt={opts.name} className={opts.className} style={opts.style} onLoad={opts.onLoad} onError={opts.onError} />;
-  }
-  return (
-    <div className={opts.fallbackClassName || 'flex flex-col items-center justify-center bg-neutral-200'} style={opts.fallbackStyle}>
-      <span className="text-xs font-bold" style={{ color: '#6b7280' }}>{initials(opts.name)}</span>
-      {opts.showLabel && (
-        <span className="block text-center text-[9px] mt-1" style={{ color: '#9ca3af' }}>{opts.label || 'No photos yet'}</span>
-      )}
-    </div>
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
 // CATEGORIES is now dynamic — built from loaded businesses below
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
-const PILL_STYLE = { background: 'rgba(0,126,109,0.12)', color: '#007e6d' };
+const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
 
-function getOpenStatus(hours: { day: string; time: string }[], availability?: string | null, breakUntil?: string | null): { open: boolean; label: string } {
-  if (availability === 'break') {
-    if (breakUntil) {
-      const dt = new Date(breakUntil);
-      if (!Number.isNaN(dt.getTime())) {
-        if (dt.getTime() > Date.now()) {
-          const start = new Date();
-          const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          const endLabel = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          return { open: false, label: `On break ${startLabel}–${endLabel}` };
-        }
-      }
-    }
-    return { open: false, label: 'On break' };
-  }
-  if (availability === 'closed') return { open: false, label: 'Closed' };
-  if (availability === 'busy') return { open: true, label: 'Busy' };
-
+function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
   if (!hours || hours.length === 0) return { open: true, label: 'Open' };
   const now = new Date();
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -152,8 +69,8 @@ function getOpenStatus(hours: { day: string; time: string }[], availability?: st
   return { open: true, label: 'Open' };
 }
 
-function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
-  businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean; center?: [number, number] | null;
+function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }: {
+  businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean; userLat?: number | null; userLng?: number | null;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
@@ -164,34 +81,35 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
     import('leaflet').then(L => {
       if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; }
       const validBiz = businesses.find(b => b.lat && b.lng && b.lat !== 0);
-      const centerProp = center && Number.isFinite(center[0]) && Number.isFinite(center[1]) ? center : null;
-      const hasUserCenter = !!centerProp;
-      const mapCenter: [number, number] = centerProp ?? (validBiz ? [validBiz.lat!, validBiz.lng!] : [39.8283, -98.5795]);
+      const hasUserCenter = Number.isFinite(userLat) && Number.isFinite(userLng);
+      const center: [number, number] = hasUserCenter
+        ? [userLat as number, userLng as number]
+        : validBiz
+          ? [validBiz.lat!, validBiz.lng!]
+          : [39.8283, -98.5795]; // continental US fallback (never hard-default to SF)
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
       leafletMapRef.current = map;
-      const tileUrl = dm
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-      L.tileLayer(tileUrl, {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(map);
-      map.setView(mapCenter, hasUserCenter ? 12 : 13);
+      map.setView(center, hasUserCenter ? 12 : 13);
+
       if (hasUserCenter) {
-        L.circleMarker([centerProp![0], centerProp![1]], {
+        L.circleMarker([userLat as number, userLng as number], {
           radius: 7,
           weight: 2,
           color: '#ffffff',
-          fillColor: '#007e6d',
+          fillColor: '#0F766E',
           fillOpacity: 1,
         }).addTo(map);
       }
+
       markersRef.current = businesses.filter(b => b.lat && b.lng && b.lat !== 0).map(biz => {
         const isSel = selected === biz.id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(0,126,109,0.35)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">{'$'}{(biz.category || 'Provider').split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#0F766E':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(15,118,110,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         const marker = L.marker([biz.lat!, biz.lng!], { icon }).addTo(map).on('click', () => onSelect(biz.id));
@@ -201,14 +119,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
       window.setTimeout(() => map.invalidateSize(), 120);
     });
     return () => { if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; } };
-  }, [businesses, dm, center]);
-
-  useEffect(() => {
-    if (!leafletMapRef.current || !center) return;
-    try {
-      leafletMapRef.current.setView(center, leafletMapRef.current.getZoom() || 13);
-    } catch { /* ignore */ }
-  }, [center]);
+  }, [businesses, dm, userLat, userLng]);
 
   useEffect(() => {
     if (!leafletMapRef.current) return;
@@ -219,7 +130,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
         const isSel = selected === id;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#007e6d':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(0,126,109,0.35)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">{'$'}{(biz.category || 'Provider').split(' ').slice(0,2).join(' ')}</div>`,
+          html: `<div style="background:${isSel?'#0F766E':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(15,118,110,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">{'$'}{biz.name.split(' ').slice(0,2).join(' ')}</div>`,
           iconAnchor: [40, 32],
         });
         marker.setIcon(icon);
@@ -229,6 +140,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
 
   return (
     <>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <style>{`
         .leaflet-container { background: ${dm ? '#111827' : '#f3f4f6'} !important; }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
@@ -245,94 +157,36 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, center }: {
 function BizCard({ biz, onClick, dm, index = 0, href }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
-  const locked = isPreviewLocked(biz);
-  const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
-  const cardLabel = biz.category || 'Provider';
-  const cardName = displayNameForCard(biz);
-  const website = String((biz as any).website || '').trim();
-  const instagramRaw = String((biz as any).instagram || '').trim();
-  const instagramHandle = instagramRaw
-    ? instagramRaw.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '').replace(/\/+$/, '')
-    : '';
+  const status = getOpenStatus(biz.hours);
   return (
-    <button onClick={href ? () => { if (!locked) window.location.href = href; } : onClick} disabled={locked} className="biz-card group w-full text-left flex flex-col animate-fade-up disabled:cursor-not-allowed"
+    <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-        {renderCover({
-          src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-          name: cardName || cardLabel,
-          className: 'absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]',
-          style: { objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0, filter: locked ? 'blur(14px) saturate(0.85)' : 'none' },
-          fallbackClassName: 'absolute inset-0 flex flex-col items-center justify-center gap-1',
-          fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
-          showLabel: true,
-          onLoad: () => setImgLoaded(true),
-          onError: () => setImgLoaded(true),
-        })}
-        {locked && (
-          <div className="absolute inset-x-0 bottom-0 px-2 pb-2">
-            <div className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-              style={{ background: 'rgba(0,0,0,0.58)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-              Private until student verification
-            </div>
-          </div>
-        )}
-        {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
-          <div
-            className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
-            style={{
-              background: 'rgba(0,0,0,0.6)',
-              color: 'white',
-              border: '1px solid rgba(255,255,255,0.18)',
-              backdropFilter: 'blur(6px)',
-            }}
-          >
-            Founder50
-          </div>
-        )}
+        <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
       </div>
-      <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
-        {cardName && (
-          <p className="text-sm font-semibold leading-tight line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#111827' }}>
-            {cardName}
-          </p>
-        )}
+      <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
+        <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
-          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
-          {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
-          )}
-          {!locked ? (
-            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
-              <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
-            </span>
-          ) : (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>Locked</span>
-          )}
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{biz.category}</span>
+          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{'$'.repeat(biz.price_tier)}</span> : null}
+          <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
+            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
+          </span>
         </div>
-        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{locked ? 'Visible to verified students' : biz.distance}</p>
-        {!locked && (website || instagramHandle) && (
-          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-            {website && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#d1d5db' : '#4b5563' }}>
-                Website
-              </span>
-            )}
-            {instagramHandle && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: dm ? '#d1d5db' : '#4b5563' }}>
-                @{instagramHandle}
-              </span>
-            )}
+        <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex items-center gap-0.5">
+            {[1,2,3,4,5].map(i => (
+              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            ))}
           </div>
-        )}
-        {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <RatingStars rating={Number(biz.rating)} size={12} />
-              <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
-              <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
-            </div>
-          )}
+          <span className="text-[13px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+          <span className="text-[12px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
+        </div>
       </div>
     </button>
   );
@@ -362,7 +216,7 @@ function ReferInline() {
         <p className="text-xs text-neutral-500 mt-0.5">Refer a local business you trust and we'll invite them.</p>
       </div>
       <button onClick={() => setOpen(true)}
-        className="shrink-0 text-xs font-bold text-accent bg-accent/10 border border-accent/20 px-4 py-2 rounded-xl hover:bg-accent/15 transition-colors uppercase tracking-wide">
+        className="shrink-0 text-xs font-bold text-accent bg-accent-light border border-accent/20 px-4 py-2 rounded-xl hover:brightness-95 transition-colors uppercase tracking-wide">
         Refer a Business
       </button>
     </div>
@@ -392,44 +246,47 @@ const BrowsePage: NextPage = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMapBiz, setSelectedMapBiz] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-  const [eduVerified, setEduVerified] = useState<boolean | null>(null);
+  const [activeBiz, setActiveBiz] = useState<Business | null>(null);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
   const [bizList, setBizList] = useState<Business[]>([]);
-  const hasBizRef = useRef(false);
   const [bizLoading, setBizLoading] = useState(true);
   const [radius, setRadius] = useState(25);
   const [userLat, setUserLat] = useState(null);
   const [userLng, setUserLng] = useState(null);
     const [usingRealData, setUsingRealData] = useState(false);
   const [geoError, setGeoError] = useState(false);
-  function setBizListSafe(list: Business[]) {
-    hasBizRef.current = list.length > 0;
-    setBizList(list);
-  }
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
 
-const COORDS_KEY = 'sm_last_coords';
-const COORDS_MAX_AGE_MS = 1000 * 60 * 60 * 24;
-function readCoords(): { lat: number; lng: number; ts: number } | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(COORDS_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw);
-    if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') return null;
-    if (typeof v?.ts !== 'number') return null;
-    if (Date.now() - v.ts > COORDS_MAX_AGE_MS) return null;
-    return v;
-  } catch { return null; }
-}
-function writeCoords(lat: number, lng: number) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
-}
+  async function loadNearbyFromCoords(lat: number, lng: number, currentRadius: number) {
+    setUserLat(lat);
+    setUserLng(lng);
+    const real = await fetchNearbyBusinesses(lat, lng, { limit: 40, radius: currentRadius });
+    setBizList(real);
+    if (real.length > 0) setUsingRealData(true);
+    return real.length > 0;
+  }
+
+  async function tryIpFallback(currentRadius: number) {
+    const ipSources = ['https://ipapi.co/json/', 'https://ipwho.is/'];
+    for (const src of ipSources) {
+      try {
+        const res = await fetch(src);
+        const json = await res.json();
+        const lat = Number(json.latitude ?? json.lat);
+        const lng = Number(json.longitude ?? json.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const ok = await loadNearbyFromCoords(lat, lng, currentRadius);
+        if (ok) return true;
+      } catch {
+        // Try the next IP source.
+      }
+    }
+    return false;
+  }
 
 
   useEffect(() => {
@@ -447,75 +304,27 @@ function writeCoords(lat: number, lng: number) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
       setLoading(false);
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('edu_verified')
-        .eq('id', session.user.id)
-        .maybeSingle();
-      if (profile?.edu_verified) {
-        setEduVerified(true);
-      } else {
-        setEduVerified(false);
-      }
-      
+
       let loaded = false;
-      const geolocate = () =>
-        new Promise<{ lat: number; lng: number } | null>((resolve) => {
-          if (!navigator.geolocation) return resolve(null);
+      // Always try precise device location first so map defaults to current area.
+      if (navigator.geolocation) {
+        await new Promise<void>((resolve) => {
           navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => resolve(null),
-            { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
+            async (pos) => {
+              loaded = await loadNearbyFromCoords(pos.coords.latitude, pos.coords.longitude, radius);
+              resolve();
+            },
+            () => resolve(),
+            { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
           );
         });
-
-      const geo = await geolocate();
-      if (geo) {
-        setUserLat(geo.lat);
-        setUserLng(geo.lng);
-        writeCoords(geo.lat, geo.lng);
-        const real = await fetchNearbyBusinesses(geo.lat, geo.lng, { limit: 40, radius });
-        if (real.length > 0) {
-          setBizListSafe(real);
-          setUsingRealData(true);
-          loaded = true;
-        }
-      }
-
-      if (!loaded) {
-        const cached = readCoords();
-        if (cached?.lat && cached?.lng) {
-          setUserLat(cached.lat);
-          setUserLng(cached.lng);
-          const real = await fetchNearbyBusinesses(cached.lat, cached.lng, { limit: 40, radius });
-          if (real.length > 0) {
-            setBizListSafe(real);
-            setUsingRealData(true);
-            loaded = true;
-          }
-        }
-      }
-
-      if (!loaded) {
-        try {
-          const _ipRes = await fetch('https://ipapi.co/json/');
-          const _ipData = await _ipRes.json();
-          if (_ipData.latitude && _ipData.longitude) {
-            const _ipBiz = await fetchNearbyBusinesses(_ipData.latitude, _ipData.longitude, { limit: 40, radius });
-            if (_ipBiz.length > 0) {
-              setBizListSafe(_ipBiz);
-              setUsingRealData(true);
-              setUserLat(_ipData.latitude);
-              setUserLng(_ipData.longitude);
-              writeCoords(_ipData.latitude, _ipData.longitude);
-              loaded = true;
-            }
-          }
-        } catch (_e) {}
       }
       if (!loaded) {
+        loaded = await tryIpFallback(radius);
+      }
+      if (!loaded) {
+        setBizList([]);
         setGeoError(true);
-        if (!hasBizRef.current) setBizListSafe([]);
       } else {
         setGeoError(false);
       }
@@ -531,14 +340,9 @@ function writeCoords(lat: number, lng: number) {
   useEffect(() => {
     if (router.query.biz) {
       const biz = bizList.find(b => b.id === router.query.biz);
-      if (biz && !isPreviewLocked(biz)) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id);
+      if (biz) setActiveBiz(biz);
     }
   }, [router.query.biz]);
-
-  function openBiz(biz: Business) {
-    if (!biz || isPreviewLocked(biz)) return;
-    window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id);
-  }
 
   const filtered = bizList.filter(b => {
     const matchCat = activeCategory === 'All'
@@ -560,29 +364,21 @@ function writeCoords(lat: number, lng: number) {
 
   // Re-fetch when radius changes if we have coords
   useEffect(() => {
-    if (!userLat || !userLng) return;
+    if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) return;
     setBizLoading(true);
-    fetchNearbyBusinesses(userLat, userLng, { limit: 40, radius })
-      .then(real => {
-        if (real.length > 0) {
-          setBizListSafe(real);
-          setUsingRealData(true);
-        }
-        // if empty, keep existing list
-      })
-      .catch(() => {
-        // keep existing list on error
-      })
+    fetchNearbyBusinesses(userLat as number, userLng as number, { limit: 40, radius })
+      .then(real => { setBizList(real.length > 0 ? real : []); if (real.length > 0) setUsingRealData(true); })
+      .catch(() => setBizList([]))
       .finally(() => setBizLoading(false));
-      }, [radius]);
+  }, [radius]);
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
 
   if (loading) return (
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#FCFAF6' }}>
-        <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F9F7F2' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
       </div>
@@ -595,20 +391,15 @@ function writeCoords(lat: number, lng: number) {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#FCFAF6' }} data-page-bg="true">
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
         <Nav />
-        <div className="border-b" style={{
-          background: dm
-            ? 'linear-gradient(180deg, #0c0c0c 0%, #0f0f0f 100%)'
-            : 'linear-gradient(180deg, #F7F1EA 0%, #FCFAF6 100%)',
-          borderColor: 'rgba(0,0,0,0.08)'
-        }}>
-          <div className="relative mx-auto max-w-6xl px-6 pt-[28px] pb-[22px]">
 
-            <p className="mt-0 text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: dm ? 'rgba(255,255,255,0.6)' : '#0f0f0f' }}>Explore</p>
-            <div className="flex items-center justify-between gap-4 mb-3">
-              <h1 className="mt-0 text-[1.9rem] font-black" style={{ color: dm ? 'white' : '#0f0f0f', letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
-              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255, 255, 255, 0.6)', border: '1px solid rgba(255,255,255,0.3)' }}>
+        <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-7 pb-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Explore</p>
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
+              <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 {([
                   ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
                   ['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
@@ -617,8 +408,8 @@ function writeCoords(lat: number, lng: number) {
                   <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
-                      ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#007e6d', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.06)' }
-                      : { color: dm ? 'rgba(255,255,255,0.7)' : '#6b7280', background: dm ? 'transparent' : 'rgba(255,255,255,0.6)', border: dm ? 'none' : '1px solid rgba(0,0,0,0.06)' }}>
+                      ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#0F766E', border: dm ? '1px solid #262626' : 'none' }
+                      : { color: 'white', background: 'transparent' }}>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d} />
                     </svg>
@@ -634,25 +425,25 @@ function writeCoords(lat: number, lng: number) {
                 </svg>
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
                   style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)' }}
                 />
               </div>
               <div className="relative flex-shrink-0" data-sort-dropdown>
                 <button onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-2 pl-3.5 pr-3 py-3 rounded-2xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
+                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
                   <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 </button>
                 {sortOpen && (
-                  <div className="absolute right-0 top-full mt-2 rounded-2xl shadow-lg overflow-hidden z-50"
+                  <div className="absolute right-0 top-full mt-1.5 rounded-xl shadow-lg overflow-hidden z-50"
                     style={{ minWidth: 150, background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(0,0,0,0.07)' }}>
                     {(['distance', 'rating', 'reviews'] as const).map(mode => (
                       <button key={mode} onClick={() => { setSortMode(mode); setSortOpen(false); }}
                         className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent-wash flex items-center justify-between gap-3"
-                        style={{ color: sortMode === mode ? '#007e6d' : (dm ? '#d1d5db' : '#374151') }}>
+                        style={{ color: sortMode === mode ? '#0F766E' : (dm ? '#d1d5db' : '#374151') }}>
                         {SORT_LABELS[mode]}
                         {sortMode === mode && (
                           <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -668,66 +459,29 @@ function writeCoords(lat: number, lng: number) {
           </div>
         </div>
 
-        {/* EDU Campus banner — only shown to non-verified users */}
-        {eduVerified === false && (
-          <div style={{ background: dm ? '#0a0a0a' : '#FCFAF6' }}>
-            <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 16, paddingBottom: 4 }}>
-              <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
-                style={{ background: dm ? 'rgba(0,126,109,0.10)' : '#ECF7F4', border: dm ? '1px solid rgba(0,126,109,0.25)' : '1px solid rgba(0,126,109,0.18)' }}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-xl shrink-0">🎓</span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold truncate" style={{ color: dm ? '#d5e1de' : '#0f3f36' }}>Are you a student?</p>
-                    <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#1e554c' }}>Verify your .edu email to unlock your campus marketplace.</p>
-                    <p className="text-[11px]" style={{ color: dm ? '#6b7280' : '#2f6b60' }}>Some student providers only show themselves to verified students on campus.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 ml-auto">
-                  <button
-                    type="button"
-                    onClick={() => router.push('/account?edu=1')}
-                    className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-90"
-                    style={{ background: '#007e6d', color: 'white', boxShadow: '0 4px 12px rgba(0,126,109,0.25)' }}>
-                    Verify Now →
-                  </button>
-                  <button
-                    onClick={() => setEduVerified(true)}
-                    className="shrink-0 h-8 w-8 flex items-center justify-center rounded-xl"
-                    style={{ background: dm ? '#1f2937' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="border-b" style={{ background: dm ? '#111111' : 'white', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
-          <div className="flex justify-center gap-2 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none' }}>
+        <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+          <div className="flex justify-start sm:justify-center gap-2 overflow-x-auto px-4 sm:px-6 py-3" style={{ scrollbarWidth: 'none' }}>
             {dynamicCategories.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
                 style={activeCategory === cat
-                  ? { background: '#007e6d', color: 'white', borderColor: '#007e6d' }
-                  : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', color: dm ? '#6ee7b7' : '#007e6d', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)' }}>
+                  ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' }
+                  : { background: dm ? 'rgba(15,118,110,0.15)' : '#F9F7F2', color: dm ? '#93c5fd' : '#0F766E', borderColor: dm ? 'rgba(15,118,110,0.3)' : 'rgba(15,118,110,0.15)' }}>
                 {cat}
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{ background: dm ? '#0f0f0f' : 'white', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
-          <div className="flex items-center justify-center gap-2 px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        <div style={{ background: dm ? '#0f0f0f' : '#fafafa', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center justify-start sm:justify-center gap-2 px-4 sm:px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <span className="text-[11px] font-semibold shrink-0" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Within</span>
             {[5, 10, 25, 50, 100].map(r => (
-              <button key={r} onClick={() => setRadius(r)} className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition-all" style={radius === r ? { background: '#007e6d', color: 'white', borderColor: '#007e6d' } : { background: 'transparent', color: dm ? '#9ca3af' : '#6b7280', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>{r} mi</button>
+              <button key={r} onClick={() => setRadius(r)} className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition-all" style={radius === r ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' } : { background: 'transparent', color: dm ? '#9ca3af' : '#6b7280', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>{r} mi</button>
             ))}
           </div>
         </div>
-                <div className="mx-auto max-w-6xl px-6 py-7"> 
+                <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-7">
           {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
@@ -739,7 +493,7 @@ function writeCoords(lat: number, lng: number) {
                   {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="rounded-3xl border px-6 py-20 text-center" style={{ background: dm ? '#121212' : 'white', borderColor: dm ? '#262626' : 'white' }}>
+                <div className="text-center py-24 px-6">
                   <div className="text-4xl mb-4">📍</div>
                   <p className="font-semibold text-lg" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
                     {searchQuery || activeCategory !== 'All' ? 'No results found' : 'No businesses found nearby'}
@@ -750,84 +504,67 @@ function writeCoords(lat: number, lng: number) {
                       : 'Enable location access and click the button below to see local pros near you'}
                   </p>
                   {geoError && (
-                    <button onClick={() => { setGeoError(false); setBizLoading(true); navigator.geolocation.getCurrentPosition(async (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); writeCoords(pos.coords.latitude, pos.coords.longitude); const real = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 40, radius }); setBizListSafe(real); if (real.length > 0) setUsingRealData(true); setBizLoading(false); }, () => { setBizListSafe([]); setBizLoading(false); setGeoError(true); }, { timeout: 15000, maximumAge: 0, enableHighAccuracy: true }); }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#007e6d' }}>📍 Use My Location</button>
+                    <button onClick={() => {
+                      setGeoError(false);
+                      setBizLoading(true);
+                      navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                          const loaded = await loadNearbyFromCoords(pos.coords.latitude, pos.coords.longitude, radius);
+                          if (!loaded) setGeoError(true);
+                          setBizLoading(false);
+                        },
+                        () => {
+                          setBizList([]);
+                          setGeoError(true);
+                          setBizLoading(false);
+                        },
+                        { timeout: 15000, maximumAge: 0 }
+                      );
+                    }} className="mt-4 px-5 py-2.5 rounded-2xl font-bold text-white text-sm" style={{ background: '#0F766E' }}>📍 Use My Location</button>
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                   {paginated.map((biz, i) => (
-                    <BizCard key={biz.id} biz={biz} onClick={() => openBiz(biz)} dm={dm} index={i} />
+                    <BizCard key={biz.id} biz={biz} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }} dm={dm} index={i} />
                   ))}
                 </div>
               ) : (
                 <div className="space-y-2.5 animate-fade-up" style={{ animationDuration: '0.3s' }}>
                   {paginated.map(biz => {
-                    const locked = isPreviewLocked(biz);
-                    const listStatus = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
+                    const listStatus = getOpenStatus(biz.hours);
                     return (
-                    <button key={biz.id} onClick={() => openBiz(biz)} disabled={locked}
-                      className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                    <button key={biz.id} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }}
+                      className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
                       style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
-                        {renderCover({
-                          src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                          name: displayNameForCard(biz),
-                          className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]',
-                          style: { objectPosition: 'center 25%', filter: locked ? 'blur(14px) saturate(0.85)' : 'none' },
-                          fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
-                          fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
-                          showLabel: true,
-                        })}
-                        {!locked ? (
-                          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
-                            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
-                            <span className="text-[9px] font-bold text-white">{listStatus.label}</span>
-                          </div>
-                        ) : (
-                          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
-                            <span className="h-1.5 w-1.5 rounded-full flex-shrink-0 bg-neutral-400" />
-                            <span className="text-[9px] font-bold text-white">Locked</span>
-                          </div>
-                        )}
-                        {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
-                          <div
-                            className="absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
-                            style={{
-                              background: 'rgba(0,0,0,0.55)',
-                              color: 'white',
-                              border: '1px solid rgba(255,255,255,0.16)',
-                              backdropFilter: 'blur(6px)',
-                            }}
-                          >
-                            Founder50
-                          </div>
-                        )}
+                        <img src={biz.coverUrl} alt={biz.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                          style={{ objectPosition: 'center 25%' }} />
+                        <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+                          <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
+                          <span className="text-[9px] font-bold text-white">{listStatus.label}</span>
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(biz)}</h3>
-                            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" data-pill style={PILL_STYLE}>{biz.category}</span>
-                          </div>
-                          {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
-                            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
-                          )}
+                          <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" data-pill style={PILL_STYLE}>{biz.category}</span>
                         </div>
-                        <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{locked ? 'Visible to verified students' : biz.distance}</p>
-                        {!locked && (biz.reviews ?? 0) > 0 && biz.rating != null && (
-
+                        <p className="text-[13px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
                         <div className="flex items-center gap-1.5">
-                          <RatingStars rating={Number(biz.rating)} size={12} />
-                          <span className="text-[12px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
-                          <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews} reviews)</span>
+                          <div className="flex items-center gap-0.5">
+                            {[1,2,3,4,5].map(i => (
+                              <svg key={i} className={`h-3 w-3 ${i <= Math.round(biz.rating) ? 'text-amber-400' : (dm ? 'text-neutral-600' : 'text-neutral-200')}`} fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-[13px] font-bold" style={{ color: dm ? '#d1d5db' : '#374151' }}>{biz.rating}</span>
+                          <span className="text-[12px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews} reviews)</span>
                         </div>
-
-                        )}
-                        {!locked && biz.tagline && (
-                          <p className="text-[11px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>{biz.tagline}</p>
-                        )}
-                        {locked && (
-                          <p className="text-[11px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>Private listing available to verified students.</p>
+                        {biz.tagline && (
+                          <p className="text-[12px] leading-snug line-clamp-2" style={{ color: dm ? '#6b7280' : '#8e8e93' }}>{biz.tagline}</p>
                         )}
                       </div>
                     </button>
@@ -849,7 +586,7 @@ function writeCoords(lat: number, lng: number) {
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
                     <button key={p} onClick={() => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       className="w-9 h-9 rounded-xl text-sm font-bold transition-all"
-                      style={page === p ? { background: '#007e6d', color: 'white' } : { background: dm ? '#171717' : 'white', color: dm ? '#9ca3af' : '#6b7280', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e7eb' }}>
+                      style={page === p ? { background: '#0F766E', color: 'white' } : { background: dm ? '#171717' : 'white', color: dm ? '#9ca3af' : '#6b7280', border: dm ? '1px solid #2a2d3a' : '1px solid #e5e7eb' }}>
                       {p}
                     </button>
                   ))}
@@ -868,29 +605,17 @@ function writeCoords(lat: number, lng: number) {
           ) : (
             <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
               <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4" style={{ height: 300 }}>
-                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={Number.isFinite(userLat) && Number.isFinite(userLng) ? [userLat, userLng] : null} />
+                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} userLat={userLat} userLng={userLng} />
               </div>
               {selectedMapBizData && (
-                <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
+                <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#0F766E' }}>
                   <div className="flex items-center gap-3 p-3">
-                    {renderCover({
-                      src: selectedMapBizData.coverUrl || (selectedMapBizData as any).allImages?.[0] || (selectedMapBizData as any).cover_url || (selectedMapBizData as any).media_urls?.[0],
-                      name: displayNameForCard(selectedMapBizData),
-                      className: 'h-14 w-14 rounded-xl object-cover flex-shrink-0',
-                      style: { filter: isPreviewLocked(selectedMapBizData) ? 'blur(12px)' : 'none' },
-                      fallbackClassName: 'h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0',
-                      fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
-                      showLabel: false,
-                    })}
+                    <img src={selectedMapBizData.coverUrl} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(selectedMapBizData)}</p>
+                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                     </div>
-                    {!isPreviewLocked(selectedMapBizData) ? (
-                      <button onClick={() => openBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
-                    ) : (
-                      <span className="text-[11px] font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>Locked</span>
-                    )}
+                    <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#0F766E', color: 'white' }}>View</button>
                     <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5', color: dm ? '#9ca3af' : '#6b7280' }}>
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -904,26 +629,15 @@ function writeCoords(lat: number, lng: number) {
                     className={`flex-shrink-0 md:w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''}`}
                     style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.3 : 1, transition: 'opacity 0.25s ease' }}>
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
-                      {renderCover({
-                        src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                        name: displayNameForCard(biz),
-                        className: 'w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]',
-                        style: { objectPosition: 'center 25%', filter: isPreviewLocked(biz) ? 'blur(14px) saturate(0.85)' : 'none' },
-                        fallbackClassName: 'w-full h-full flex items-center justify-center',
-                        fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
-                      })}
+                      <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" style={{ objectPosition: 'center 25%' }} />
                       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' }} />
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-                        <p className="text-white text-[11px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{displayNameForCard(biz)}</p>
+                        <p className="text-white text-[12px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.name}</p>
                       </div>
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
                       <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
-                      {(biz.reviews ?? 0) > 0 && biz.rating != null ? (
-                        <span className="text-[10px] text-neutral-400 font-medium">{biz.reviews} reviews</span>
-                      ) : (
-                        <span className="text-[10px] text-neutral-400 font-medium">No reviews yet</span>
-                      )}
+                      <span className="text-[10px] text-neutral-400 font-medium">{biz.reviews} reviews</span>
                     </div>
                   </button>
                 ))}
@@ -933,20 +647,12 @@ function writeCoords(lat: number, lng: number) {
                   {filtered.map((biz, i) => (
                     <button key={biz.id} onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
                       className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
-                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#007e6d' : (dm ? '#262626' : 'rgba(0,126,109,0.12)'), background: dm ? '#171717' : 'white' }}>
+                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#262626' : 'rgba(15,118,110,0.1)'), background: dm ? '#171717' : 'white' }}>
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
-                        {renderCover({
-                          src: biz.coverUrl || (biz as any).allImages?.[0] || (biz as any).cover_url || (biz as any).media_urls?.[0],
-                          name: displayNameForCard(biz),
-                          className: 'w-full h-full object-cover',
-                          style: { filter: isPreviewLocked(biz) ? 'blur(12px)' : 'none' },
-                          fallbackClassName: 'w-full h-full flex flex-col items-center justify-center gap-1',
-                          fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
-                          showLabel: true,
-                        })}
+                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(biz)}</p>
+                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</p>
                       </div>
@@ -955,28 +661,16 @@ function writeCoords(lat: number, lng: number) {
                 </div>
                 <div className="flex flex-col gap-3" style={{ flex: '1 1 0', minWidth: 0 }}>
                   <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}>
-                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} center={Number.isFinite(userLat) && Number.isFinite(userLng) ? [userLat, userLng] : null} />
+                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} userLat={userLat} userLng={userLng} />
                   </div>
                   {selectedMapBizData && (
-                    <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#007e6d' }}>
-                      {renderCover({
-                        src: selectedMapBizData.coverUrl,
-                        name: displayNameForCard(selectedMapBizData),
-                        className: 'h-12 w-12 rounded-xl object-cover flex-shrink-0',
-                        style: { filter: isPreviewLocked(selectedMapBizData) ? 'blur(12px)' : 'none' },
-                        fallbackClassName: 'h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0',
-                        fallbackStyle: { background: dm ? '#242426' : '#e5e7eb' },
-                        showLabel: false,
-                      })}
+                    <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#0F766E' }}>
+                      <img src={selectedMapBizData.coverUrl} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{displayNameForCard(selectedMapBizData)}</p>
-                      <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
+                        <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
+                        <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                       </div>
-                      {!isPreviewLocked(selectedMapBizData) ? (
-                        <button onClick={() => openBiz(selectedMapBizData)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#007e6d', color: 'white' }}>View</button>
-                      ) : (
-                        <span className="text-[11px] font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#9ca3af' : '#6b7280' }}>Locked</span>
-                      )}
+                      <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#0F766E', color: 'white' }}>View</button>
                       <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5' }}>
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: dm ? '#9ca3af' : '#6b7280' }}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
@@ -988,7 +682,8 @@ function writeCoords(lat: number, lng: number) {
           )}
         </div>
       </div>
-          </>
+      {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
+    </>
   );
 };
 

@@ -3,23 +3,23 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
-import { getSupabaseClient } from '../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import { useDm } from '../lib/DarkModeContext';
 
 interface NavProps { variant?: 'light' | 'dark'; }
 
 function getSupabase() {
-  return getSupabaseClient();
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 }
 
 // Cache key — avoids async flash that causes the nav layout shift/shake
 const AUTH_CACHE_KEY = 'sm_nav_user';
 
-function readCache(): { email?: string; name?: string; avatar_url?: string | null } | null {
+function readCache(): { email?: string; name?: string } | null {
   if (typeof window === 'undefined') return null;
   try { return JSON.parse(sessionStorage.getItem(AUTH_CACHE_KEY) || 'null'); } catch { return null; }
 }
-function writeCache(u: { email?: string; name?: string; avatar_url?: string | null } | null) {
+function writeCache(u: { email?: string; name?: string } | null) {
   if (typeof window === 'undefined') return;
   if (u) sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(u));
   else sessionStorage.removeItem(AUTH_CACHE_KEY);
@@ -36,44 +36,30 @@ export default function Nav({ variant = 'light' }: NavProps) {
     if (meta) meta.content = (isDark || darkMode) ? '#0F1117' : '#EDF5FF';
   }, [darkMode, isDark]);
   // Initialise from cache synchronously — no layout shift on mount
-  const [user, setUser] = useState<{ email?: string; name?: string; avatar_url?: string | null } | null>(readCache);
+  const [user, setUser] = useState<{ email?: string; name?: string } | null>(readCache);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  async function hydrateUserWithProfile(session: any) {
-    if (!session?.user) return null;
-    const u = {
-      email: session.user.email,
-      name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-      avatar_url: null as string | null,
-    };
-    try {
-      const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${session.access_token}` } });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.profile?.avatar_url) {
-        u.avatar_url = data.profile.avatar_url;
-      } else {
-        u.avatar_url = null;
-      }
-    } catch {
-      u.avatar_url = null;
-    }
-    return u;
-  }
 
   useEffect(() => {
     const supabase = getSupabase();
     // Verify cache against real session (silently, no re-render if same)
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const u = await hydrateUserWithProfile(session);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ? {
+        email: session.user.email,
+        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+      } : null;
       writeCache(u);
+      // Only trigger re-render if value actually changed
       setUser(prev => {
         if (JSON.stringify(prev) === JSON.stringify(u)) return prev;
         return u;
       });
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = await hydrateUserWithProfile(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ? {
+        email: session.user.email,
+        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+      } : null;
       writeCache(u);
       setUser(u);
     });
@@ -92,7 +78,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   async function handleSignOut() {
     setSigningOut(true);
     const supabase = getSupabase();
-    await supabase.auth.signOut({ scope: 'local' });
+    await supabase.auth.signOut();
     writeCache(null);
     setUser(null);
     setMenuOpen(false);
@@ -106,32 +92,19 @@ export default function Nav({ variant = 'light' }: NavProps) {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(EDU_CACHE_KEY) === 'true';
   });
-  const [bizEduVerified, setBizEduVerified] = useState<boolean | null>(null);
-  const [profileEduVerified, setProfileEduVerified] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (bizEduVerified === null && profileEduVerified === null) return;
-    const merged = bizEduVerified === true || profileEduVerified === true;
-    setEduVerified(merged);
-    if (typeof window !== 'undefined') localStorage.setItem(EDU_CACHE_KEY, String(merged));
-  }, [bizEduVerified, profileEduVerified]);
 
   useEffect(() => {
     if (!user?.email) return;
-    const sbBiz = getSupabaseClient();
-    sbBiz.from('businesses').select('id, edu_verified').eq('owner_email', user.email).maybeSingle().then(({data}) => {
-      if (data?.id) setIsBiz(true);
-      if (typeof data?.edu_verified === 'boolean') setBizEduVerified(data.edu_verified);
-    });
-    const supabase = getSupabaseClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const userId = session?.user?.id;
-      if (!userId) return;
-      supabase.from('profiles').select('edu_verified').eq('id', userId).maybeSingle()
-        .then(({ data }) => {
-          if (typeof data?.edu_verified === 'boolean') setProfileEduVerified(data.edu_verified);
-        });
-    });
+    // Check if user owns a business
+    const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    sbBiz.from('businesses').select('id').eq('owner_email', user.email).maybeSingle().then(({data}) => { if(data?.id) setIsBiz(true); });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
+      .then(({ data }) => {
+        const verified = data?.edu_verified === true;
+        setEduVerified(verified);
+        localStorage.setItem(EDU_CACHE_KEY, String(verified));
+      });
   }, [user?.email]);
 
   const initials = user?.name
@@ -153,9 +126,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   ];
   const navLinks = user ? appLinks : marketingLinks;
 
-  const navBg = (isDark || darkMode) ? 'rgba(15,17,23,0.97)' : 'rgba(255,255,255,0.97)';
-  const navFill = (isDark || darkMode) ? '#0F1117' : '#ffffff';
-  const navBorder = (isDark || darkMode) ? '#262626' : 'rgba(0,0,0,0.07)';
+  const navBg = (isDark || darkMode) ? 'rgba(10,10,10,0.92)' : 'rgba(249,247,242,0.9)';
 
   return (
     <>
@@ -193,7 +164,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
             <span className={`font-black tracking-tight group-hover:opacity-70 transition-opacity ${isDark ? 'text-white' : 'text-neutral-900'} text-xl md:text-2xl`} style={{ letterSpacing: '-0.03em' }}>
               Schedule<span className="text-accent">Me</span>
             </span>
-          </Link>
+          </Link> : <a href="/business" onClick={()=>{setMenuOpen(false);}} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">For Businesses</a>}
         </div>
 
         {/* Center nav */}
@@ -204,7 +175,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               <li key={link.href}>
                 <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
                   isActive
-                    ? isDark || darkMode ? 'text-white bg-accent' : 'text-accent bg-blue-50'
+                    ? isDark || darkMode ? 'text-white bg-accent' : 'text-accent bg-accent-light'
                     : isDark || darkMode ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
                 }`}>
                   {link.label}
@@ -218,7 +189,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
         <div className="flex-1 flex items-center justify-end gap-2">
           {!user && (
             <Link href="/business" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
-              For Providers
+              For Businesses
             </Link>
           )}
           {/* Dark mode toggle — only shown when signed in */}
@@ -234,7 +205,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 }
               </svg>
               <div className="relative w-8 h-4 rounded-full shrink-0"
-                style={{ background: darkMode ? '#007e6d' : '#d1d5db', transition: 'background 0.25s ease' }}>
+                style={{ background: darkMode ? '#0F766E' : '#d1d5db', transition: 'background 0.25s ease' }}>
                 <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm"
                   style={{ left: darkMode ? '17px' : '2px', transition: 'left 0.25s ease' }} />
               </div>
@@ -246,12 +217,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
               <button onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-1.5 pl-1 pr-3 py-1 md:py-1.5 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
                 aria-label="Account menu">
-                <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-accent flex items-center justify-center text-white text-[11px] md:text-[12px] font-bold shrink-0 overflow-hidden">
-                  {user?.avatar_url ? (
-                    <img src={user.avatar_url} alt={user?.name || 'User'} className="h-full w-full object-cover" />
-                  ) : (
-                    initials
-                  )}
+                <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-accent flex items-center justify-center text-white text-[11px] md:text-[12px] font-bold shrink-0">
+                  {initials}
                 </div>
                 <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -272,16 +239,14 @@ export default function Nav({ variant = 'light' }: NavProps) {
                         </svg>
                         My Account
                       </Link>
-                      {isBiz && (
-                        <Link href="/business/dashboard" scroll={false} onClick={() => setMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
-                          <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 2.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
-                          </svg>
-                          Provider Dashboard
-                        </Link>
-                      )}
-                      {!isBiz && <Link href="/business" scroll={false} onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"><svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>For Providers</Link>}
+                      {isBiz && <Link href="/business/dashboard" scroll={false} onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"> scroll={false} onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
+                        <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 2.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+                        </svg>
+                        Business Dashboard
+                      </Link>}
+                      {!isBiz && <Link href="/business" scroll={false} onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"><svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>For Businesses</Link>}
                       <Link href="/" scroll={false} onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
                         <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -303,15 +268,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Link href="/signin" scroll={false}
-                className={`text-sm px-4 py-1 md:py-2 rounded-full border whitespace-nowrap transition-colors ${isDark || darkMode ? 'text-white/80 border-white/20 hover:border-white/40 hover:text-white' : 'text-neutral-700 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900'}`}>
-                Log in
-              </Link>
-              <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
-                Sign up
-              </Link>
-            </div>
+            <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
+              Sign up
+            </Link>
           )}
         </div>
       </nav>
@@ -319,13 +278,30 @@ export default function Nav({ variant = 'light' }: NavProps) {
       {/* Mobile bottom tab bar — outside header to avoid fixed-in-fixed stacking issues */}
       {user && (
         <div className="md:hidden" style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
-          background: darkMode ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderTop: `1px solid ${darkMode ? '#262626' : '#f0f0f0'}`,
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          pointerEvents: 'none',
+          padding: '0 12px calc(env(safe-area-inset-bottom, 0px) + 8px)',
         }}>
-          <div style={{ display: 'flex', height: 52, alignItems: 'center' }}>
+          <div style={{
+            display: 'flex',
+            height: 68,
+            alignItems: 'center',
+            width: '100%',
+            maxWidth: 560,
+            margin: '0 auto',
+            borderRadius: 30,
+            border: `1px solid ${darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.11)'}`,
+            background: darkMode ? 'rgba(23,23,23,0.9)' : 'rgba(255,255,255,0.92)',
+            boxShadow: darkMode ? '0 10px 24px rgba(0,0,0,0.35)' : '0 10px 28px rgba(15,23,42,0.14)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+            pointerEvents: 'auto',
+            padding: '0 6px',
+          }}>
             {[...appLinks].map((link) => {
               const isActive = router.pathname === link.href;
               const paths: Record<string, string> = {
@@ -336,23 +312,26 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 '/messages': 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z',
                 '/account': 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z',
               };
-              const col = isActive ? '#007e6d' : (darkMode ? 'rgba(255,255,255,0.45)' : '#9ca3af');
+              const col = isActive ? '#0F766E' : (darkMode ? 'rgba(255,255,255,0.56)' : '#6b7280');
               return (
                 <Link key={link.href} href={link.href} scroll={false} style={{
                   flex: 1, display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center',
-                  gap: 3, color: col, textDecoration: 'none',
+                  gap: 4, color: col, textDecoration: 'none',
                   WebkitTapHighlightColor: 'transparent',
+                  borderRadius: 18,
+                  height: 56,
+                  transition: 'background 0.18s ease',
+                  background: isActive ? (darkMode ? 'rgba(15,118,110,0.28)' : 'rgba(15,118,110,0.14)') : 'transparent',
                 }}>
-                  <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={col} strokeWidth={isActive ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={col} strokeWidth={isActive ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
                     <path d={paths[link.href] || ''} />
                   </svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: col }}>{link.label.replace('🎓 ', '')}</span>
+                  <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 600, color: col }}>{link.label.replace('🎓 ', '')}</span>
                 </Link>
               );
             })}
           </div>
-          <div style={{ height: 'calc(env(safe-area-inset-bottom, 0px) + 2px)' }} />
         </div>
       )}
     </>

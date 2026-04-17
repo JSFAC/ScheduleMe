@@ -1,7 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
 html, body {
-  overscroll-behavior-y: auto;
-  overscroll-behavior: auto;
-  overflow-y: auto;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 html, body {
@@ -15,14 +16,38 @@ html, body {
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --sm-accent: #0f766e;
+    --sm-accent-dark: #0b5c56;
+    --sm-accent-soft: rgba(15, 118, 110, 0.12);
+    --sm-page-bg: #f9f7f2;
+    --sm-page-dot: rgba(148, 163, 184, 0.28);
+    --sm-surface: #ffffff;
+    --sm-border: rgba(15, 23, 42, 0.1);
+  }
+
+  html.dark {
+    --sm-accent-soft: rgba(15, 118, 110, 0.28);
+    --sm-page-bg: #0a0a0a;
+    --sm-page-dot: rgba(82, 82, 91, 0.32);
+    --sm-surface: #171717;
+    --sm-border: rgba(255, 255, 255, 0.12);
+  }
+}
+
+@layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-white text-neutral-900;
+    @apply text-neutral-900;
+    font-family: 'Plus Jakarta Sans', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    background-color: var(--sm-page-bg);
+    background-image: radial-gradient(var(--sm-page-dot) 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 
   *,
@@ -32,13 +57,13 @@ html, body {
   }
 
   ::selection {
-    background: #007e6d;
+    background: var(--sm-accent);
     color: #ffffff;
   }
 
   /* Dark mode selection */
   html.dark ::selection {
-    background: #1e554c;
+    background: #60a5fa;
     color: #0a0a0a;
   }
 
@@ -48,7 +73,7 @@ html, body {
   }
 
   :focus-visible {
-    outline: 2px solid #007e6d;
+    outline: 2px solid var(--sm-accent);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -56,16 +81,17 @@ html, body {
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-2xl
            bg-accent text-white text-sm font-semibold
            transition-all duration-150 ease-out
            hover:bg-accent-dark
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 8px 22px rgba(15, 118, 110, 0.24);
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-2xl
            bg-white text-neutral-800 text-sm font-semibold border border-neutral-200
            transition-all duration-150 ease-out
            hover:bg-neutral-50 hover:border-neutral-300
@@ -73,7 +99,7 @@ html, body {
   }
 
   .form-input {
-    @apply w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white
+    @apply w-full px-4 py-3 rounded-2xl border border-neutral-200 bg-white
            text-neutral-900 text-sm placeholder:text-neutral-400
            transition-all duration-150 ease-out
            focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
@@ -81,8 +107,10 @@ html, body {
   }
 
   .card {
-    @apply bg-white rounded-2xl border border-neutral-100 shadow-card
+    @apply rounded-2xl border shadow-card
            transition-shadow duration-200 hover:shadow-card-hover;
+    background: var(--sm-surface);
+    border-color: var(--sm-border);
   }
 
   .badge {
@@ -160,7 +188,7 @@ html, body {
    Radial mask fades it so it doesn't repeat to infinity. */
 .sm-panel {
   position: relative;
-  background: white;
+  background: var(--sm-surface);
   overflow: hidden;
 }
 .sm-panel::before {
@@ -179,8 +207,8 @@ html, body {
 /* Blue-tinted variant for Community/Independent panel */
 .sm-panel-blue::before {
   background-image:
-    linear-gradient(to right, rgba(10,132,255,0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(10,132,255,0.07) 1px, transparent 1px);
+    linear-gradient(to right, rgba(15,118,110,0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15,118,110,0.07) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 .sm-panel > *:not(.dropdown-menu) { position: relative; z-index: 1; }
@@ -191,7 +219,7 @@ html, body {
   pointer-events: none;
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(10,132,255,0.07) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(15,118,110,0.11) 0%, transparent 65%);
   z-index: 0;
 }
 
@@ -204,7 +232,7 @@ html, body {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #007e6d;
+  color: var(--sm-accent);
 }
 .sm-eyebrow::before {
   content: '';
@@ -212,18 +240,18 @@ html, body {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #007e6d;
+  background: var(--sm-accent);
   flex-shrink: 0;
   animation: pulseDot 2.2s ease-in-out infinite;
 }
 
 /* Business card — full-bleed image with text overlay */
 .biz-card {
-  background: white;
+  background: var(--sm-surface);
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(10,132,255,0.12);
-  box-shadow: 0 2px 12px rgba(0,126,109,0.08), 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid rgba(15,118,110,0.16);
+  box-shadow: 0 2px 12px rgba(15,118,110,0.1), 0 1px 3px rgba(0,0,0,0.05);
   transition: box-shadow 0.25s ease, transform 0.25s ease;
   cursor: pointer;
   padding: 0;
@@ -234,22 +262,22 @@ html, body {
   height: auto !important;
 }
 .biz-card:hover {
-  box-shadow: 0 8px 32px rgba(10,132,255,0.13), 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 8px 32px rgba(15,118,110,0.2), 0 2px 8px rgba(0,0,0,0.06);
   transform: translateY(-2px);
 }
 
 /* Booking status cards */
 .booking-card {
-  background: white;
+  background: var(--sm-surface);
   border-radius: 18px;
-  border: 1px solid rgba(10,132,255,0.10);
-  box-shadow: 0 1px 6px rgba(0,126,109,0.06), 0 1px 3px rgba(0,0,0,0.03);
+  border: 1px solid rgba(15,118,110,0.13);
+  box-shadow: 0 1px 6px rgba(15,118,110,0.07), 0 1px 3px rgba(0,0,0,0.03);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
   cursor: pointer;
 }
 .booking-card:hover {
-  box-shadow: 0 6px 28px rgba(10,132,255,0.1), 0 1px 6px rgba(0,0,0,0.05);
-  border-color: rgba(10,132,255,0.22);
+  box-shadow: 0 6px 28px rgba(15,118,110,0.13), 0 1px 6px rgba(0,0,0,0.05);
+  border-color: rgba(15,118,110,0.3);
 }
 
 @layer utilities {
@@ -380,25 +408,6 @@ html, body {
 /* Transition for smooth switching */
 body { transition: background 0.2s ease, color 0.2s ease; }
 
-/* hCaptcha shell styling */
-.hcaptcha-shell {
-  display: flex;
-  width: 100%;
-  justify-content: center;
-  border-radius: 12px;
-  overflow: hidden;
-  background: transparent;
-  padding: 0;
-  box-shadow: none;
-}
-.hcaptcha-shell iframe {
-  border-radius: 12px !important;
-  border: none !important;
-  display: block;
-  transform: none;
-  transform-origin: center center;
-}
-
 /* ── Dark mode: CSS variables for inline-style overrides ─────── */
 :root {
   --page-bg: #EDF5FF;
@@ -469,7 +478,7 @@ html.dark .booking-card {
 /* Accent-wash pills */
 html.dark .bg-accent-wash.border-accent\/15 {
   background: #0d1f35 !important;
-  border-color: rgba((0,126,109,0.10)) !important;
+  border-color: rgba(15,118,110,0.25) !important;
 }
 
 /* White category bar */
@@ -544,7 +553,7 @@ html.dark [data-page-btn] {
   color: #9ca3af !important;
 }
 html.dark [data-page-btn-active] {
-  background: #007e6d !important;
+  background: #0F766E !important;
   color: white !important;
 }
 
@@ -590,7 +599,7 @@ html.dark .biz-card [style*="rgba(255,255,255,0.95)"] {
 /* Pill/category tags using inline style — targeted via data-pill */
 html.dark [data-pill] {
   background: #0d2040 !important;
-  color: #1e554c !important;
+  color: #60a5fa !important;
 }
 
 /* Nav tiles right of chat box */
@@ -669,7 +678,7 @@ html.dark .biz-card [style*="rgba(255,255,255,0.96)"] {
 
 /* Category bar quick-links (Tailwind classes, should work) */
 html.dark .bg-accent-wash { background: #0d1f35 !important; }
-html.dark .border-accent\/15 { border-color: rgba(10,132,255,0.3) !important; }
+html.dark .border-accent\/15 { border-color: rgba(15,118,110,0.3) !important; }
 
 /* Browse/bookings card body divs that have inline white bg */
 html.dark div[style*="background: white"],
@@ -824,8 +833,8 @@ body:has(.onboarding-active) {
   width: 100%;
 }
 .input-premium:focus {
-  border-color: #007e6d;
-  box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
+  border-color: #0F766E;
+  box-shadow: 0 0 0 4px rgba(15,118,110,0.12);
 }
 .dark .input-premium {
   background: rgba(44,44,46,0.9);
@@ -833,13 +842,13 @@ body:has(.onboarding-active) {
   color: #f2f2f7;
 }
 .dark .input-premium:focus {
-  border-color: #007e6d;
-  box-shadow: 0 0 0 4px rgba(10,132,255,0.2);
+  border-color: #0F766E;
+  box-shadow: 0 0 0 4px rgba(15,118,110,0.2);
 }
 
 /* Glow button — premium CTA */
 .btn-glow {
-  background: #007e6d;
+  background: #0F766E;
   color: white;
   font-weight: 700;
   border-radius: 14px;
@@ -847,7 +856,7 @@ body:has(.onboarding-active) {
   font-size: 15px;
   letter-spacing: -0.01em;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(0,126,109,0.35), 0 1px 3px rgba(10,132,255,0.3);
+  box-shadow: 0 4px 16px rgba(15,118,110,0.35), 0 1px 3px rgba(15,118,110,0.3);
   position: relative;
   overflow: hidden;
 }
@@ -860,16 +869,16 @@ body:has(.onboarding-active) {
 }
 .btn-glow:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(10,132,255,0.45), 0 2px 6px rgba(10,132,255,0.3);
+  box-shadow: 0 6px 24px rgba(15,118,110,0.45), 0 2px 6px rgba(15,118,110,0.3);
 }
 .btn-glow:active { transform: translateY(0); }
 
 /* Premium tab indicator */
 .tab-active {
-  background: #007e6d;
+  background: #0F766E;
   color: white;
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(10,132,255,0.3);
+  box-shadow: 0 2px 8px rgba(15,118,110,0.3);
 }
 
 /* Shimmer loading — richer than default */
@@ -907,14 +916,14 @@ body:has(.onboarding-active) {
 
 /* Message bubble — iMessage style */
 .bubble-user {
-  background: #007e6d;
+  background: #0F766E;
   color: white;
   border-radius: 20px 20px 4px 20px;
   padding: 10px 14px;
   font-size: 15px;
   line-height: 1.4;
   max-width: 280px;
-  box-shadow: 0 2px 8px rgba((0,126,109,0.10));
+  box-shadow: 0 2px 8px rgba(15,118,110,0.25);
 }
 .bubble-system {
   background: white;
