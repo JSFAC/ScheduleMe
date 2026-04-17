@@ -458,16 +458,16 @@ export default function Nav({ variant = 'light' }: NavProps) {
           />
           <div
             className="fixed left-0 right-0 z-[90] px-3 md:px-0"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 6px)', pointerEvents: 'none' }}
+            style={{ top: 'env(safe-area-inset-top, 0px)', pointerEvents: 'none' }}
           >
             <div
-              className={`mx-auto w-full max-w-[520px] rounded-2xl border p-2 md:p-3 shadow-2xl ${darkMode ? 'border-white/15' : 'border-neutral-200'}`}
+              className={`mx-auto w-full max-w-[500px] rounded-2xl border p-2 md:p-2.5 shadow-2xl ${darkMode ? 'border-white/15' : 'border-neutral-200'}`}
               style={{
                 pointerEvents: 'auto',
                 background: darkMode ? '#171717' : '#ffffff',
               }}
             >
-            <div className="mb-1.5 flex items-start justify-between gap-3">
+            <div className="mb-1 flex items-start justify-between gap-3">
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: darkMode ? 'rgba(255,255,255,0.62)' : '#6b7280' }}>
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full ${darkMode ? 'bg-accent/30 text-[#9ee6dc]' : 'bg-accent-light text-accent'}`}>
                   {getTourIcon(tourStepData.icon)}
@@ -478,10 +478,10 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 {tourStep + 1}/{CONSUMER_TOUR_STEPS.length}
               </span>
             </div>
-            <h3 className={`text-[0.95rem] font-black ${darkMode ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+            <h3 className={`text-[0.9rem] font-black ${darkMode ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.02em', lineHeight: 1.12 }}>
               {tourStepData.title}
             </h3>
-            <div className="mt-1.5 mb-2 flex items-center gap-1.5">
+            <div className="mt-1 mb-1.5 flex items-center gap-1.5">
               {CONSUMER_TOUR_STEPS.map((_, idx) => (
                 <span
                   key={idx}
@@ -493,12 +493,12 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 />
               ))}
             </div>
-            <p className="mb-2 text-[12px] leading-snug" style={{ color: darkMode ? 'rgba(255,255,255,0.72)' : '#4b5563' }}>
+            <p className="mb-1.5 text-[11.5px] leading-snug" style={{ color: darkMode ? 'rgba(255,255,255,0.72)' : '#4b5563' }}>
               {tourStepData.body}
             </p>
             <button
               onClick={nextTourStep}
-              className="w-full rounded-xl px-4 py-1.5 text-sm font-black text-white transition-transform active:scale-[0.99]"
+              className="w-full rounded-xl px-4 py-1.5 text-[13px] font-black text-white transition-transform active:scale-[0.99]"
               style={{ background: 'linear-gradient(135deg,#0F766E 0%, #0B5C56 100%)' }}
             >
               {tourStepData.cta}

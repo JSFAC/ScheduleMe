@@ -161,10 +161,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         && !!viewerSchoolDomain
         && !!businessSchoolDomain
         && viewerSchoolDomain === businessSchoolDomain;
+      // Campus providers should stay private until the viewer is EDU-verified
+      // at the same campus (matches iOS behavior).
       const previewLocked =
         b.campus_provider === true
         && b.edu_verified === true
-        && b.public_visibility === false
         && !sameCampusVerifiedViewer;
 
       const maskedName = 'Student provider';

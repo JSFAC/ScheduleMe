@@ -35,8 +35,8 @@ const Pricing: NextPage = () => {
   const textMuted = dm ? '#6b7280' : '#9ca3af';
   const cardBg = dm ? '#1c1c1e' : 'white';
   const cardBorder = dm ? '#2c2c2e' : '#e5e7eb';
-  const featureCardBg = dm ? 'rgba(15,118,110,0.16)' : '#ffffff';
-  const featureCardBorder = dm ? 'rgba(15,118,110,0.36)' : 'rgba(15,23,42,0.12)';
+  const featureCardBg = dm ? 'linear-gradient(180deg, rgba(15,118,110,0.14) 0%, rgba(23,23,23,0.96) 70%)' : '#ffffff';
+  const featureCardBorder = dm ? 'rgba(15,118,110,0.36)' : 'rgba(15,23,42,0.1)';
   const darkBannerBg = dm ? '#171717' : '#ffffff';
   const darkBannerBorder = dm ? '#2c2c2e' : 'rgba(15,118,110,0.22)';
 
@@ -81,12 +81,10 @@ const Pricing: NextPage = () => {
         {/* User pricing card */}
         <section style={{ padding: '0 24px', marginBottom: 64 }}>
           <div className="js-psec mx-auto" style={{ maxWidth: 640, textAlign: 'center' }}>
-            <div style={{ borderRadius: 24, border: `1.5px solid ${featureCardBorder}`, background: featureCardBg, padding: 48, marginBottom: 40, boxShadow: dm ? 'none' : '0 18px 44px rgba(15,23,42,0.08)' }}>
-              <div style={{ width: 54, height: 54, borderRadius: 16, margin: '0 auto 20px', background: dm ? 'rgba(15,118,110,0.22)' : 'white', border: `1px solid ${dm ? 'rgba(110,231,183,0.3)' : 'rgba(15,118,110,0.18)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </div>
+            <div style={{ borderRadius: 24, border: `1.5px solid ${featureCardBorder}`, background: featureCardBg, padding: '44px 40px', marginBottom: 40, boxShadow: dm ? 'none' : '0 20px 50px rgba(15,23,42,0.1)' }}>
+              <p style={{ display: 'inline-flex', margin: '0 auto 14px', padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: dm ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.1)', color: '#0F766E' }}>
+                Consumer pricing
+              </p>
               <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 800, color: textPrimary, letterSpacing: '-0.025em', marginBottom: 16 }}>
                 Always free for users.
               </h2>
@@ -103,7 +101,7 @@ const Pricing: NextPage = () => {
                   'No booking fees or commissions',
                 ].map((f) => (
                   <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, fontSize: 14, color: textSecondary }}>
-                    <span style={{ color: '#007e6d', fontWeight: 800, fontSize: 16 }} aria-hidden="true">✓</span>
+                    <span style={{ color: '#007e6d', fontWeight: 800, fontSize: 16 }} aria-hidden="true">•</span>
                     {f}
                   </li>
                 ))}
@@ -123,8 +121,8 @@ const Pricing: NextPage = () => {
           <div className="mx-auto" style={{ maxWidth: 720 }}>
             <div style={{ borderRadius: 20, background: darkBannerBg, border: `1px solid ${darkBannerBorder}`, padding: '26px 28px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20, boxShadow: dm ? 'none' : '0 8px 26px rgba(15,23,42,0.06)' }}>
               <div>
-                <p style={{ color: dm ? 'white' : '#111827', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Are you a student provider?</p>
-                <p style={{ color: dm ? '#9ca3af' : '#525252', fontSize: 14 }}>Join your campus marketplace, get discovered faster, and only pay when real jobs are completed.</p>
+                <p style={{ color: dm ? 'white' : '#111827', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Building as a student provider?</p>
+                <p style={{ color: dm ? '#9ca3af' : '#525252', fontSize: 14 }}>Grow in your campus marketplace, get discovered by local students, and only pay for real completed bookings.</p>
               </div>
               <Link href="/business/pricing" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 See Student Provider Plans →

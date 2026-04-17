@@ -707,20 +707,35 @@ const HomePage: NextPage = () => {
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && showEduBanner && (
           <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
-            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl"
-              style={{ background: dm ? 'rgba(15,118,110,0.12)' : '#EBF4FF', border: dm ? '1px solid rgba(15,118,110,0.3)' : '1px solid rgba(15,118,110,0.2)' }}>
-              <div className="flex items-start gap-3 min-w-0">
-                <span className="text-xl shrink-0">🎓</span>
+            <div
+              className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl"
+              style={{
+                background: dm ? 'linear-gradient(135deg, rgba(6,35,32,0.96) 0%, rgba(11,66,60,0.84) 100%)' : '#EFF8F4',
+                border: dm ? '1px solid rgba(110,231,183,0.24)' : '1px solid rgba(15,118,110,0.2)',
+                boxShadow: dm ? 'none' : '0 6px 18px rgba(15,118,110,0.08)',
+              }}
+            >
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div
+                  className="h-8 w-8 shrink-0 rounded-full flex items-center justify-center"
+                  style={{ background: dm ? 'rgba(110,231,183,0.12)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0A50.57 50.57 0 0012 13.489a50.702 50.702 0 017.74-3.342m-15.48 0L12 3.493l7.74 6.654" />
+                  </svg>
+                </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold leading-tight" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Are you a student?</p>
-                  <p className="text-xs leading-snug mt-0.5" style={{ color: dm ? '#d1d5db' : '#525252' }}>Verify your .edu email to unlock your campus marketplace</p>
+                  <p className="text-[15px] font-black leading-tight" style={{ color: dm ? '#f3f4f6' : '#111827' }}>Are you a student?</p>
+                  <p className="text-[12px] leading-snug mt-0.5" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                    Verify your .edu email to unlock your campus marketplace.
+                  </p>
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2 shrink-0">
                 <Link href="/campus" scroll={false}
                   className="text-xs font-bold px-3.5 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
                   style={{ background: '#0F766E', color: 'white' }}>
-                  Verify Now →
+                  Sign up
                 </Link>
                 <button
                   onClick={() => {

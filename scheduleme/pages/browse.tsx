@@ -77,6 +77,9 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const businessesKey = businesses
+    .map((b) => `${b.id}:${b.lat ?? ''}:${b.lng ?? ''}:${b.coverUrl ?? ''}:${b.preview_locked ? '1' : '0'}`)
+    .join('|');
 
   function markerHtml(biz: Business, isSel: boolean) {
     if (biz.preview_locked === true) {
@@ -103,14 +106,14 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         : validBiz
           ? [validBiz.lat!, validBiz.lng!]
           : [39.8283, -98.5795]; // continental US fallback (never hard-default to SF)
-      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true, maxZoom: 20 });
+      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true, maxZoom: 22, zoomSnap: 0.25 });
       leafletMapRef.current = map;
       const tileUrl = dm
-        ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
+        ? 'https://{s}.basemaps.cartocdn.com/voyager_nolabels/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/voyager_nolabels/{z}/{x}/{y}{r}.png';
       L.tileLayer(tileUrl, {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        maxZoom: 20,
+        maxZoom: 22,
       }).addTo(map);
       map.setView(center, hasUserCenter ? 12 : 13);
 
@@ -153,7 +156,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         const pts = markersRef.current.map(({ marker }) => marker.getLatLng());
         if (hasUserCenter) pts.push(L.latLng(userLat as number, userLng as number));
         try {
-          map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 18 });
+          map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 19 });
         } catch {
           map.setView(center, hasUserCenter ? 12 : 13);
         }
@@ -173,7 +176,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         leafletMapRef.current = null;
       }
     };
-  }, [businesses, dm, userLat, userLng]);
+  }, [businessesKey, dm, userLat, userLng]);
 
   useEffect(() => {
     if (!leafletMapRef.current) return;
@@ -195,14 +198,17 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         .leaflet-container img,
         .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; }
         .leaflet-container .leaflet-tile {
-          filter: ${dm ? 'saturate(0.9) brightness(0.86) contrast(1.02)' : 'saturate(0.96) brightness(1.01)'} !important;
+          width: 256px !important;
+          height: 256px !important;
+          filter: ${dm ? 'grayscale(0.22) saturate(0.68) brightness(0.68) contrast(1.08)' : 'saturate(0.92) brightness(1.02) contrast(1.02)'} !important;
         }
+        .leaflet-tile-pane { opacity: ${dm ? '0.95' : '1'}; }
         .leaflet-container::after {
           content: '';
           position: absolute;
           inset: 0;
           pointer-events: none;
-          background: ${dm ? 'rgba(6,22,28,0.12)' : 'rgba(15,118,110,0.04)'};
+          background: ${dm ? 'rgba(6,22,28,0.1)' : 'rgba(15,118,110,0.02)'};
         }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
         .leaflet-control-zoom { border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.15)!important;border-radius:10px!important;overflow:hidden!important; }
@@ -749,7 +755,7 @@ const BrowsePage: NextPage = () => {
           ) : (
             <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
               <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4" style={{ height: 260 }}>
-                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} userLat={userLat} userLng={userLng} />
+                <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={(id) => setSelectedMapBiz(id)} dm={dm} userLat={userLat} userLng={userLng} />
               </div>
               <div className="md:hidden space-y-2.5">
                 <div className="flex items-center justify-between">
@@ -825,7 +831,7 @@ const BrowsePage: NextPage = () => {
                 </div>
                 <div className="flex flex-col gap-3" style={{ flex: '1 1 0', minWidth: 0 }}>
                   <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}>
-                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} userLat={userLat} userLng={userLng} />
+                    <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={(id) => setSelectedMapBiz(id)} dm={dm} userLat={userLat} userLng={userLng} />
                   </div>
                   {selectedMapBizData && (
                     <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#0F766E' }}>
