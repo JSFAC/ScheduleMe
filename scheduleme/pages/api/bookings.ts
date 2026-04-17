@@ -619,7 +619,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (error && isMissingColumnError(error)) {
           const fallbackLegacyProof = await supabase
             .from('bookings')
-            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
             .eq('user_id', user_id)
             .order('created_at', { ascending: false })
             .limit(100);
@@ -630,12 +630,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (error && isMissingColumnError(error)) {
           const fallback = await supabase
             .from('bookings')
-            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, businesses(name, phone, email)')
+            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, businesses(name, phone, email)')
             .eq('user_id', user_id)
             .order('created_at', { ascending: false })
             .limit(100);
           data = fallback.data as any;
           error = fallback.error as any;
+        }
+
+        if (error && isMissingColumnError(error)) {
+          // Final compatibility fallback for legacy schemas missing `reviewed`.
+          const fallbackNoReviewed = await supabase
+            .from('bookings')
+            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+            .eq('user_id', user_id)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          data = fallbackNoReviewed.data as any;
+          error = fallbackNoReviewed.error as any;
+        }
+
+        if (error && isMissingColumnError(error)) {
+          const fallbackNoReviewedLegacyProof = await supabase
+            .from('bookings')
+            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+            .eq('user_id', user_id)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          data = fallbackNoReviewedLegacyProof.data as any;
+          error = fallbackNoReviewedLegacyProof.error as any;
+        }
+
+        if (error && isMissingColumnError(error)) {
+          const fallbackMinimal = await supabase
+            .from('bookings')
+            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, businesses(name, phone, email)')
+            .eq('user_id', user_id)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          data = fallbackMinimal.data as any;
+          error = fallbackMinimal.error as any;
         }
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });

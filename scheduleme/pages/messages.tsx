@@ -225,6 +225,7 @@ const MessagesPage: NextPage = () => {
   }
 
   const totalUnread = threads.reduce((s, t) => s + t.unreadCount, 0);
+  const mobileThreadOpen = !!activeThread;
   async function loadBlockState(thread: Thread | null) {
     if (!thread?.business_id || !userId) {
       setBlockedByUser(false);
@@ -331,9 +332,9 @@ const MessagesPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Messages — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(78px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
 
-        <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
+        <div className={`${mobileThreadOpen ? 'hidden sm:block' : 'block'} border-b`} style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
           <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-7 pb-6">
             <div className="flex items-center justify-between">
               <div>
@@ -352,7 +353,7 @@ const MessagesPage: NextPage = () => {
           </div>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-5 sm:py-6">
+        <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${mobileThreadOpen ? 'py-2 sm:py-6' : 'py-5 sm:py-6'}`}>
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 5 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
@@ -367,7 +368,15 @@ const MessagesPage: NextPage = () => {
               <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
             </div>
           ) : (
-            <div className="flex gap-3 sm:gap-4 h-[calc(100vh-250px)] md:h-[calc(100vh-280px)] min-h-[420px] sm:min-h-[500px]">
+            <div
+              className="flex gap-3 sm:gap-4 md:h-[calc(100vh-280px)] sm:min-h-[500px]"
+              style={{
+                height: mobileThreadOpen
+                  ? 'calc(100vh - (48px + env(safe-area-inset-top,0px) + 88px + env(safe-area-inset-bottom,0px)))'
+                  : 'calc(100vh - 250px)',
+                minHeight: mobileThreadOpen ? 0 : 420,
+              }}
+            >
 
               {/* Thread list */}
               <div className={`${activeThread ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-80 shrink-0 rounded-2xl border overflow-hidden`} style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.08)' }}>
@@ -465,20 +474,25 @@ const MessagesPage: NextPage = () => {
                     </div>
                   </div>
 
-                  {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: dm ? '#0d0d0d' : '#f8fafc' }}>
-                    {/* Booking context card */}
-                    <div className="rounded-xl border p-3.5 mb-4" style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5' }}>
-                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-neutral-400 mb-2">Booking Details</p>
-                      <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#262626' }}>{activeThread.service}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className={`h-2 w-2 rounded-full ${STATUS_COLOR[activeThread.status] || 'bg-neutral-300'}`} />
-                        <span className="text-xs text-neutral-500 capitalize">{activeThread.status}</span>
-                        <span className="text-neutral-200">·</span>
-                        <span className="text-xs text-neutral-400">{new Date(activeThread.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  {/* Pinned latest booking indicator */}
+                  <div className="px-4 py-2.5 border-b" style={{ background: dm ? '#121212' : '#f8fafc', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.1em] text-neutral-400">Latest Booking</p>
+                        <p className="text-xs font-semibold truncate mt-0.5" style={{ color: dm ? '#e5e7eb' : '#1f2937' }}>{activeThread.service}</p>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <span className={`h-1.5 w-1.5 rounded-full ${STATUS_COLOR[activeThread.status] || 'bg-neutral-300'}`} />
+                        <span className="text-[11px] text-neutral-500 capitalize">{activeThread.status}</span>
+                        <span className="text-[11px] text-neutral-400">
+                          {new Date(activeThread.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
                       </div>
                     </div>
+                  </div>
 
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ scrollbarWidth: 'none', background: dm ? '#0d0d0d' : '#f8fafc' }}>
                     {messages.length === 0 && (
                       <div className="text-center py-6">
                         <p className="text-sm text-neutral-400">No messages yet.</p>
