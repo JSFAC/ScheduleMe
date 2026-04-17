@@ -686,8 +686,8 @@ const HomePage: NextPage = () => {
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#93c5fd' : '#1d4ed8' }}>Are you a student?</p>
-                  <p className="text-xs truncate" style={{ color: dm ? '#60a5fa' : '#0F766E' }}>Verify your .edu email to unlock your campus marketplace</p>
+                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Are you a student?</p>
+                  <p className="text-xs truncate" style={{ color: dm ? '#d1d5db' : '#525252' }}>Verify your .edu email to unlock your campus marketplace</p>
                 </div>
               </div>
               <Link href="/campus" scroll={false}

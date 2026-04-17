@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
+import 'leaflet/dist/leaflet.css';
 import '../styles/globals.css';
 import { DarkModeProvider } from '../lib/DarkModeContext';
 
