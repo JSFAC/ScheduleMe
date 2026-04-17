@@ -476,6 +476,7 @@ const HomePage: NextPage = () => {
   const openNowCount = realBizList.filter((biz) => biz.available).length;
   const topCategoryEntry = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0];
   const topCategoryName = topCategoryEntry?.[0] || 'Campus services';
+  const showCampusPulse = eduVerified === true;
 
   async function tryFetchNearbyWithCoords(lat: number, lng: number) {
     const mod = await import('../lib/realBusinesses');
@@ -641,26 +642,28 @@ const HomePage: NextPage = () => {
           </div>
         </div>
 
-        <div className="md:hidden px-4 pt-4">
-          <div className="rounded-2xl p-3.5 border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.15)' }}>
-            <div className="flex items-center justify-between mb-2.5">
-              <p className="text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Campus Pulse</p>
-              <p className="text-[11px] font-semibold" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Updated daily</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="rounded-xl border p-2.5" style={{ background: dm ? '#111111' : '#F4EFE6', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.14)' }}>
-                <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: '#0F766E' }}>Trending On Campus</p>
-                <p className="text-sm font-bold mt-1 line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{topCategoryName}</p>
-                <p className="text-[11px] mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{topCategoryEntry?.[1] || 0} active providers</p>
+        {showCampusPulse && (
+          <div className="md:hidden px-4 pt-4">
+            <div className="rounded-2xl p-3.5 border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.15)' }}>
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Campus Pulse</p>
+                <p className="text-[11px] font-semibold" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Updated daily</p>
               </div>
-              <div className="rounded-xl border p-2.5" style={{ background: dm ? '#111111' : '#F4EFE6', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.14)' }}>
-                <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: '#0F766E' }}>Open Now</p>
-                <p className="text-sm font-bold mt-1" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{openNowCount} available</p>
-                <p className="text-[11px] mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Live provider status</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-xl border p-2.5" style={{ background: dm ? '#111111' : '#F4EFE6', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.14)' }}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: '#0F766E' }}>Trending On Campus</p>
+                  <p className="text-sm font-bold mt-1 line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{topCategoryName}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{topCategoryEntry?.[1] || 0} active providers</p>
+                </div>
+                <div className="rounded-xl border p-2.5" style={{ background: dm ? '#111111' : '#F4EFE6', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.14)' }}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: '#0F766E' }}>Open Now</p>
+                  <p className="text-sm font-bold mt-1" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{openNowCount} available</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Live provider status</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && (

@@ -531,18 +531,24 @@ const CampusPage: NextPage = () => {
 
             {/* Inline verify form */}
 
-            <div className="md:hidden mb-5 space-y-2.5">
+            <div
+              className="md:hidden mb-5 rounded-2xl border p-3 space-y-3"
+              style={{
+                background: dm ? '#121212' : 'white',
+                borderColor: dm ? '#262626' : 'rgba(15,118,110,0.16)',
+              }}
+            >
               <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style={{ background: dm ? '#121212' : 'rgba(255,255,255,0.95)', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.16)' }}>
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style={{ background: dm ? '#171717' : '#fdfdfd', borderColor: dm ? '#2e2e2e' : 'rgba(15,118,110,0.16)' }}>
+                    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     <input
                       value={searchTerm}
                       onChange={e => setSearchTerm(e.target.value)}
                       placeholder="Search by name, service, or category"
-                      className="flex-1 bg-transparent text-sm outline-none"
+                      className="flex-1 bg-transparent text-sm outline-none min-w-0"
                       style={{ color: dm ? '#f3f4f6' : '#111827' }}
                     />
                   </div>
@@ -551,18 +557,32 @@ const CampusPage: NextPage = () => {
                   <select
                     value={sortMode}
                     onChange={e => setSortMode(e.target.value)}
-                    className="appearance-none text-sm font-semibold pl-9 pr-8 py-2.5 rounded-xl border"
-                    style={{ background: dm ? '#121212' : 'rgba(255,255,255,0.95)', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.16)', color: dm ? '#f3f4f6' : '#111827' }}
+                    className="appearance-none text-[13px] font-semibold pl-8 pr-7 py-2.5 rounded-xl border w-[108px]"
+                    style={{ background: dm ? '#171717' : '#fdfdfd', borderColor: dm ? '#2e2e2e' : 'rgba(15,118,110,0.16)', color: dm ? '#f3f4f6' : '#111827' }}
                   >
                     <option value="recommended">Sort</option>
-                    <option value="rating">Highest rated</option>
-                    <option value="reviews">Most reviewed</option>
-                    <option value="az">A to Z</option>
+                    <option value="rating">Rating</option>
+                    <option value="reviews">Reviews</option>
+                    <option value="az">A-Z</option>
                   </select>
-                  <svg className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18M7.5 12h9m-12 7.5h15" /></svg>
-                  <svg className="h-3.5 w-3.5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.3}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                  <svg className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18M7.5 12h9m-12 7.5h15" /></svg>
+                  <svg className="h-3.5 w-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.3}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
                 </div>
               </div>
+
+              {campusCategories.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                  {campusCategories.map(cat => (
+                    <button key={cat} onClick={() => setActiveCategory(cat)}
+                      className="shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold border transition-all"
+                      style={activeCategory === cat
+                        ? { background: '#007e6d', borderColor: '#007e6d', color: 'white' }
+                        : { background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.10)', borderColor: dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.22)', color: dm ? '#6ee7b7' : '#007e6d' }}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="hidden md:flex md:items-center md:justify-between gap-3 mb-5">
@@ -597,7 +617,7 @@ const CampusPage: NextPage = () => {
             </div>
 
             {campusCategories.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
+              <div className="hidden md:flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
                 {campusCategories.map(cat => (
                   <button key={cat} onClick={() => setActiveCategory(cat)}
                     className="shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold border transition-all"
