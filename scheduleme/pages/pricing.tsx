@@ -35,10 +35,10 @@ const Pricing: NextPage = () => {
   const textMuted = dm ? '#6b7280' : '#9ca3af';
   const cardBg = dm ? '#1c1c1e' : 'white';
   const cardBorder = dm ? '#2c2c2e' : '#e5e7eb';
-  const featureCardBg = dm ? 'rgba(10,132,255,0.12)' : '#eff6ff';
-  const featureCardBorder = dm ? 'rgba(10,132,255,0.3)' : '#bfdbfe';
-  const darkBannerBg = dm ? '#1c1c1e' : '#0f172a';
-  const darkBannerBorder = dm ? '#2c2c2e' : 'transparent';
+  const featureCardBg = dm ? 'rgba(15,118,110,0.16)' : '#F4EFE6';
+  const featureCardBorder = dm ? 'rgba(15,118,110,0.36)' : 'rgba(15,118,110,0.24)';
+  const darkBannerBg = dm ? '#171717' : '#F4EFE6';
+  const darkBannerBorder = dm ? '#2c2c2e' : 'rgba(15,118,110,0.22)';
 
   return (
     <>
@@ -93,26 +93,26 @@ const Pricing: NextPage = () => {
                   </li>
                 ))}
               </ul>
-              <Link href="/demo" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
+              <Link href="/demo" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(15,118,110,0.3)' }}>
                 Find a Pro Now — Free →
               </Link>
             </div>
             <p style={{ fontSize: 13, color: textMuted }}>
-              ScheduleMe is funded by service businesses, not by users. This is our promise.
+              ScheduleMe is funded by provider memberships, not by users. This is our promise.
             </p>
           </div>
         </section>
 
-        {/* Provider CTA banner */}
+        {/* Student provider CTA banner */}
         <section style={{ padding: '0 24px', marginBottom: 64 }}>
           <div className="mx-auto" style={{ maxWidth: 720 }}>
             <div style={{ borderRadius: 20, background: darkBannerBg, border: `1px solid ${darkBannerBorder}`, padding: '32px 40px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
               <div>
-                <p style={{ color: 'white', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Are you a service business?</p>
-                <p style={{ color: dm ? '#8e8e93' : '#94a3b8', fontSize: 14 }}>See plans, pricing, and how leads work on our business page.</p>
+                <p style={{ color: dm ? 'white' : '#111827', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Are you a student provider?</p>
+                <p style={{ color: dm ? '#9ca3af' : '#525252', fontSize: 14 }}>Grow your campus client base, appear in discovery, and only pay for results.</p>
               </div>
               <Link href="/business/pricing" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                View Provider Pricing →
+                See Student Provider Plans →
               </Link>
             </div>
           </div>
@@ -123,7 +123,7 @@ const Pricing: NextPage = () => {
           <div className="js-psec mx-auto" style={{ maxWidth: 720, textAlign: 'center' }}>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: textPrimary, marginBottom: 16 }}>Ready to get started?</h2>
             <p style={{ color: textSecondary, marginBottom: 24 }}>No account needed. Describe your issue and find a pro in seconds.</p>
-            <Link href="/bookings" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(10,132,255,0.3)' }}>
+            <Link href="/bookings" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 15, padding: '14px 40px', borderRadius: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(15,118,110,0.3)' }}>
               Get Started for Free →
             </Link>
           </div>

@@ -681,30 +681,32 @@ const HomePage: NextPage = () => {
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && showEduBanner && (
           <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
-            <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 sm:py-4 rounded-2xl"
               style={{ background: dm ? 'rgba(15,118,110,0.12)' : '#EBF4FF', border: dm ? '1px solid rgba(15,118,110,0.3)' : '1px solid rgba(15,118,110,0.2)' }}>
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-start gap-3 min-w-0">
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Are you a student?</p>
-                  <p className="text-xs truncate" style={{ color: dm ? '#d1d5db' : '#525252' }}>Verify your .edu email to unlock your campus marketplace</p>
+                  <p className="text-sm font-bold leading-tight" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Are you a student?</p>
+                  <p className="text-xs leading-snug mt-0.5" style={{ color: dm ? '#d1d5db' : '#525252' }}>Verify your .edu email to unlock your campus marketplace.</p>
                 </div>
               </div>
-              <Link href="/campus" scroll={false}
-                className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
-                style={{ background: '#0F766E', color: 'white' }}>
-                Verify Now →
-              </Link>
-              <button
-                onClick={() => {
-                  setShowEduBanner(false);
-                  if (typeof window !== 'undefined') localStorage.setItem('sm_home_edu_banner_dismissed', '1');
-                }}
-                className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full ml-1"
-                style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}
-              >
-                <svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
+              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2">
+                <Link href="/campus" scroll={false}
+                  className="text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
+                  style={{ background: '#0F766E', color: 'white' }}>
+                  Verify Now →
+                </Link>
+                <button
+                  onClick={() => {
+                    setShowEduBanner(false);
+                    if (typeof window !== 'undefined') localStorage.setItem('sm_home_edu_banner_dismissed', '1');
+                  }}
+                  className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full"
+                  style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}
+                >
+                  <svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
           </div>
         )}

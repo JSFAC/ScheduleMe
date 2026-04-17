@@ -22,7 +22,6 @@ function getSupabase() {
 // CATEGORIES is now dynamic — built from loaded businesses below
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
-const PILL_STYLE = { background: '#DCEEEB', color: '#0F766E' };
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
 function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
@@ -79,6 +78,17 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
   const leafletMapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
 
+  function markerHtml(biz: Business, isSel: boolean) {
+    const hasCover = !!biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
+    const border = isSel ? '#0F766E' : (dm ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)');
+    const ring = isSel ? '0 0 0 2px rgba(15,118,110,0.35), 0 8px 16px rgba(0,0,0,0.22)' : '0 6px 14px rgba(0,0,0,0.18)';
+    return `<div style="width:44px;height:44px;border-radius:9999px;overflow:hidden;border:2px solid ${border};box-shadow:${ring};background:${dm ? '#171717' : '#ffffff'};display:flex;align-items:center;justify-content:center;transform:${isSel ? 'scale(1.06)' : 'scale(1)'};transition:transform 150ms ease;">${
+      hasCover
+        ? `<img src="${biz.coverUrl}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center;" />`
+        : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${dm ? '#9ca3af' : '#6b7280'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z"/></svg>`
+    }</div>`;
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return;
     import('leaflet').then(L => {
@@ -90,11 +100,11 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         : validBiz
           ? [validBiz.lat!, validBiz.lng!]
           : [39.8283, -98.5795]; // continental US fallback (never hard-default to SF)
-      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
+      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true, maxZoom: 20 });
       leafletMapRef.current = map;
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
+        maxZoom: 20,
       }).addTo(map);
       map.setView(center, hasUserCenter ? 12 : 13);
 
@@ -108,21 +118,33 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         }).addTo(map);
       }
 
+      const overlapCounts = new Map<string, number>();
       markersRef.current = businesses.filter(b => b.lat && b.lng && b.lat !== 0).map(biz => {
         const isSel = selected === biz.id;
+        const lat = Number(biz.lat);
+        const lng = Number(biz.lng);
+        const key = `${lat.toFixed(5)}:${lng.toFixed(5)}`;
+        const overlapIndex = overlapCounts.get(key) || 0;
+        overlapCounts.set(key, overlapIndex + 1);
+        const ring = Math.floor(overlapIndex / 8) + 1;
+        const angle = ((overlapIndex % 8) / 8) * Math.PI * 2;
+        const jitter = overlapIndex === 0 ? 0 : 0.00006 * ring;
+        const markerLat = lat + Math.sin(angle) * jitter;
+        const markerLng = lng + Math.cos(angle) * jitter;
         const icon = L.divIcon({
           className: '',
-          html: `<div style="background:${isSel?'#0F766E':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(15,118,110,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;transform:${isSel?'scale(1.08)':'scale(1)'};transition:all 0.15s ease;backdrop-filter:blur(8px);">${(biz.name || biz.category || 'Provider').split(' ').slice(0,2).join(' ')}</div>`,
-          iconAnchor: [40, 32],
+          html: markerHtml(biz, isSel),
+          iconSize: [44, 44],
+          iconAnchor: [22, 22],
         });
-        const marker = L.marker([biz.lat!, biz.lng!], { icon }).addTo(map).on('click', () => onSelect(biz.id));
+        const marker = L.marker([markerLat, markerLng], { icon }).addTo(map).on('click', () => onSelect(biz.id));
         return { id: biz.id, marker };
       });
       if (markersRef.current.length > 0) {
         const pts = markersRef.current.map(({ marker }) => marker.getLatLng());
         if (hasUserCenter) pts.push(L.latLng(userLat as number, userLng as number));
         try {
-          map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 13 });
+          map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 18 });
         } catch {
           map.setView(center, hasUserCenter ? 12 : 13);
         }
@@ -151,11 +173,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         const biz = businesses.find(b => b.id === id);
         if (!biz) return;
         const isSel = selected === id;
-        const icon = L.divIcon({
-          className: '',
-          html: `<div style="background:${isSel?'#0F766E':(dm?'rgba(28,28,30,0.95)':'rgba(255,255,255,0.97)')};color:${isSel?'white':(dm?'#f2f2f7':'#1c1c1e')};border:1.5px solid ${isSel?'transparent':(dm?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)')};padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:${isSel?'0 4px 16px rgba(15,118,110,0.4)':'0 2px 8px rgba(0,0,0,0.18)'};font-family:-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-0.01em;backdrop-filter:blur(8px);">${(biz.name || biz.category || 'Provider').split(' ').slice(0,2).join(' ')}</div>`,
-          iconAnchor: [40, 32],
-        });
+        const icon = L.divIcon({ className: '', html: markerHtml(biz, isSel), iconSize: [44, 44], iconAnchor: [22, 22] });
         marker.setIcon(icon);
       });
     });
@@ -164,16 +182,18 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
   return (
     <>
       <style>{`
-        .leaflet-container { background: ${dm ? '#101418' : '#F4EFE6'} !important; }
+        .leaflet-container { background: ${dm ? '#101418' : '#F4EFE6'} !important; position: relative; }
         .leaflet-container img,
+        .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; }
         .leaflet-container .leaflet-tile {
-          max-width: none !important;
-          max-height: none !important;
-          width: auto !important;
-          height: auto !important;
+          filter: ${dm ? 'saturate(0.6) hue-rotate(128deg) brightness(0.58) contrast(1.08)' : 'saturate(0.62) hue-rotate(18deg) sepia(0.22) brightness(1.02) contrast(1.02)'} !important;
         }
-        .leaflet-container .leaflet-tile {
-          filter: ${dm ? 'saturate(0.72) hue-rotate(165deg) brightness(0.7) contrast(1.06)' : 'saturate(0.86) hue-rotate(-8deg) brightness(1.02)'} !important;
+        .leaflet-container::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: ${dm ? 'rgba(6,22,28,0.22)' : 'rgba(15,118,110,0.07)'};
         }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
         .leaflet-control-zoom { border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.15)!important;border-radius:10px!important;overflow:hidden!important; }
@@ -212,8 +232,8 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
       <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
         <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{displayName}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{biz.category}</span>
-          {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.12)', color: dm ? '#6ee7b7' : '#0F766E' }}>{biz.category}</span>
+          {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.12)', color: dm ? '#6ee7b7' : '#0F766E' }}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
           {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
           )}
@@ -414,6 +434,9 @@ const BrowsePage: NextPage = () => {
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const pillStyle = dm
+    ? { background: 'rgba(15,118,110,0.24)', color: '#6ee7b7' }
+    : { background: 'rgba(15,118,110,0.12)', color: '#0F766E' };
   useEffect(() => { setPage(1); }, [activeCategory, searchQuery, sortMode]);
 
   // Re-fetch when radius changes if we have coords
@@ -630,8 +653,8 @@ const BrowsePage: NextPage = () => {
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
                         <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</h3>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
-                          {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={pillStyle}>{biz.category}</span>
+                          {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={pillStyle}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
                           {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span> : null}
                           <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: listStatus.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: listStatus.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
                             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{listStatus.label}
@@ -706,19 +729,19 @@ const BrowsePage: NextPage = () => {
                       {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
                         <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
                       ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
                           </svg>
-                          <span className="text-[10px] font-semibold">No photos added</span>
+                            <span className="text-[10px] font-semibold text-center leading-tight px-1">No photos added</span>
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-bold leading-tight line-clamp-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</p>
                       <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
-                        {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={PILL_STYLE}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={pillStyle}>{biz.category}</span>
+                        {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={pillStyle}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
                         {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span> : null}
                       </div>
                       <p className="text-[12px] mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.distance} · {biz.reviews} review{biz.reviews === 1 ? '' : 's'}</p>
@@ -736,10 +759,11 @@ const BrowsePage: NextPage = () => {
                         {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
                           <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-1.5 gap-1" style={{ background: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
                             </svg>
+                            <span className="text-[9px] font-semibold leading-tight">No photos added</span>
                           </div>
                         )}
                       </div>

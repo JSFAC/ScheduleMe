@@ -458,10 +458,10 @@ export default function Nav({ variant = 'light' }: NavProps) {
           />
           <div
             className="fixed left-0 right-0 z-[90] px-3 md:px-0"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 56px)', pointerEvents: 'none' }}
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 44px)', pointerEvents: 'none' }}
           >
             <div
-              className={`mx-auto w-full max-w-[540px] rounded-2xl border p-2.5 md:p-3.5 shadow-2xl ${darkMode ? 'border-white/15' : 'border-neutral-200'}`}
+              className={`mx-auto w-full max-w-[520px] rounded-2xl border p-2 md:p-3 shadow-2xl ${darkMode ? 'border-white/15' : 'border-neutral-200'}`}
               style={{
                 pointerEvents: 'auto',
                 background: darkMode ? '#171717' : '#ffffff',
@@ -478,7 +478,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 {tourStep + 1}/{CONSUMER_TOUR_STEPS.length}
               </span>
             </div>
-            <h3 className={`text-[0.98rem] font-black ${darkMode ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            <h3 className={`text-[0.95rem] font-black ${darkMode ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.02em', lineHeight: 1.15 }}>
               {tourStepData.title}
             </h3>
             <div className="mt-1.5 mb-2 flex items-center gap-1.5">
@@ -493,12 +493,12 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 />
               ))}
             </div>
-            <p className="mb-2.5 text-[13px] leading-snug" style={{ color: darkMode ? 'rgba(255,255,255,0.72)' : '#4b5563' }}>
+            <p className="mb-2 text-[12px] leading-snug" style={{ color: darkMode ? 'rgba(255,255,255,0.72)' : '#4b5563' }}>
               {tourStepData.body}
             </p>
             <button
               onClick={nextTourStep}
-              className="w-full rounded-xl px-4 py-2 text-sm font-black text-white transition-transform active:scale-[0.99]"
+              className="w-full rounded-xl px-4 py-1.5 text-sm font-black text-white transition-transform active:scale-[0.99]"
               style={{ background: 'linear-gradient(135deg,#0F766E 0%, #0B5C56 100%)' }}
             >
               {tourStepData.cta}
