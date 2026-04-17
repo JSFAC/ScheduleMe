@@ -30,7 +30,7 @@ export default function App({ Component, pageProps }: AppProps) {
         document.documentElement.classList.contains('dark') ||
         window.matchMedia('(prefers-color-scheme: dark)').matches;
       const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', isDark ? '#0a0a0a' : '#F9F7F2');
+      if (meta) meta.setAttribute('content', isDark ? '#0a0a0a' : '#F4EFE6');
     }
     updateThemeColor();
     const observer = new MutationObserver(updateThemeColor);
@@ -47,7 +47,7 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     const isDark = localStorage.getItem('sm_dark_mode') === 'true';
     const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
-    if (meta) meta.content = isDark ? '#0a0a0a' : '#F9F7F2';
+    if (meta) meta.content = isDark ? '#0a0a0a' : '#F4EFE6';
     // Start visible immediately — no fade-in on mount
     setVisible(true);
     return () => {};
@@ -185,7 +185,7 @@ export default function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#F9F7F2" id="theme-color-meta" />
+        <meta name="theme-color" content="#F4EFE6" id="theme-color-meta" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -193,7 +193,7 @@ export default function App({ Component, pageProps }: AppProps) {
   try {
     var dark = localStorage.getItem('sm_dark_mode') === 'true';
     var meta = document.getElementById('theme-color-meta');
-    if (meta) meta.content = dark ? '#0a0a0a' : '#F9F7F2';
+    if (meta) meta.content = dark ? '#0a0a0a' : '#F4EFE6';
     if (dark) document.documentElement.classList.add('dark');
     document.documentElement.style.overflowX = 'hidden';
     document.body && (document.body.style.overflowX = 'hidden');

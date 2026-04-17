@@ -349,15 +349,16 @@ html, body {
 /* Applied when <html class="dark"> is set */
 
 .dark body {
-  background: #0f1117;
+  background: #0a0a0a;
   color: #e5e7eb;
 }
 
 /* Page backgrounds */
 .dark .min-h-screen,
 .dark [style*="background: '#EDF5FF'"],
+.dark [style*="background: '#F4EFE6'"],
 .dark [style*="background: '#f8fafc'"] {
-  background: #0f1117 !important;
+  background: #0a0a0a !important;
 }
 
 /* Cards / white surfaces */
@@ -410,7 +411,7 @@ body { transition: background 0.2s ease, color 0.2s ease; }
 
 /* ── Dark mode: CSS variables for inline-style overrides ─────── */
 :root {
-  --page-bg: #EDF5FF;
+  --page-bg: #F4EFE6;
   --card-bg: #ffffff;
   --card-border: rgba(0,0,0,0.07);
   --text-primary: #171717;
@@ -418,7 +419,7 @@ body { transition: background 0.2s ease, color 0.2s ease; }
   --text-muted: #737373;
   --input-bg: #ffffff;
   --input-border: #e5e5e5;
-  --section-bg: #f8fafc;
+  --section-bg: #F4EFE6;
   --divider: rgba(0,0,0,0.06);
 }
 

@@ -13,6 +13,7 @@ import { SkeletonCard } from '../components/SkeletonCard';
 import type { Business } from '../lib/mockBusinesses';
 import { serviceTagToLabel } from '../lib/categoryNormalization';
 import { shouldShowNewBadge } from '../lib/newBadge';
+import { formatPriceTierLabel } from '../lib/priceTierLabel';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
@@ -521,9 +522,6 @@ const CampusPage: NextPage = () => {
         {/* Campus feed */}
         {canView && (
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-8">
-            <div className="pointer-events-none hidden xl:block absolute left-0 top-0 bottom-0 w-24" style={{ background: dm ? 'linear-gradient(to right, rgba(15,15,15,0.55), rgba(15,15,15,0))' : 'linear-gradient(to right, rgba(255,255,255,0.45), rgba(255,255,255,0))' }} />
-            <div className="pointer-events-none hidden xl:block absolute right-0 top-0 bottom-0 w-24" style={{ background: dm ? 'linear-gradient(to left, rgba(15,15,15,0.55), rgba(15,15,15,0))' : 'linear-gradient(to left, rgba(255,255,255,0.45), rgba(255,255,255,0))' }} />
-
             {/* .edu verify prompt */}
 
             {/* Inline verify form */}
@@ -708,7 +706,7 @@ const CampusPage: NextPage = () => {
           )}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
-            {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{'$'.repeat(biz.price_tier)}</span> : null}
+            {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
             {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
             )}

@@ -859,8 +859,65 @@ const BookingsPage: NextPage = () => {
   }
 
   useEffect(() => {
-    const supabase = getSupabase();
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    let alive = true;
+
+    const loadNearbyBusinesses = async () => {
+      if (alive) setNearbyLoading(true);
+      try {
+        const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+
+        const loadFromCoords = async (lat: number, lng: number) => {
+          const nearby = await fetchNearbyBusinesses(lat, lng, { limit: 6, radius: 25 });
+          return (nearby || []).slice(0, 6);
+        };
+
+        let nearby: any[] = [];
+
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          nearby = await new Promise<any[]>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              async (pos) => {
+                try {
+                  resolve(await loadFromCoords(pos.coords.latitude, pos.coords.longitude));
+                } catch {
+                  resolve([]);
+                }
+              },
+              () => resolve([]),
+              { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
+            );
+          });
+        }
+
+        if ((nearby || []).length === 0) {
+          const ipSources = ['https://ipapi.co/json/', 'https://ipwho.is/'];
+          for (const src of ipSources) {
+            try {
+              const res = await fetch(src);
+              const json = await res.json();
+              const lat = Number(json.latitude ?? json.lat);
+              const lng = Number(json.longitude ?? json.lon);
+              if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+              nearby = await loadFromCoords(lat, lng);
+              if (nearby.length > 0) break;
+            } catch {
+              // Try next IP source.
+            }
+          }
+        }
+
+        if (alive) setNearbyBizList(nearby || []);
+      } catch {
+        if (alive) setNearbyBizList([]);
+      } finally {
+        if (alive) setNearbyLoading(false);
+      }
+    };
+
+    const init = async () => {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+
       if (session?.user) {
         const fullName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
         const firstName = fullName.split(' ')[0];
@@ -873,18 +930,18 @@ const BookingsPage: NextPage = () => {
 
         if (isFirstVisit) {
           await supabase.from('profiles').update({ has_seen_welcome: true }).eq('id', session.user.id);
-          setUserName(firstName);
-          setUserInitials(initials);
-          setPhase('welcome');
+          if (alive) {
+            setUserName(firstName);
+            setUserInitials(initials);
+            setPhase('welcome');
+          }
           if (session.user.email) {
             maybeSendWelcomeEmail(session.user.email, fullName, session.access_token);
           }
-        } else {
+        } else if (alive) {
           setPhase('done');
-
         }
 
-        // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
         try {
           const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
@@ -893,55 +950,19 @@ const BookingsPage: NextPage = () => {
           if (res.ok) {
             const data = await res.json();
             bookingsData = data.bookings || [];
-            setBookings(bookingsData);
-          } else {
+            if (alive) setBookings(bookingsData);
+          } else if (alive) {
             setBookings([]);
           }
         } catch {
-          setBookings([]);
+          if (alive) setBookings([]);
         } finally {
-          setLoadingBookings(false);
-          // Also fetch nearby businesses for the "Available near you" section
-          try {
-            const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                  const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  if ((nearby || []).length > 0) {
-                    setNearbyBizList(nearby);
-                    setNearbyLoading(false);
-                    return;
-                  }
-                  const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-                  const fallback = await fetchAllBusinesses({ limit: 12 });
-                  setNearbyBizList((fallback || []).slice(0, 6));
-                  setNearbyLoading(false);
-                },
-                async () => {
-                  try {
-                    const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-                    const fallback = await fetchAllBusinesses({ limit: 12 });
-                    setNearbyBizList((fallback || []).slice(0, 6));
-                  } catch {
-                    setNearbyBizList([]);
-                  }
-                  setNearbyLoading(false);
-                },
-                { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
-              );
-              return; // setNearbyLoading handled in callbacks above
-            }
-            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-            const fallback = await fetchAllBusinesses({ limit: 12 });
-            setNearbyBizList((fallback || []).slice(0, 6));
-          } catch { setNearbyBizList([]); }
-          setNearbyLoading(false);
-          // Check for unreviewed completed bookings — show review prompt
+          if (alive) setLoadingBookings(false);
+          await loadNearbyBusinesses();
           const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
           );
-          if (unreviewed && unreviewed.business_name) {
+          if (alive && unreviewed && unreviewed.business_name) {
             setTimeout(() => setReviewTarget({
               bookingId: unreviewed.id,
               businessId: unreviewed.business_id,
@@ -951,46 +972,16 @@ const BookingsPage: NextPage = () => {
           }
         }
       } else {
-        setPhase('done');
-        setLoadingBookings(false);
-          // Also fetch nearby businesses for the "Available near you" section
-          try {
-            const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                  const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  if ((nearby || []).length > 0) {
-                    setNearbyBizList(nearby);
-                    setNearbyLoading(false);
-                    return;
-                  }
-                  const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-                  const fallback = await fetchAllBusinesses({ limit: 12 });
-                  setNearbyBizList((fallback || []).slice(0, 6));
-                  setNearbyLoading(false);
-                },
-                async () => {
-                  try {
-                    const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-                    const fallback = await fetchAllBusinesses({ limit: 12 });
-                    setNearbyBizList((fallback || []).slice(0, 6));
-                  } catch {
-                    setNearbyBizList([]);
-                  }
-                  setNearbyLoading(false);
-                },
-                { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
-              );
-              return; // setNearbyLoading handled in callbacks above
-            }
-            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
-            const fallback = await fetchAllBusinesses({ limit: 12 });
-            setNearbyBizList((fallback || []).slice(0, 6));
-          } catch { setNearbyBizList([]); }
-          setNearbyLoading(false);
+        if (alive) {
+          setPhase('done');
+          setLoadingBookings(false);
+        }
+        await loadNearbyBusinesses();
       }
-    });
+    };
+
+    init();
+    return () => { alive = false; };
   }, []);
 
   const showOverlay = phase === 'welcome' || phase === 'transitioning';
@@ -1017,7 +1008,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F9F7F2' }}>
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
           borderColor: 'rgba(0,0,0,0.08)'

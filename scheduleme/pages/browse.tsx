@@ -12,6 +12,8 @@ import BusinessProfile from '../components/BusinessProfile';
 import type { Business } from '../lib/mockBusinesses';
 import { SkeletonCard, SkeletonBrowseCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
+import { shouldShowNewBadge } from '../lib/newBadge';
+import { formatPriceTierLabel } from '../lib/priceTierLabel';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -181,7 +183,10 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
         <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{biz.category}</span>
-          {biz.price_tier ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{'$'.repeat(biz.price_tier)}</span> : null}
+          {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
+          {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
+          )}
           <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
           </span>
@@ -437,12 +442,12 @@ const BrowsePage: NextPage = () => {
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
-                  style={{ background: dm ? '#111111' : 'rgba(249,247,242,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)' }}
+                  style={{ background: dm ? '#111111' : 'rgba(244,239,230,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)' }}
                 />
               </div>
               <div className="relative flex-shrink-0" data-sort-dropdown>
                 <button onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'rgba(249,247,242,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)', minWidth: 130 }}>
+                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'rgba(244,239,230,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)', minWidth: 130 }}>
                   <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -477,7 +482,7 @@ const BrowsePage: NextPage = () => {
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
                 style={activeCategory === cat
                   ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' }
-                  : { background: dm ? 'rgba(15,118,110,0.15)' : '#F9F7F2', color: dm ? '#6ee7b7' : '#0F766E', borderColor: dm ? 'rgba(15,118,110,0.3)' : 'rgba(15,118,110,0.15)' }}>
+                  : { background: dm ? 'rgba(15,118,110,0.15)' : '#F4EFE6', color: dm ? '#6ee7b7' : '#0F766E', borderColor: dm ? 'rgba(15,118,110,0.3)' : 'rgba(15,118,110,0.15)' }}>
                 {cat}
               </button>
             ))}

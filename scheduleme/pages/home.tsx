@@ -13,6 +13,7 @@ import type { Business } from '../lib/mockBusinesses';
 import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import FeedbackModal from '../components/FeedbackModal';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
+import { formatPriceTierLabel } from '../lib/priceTierLabel';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -56,6 +57,14 @@ function iconForCategory(label: string) {
   if (lower.includes('music') || lower.includes('audio') || lower.includes('dj')) return 'M9 19V6l12-2v13';
   if (lower.includes('design') || lower.includes('print') || lower.includes('3d') || lower.includes('cad')) return 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42';
   return 'M12 6v12m6-6H6';
+}
+
+function shouldShowNewBadge({ createdAt, reviewCount }: { createdAt?: string | null; reviewCount?: number | null }) {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (!Number.isFinite(t)) return false;
+  const ageDays = (Date.now() - t) / (1000 * 60 * 60 * 24);
+  return ageDays <= 30 && (reviewCount ?? 0) <= 2;
 }
 
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {
@@ -243,10 +252,22 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
           }
         </div>
       </div>
-      {/* Body — one item per line */}
+      {/* Body */}
       <div className="p-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
         <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full self-start" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#DCEEEB', color: '#0F766E' }}>{biz.category}</span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#DCEEEB', color: '#0F766E' }}>{biz.category}</span>
+          {formatPriceTierLabel(biz.price_tier) ? (
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#DCEEEB', color: '#0F766E' }}>
+              {formatPriceTierLabel(biz.price_tier)}
+            </span>
+          ) : null}
+          {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) ? (
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>
+              New
+            </span>
+          ) : null}
+        </div>
         <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
         <div className="flex items-center gap-0.5">
           {[1,2,3,4,5].map(i => (
@@ -309,13 +330,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
   const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
-    <section
-      className="rounded-[28px] py-4"
-      style={{
-        background: dm
-          ? '#101010'
-          : 'linear-gradient(180deg, rgba(244,239,230,0.86) 0%, rgba(249,247,242,0.92) 100%)',
-      }}>
+    <section className="py-4" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
       <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
         <div className="flex items-baseline gap-3">
           <h2 className="text-[1.2rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>{title}</h2>
@@ -331,10 +346,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#101010' : '#F4EFE6' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#101010' : '#F4EFE6' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
 
         <div
           ref={scrollRef}
@@ -535,7 +550,7 @@ const HomePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F9F7F2' }}>
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b py-8" style={{ background: dm ? '#111' : '#0F766E' }}>
           <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
         </div>
@@ -552,7 +567,7 @@ const HomePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F4EFE6)' }} data-page-bg="true">
 
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
@@ -613,7 +628,7 @@ const HomePage: NextPage = () => {
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label
                   ? { background: '#0F766E', borderColor: '#0F766E' }
-                  : { background: dm ? 'rgba(15,118,110,0.2)' : '#F9F7F2', borderColor: dm ? 'rgba(15,118,110,0.4)' : 'rgba(15,118,110,0.15)' }}>
+                  : { background: dm ? 'rgba(15,118,110,0.2)' : '#F4EFE6', borderColor: dm ? 'rgba(15,118,110,0.4)' : 'rgba(15,118,110,0.15)' }}>
                 <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#e5e7eb' : '#0F766E') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
