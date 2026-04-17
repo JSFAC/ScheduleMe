@@ -63,8 +63,12 @@ const MessagesPage: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [gallery, setGallery] = useState<{ urls: string[]; index: number } | null>(null);
+  const [blockedByUser, setBlockedByUser] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
   const supabaseRef = useRef<any>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const authHeadersRef = useRef<HeadersInit>({ 'Content-Type': 'application/json' });
@@ -100,6 +104,31 @@ const MessagesPage: NextPage = () => {
     }
   }, [router.query.booking, threads]);
 
+  useEffect(() => {
+    if (!gallery) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGallery(null);
+      if (e.key === 'ArrowLeft') {
+        setGallery((prev) => prev ? { ...prev, index: (prev.index - 1 + prev.urls.length) % prev.urls.length } : prev);
+      }
+      if (e.key === 'ArrowRight') {
+        setGallery((prev) => prev ? { ...prev, index: (prev.index + 1) % prev.urls.length } : prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [gallery]);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-thread-actions]')) setActionsOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [actionsOpen]);
+
   async function loadThreads(uid: string) {
     const res = await fetch(`/api/messages?user_id=${uid}`, { headers: authHeadersRef.current });
     if (res.ok) { const data = await res.json(); setThreads(data.threads || []); }
@@ -112,6 +141,7 @@ const MessagesPage: NextPage = () => {
   async function openThread(thread: Thread) {
     setActiveThread(thread);
     setMessages([]);
+    setActionsOpen(false);
     const authH = authHeadersRef.current;
     const threadQuery = thread.business_id
       ? `/api/messages?thread_business_id=${thread.business_id}`
@@ -128,6 +158,7 @@ const MessagesPage: NextPage = () => {
       setThreads(ts => ts.map(t => t.id === thread.id ? { ...t, unreadCount: 0 } : t));
     }
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    loadBlockState(thread);
     // Subscribe to realtime messages for this thread
     const supabase = supabaseRef.current;
     if (realtimeChannelRef.current && supabase) supabase.removeChannel(realtimeChannelRef.current);
@@ -174,7 +205,7 @@ const MessagesPage: NextPage = () => {
   }
 
   async function sendMessage() {
-    if (!input.trim() || !activeThread || !userId || sending) return;
+    if (!input.trim() || !activeThread || !userId || sending || blockedByUser) return;
     setSending(true);
     const content = input.trim();
     setInput('');
@@ -194,6 +225,75 @@ const MessagesPage: NextPage = () => {
   }
 
   const totalUnread = threads.reduce((s, t) => s + t.unreadCount, 0);
+  async function loadBlockState(thread: Thread | null) {
+    if (!thread?.business_id || !userId) {
+      setBlockedByUser(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/blocks?user_id=${userId}`, { headers: authHeadersRef.current });
+      if (!res.ok) {
+        setBlockedByUser(false);
+        return;
+      }
+      const data = await res.json();
+      const isBlocked = (data.blocks || []).some((b: any) => b.business_id === thread.business_id);
+      setBlockedByUser(!!isBlocked);
+    } catch {
+      setBlockedByUser(false);
+    }
+  }
+
+  async function updateBlock(action: 'block' | 'unblock') {
+    if (!activeThread?.business_id || !userId) return false;
+    try {
+      const res = await fetch('/api/blocks', {
+        method: 'POST',
+        headers: authHeadersRef.current,
+        body: JSON.stringify({
+          business_id: activeThread.business_id,
+          user_id: userId,
+          action,
+        }),
+      });
+      if (!res.ok) return false;
+      const blocked = action === 'block';
+      setBlockedByUser(blocked);
+      if (blocked) setInput('');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function reportAndBlock() {
+    if (!activeThread?.business_id || !userId || actionBusy) return;
+    setActionBusy(true);
+    try {
+      await fetch('/api/client-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'User report submitted from messages thread',
+          severity: 'warning',
+          route: '/messages',
+          component: 'MessagesPage',
+          payload: {
+            reporter_user_id: userId,
+            business_id: activeThread.business_id,
+            business_name: activeThread.businesses?.name || null,
+            booking_id: activeThread.booking_id || activeThread.id,
+            thread_id: activeThread.id,
+          },
+        }),
+      }).catch(() => null);
+      await updateBlock('block');
+    } finally {
+      setActionBusy(false);
+      setActionsOpen(false);
+    }
+  }
+
   const messageBlocks = useMemo(() => {
     const blocks: Array<
       | { kind: 'single'; msg: Message; ts: string }
@@ -321,13 +421,47 @@ const MessagesPage: NextPage = () => {
                           <p className="text-[11px] text-neutral-400 truncate">{activeThread.service}</p>
                         </div>
                       </div>
-                      {activeThread.businesses?.phone && (
-                        <a href={`tel:${activeThread.businesses.phone}`}
-                          className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-accent bg-accent-light px-3 py-1.5 rounded-xl border border-accent/15 hover:brightness-95 transition-colors">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
-                          Call
-                        </a>
-                      )}
+                      <div className="relative shrink-0" ref={actionsRef} data-thread-actions>
+                        <button
+                          onClick={() => setActionsOpen((v) => !v)}
+                          className="h-8 w-8 rounded-lg flex items-center justify-center"
+                          style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d1d5db' : '#4b5563' }}
+                          aria-label="Conversation actions"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6h.01M12 12h.01M12 18h.01" />
+                          </svg>
+                        </button>
+                        {actionsOpen && (
+                          <div
+                            className="absolute right-0 top-full mt-2 w-44 rounded-xl border shadow-lg overflow-hidden z-50"
+                            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}
+                          >
+                            <button
+                              onClick={async () => {
+                                if (actionBusy) return;
+                                setActionBusy(true);
+                                await updateBlock(blockedByUser ? 'unblock' : 'block');
+                                setActionBusy(false);
+                                setActionsOpen(false);
+                              }}
+                              disabled={actionBusy}
+                              className="w-full text-left px-3.5 py-2.5 text-xs font-semibold transition-colors hover:bg-accent/10 disabled:opacity-50"
+                              style={{ color: blockedByUser ? '#0F766E' : (dm ? '#fca5a5' : '#b91c1c') }}
+                            >
+                              {blockedByUser ? 'Unblock business' : 'Block business'}
+                            </button>
+                            <button
+                              onClick={reportAndBlock}
+                              disabled={actionBusy}
+                              className="w-full text-left px-3.5 py-2.5 text-xs font-semibold transition-colors hover:bg-accent/10 disabled:opacity-50"
+                              style={{ color: dm ? '#fca5a5' : '#b91c1c' }}
+                            >
+                              Report and block
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -365,26 +499,56 @@ const MessagesPage: NextPage = () => {
                           <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                             {block.kind === 'media' ? (
                               <div className={`max-w-[78%] rounded-2xl p-2 ${isUser ? 'bg-accent rounded-br-md' : (dm ? 'bg-neutral-800 border border-neutral-700 rounded-bl-md' : 'bg-white border border-neutral-200 rounded-bl-md')}`}>
-                                <div className="space-y-1.5">
-                                  {block.items.map((item, mediaIndex) => (
-                                    <button
-                                      key={item.id}
-                                      onClick={() => {
-                                        const urls = block.items.map((m) => m.image_url).filter(Boolean) as string[];
-                                        const selectedIndex = Math.max(0, urls.findIndex((u) => u === item.image_url));
-                                        if (urls.length > 0) setGallery({ urls, index: selectedIndex >= 0 ? selectedIndex : mediaIndex });
-                                      }}
-                                      className="block overflow-hidden rounded-lg w-full text-left"
-                                      style={{ background: dm ? '#0d0d0d' : '#f3f4f6' }}>
-                                      {item.message_type === 'video' ? (
-                                        <div className="h-24 sm:h-28 flex items-center justify-center text-xs font-semibold" style={{ color: isUser ? 'white' : (dm ? '#d1d5db' : '#374151') }}>
-                                          Video
+                                <div>
+                                  {(() => {
+                                    const mediaItems = block.items.filter((m) => !!m.image_url);
+                                    const urls = mediaItems.map((m) => m.image_url).filter(Boolean) as string[];
+                                    const previewItems = mediaItems.slice(0, 3);
+                                    return (
+                                      <button
+                                        onClick={() => { if (urls.length > 0) setGallery({ urls, index: 0 }); }}
+                                        className="block text-left"
+                                      >
+                                        <div className="relative w-[200px] sm:w-[240px] h-[118px] sm:h-[132px]">
+                                          {previewItems.map((item, stackIndex) => {
+                                            const remaining = previewItems.length - stackIndex - 1;
+                                            const offset = remaining * 16;
+                                            return (
+                                              <div
+                                                key={item.id}
+                                                className="absolute top-0 overflow-hidden rounded-xl border"
+                                                style={{
+                                                  right: `${offset}px`,
+                                                  width: '170px',
+                                                  height: '100%',
+                                                  zIndex: stackIndex + 1,
+                                                  borderColor: dm ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)',
+                                                  boxShadow: '0 6px 18px rgba(0,0,0,0.22)',
+                                                  background: dm ? '#0d0d0d' : '#f3f4f6',
+                                                }}
+                                              >
+                                                {item.message_type === 'video' ? (
+                                                  <div className="h-full flex items-center justify-center text-xs font-semibold" style={{ color: isUser ? 'white' : (dm ? '#d1d5db' : '#374151') }}>
+                                                    Video
+                                                  </div>
+                                                ) : (
+                                                  <img src={item.image_url || ''} alt="Shared media" className="w-full h-full object-cover" />
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                          {block.items.length > 1 && (
+                                            <div
+                                              className="absolute bottom-2 right-2 h-6 min-w-6 px-2 rounded-full text-[10px] font-black flex items-center justify-center"
+                                              style={{ background: 'rgba(0,0,0,0.72)', color: 'white' }}
+                                            >
+                                              +{block.items.length - 1}
+                                            </div>
+                                          )}
                                         </div>
-                                      ) : (
-                                        <img src={item.image_url || ''} alt="Shared media" className="w-full h-24 sm:h-28 object-cover" />
-                                      )}
-                                    </button>
-                                  ))}
+                                      </button>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             ) : (
@@ -419,12 +583,13 @@ const MessagesPage: NextPage = () => {
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                        placeholder={`Message ${activeThread.businesses?.name || 'the business'}…`}
+                        placeholder={blockedByUser ? 'You blocked this business. Unblock to send messages.' : `Message ${activeThread.businesses?.name || 'the business'}…`}
                         rows={1}
                         className="flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all leading-relaxed"
                         style={{ maxHeight: 120, background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : '#e5e5e5', color: dm ? '#f3f4f6' : '#171717' }}
+                        disabled={blockedByUser}
                       />
-                      <button onClick={sendMessage} disabled={!input.trim() || sending}
+                      <button onClick={sendMessage} disabled={!input.trim() || sending || blockedByUser}
                         className="shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
                         style={{ background: input.trim() ? '#0F766E' : '#e5e7eb' }}>
                         <svg className={`h-4 w-4 ${input.trim() ? 'text-white' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -432,7 +597,7 @@ const MessagesPage: NextPage = () => {
                         </svg>
                       </button>
                     </div>
-                    <p className="text-[10px] text-neutral-400 mt-1.5 px-1">↵ to send · Shift+↵ for new line</p>
+                    <p className="text-[10px] text-neutral-400 mt-1.5 px-1">{blockedByUser ? 'Messaging disabled for this conversation.' : '↵ to send · Shift+↵ for new line'}</p>
                   </div>
                   {gallery && galleryCurrent && (
                     <div

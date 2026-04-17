@@ -359,6 +359,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isBiz = isBusinessOwnerForUser(booking.businesses, user) && sender_type === 'business';
     if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
 
+    // Respect user/business blocks for this conversation.
+    if (booking.business_id && booking.user_id) {
+      const { data: blockRow } = await supabase
+        .from('blocks')
+        .select('id, blocked_by')
+        .eq('business_id', booking.business_id)
+        .eq('user_id', booking.user_id)
+        .maybeSingle();
+      if (blockRow) {
+        return res.status(403).json({
+          error: blockRow.blocked_by === 'user'
+            ? 'You blocked this business. Unblock to continue messaging.'
+            : 'Messaging is unavailable for this conversation.',
+        });
+      }
+    }
+
     // Filter profanity / threats
     const filtered = filterMessage(content.trim());
     if (!filtered.ok) return res.status(400).json({ error: filtered.error });

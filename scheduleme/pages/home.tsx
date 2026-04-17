@@ -232,13 +232,13 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
         )}
         <div className="absolute top-2 left-2">
           {biz.available
-            ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(4px)' }}>
+            ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: dm ? 'rgba(16,185,129,0.16)' : 'rgba(255,255,255,0.92)', border: dm ? '1px solid rgba(52,211,153,0.35)' : 'none', backdropFilter: 'blur(4px)' }}>
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-emerald-700">Open</span>
+                <span className="text-[10px] font-bold" style={{ color: dm ? '#86efac' : '#047857' }}>Open</span>
               </div>
-            : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+            : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: dm ? 'rgba(38,38,38,0.9)' : 'rgba(0,0,0,0.5)', border: dm ? '1px solid rgba(255,255,255,0.12)' : 'none', backdropFilter: 'blur(4px)' }}>
                 <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                <span className="text-[10px] font-bold text-white/70">Booked</span>
+                <span className="text-[10px] font-bold" style={{ color: dm ? '#d1d5db' : 'rgba(255,255,255,0.85)' }}>Booked</span>
               </div>
           }
         </div>
@@ -313,7 +313,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
       className="rounded-[28px] py-4"
       style={{
         background: dm
-          ? 'linear-gradient(180deg, rgba(23,23,23,0.9) 0%, rgba(10,10,10,0.95) 100%)'
+          ? '#101010'
           : 'linear-gradient(180deg, rgba(244,239,230,0.86) 0%, rgba(249,247,242,0.92) 100%)',
       }}>
       <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
@@ -331,10 +331,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
+          style={{ width: edgePad, background: dm ? '#101010' : '#F4EFE6' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
+          style={{ width: edgePad, background: dm ? '#101010' : '#F4EFE6' }} />
 
         <div
           ref={scrollRef}
@@ -614,10 +614,10 @@ const HomePage: NextPage = () => {
                 style={activeCategory === cat.label
                   ? { background: '#0F766E', borderColor: '#0F766E' }
                   : { background: dm ? 'rgba(15,118,110,0.2)' : '#F9F7F2', borderColor: dm ? 'rgba(15,118,110,0.4)' : 'rgba(15,118,110,0.15)' }}>
-                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0F766E') }}>
+                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#e5e7eb' : '#0F766E') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0F766E') }}>{cat.label}</span>
+                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#e5e7eb' : '#0F766E') }}>{cat.label}</span>
               </button>
             ))}
           </div>
@@ -705,23 +705,35 @@ const HomePage: NextPage = () => {
             const sortedByRating = [...filtered].sort((a, b) => (b.rating - a.rating) || (b.reviews - a.reviews));
             const sortedByReviews = [...filtered].sort((a, b) => b.reviews - a.reviews || b.rating - a.rating);
 
-            const used = new Set<string>();
-            const takeUnique = (list: Business[], n: number) => {
+            const uniqueById = (list: Business[]) => {
+              const seen = new Set<string>();
               const out: Business[] = [];
               for (const biz of list) {
-                if (used.has(biz.id)) continue;
-                used.add(biz.id);
+                if (seen.has(biz.id)) continue;
+                seen.add(biz.id);
                 out.push(biz);
-                if (out.length >= n) break;
               }
               return out;
             };
-            const topRated = takeUnique(sortedByRating, 6);
-            const independentFirst = takeUnique(
-              [...filtered.filter(b => b.independent === true), ...sortedByReviews],
+            const fillTo = (primary: Business[], fallback: Business[], n: number) => {
+              const out = [...primary];
+              if (out.length >= n) return out.slice(0, n);
+              if (fallback.length === 0) return out;
+              let i = 0;
+              while (out.length < n) {
+                out.push(fallback[i % fallback.length]);
+                i += 1;
+              }
+              return out;
+            };
+
+            const topRated = fillTo(uniqueById(sortedByRating), sortedByRating, 6);
+            const independentFirst = fillTo(
+              uniqueById([...filtered.filter(b => b.independent === true), ...sortedByReviews]),
+              sortedByReviews,
               6
             );
-            const quickResponse = takeUnique(sortedByReviews, 6);
+            const quickResponse = fillTo(uniqueById(sortedByReviews), sortedByRating, 6);
             return (
               <>
                 <ScrollSection

@@ -388,7 +388,7 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F9F7F2' }}>
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
@@ -402,7 +402,7 @@ const BrowsePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <Nav />
 
         <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -484,7 +484,7 @@ const BrowsePage: NextPage = () => {
           </div>
         </div>
 
-        <div style={{ background: dm ? '#0f0f0f' : '#fafafa', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(0,0,0,0.05)' }}>
+        <div style={{ background: dm ? '#0f0f0f' : '#F4EFE6', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(15,118,110,0.08)' }}>
           <div className="flex items-center justify-start sm:justify-center gap-2 px-4 sm:px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <span className="text-[11px] font-semibold shrink-0" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Within</span>
             {[5, 10, 25, 50, 100].map(r => (

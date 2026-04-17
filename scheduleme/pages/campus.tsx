@@ -478,9 +478,9 @@ const CampusPage: NextPage = () => {
         <title>Campus — ScheduleMe</title>
       </Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="h-[88px] border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }} />
-        <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
@@ -495,11 +495,11 @@ const CampusPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Campus — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
 
         {/* Header */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
-          <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
                 <span className="text-xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>
@@ -520,7 +520,9 @@ const CampusPage: NextPage = () => {
 
         {/* Campus feed */}
         {canView && (
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-8">
+            <div className="pointer-events-none hidden xl:block absolute left-0 top-0 bottom-0 w-24" style={{ background: dm ? 'linear-gradient(to right, rgba(15,15,15,0.55), rgba(15,15,15,0))' : 'linear-gradient(to right, rgba(255,255,255,0.45), rgba(255,255,255,0))' }} />
+            <div className="pointer-events-none hidden xl:block absolute right-0 top-0 bottom-0 w-24" style={{ background: dm ? 'linear-gradient(to left, rgba(15,15,15,0.55), rgba(15,15,15,0))' : 'linear-gradient(to left, rgba(255,255,255,0.45), rgba(255,255,255,0))' }} />
 
             {/* .edu verify prompt */}
 
@@ -629,7 +631,7 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" style={{ alignItems: 'stretch' }}>
+              <div className="grid gap-3" style={{ alignItems: 'stretch', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
                 {sorted.filter((biz) => {
                   if (activeCategory === 'All' && !search) return !featuredIds.has(biz.id);
                   return true;
