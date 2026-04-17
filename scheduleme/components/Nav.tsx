@@ -345,16 +345,18 @@ export default function Nav({ variant = 'light' }: NavProps) {
           <p className="text-white font-semibold text-sm">Signing you out…</p>
         </div>
       )}
-      <div
-        aria-hidden="true"
-        className="fixed inset-0 pointer-events-none z-[80] transition-opacity duration-300"
-        style={{
-          opacity: routeTransitioning ? 1 : 0,
-          background: darkMode ? 'rgba(8,8,8,0.16)' : 'rgba(15,23,42,0.08)',
-          backdropFilter: routeTransitioning ? 'blur(1.5px)' : 'blur(0px)',
-          WebkitBackdropFilter: routeTransitioning ? 'blur(1.5px)' : 'blur(0px)',
-        }}
-      />
+      {routeTransitioning && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none z-[80] transition-opacity duration-300"
+          style={{
+            opacity: 1,
+            background: darkMode ? 'rgba(8,8,8,0.16)' : 'rgba(15,23,42,0.08)',
+            backdropFilter: 'blur(1.5px)',
+            WebkitBackdropFilter: 'blur(1.5px)',
+          }}
+        />
+      )}
       {/* Safe-area color fill — same style as header for perfect match */}
       <div aria-hidden="true" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 41,
