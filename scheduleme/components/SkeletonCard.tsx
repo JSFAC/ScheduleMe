@@ -5,9 +5,9 @@ export function SkeletonCard() {
   const { dm } = useDm();
   return (
     <div className="rounded-2xl overflow-hidden flex-shrink-0"
-      style={{ width: 'clamp(220px, 18vw, 290px)', background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#f0f0f0'}` }}>
+      style={{ width: 'clamp(160px, 42vw, 290px)', background: dm ? '#171717' : 'white', border: `1px solid ${dm ? '#262626' : '#f0f0f0'}` }}>
       {/* Image area */}
-      <div className="animate-shimmer" style={{ height: 'clamp(175px, 14vw, 220px)' }} />
+      <div className="animate-shimmer" style={{ height: 'clamp(128px, 30vw, 220px)' }} />
       {/* Body */}
       <div className="px-3.5 pt-2.5 pb-3 space-y-2">
         <div className="flex items-center justify-between">

@@ -19,9 +19,11 @@ function getSupabase() {
 
 interface Booking {
   id: string;
+  business_id?: string;
   service: string;
   category: string;
   status: string;
+  reviewed?: boolean;
   created_at: string;
   scheduled_at?: string;
   address?: string;
@@ -114,13 +116,15 @@ function ProgressBar({ status }: { status: string }) {
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, onUploadDisputeMedia }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, onUploadDisputeMedia, onMessageProvider, onLeaveReview }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string) => void;
   onOpenDispute: (id: string, payload: { reason: string; details?: string; media_urls?: string[] }) => Promise<void>;
   onUploadDisputeMedia: (bookingId: string, file: File) => Promise<string | null>;
+  onMessageProvider: (bookingId: string) => void;
+  onLeaveReview: (booking: Booking) => void;
 }) {
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
   const serviceAmountCents = booking.amount_cents || 0;
@@ -471,6 +475,33 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
                   {disputing ? 'Opening Dispute...' : 'Report Issue / Open Dispute'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Completed booking actions */}
+          {['completed', 'paid'].includes(booking.status) && (
+            <div className="mt-6 pt-5 border-t border-neutral-100 space-y-2.5">
+              {!!booking.business_id && (
+                <button
+                  onClick={() => onMessageProvider(booking.id)}
+                  className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg,#0F766E 0%,#0B5C56 100%)' }}
+                >
+                  Message Provider
+                </button>
+              )}
+              <button
+                onClick={() => onLeaveReview(booking)}
+                disabled={booking.reviewed === true}
+                className="w-full py-3 rounded-xl text-sm font-semibold border transition-colors disabled:cursor-not-allowed disabled:opacity-55"
+                style={{
+                  background: booking.reviewed ? '#f5f5f5' : '#111111',
+                  color: booking.reviewed ? '#9ca3af' : 'white',
+                  borderColor: booking.reviewed ? '#e5e7eb' : '#111111',
+                }}
+              >
+                {booking.reviewed ? 'Review already submitted' : 'Leave a Review'}
+              </button>
             </div>
           )}
 
@@ -1264,6 +1295,34 @@ const BookingsPage: NextPage = () => {
           onCancel={cancelBooking}
           onOpenDispute={openDispute}
           onUploadDisputeMedia={uploadDisputeMedia}
+          onMessageProvider={(bookingId) => {
+            setSelectedBooking(null);
+            router.push(`/messages?booking=${encodeURIComponent(bookingId)}`, undefined, { scroll: false });
+          }}
+          onLeaveReview={(booking) => {
+            if (!booking.business_id || !booking.business_name) return;
+            setSelectedBooking(null);
+            setReviewTarget({
+              bookingId: booking.id,
+              businessId: booking.business_id,
+              businessName: booking.business_name,
+              serviceName: booking.service,
+            });
+          }}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          bookingId={reviewTarget.bookingId}
+          businessId={reviewTarget.businessId}
+          businessName={reviewTarget.businessName}
+          serviceName={reviewTarget.serviceName}
+          onDone={() => {
+            const bid = reviewTarget.bookingId;
+            setReviewTarget(null);
+            setBookings(prev => prev.map(b => b.id === bid ? { ...b, reviewed: true } : b));
+          }}
         />
       )}
 

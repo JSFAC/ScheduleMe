@@ -109,8 +109,8 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true, maxZoom: 22, zoomSnap: 0.25 });
       leafletMapRef.current = map;
       const tileUrl = dm
-        ? 'https://{s}.basemaps.cartocdn.com/voyager_nolabels/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/voyager_nolabels/{z}/{x}/{y}{r}.png';
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
       L.tileLayer(tileUrl, {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
         maxZoom: 22,
@@ -198,9 +198,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         .leaflet-container img,
         .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; }
         .leaflet-container .leaflet-tile {
-          width: 256px !important;
-          height: 256px !important;
-          filter: ${dm ? 'grayscale(0.22) saturate(0.68) brightness(0.68) contrast(1.08)' : 'saturate(0.92) brightness(1.02) contrast(1.02)'} !important;
+          filter: ${dm ? 'grayscale(0.12) saturate(0.72) brightness(0.72) contrast(1.08)' : 'saturate(0.92) brightness(1.02) contrast(1.02)'} !important;
         }
         .leaflet-tile-pane { opacity: ${dm ? '0.95' : '1'}; }
         .leaflet-container::after {
@@ -208,7 +206,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
           position: absolute;
           inset: 0;
           pointer-events: none;
-          background: ${dm ? 'rgba(6,22,28,0.1)' : 'rgba(15,118,110,0.02)'};
+          background: ${dm ? 'rgba(6,22,28,0.06)' : 'rgba(15,118,110,0.02)'};
         }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
         .leaflet-control-zoom { border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.15)!important;border-radius:10px!important;overflow:hidden!important; }
@@ -301,19 +299,19 @@ function ReferInline() {
   );
 
   if (!open) return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-4">
-      <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5">
+      <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-neutral-800">Don't see who you're looking for?</p>
-        <p className="text-xs text-neutral-500 mt-0.5">Refer a local business you trust and we'll invite them.</p>
+        <p className="text-sm font-semibold text-neutral-800 leading-tight">Know a skilled student?</p>
+        <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">Refer someone trusted and we will invite them to your campus marketplace.</p>
       </div>
       <button onClick={() => setOpen(true)}
         className="shrink-0 text-xs font-bold text-accent bg-accent-light border border-accent/20 px-4 py-2 rounded-xl hover:brightness-95 transition-colors uppercase tracking-wide">
-        Refer a Business
+        Refer
       </button>
     </div>
   );
@@ -348,13 +346,17 @@ const BrowsePage: NextPage = () => {
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
+  const [mapPage, setMapPage] = useState(1);
+  const MAP_ITEMS_PER_PAGE_DESKTOP = 10;
+  const MAP_ITEMS_PER_PAGE_MOBILE = 6;
   const [bizList, setBizList] = useState<Business[]>([]);
   const [bizLoading, setBizLoading] = useState(true);
   const [radius, setRadius] = useState(25);
   const [userLat, setUserLat] = useState(null);
   const [userLng, setUserLng] = useState(null);
-    const [usingRealData, setUsingRealData] = useState(false);
+  const [usingRealData, setUsingRealData] = useState(false);
   const [geoError, setGeoError] = useState(false);
+  const [mapListMobile, setMapListMobile] = useState(false);
   const mapListRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
   const mobileViewLabel = viewMode === 'grid' ? 'Grid' : viewMode === 'list' ? 'List' : 'Map';
@@ -465,10 +467,21 @@ const BrowsePage: NextPage = () => {
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const mapItemsPerPage = mapListMobile ? MAP_ITEMS_PER_PAGE_MOBILE : MAP_ITEMS_PER_PAGE_DESKTOP;
+  const mapTotalPages = Math.max(1, Math.ceil(filtered.length / mapItemsPerPage));
+  const mapPaginated = filtered.slice((mapPage - 1) * mapItemsPerPage, mapPage * mapItemsPerPage);
   const pillStyle = dm
     ? { background: 'rgba(15,118,110,0.24)', color: '#6ee7b7' }
     : { background: 'rgba(15,118,110,0.12)', color: '#0F766E' };
-  useEffect(() => { setPage(1); }, [activeCategory, searchQuery, sortMode]);
+  useEffect(() => { setPage(1); setMapPage(1); }, [activeCategory, searchQuery, sortMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => setMapListMobile(window.innerWidth < 768);
+    sync();
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, []);
 
   // Re-fetch when radius changes if we have coords
   useEffect(() => {
@@ -482,9 +495,18 @@ const BrowsePage: NextPage = () => {
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
   useEffect(() => {
     if (viewMode !== 'map' || !selectedMapBiz) return;
+    const selectedIndex = filtered.findIndex((b) => b.id === selectedMapBiz);
+    if (selectedIndex < 0) return;
+    const nextMapPage = Math.floor(selectedIndex / mapItemsPerPage) + 1;
+    if (nextMapPage !== mapPage) {
+      setMapPage(nextMapPage);
+      return;
+    }
     const node = mapListRefs.current[selectedMapBiz];
-    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [selectedMapBiz, viewMode]);
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedMapBiz, viewMode, filtered, mapItemsPerPage, mapPage]);
 
   if (loading) return (
     <>
@@ -762,7 +784,7 @@ const BrowsePage: NextPage = () => {
                   <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em]">{filtered.length} {filtered.length === 1 ? 'result' : 'results'}</p>
                   <p className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Nearby providers</p>
                 </div>
-                {filtered.map((biz, i) => (
+                {mapPaginated.map((biz, i) => (
                   <button key={biz.id} ref={(el) => { mapListRefs.current[biz.id] = el; }} onClick={() => {
                     if (biz.preview_locked) return;
                     if (selectedMapBiz !== biz.id) { setSelectedMapBiz(biz.id); return; }
@@ -798,10 +820,34 @@ const BrowsePage: NextPage = () => {
                     </div>
                   </button>
                 ))}
+                {mapTotalPages > 1 && (
+                  <div className="pt-1.5 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => setMapPage((p) => Math.max(1, p - 1))}
+                      disabled={mapPage === 1}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40"
+                      style={{ borderColor: dm ? '#2a2d3a' : '#d1d5db', color: dm ? '#d1d5db' : '#4b5563' }}
+                    >
+                      Prev
+                    </button>
+                    <p className="text-xs font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                      Page {mapPage} / {mapTotalPages}
+                    </p>
+                    <button
+                      onClick={() => setMapPage((p) => Math.min(mapTotalPages, p + 1))}
+                      disabled={mapPage === mapTotalPages}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40"
+                      style={{ borderColor: dm ? '#2a2d3a' : '#d1d5db', color: dm ? '#d1d5db' : '#4b5563' }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="hidden md:flex gap-4" style={{ height: 560 }}>
-                <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
-                  {filtered.map((biz, i) => (
+                <div className="w-72 flex-shrink-0 flex flex-col gap-2">
+                  <div className="overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'none', maxHeight: 560 }}>
+                  {mapPaginated.map((biz, i) => (
                     <button key={biz.id} ref={(el) => { mapListRefs.current[biz.id] = el; }} onClick={() => { if (biz.preview_locked) return; setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id); }}
                       className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
                       style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#262626' : 'rgba(15,118,110,0.1)'), background: dm ? '#171717' : 'white', cursor: biz.preview_locked ? 'not-allowed' : 'pointer' }}>
@@ -828,6 +874,30 @@ const BrowsePage: NextPage = () => {
                       </div>
                     </button>
                   ))}
+                  </div>
+                  {mapTotalPages > 1 && (
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <button
+                        onClick={() => setMapPage((p) => Math.max(1, p - 1))}
+                        disabled={mapPage === 1}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40"
+                        style={{ borderColor: dm ? '#2a2d3a' : '#d1d5db', color: dm ? '#d1d5db' : '#4b5563' }}
+                      >
+                        Prev
+                      </button>
+                      <p className="text-xs font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                        {mapPage} / {mapTotalPages}
+                      </p>
+                      <button
+                        onClick={() => setMapPage((p) => Math.min(mapTotalPages, p + 1))}
+                        disabled={mapPage === mapTotalPages}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40"
+                        style={{ borderColor: dm ? '#2a2d3a' : '#d1d5db', color: dm ? '#d1d5db' : '#4b5563' }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-3" style={{ flex: '1 1 0', minWidth: 0 }}>
                   <div className="relative rounded-2xl overflow-hidden border flex-1" style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}>

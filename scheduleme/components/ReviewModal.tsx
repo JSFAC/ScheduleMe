@@ -39,7 +39,7 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ booking_id: bookingId, business_id: businessId, rating, comment, image_urls: imageUrls }),
+        body: JSON.stringify({ booking_id: bookingId, business_id: businessId, rating, comment, review_media_urls: imageUrls }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
