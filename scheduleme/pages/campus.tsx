@@ -484,7 +484,7 @@ const CampusPage: NextPage = () => {
         <title>Campus — ScheduleMe</title>
       </Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="h-[88px] border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }} />
         <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
@@ -501,7 +501,7 @@ const CampusPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Campus — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
 
         {/* Header */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>

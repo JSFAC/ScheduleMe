@@ -226,6 +226,7 @@ const MessagesPage: NextPage = () => {
 
   const totalUnread = threads.reduce((s, t) => s + t.unreadCount, 0);
   const mobileThreadOpen = !!activeThread;
+  const lockPageScroll = !loading && threads.length > 0;
   async function loadBlockState(thread: Thread | null) {
     if (!thread?.business_id || !userId) {
       setBlockedByUser(false);
@@ -332,7 +333,15 @@ const MessagesPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Messages — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(78px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div
+        className="min-h-screen pb-[calc(78px+env(safe-area-inset-bottom,0px))] md:pb-0"
+        style={{
+          paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))',
+          background: dm ? '#0a0a0a' : '#F4EFE6',
+          overflow: lockPageScroll ? 'hidden' : 'visible',
+          height: lockPageScroll ? 'calc(100vh - env(safe-area-inset-top, 0px))' : undefined,
+        }}
+      >
 
         <div className={`${mobileThreadOpen ? 'hidden sm:block' : 'block'} border-b`} style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
           <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-7 pb-6">
@@ -353,7 +362,7 @@ const MessagesPage: NextPage = () => {
           </div>
         </div>
 
-        <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${mobileThreadOpen ? 'py-2 sm:py-6' : 'py-5 sm:py-6'}`}>
+        <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${mobileThreadOpen ? 'py-2 sm:py-6' : 'py-5 sm:py-6'} ${lockPageScroll ? 'h-full' : ''}`}>
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 5 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
@@ -375,6 +384,7 @@ const MessagesPage: NextPage = () => {
                   ? 'calc(100vh - (48px + env(safe-area-inset-top,0px) + 88px + env(safe-area-inset-bottom,0px)))'
                   : 'calc(100vh - 250px)',
                 minHeight: mobileThreadOpen ? 0 : 420,
+                maxHeight: lockPageScroll ? '100%' : undefined,
               }}
             >
 

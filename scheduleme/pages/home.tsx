@@ -427,6 +427,18 @@ function ReferCard() {
   const [open, setOpen] = useState(false);
   const [bizName, setBizName] = useState('');
   const [sent, setSent] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  async function copyProviderSignupLink() {
+    const signupUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://usescheduleme.com'}/business`;
+    try {
+      await navigator.clipboard.writeText(signupUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2200);
+    } catch {
+      // ignore clipboard failures silently
+    }
+  }
 
   if (sent) return (
     <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
@@ -459,6 +471,13 @@ function ReferCard() {
       <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
         placeholder="Their name or business name"
         className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+      <button
+        type="button"
+        onClick={copyProviderSignupLink}
+        className="w-full py-2.5 rounded-xl text-sm font-semibold border border-accent/25 text-accent bg-accent-light hover:brightness-95 transition-colors"
+      >
+        {copiedLink ? 'Signup link copied' : 'Copy provider signup link'}
+      </button>
       <button disabled={!bizName.trim()} onClick={() => { if (bizName.trim()) setSent(true); }}
         className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${bizName.trim() ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'}`}>
         Submit referral
@@ -592,7 +611,7 @@ const HomePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b py-8" style={{ background: dm ? '#111' : '#0F766E' }}>
           <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
         </div>
@@ -609,7 +628,7 @@ const HomePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F4EFE6)' }} data-page-bg="true">
+      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F4EFE6)' }} data-page-bg="true">
 
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
@@ -753,7 +772,7 @@ const HomePage: NextPage = () => {
 
         {/* Install app banner — mobile only, not shown if already installed */}
         {showInstallBanner && (
-          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: eduVerified === false ? 12 : 24 }}>
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: eduVerified === false ? 8 : 12 }}>
             <div className="rounded-2xl overflow-hidden"
               style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.08)', boxShadow: dm ? 'none' : '0 2px 12px rgba(0,0,0,0.06)' }}>
               {/* Header */}
@@ -804,7 +823,7 @@ const HomePage: NextPage = () => {
         )}
 
         {/* Scrollable business rows */}
-        <div className="py-8 space-y-10" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+        <div className="py-5 space-y-6" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
           {(() => {
             const pool = realBizList.length > 0 ? realBizList : [];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);

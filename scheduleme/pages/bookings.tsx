@@ -1131,7 +1131,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
           borderColor: 'rgba(0,0,0,0.08)'

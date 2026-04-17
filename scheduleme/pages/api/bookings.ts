@@ -121,6 +121,58 @@ function isMissingColumnError(err: any): boolean {
   return msg.includes('column') || msg.includes('does not exist') || details.includes('does not exist');
 }
 
+function isUuidLike(value: unknown): value is string {
+  const s = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+}
+
+async function resolveUserIdsByEmail(
+  supabase: ReturnType<typeof getSupabase>,
+  email?: string | null
+): Promise<string[]> {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return [];
+  const ids = new Set<string>();
+  try {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalized)
+      .limit(50);
+    for (const row of profiles || []) {
+      if (isUuidLike((row as any)?.id)) ids.add((row as any).id);
+    }
+  } catch {}
+  try {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', normalized)
+      .limit(50);
+    for (const row of users || []) {
+      if (isUuidLike((row as any)?.id)) ids.add((row as any).id);
+    }
+  } catch {}
+  return Array.from(ids);
+}
+
+async function buildBusinessByIdMap(
+  supabase: ReturnType<typeof getSupabase>,
+  rows: any[]
+): Promise<Record<string, any>> {
+  const ids = Array.from(new Set((rows || []).map((r: any) => r?.business_id).filter((id: any) => isUuidLike(id))));
+  if (ids.length === 0) return {};
+  const { data } = await supabase
+    .from('businesses')
+    .select('id, name, phone, email')
+    .in('id', ids);
+  const map: Record<string, any> = {};
+  for (const b of data || []) {
+    if (isUuidLike((b as any)?.id)) map[(b as any).id] = b;
+  }
+  return map;
+}
+
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
   try {
     const { data: booking } = await supabase
@@ -609,70 +661,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (user.id !== user_id) return res.status(403).json({ error: 'Access denied' });
 
       try {
+        const candidateUserIds = new Set<string>([String(user_id), String(user.id)].filter((v) => isUuidLike(v)));
+        const emailLinkedIds = await resolveUserIdsByEmail(supabase, user.email || '');
+        for (const id of emailLinkedIds) candidateUserIds.add(id);
+        const resolvedIds = Array.from(candidateUserIds);
+
+        const queryByResolvedIds = (selectClause: string) =>
+          supabase
+            .from('bookings')
+            .select(selectClause)
+            .in('user_id', resolvedIds)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
         let { data, error } = await supabase
           .from('bookings')
           .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
-          .eq('user_id', user_id)
+          .in('user_id', resolvedIds)
           .order('created_at', { ascending: false })
           .limit(100);
 
         if (error && isMissingColumnError(error)) {
-          const fallbackLegacyProof = await supabase
-            .from('bookings')
-            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false })
-            .limit(100);
+          const fallbackLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)');
           data = fallbackLegacyProof.data as any;
           error = fallbackLegacyProof.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallback = await supabase
-            .from('bookings')
-            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, businesses(name, phone, email)')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false })
-            .limit(100);
+          const fallback = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, businesses(name, phone, email)');
           data = fallback.data as any;
           error = fallback.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
           // Final compatibility fallback for legacy schemas missing `reviewed`.
-          const fallbackNoReviewed = await supabase
-            .from('bookings')
-            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false })
-            .limit(100);
+          const fallbackNoReviewed = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)');
           data = fallbackNoReviewed.data as any;
           error = fallbackNoReviewed.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallbackNoReviewedLegacyProof = await supabase
-            .from('bookings')
-            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false })
-            .limit(100);
+          const fallbackNoReviewedLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)');
           data = fallbackNoReviewedLegacyProof.data as any;
           error = fallbackNoReviewedLegacyProof.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallbackMinimal = await supabase
-            .from('bookings')
-            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, businesses(name, phone, email)')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false })
-            .limit(100);
+          const fallbackMinimal = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, businesses(name, phone, email)');
           data = fallbackMinimal.data as any;
           error = fallbackMinimal.error as any;
         }
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+        const businessById = await buildBusinessByIdMap(supabase, data || []);
         const bookings = (data || []).map((b: any) => ({
           ...b,
           status: deriveBookingStatus(b),
@@ -680,9 +721,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           completion_proof_note: b.completion_proof_note ?? b.completion_proof_message ?? null,
           completion_proof_photo_urls: b.completion_proof_photo_urls ?? b.completion_proof_photos ?? [],
           completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
-          business_name: b.businesses?.name ?? null,
-          business_phone: b.businesses?.phone ?? null,
-          business_email: b.businesses?.email ?? null,
+          business_name: b.businesses?.name ?? businessById[b.business_id]?.name ?? null,
+          business_phone: b.businesses?.phone ?? businessById[b.business_id]?.phone ?? null,
+          business_email: b.businesses?.email ?? businessById[b.business_id]?.email ?? null,
           businesses: undefined,
         }));
         return res.status(200).json({ bookings });

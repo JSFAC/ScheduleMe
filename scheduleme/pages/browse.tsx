@@ -291,6 +291,18 @@ function ReferInline() {
   const [open, setOpen] = useState(false);
   const [bizName, setBizName] = useState('');
   const [sent, setSent] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  async function copyProviderSignupLink() {
+    const signupUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://usescheduleme.com'}/business`;
+    try {
+      await navigator.clipboard.writeText(signupUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2200);
+    } catch {
+      // ignore clipboard failures silently
+    }
+  }
 
   if (sent) return (
     <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center">
@@ -325,6 +337,13 @@ function ReferInline() {
       <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
         placeholder="Their name or business name"
         className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
+      <button
+        type="button"
+        onClick={copyProviderSignupLink}
+        className="w-full py-2.5 rounded-xl text-sm font-semibold border border-accent/25 text-accent bg-accent-light hover:brightness-95 transition-colors"
+      >
+        {copiedLink ? 'Signup link copied' : 'Copy provider signup link'}
+      </button>
       <button disabled={!bizName.trim()} onClick={() => { if (bizName.trim()) setSent(true); }}
         className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${bizName.trim() ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'}`}>
         Submit referral
@@ -512,7 +531,7 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
@@ -526,7 +545,7 @@ const BrowsePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <Nav />
 
         <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
