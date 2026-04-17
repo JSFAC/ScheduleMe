@@ -155,35 +155,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const reviewCount = b.review_count ?? 0;
       const rating = reviewCount > 0 ? b.rating : null;
       const status = computeFounder50Status(b);
-      const showName = b.public_show_name === true;
-      const showPhotos = b.public_show_photos === true;
-      // Only mask "private until student verification" listings for campus providers.
-      // Non-campus providers should stay publicly visible.
+      // Consumer web should keep listings fully visible for discovery/marketing.
+      // Preserve preview_locked flag for analytics/debugging, but do not mask card data.
       const businessSchoolDomain = normalizeDomain(b.school_domain);
       const sameCampusVerifiedViewer =
         viewerEduVerified
         && !!viewerSchoolDomain
         && !!businessSchoolDomain
         && viewerSchoolDomain === businessSchoolDomain;
-      // Lock only applies to edu-verified campus providers who intentionally set private visibility.
-      // If a provider has not completed edu verification yet, do not hide them behind campus lock.
       const previewLocked =
         b.campus_provider === true
         && b.edu_verified === true
         && b.public_visibility === false
         && !sameCampusVerifiedViewer;
-      const canBypassPublicMasking = sameCampusVerifiedViewer || b.edu_verified !== true;
-      const effectiveShowName = canBypassPublicMasking ? true : showName;
-      const effectiveShowPhotos = canBypassPublicMasking ? true : showPhotos;
       return {
         ...b,
-        name: previewLocked ? null : b.name,
-        description: previewLocked ? null : b.description,
-        phone: previewLocked ? null : (effectiveShowName ? b.phone : null),
-        website: previewLocked ? null : (effectiveShowName ? b.website : null),
-        address: previewLocked ? (b.zip || null) : (effectiveShowName ? b.address : (b.zip || b.address || null)),
-        cover_url: previewLocked ? null : (effectiveShowPhotos ? b.cover_url : null),
-        media_urls: previewLocked ? [] : (effectiveShowPhotos ? b.media_urls : []),
+        name: b.name,
+        description: b.description,
+        phone: b.phone,
+        website: b.website,
+        address: b.address || b.zip || null,
+        cover_url: b.cover_url,
+        media_urls: b.media_urls,
         preview_locked: previewLocked,
         distance_miles: d,
         price_tier: priceTier,

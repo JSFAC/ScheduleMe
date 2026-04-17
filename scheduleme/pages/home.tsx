@@ -741,38 +741,16 @@ const HomePage: NextPage = () => {
           {(() => {
             const pool = realBizList.length > 0 ? realBizList : [];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
-            const sortedByRating = [...filtered].sort((a, b) => (b.rating - a.rating) || (b.reviews - a.reviews));
-            const sortedByReviews = [...filtered].sort((a, b) => b.reviews - a.reviews || b.rating - a.rating);
+            const sortedByRating = [...filtered].sort((a, b) => ((b.rating || 0) - (a.rating || 0)) || ((b.reviews || 0) - (a.reviews || 0)));
+            const sortedByReviews = [...filtered].sort((a, b) => (b.reviews - a.reviews) || ((b.rating || 0) - (a.rating || 0)));
+            const ratedOnly = sortedByRating.filter((b) => (b.rating || 0) > 0 && (b.reviews || 0) > 0);
+            const nonStudentOnly = sortedByReviews.filter((b) => b.campus_provider !== true);
 
-            const uniqueById = (list: Business[]) => {
-              const seen = new Set<string>();
-              const out: Business[] = [];
-              for (const biz of list) {
-                if (seen.has(biz.id)) continue;
-                seen.add(biz.id);
-                out.push(biz);
-              }
-              return out;
-            };
-            const fillTo = (primary: Business[], fallback: Business[], n: number) => {
-              const out = [...primary];
-              if (out.length >= n) return out.slice(0, n);
-              if (fallback.length === 0) return out;
-              let i = 0;
-              while (out.length < n) {
-                out.push(fallback[i % fallback.length]);
-                i += 1;
-              }
-              return out;
-            };
+            const takeMax = (arr: Business[], n: number) => arr.slice(0, n);
 
-            const topRated = fillTo(uniqueById(sortedByRating), sortedByRating, 6);
-            const independentFirst = fillTo(
-              uniqueById([...filtered.filter(b => b.independent === true), ...sortedByReviews]),
-              sortedByReviews,
-              6
-            );
-            const quickResponse = fillTo(uniqueById(sortedByReviews), sortedByRating, 6);
+            const topRated = takeMax(ratedOnly, 6);
+            const nonStudentProviders = takeMax(nonStudentOnly, 6);
+            const quickResponse = takeMax(sortedByReviews, 6);
             return (
               <>
                 <ScrollSection
@@ -787,10 +765,10 @@ const HomePage: NextPage = () => {
                 />
                 <ScrollSection
                   key={`indie-${activeCategory}`}
-                  title="Small & Independent"
-                  subtitle="Solo tradespeople — your booking helps them grow"
-                  href="/browse?category=Independent"
-                  businesses={independentFirst}
+                  title="Non-student providers"
+                  subtitle="Local businesses in your area"
+                  href="/browse"
+                  businesses={nonStudentProviders}
                   onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}

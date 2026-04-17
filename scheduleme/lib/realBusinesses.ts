@@ -44,12 +44,12 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
   const effectiveAvailability = breakActive ? 'break' : (availability === 'break' ? 'open' : availability);
   const mediaUrls = Array.isArray(b.media_urls) && b.media_urls.length > 0 ? b.media_urls : [];
   const cover = getCover(b.cover_url, mediaUrls);
-  const allImages = mediaUrls.length > 0 ? mediaUrls : (cover ? [cover] : []);
+  const allImages = mediaUrls.length > 0 ? mediaUrls : (cover && cover !== TRANSPARENT_PIXEL ? [cover] : []);
   const previewLocked = b.preview_locked === true;
   return {
     id: b.id,
     realId: b.id,
-    name: previewLocked ? '' : (b.name || 'Local Business'),
+    name: b.name || 'Local Business',
     slug: b.slug || b.id,
     description: b.description || '',
     tagline: b.description ? b.description.split('.')[0] : '',
@@ -57,7 +57,8 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     lat: b.lat,
     lng: b.lng,
     category,
-    independent: true,
+    // Treat campus providers as student providers; non-campus = independent/local businesses.
+    independent: b.campus_provider !== true,
     founder50: !!b.founder50,
     founder50_status: b.founder50_status ?? null,
     available: effectiveAvailability !== 'closed' && effectiveAvailability !== 'break',

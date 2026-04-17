@@ -72,6 +72,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const [routeTransitioning, setRouteTransitioning] = useState(false);
   const tourTargetPath = tourActive ? CONSUMER_TOUR_STEPS[tourStep]?.path : null;
   const tourStepData = CONSUMER_TOUR_STEPS[tourStep];
 
@@ -160,6 +161,19 @@ export default function Nav({ variant = 'light' }: NavProps) {
       setTourStep(safeSaved);
     }
   }, [user?.email, router.pathname]);
+
+  useEffect(() => {
+    const start = () => setRouteTransitioning(true);
+    const done = () => setTimeout(() => setRouteTransitioning(false), 120);
+    router.events.on('routeChangeStart', start);
+    router.events.on('routeChangeComplete', done);
+    router.events.on('routeChangeError', done);
+    return () => {
+      router.events.off('routeChangeStart', start);
+      router.events.off('routeChangeComplete', done);
+      router.events.off('routeChangeError', done);
+    };
+  }, [router.events]);
 
   function finishTour() {
     if (user?.email) {
@@ -279,6 +293,16 @@ export default function Nav({ variant = 'light' }: NavProps) {
           <p className="text-white font-semibold text-sm">Signing you out…</p>
         </div>
       )}
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 pointer-events-none z-[80] transition-opacity duration-300"
+        style={{
+          opacity: routeTransitioning ? 1 : 0,
+          background: darkMode ? 'rgba(8,8,8,0.16)' : 'rgba(15,23,42,0.08)',
+          backdropFilter: routeTransitioning ? 'blur(1.5px)' : 'blur(0px)',
+          WebkitBackdropFilter: routeTransitioning ? 'blur(1.5px)' : 'blur(0px)',
+        }}
+      />
       {/* Safe-area color fill — same style as header for perfect match */}
       <div aria-hidden="true" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 41,
@@ -426,14 +450,23 @@ export default function Nav({ variant = 'light' }: NavProps) {
       </nav>
     </header>
       {user && tourActive && tourStepData && (
-        <div
-          className="fixed left-0 right-0 z-[90] px-3 md:px-0"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 66px)', pointerEvents: 'none' }}
-        >
+        <>
           <div
-            className={`mx-auto w-full max-w-[560px] rounded-2xl border p-3 md:p-4 shadow-2xl ${darkMode ? 'border-white/15 bg-[#121212f2]' : 'border-neutral-200 bg-white/97'}`}
-            style={{ pointerEvents: 'auto' }}
+            aria-hidden="true"
+            className="fixed inset-0 z-[85] pointer-events-none"
+            style={{ background: darkMode ? 'rgba(0,0,0,0.48)' : 'rgba(17,24,39,0.12)' }}
+          />
+          <div
+            className="fixed left-0 right-0 z-[90] px-3 md:px-0"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 66px)', pointerEvents: 'none' }}
           >
+            <div
+              className={`mx-auto w-full max-w-[560px] rounded-2xl border p-3 md:p-4 shadow-2xl ${darkMode ? 'border-white/15' : 'border-neutral-200'}`}
+              style={{
+                pointerEvents: 'auto',
+                background: darkMode ? '#171717' : '#ffffff',
+              }}
+            >
             <div className="mb-2 flex items-start justify-between gap-3">
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: darkMode ? 'rgba(255,255,255,0.62)' : '#6b7280' }}>
                 <span className={`flex h-7 w-7 items-center justify-center rounded-full ${darkMode ? 'bg-accent/30 text-[#9ee6dc]' : 'bg-accent-light text-accent'}`}>
@@ -477,8 +510,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
             >
               Skip tour
             </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
       {/* Mobile bottom tab bar — outside header to avoid fixed-in-fixed stacking issues */}
       {user && (
