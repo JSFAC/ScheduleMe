@@ -245,8 +245,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
     if (path === '/campus') {
       return (
         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={col} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0A50.57 50.57 0 0012 13.489a50.702 50.702 0 017.74-3.342" />
-          <path d="M4.26 10.147L12 3.493l7.74 6.654" />
+          <path d="M12 14.25L3 9l9-5.25L21 9l-9 5.25z" />
+          <path d="M21 9v4.5" />
+          <path d="M6.75 11.25v4.25c0 .72 2.24 2.5 5.25 2.5s5.25-1.78 5.25-2.5v-4.25" />
         </svg>
       );
     }

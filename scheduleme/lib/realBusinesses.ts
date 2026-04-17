@@ -138,6 +138,45 @@ export async function fetchNearbyBusinesses(
       return (data as any[]).map(b => mapBusiness(b, b.distance_miles));
     }
 
+    // Last-resort fallback for environments where service-role API/RPC is unavailable.
+    // This prevents Browse from rendering as an empty page.
+    try {
+      const normalizedCategory = opts.category ? normalizeServiceTag(opts.category) : '';
+      const { data: rawRows } = await supabase
+        .from('businesses')
+        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, created_at')
+        .eq('is_onboarded', true)
+        .not('lat', 'is', null)
+        .not('lng', 'is', null)
+        .limit(Math.min(300, Math.max(50, (opts.limit ?? 40) * 5)));
+
+      const radiusMiles = opts.radius ?? 25;
+      const rows = (rawRows || []).filter((row: any) => {
+        const bLat = Number(row?.lat);
+        const bLng = Number(row?.lng);
+        if (!Number.isFinite(bLat) || !Number.isFinite(bLng)) return false;
+        if (row?.public_visibility === false) return false;
+        const serviceTags = Array.isArray(row?.service_tags) ? row.service_tags.map((t: any) => normalizeServiceTag(String(t))) : [];
+        if (normalizedCategory && !serviceTags.includes(normalizedCategory)) return false;
+        const distance = haversineMiles(lat, lng, bLat, bLng);
+        return Number.isFinite(distance) && distance <= radiusMiles;
+      });
+
+      const sorted = rows
+        .map((row: any) => {
+          const distanceMiles = haversineMiles(lat, lng, Number(row.lat), Number(row.lng));
+          return { ...row, distance_miles: distanceMiles };
+        })
+        .sort((a: any, b: any) => a.distance_miles - b.distance_miles)
+        .slice(0, opts.limit ?? 40);
+
+      if (sorted.length > 0) {
+        return sorted.map((row: any) => mapBusiness(row, row.distance_miles));
+      }
+    } catch {
+      // fall through
+    }
+
     return [];
   } catch { return []; }
 }

@@ -526,7 +526,7 @@ const CampusPage: NextPage = () => {
 
         {/* Campus feed */}
         {canView && (
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-8 sm:pt-5">
             {/* .edu verify prompt */}
 
             {/* Inline verify form */}
