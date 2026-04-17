@@ -3,7 +3,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
 import { SkeletonThread } from '../components/SkeletonCard';
@@ -11,14 +11,29 @@ import { useDm } from '../lib/DarkModeContext';
 import Link from 'next/link';
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
 }
 
-interface Message { id: string; booking_id: string; sender_type: 'user' | 'business'; content: string; created_at: string; read: boolean; }
+interface Message {
+  id: string;
+  booking_id: string;
+  sender_type: 'user' | 'business';
+  content: string;
+  created_at: string;
+  read: boolean;
+  image_url?: string | null;
+  message_type?: 'text' | 'image' | 'video' | string | null;
+}
 interface Thread {
   id: string; service: string; status: string; created_at: string;
   businesses: { id: string; name: string; phone: string } | null;
   lastMessage: Message | null; unreadCount: number;
+  business_id?: string | null;
+  booking_id?: string | null;
+  booking_ids?: string[];
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -49,14 +64,24 @@ const MessagesPage: NextPage = () => {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const supabaseRef = useRef(getSupabase());
+  const supabaseRef = useRef<any>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const authHeadersRef = useRef<HeadersInit>({ 'Content-Type': 'application/json' });
 
   useEffect(() => {
     const supabase = getSupabase();
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+    supabaseRef.current = supabase;
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
       setUserId(session.user.id);
+      authHeadersRef.current = {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+      };
       loadThreads(session.user.id);
     });
   }, [router]);
@@ -64,13 +89,18 @@ const MessagesPage: NextPage = () => {
   // Open thread from query param (e.g., from bookings page)
   useEffect(() => {
     if (router.query.booking && threads.length > 0) {
-      const t = threads.find(t => t.id === router.query.booking);
+      const bookingId = String(router.query.booking);
+      const t = threads.find(t =>
+        t.id === bookingId ||
+        t.booking_id === bookingId ||
+        (Array.isArray(t.booking_ids) && t.booking_ids.includes(bookingId))
+      );
       if (t) openThread(t);
     }
   }, [router.query.booking, threads]);
 
   async function loadThreads(uid: string) {
-    const res = await fetch(`/api/messages?user_id=${uid}`);
+    const res = await fetch(`/api/messages?user_id=${uid}`, { headers: authHeadersRef.current });
     if (res.ok) { const data = await res.json(); setThreads(data.threads || []); }
     setLoading(false);
   }
@@ -81,40 +111,52 @@ const MessagesPage: NextPage = () => {
   async function openThread(thread: Thread) {
     setActiveThread(thread);
     setMessages([]);
-    const authH = await getAuthHeaders();
-    const res = await fetch(`/api/messages?booking_id=${thread.id}`, { headers: authH });
+    const authH = authHeadersRef.current;
+    const threadQuery = thread.business_id
+      ? `/api/messages?thread_business_id=${thread.business_id}`
+      : `/api/messages?booking_id=${thread.booking_id || thread.id}`;
+    const res = await fetch(threadQuery, { headers: authH });
     if (res.ok) { const data = await res.json(); setMessages(data.messages || []); }
     // Mark read
     if (thread.unreadCount > 0) {
-      await fetch('/api/messages', { method: 'PATCH', headers: await getAuthHeaders(), body: JSON.stringify({ booking_id: thread.id, reader_type: 'user' }) });
+      await fetch('/api/messages', {
+        method: 'PATCH',
+        headers: authH,
+        body: JSON.stringify({ booking_id: thread.booking_id || thread.id, reader_type: 'user' }),
+      });
       setThreads(ts => ts.map(t => t.id === thread.id ? { ...t, unreadCount: 0 } : t));
     }
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     // Subscribe to realtime messages for this thread
     const supabase = supabaseRef.current;
-    if (realtimeChannelRef.current) supabase.removeChannel(realtimeChannelRef.current);
+    if (realtimeChannelRef.current && supabase) supabase.removeChannel(realtimeChannelRef.current);
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    const bookingId = thread.id;
+    const bookingId = thread.booking_id || thread.id;
 
-    realtimeChannelRef.current = supabase
-      .channel('consumer-msg-' + bookingId)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: 'booking_id=eq.' + bookingId,
-      }, (payload: any) => {
-        setMessages(m => {
-          if (m.find((x: any) => x.id === payload.new.id)) return m;
-          return [...m, payload.new];
-        });
-        setThreads(ts => ts.map(t => t.id === bookingId ? { ...t, lastMessage: payload.new } : t));
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-      })
-      .subscribe();
+    if (supabase) {
+      realtimeChannelRef.current = supabase
+        .channel('consumer-msg-' + bookingId)
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'messages',
+          filter: 'booking_id=eq.' + bookingId,
+        }, (payload: any) => {
+          setMessages(m => {
+            if (m.find((x: any) => x.id === payload.new.id)) return m;
+            return [...m, payload.new];
+          });
+          setThreads(ts => ts.map(t => t.id === bookingId ? { ...t, lastMessage: payload.new } : t));
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+        })
+        .subscribe();
+    }
 
     // Always poll every 2s as fallback (realtime may not be enabled)
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      fetch('/api/messages?booking_id=' + bookingId)
+      const pollUrl = thread.business_id
+        ? `/api/messages?thread_business_id=${thread.business_id}`
+        : `/api/messages?booking_id=${bookingId}`;
+      fetch(pollUrl, { headers: authH })
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (d?.messages) {
@@ -136,8 +178,9 @@ const MessagesPage: NextPage = () => {
     const content = input.trim();
     setInput('');
     const res = await fetch('/api/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_id: activeThread.id, sender_type: 'user', sender_id: userId, content }),
+      method: 'POST',
+      headers: authHeadersRef.current,
+      body: JSON.stringify({ booking_id: activeThread.booking_id || activeThread.id, sender_type: 'user', sender_id: userId, content }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -150,6 +193,35 @@ const MessagesPage: NextPage = () => {
   }
 
   const totalUnread = threads.reduce((s, t) => s + t.unreadCount, 0);
+  const messageBlocks = useMemo(() => {
+    const blocks: Array<
+      | { kind: 'single'; msg: Message; ts: string }
+      | { kind: 'media'; items: Message[]; sender: Message['sender_type']; ts: string }
+    > = [];
+    for (let i = 0; i < messages.length; i += 1) {
+      const current = messages[i];
+      const mediaLike = !!current.image_url || current.message_type === 'image' || current.message_type === 'video';
+      if (!mediaLike) {
+        blocks.push({ kind: 'single', msg: current, ts: current.created_at });
+        continue;
+      }
+      const group: Message[] = [current];
+      for (let j = i + 1; j < messages.length; j += 1) {
+        const next = messages[j];
+        const nextMediaLike = !!next.image_url || next.message_type === 'image' || next.message_type === 'video';
+        const closeInTime = Math.abs(new Date(next.created_at).getTime() - new Date(group[group.length - 1].created_at).getTime()) < 10 * 60 * 1000;
+        if (!nextMediaLike || next.sender_type !== current.sender_type || !closeInTime) break;
+        group.push(next);
+        i = j;
+      }
+      if (group.length > 1) {
+        blocks.push({ kind: 'media', items: group, sender: current.sender_type, ts: group[0].created_at });
+      } else {
+        blocks.push({ kind: 'single', msg: current, ts: current.created_at });
+      }
+    }
+    return blocks;
+  }, [messages]);
 
   return (
     <>
@@ -278,20 +350,49 @@ const MessagesPage: NextPage = () => {
                       </div>
                     )}
 
-                    {messages.map((msg, i) => {
-                      const isUser = msg.sender_type === 'user';
-                      const showTime = i === 0 || new Date(msg.created_at).getTime() - new Date(messages[i-1].created_at).getTime() > 300000;
+                    {messageBlocks.map((block, i) => {
+                      const ts = block.ts;
+                      const previousTs = i > 0 ? messageBlocks[i - 1].ts : null;
+                      const showTime = i === 0 || (previousTs ? new Date(ts).getTime() - new Date(previousTs).getTime() > 300000 : false);
+                      const isUser = block.kind === 'media'
+                        ? block.sender === 'user'
+                        : block.msg.sender_type === 'user';
                       return (
-                        <div key={msg.id}>
-                          {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{fmtTime(msg.created_at)}</p>}
+                        <div key={block.kind === 'media' ? `${block.items[0]?.id}-group` : block.msg.id}>
+                          {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{fmtTime(ts)}</p>}
                           <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                              isUser
-                                ? 'bg-accent text-white rounded-br-md'
-                                : dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'
-                            }`}>
-                              {msg.content}
-                            </div>
+                            {block.kind === 'media' ? (
+                              <div className={`max-w-[78%] rounded-2xl p-2 ${isUser ? 'bg-accent rounded-br-md' : (dm ? 'bg-neutral-800 border border-neutral-700 rounded-bl-md' : 'bg-white border border-neutral-200 rounded-bl-md')}`}>
+                                <div className={`grid gap-1.5 ${block.items.length === 1 ? 'grid-cols-1' : block.items.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                                  {block.items.map((item) => (
+                                    <a key={item.id} href={item.image_url || '#'} target="_blank" rel="noreferrer"
+                                      className={`block overflow-hidden ${block.items.length === 1 ? 'rounded-xl' : 'rounded-lg'}`}
+                                      style={{ background: dm ? '#0d0d0d' : '#f3f4f6' }}>
+                                      {item.message_type === 'video' ? (
+                                        <div className="h-24 sm:h-28 flex items-center justify-center text-xs font-semibold" style={{ color: isUser ? 'white' : (dm ? '#d1d5db' : '#374151') }}>
+                                          Video
+                                        </div>
+                                      ) : (
+                                        <img src={item.image_url || ''} alt="Shared media" className="w-full h-24 sm:h-28 object-cover" />
+                                      )}
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                                isUser
+                                  ? 'bg-accent text-white rounded-br-md'
+                                  : dm ? 'bg-neutral-800 text-neutral-100 border border-neutral-700 rounded-bl-md' : 'bg-white text-neutral-800 border border-neutral-200 rounded-bl-md'
+                              }`}>
+                                {block.msg.content}
+                                {!!block.msg.image_url && (
+                                  <a href={block.msg.image_url} target="_blank" rel="noreferrer" className="block mt-2">
+                                    <img src={block.msg.image_url} alt="Shared media" className="w-full max-w-[220px] rounded-xl object-cover" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -341,14 +442,5 @@ const MessagesPage: NextPage = () => {
     </>
   );
 };
-
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const supabase = getSupabase();
-  const { data: { session } } = await supabase.auth.getSession();
-  return {
-    'Content-Type': 'application/json',
-    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
-  };
-}
 
 export default MessagesPage;

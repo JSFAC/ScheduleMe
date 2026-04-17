@@ -478,7 +478,7 @@ const CampusPage: NextPage = () => {
         <title>Campus — ScheduleMe</title>
       </Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
         <div className="h-[88px] border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }} />
         <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
@@ -495,7 +495,7 @@ const CampusPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Campus — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#EDF5FF' }}>
+      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
 
         {/* Header */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
@@ -520,7 +520,14 @@ const CampusPage: NextPage = () => {
 
         {/* Campus feed */}
         {canView && (
-          <div className="max-w-5xl mx-auto px-6 py-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            <div className="rounded-[26px] border p-4 sm:p-5" style={{
+              background: dm
+                ? 'linear-gradient(180deg, rgba(23,23,23,0.9) 0%, rgba(10,10,10,0.95) 100%)'
+                : 'linear-gradient(180deg, rgba(244,239,230,0.92) 0%, rgba(249,247,242,0.95) 100%)',
+              borderColor: dm ? '#262626' : 'rgba(15,118,110,0.1)',
+              boxShadow: dm ? 'none' : '0 10px 30px rgba(15,118,110,0.05)',
+            }}>
 
             {/* .edu verify prompt */}
 
@@ -528,7 +535,7 @@ const CampusPage: NextPage = () => {
 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
               <div className="flex-1">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ background: dm ? '#121212' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ background: dm ? '#121212' : 'rgba(255,255,255,0.95)', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.16)' }}>
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
@@ -547,7 +554,7 @@ const CampusPage: NextPage = () => {
                   value={sortMode}
                   onChange={e => setSortMode(e.target.value)}
                   className="text-xs font-semibold px-3 py-2 rounded-xl border"
-                  style={{ background: dm ? '#121212' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#f3f4f6' : '#111827' }}
+                  style={{ background: dm ? '#121212' : 'rgba(255,255,255,0.95)', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.16)', color: dm ? '#f3f4f6' : '#111827' }}
                 >
                   <option value="recommended">Recommended</option>
                   <option value="rating">Highest rated</option>
@@ -638,6 +645,7 @@ const CampusPage: NextPage = () => {
                 ))}
               </div>
             )}
+            </div>
           </div>
         )}
       </div>

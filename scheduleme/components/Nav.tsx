@@ -126,7 +126,12 @@ export default function Nav({ variant = 'light' }: NavProps) {
   ];
   const navLinks = user ? appLinks : marketingLinks;
 
-  const navBg = (isDark || darkMode) ? 'rgba(10,10,10,0.92)' : 'rgba(249,247,242,0.9)';
+  const isLandingGuest = !user && router.pathname === '/';
+  const navBg = (isDark || darkMode)
+    ? 'rgba(10,10,10,0.92)'
+    : isLandingGuest
+      ? 'rgba(255,255,255,0.95)'
+      : 'rgba(249,247,242,0.9)';
 
   return (
     <>
@@ -267,9 +272,19 @@ export default function Nav({ variant = 'light' }: NavProps) {
               )}
             </div>
           ) : (
-            <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
-              Sign up
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/signin?mode=login" scroll={false}
+                className={`text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full font-semibold border transition-colors ${
+                  isDark || darkMode
+                    ? 'text-white border-white/20 hover:bg-white/10'
+                    : 'text-neutral-700 border-neutral-300 hover:bg-neutral-100'
+                }`}>
+                Log in
+              </Link>
+              <Link href="/signin?mode=signup" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
+                Sign up
+              </Link>
+            </div>
           )}
         </div>
       </nav>

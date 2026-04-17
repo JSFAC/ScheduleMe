@@ -180,9 +180,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
             <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
               className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? '#93c5fd' : '#2563eb', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)'; }}>
+              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(249,247,242,0.95)', color: dm ? '#6ee7b7' : '#0F766E', border: dm ? '1px solid rgba(110,231,183,0.35)' : '1px solid rgba(15,118,110,0.22)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(20,20,30,0.95)' : 'rgba(243,239,230,1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(249,247,242,0.95)'; }}>
               {label}
             </button>
           ))}
@@ -285,7 +285,13 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
   const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
-    <section>
+    <section
+      className="rounded-[28px] py-4"
+      style={{
+        background: dm
+          ? 'linear-gradient(180deg, rgba(23,23,23,0.9) 0%, rgba(10,10,10,0.95) 100%)'
+          : 'linear-gradient(180deg, rgba(244,239,230,0.86) 0%, rgba(249,247,242,0.92) 100%)',
+      }}>
       <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
         <div className="flex items-baseline gap-3">
           <h2 className="text-[1.2rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>{title}</h2>
@@ -334,6 +340,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
               width: 'clamp(160px, 13vw, 200px)',
               height: 'calc(clamp(185px, 15vw, 240px) + 68px)',
               marginBottom: '8px',
+              background: dm ? '#171717' : '#F4EFE6',
             }}>
             <div className="h-10 w-10 rounded-full bg-accent/10 group-hover:bg-accent/15 flex items-center justify-center transition-colors">
               <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

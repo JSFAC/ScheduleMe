@@ -720,6 +720,8 @@ const BookingsPage: NextPage = () => {
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const [paymentToast, setPaymentToast] = useState<'cancelled' | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
+  const [activeOpen, setActiveOpen] = useState(false);
+  const [pastOpen, setPastOpen] = useState(false);
 
   // Show toast if redirected back after cancelled payment
   useEffect(() => {
@@ -1048,83 +1050,114 @@ const BookingsPage: NextPage = () => {
               ) : (
                 <>
                   {activeBookings.length > 0 && (
-                    <div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: '#0F766E' }}>Active</h2>
-                      <div className="space-y-3">
-                        {activeBookings.map(b => {
-                          const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
-                          return (
-                            <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
-                              {/* Left accent bar — status color */}
-                              <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
-                              <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
-                                    {b.business_name
-                                      ? <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>
-                                      : <p className="text-xs mt-0.5 italic" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>Matching you with a pro…</p>}
-                                    <div className="flex items-center gap-2 mt-1.5">
-                                      <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
-                                      {b.scheduled_at && (
-                                        <>
-                                          <span className="text-neutral-200">·</span>
-                                          <span className="text-[10px] font-semibold" style={{ color: cfg.barColor }}>
-                                            {new Date(b.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                          </span>
-                                        </>
-                                      )}
+                    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: dm ? '#262626' : 'rgba(15,118,110,0.12)', background: dm ? '#111111' : 'rgba(255,255,255,0.8)' }}>
+                      <button
+                        onClick={() => setActiveOpen((prev) => !prev)}
+                        className="w-full px-4 py-3.5 flex items-center justify-between text-left"
+                        style={{ borderBottom: activeOpen ? (dm ? '1px solid #262626' : '1px solid rgba(15,118,110,0.1)') : 'none' }}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: '#0F766E' }}>Active</h2>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.22)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}>
+                            {activeBookings.length}
+                          </span>
+                        </div>
+                        <svg className={`h-4 w-4 transition-transform ${activeOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#9ca3af' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                      </button>
+                      {activeOpen && (
+                        <div className="space-y-3 p-3">
+                          {activeBookings.map(b => {
+                            const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
+                            return (
+                              <button key={b.id} onClick={e => openBooking(b, e)}
+                                className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                                <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
+                                <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
+                                      {b.business_name
+                                        ? <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>
+                                        : <p className="text-xs mt-0.5 italic" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>Matching you with a pro…</p>}
+                                      <div className="flex items-center gap-2 mt-1.5">
+                                        <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
+                                        {b.scheduled_at && (
+                                          <>
+                                            <span className="text-neutral-200">·</span>
+                                            <span className="text-[10px] font-semibold" style={{ color: cfg.barColor }}>
+                                              {new Date(b.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <StatusBadge status={b.status} />
+                                      <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                      </svg>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <StatusBadge status={b.status} />
-                                    <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                    </svg>
-                                  </div>
+                                  <ProgressBar status={b.status} />
                                 </div>
-                                <ProgressBar status={b.status} />
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {pastBookings.length > 0 && (
-                    <div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.14em] mb-3" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>Past</h2>
-                      <div className="space-y-3">
-                        {pastBookings.map(b => (
-                          <button key={b.id} onClick={e => openBooking(b, e)}
-                            className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
-                            <div className="w-[6px] shrink-0 bg-neutral-200" />
-                            <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
-                                {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
-                                <div className="flex items-center gap-2 mt-1.5">
-                                  <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
-                                  {b.amount_cents && (
-                                    <>
-                                      <span className="text-neutral-200">·</span>
-                                      <p className="text-[10px] font-bold text-neutral-500">{'$'}{((b.amount_cents + PROTECTION_FEE_CENTS) / 100).toFixed(2)} paid</p>
-                                    </>
-                                  )}
+                    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: dm ? '#262626' : 'rgba(115,115,115,0.2)', background: dm ? '#111111' : 'rgba(255,255,255,0.75)' }}>
+                      <button
+                        onClick={() => setPastOpen((prev) => !prev)}
+                        className="w-full px-4 py-3.5 flex items-center justify-between text-left"
+                        style={{ borderBottom: pastOpen ? (dm ? '1px solid #262626' : '1px solid rgba(115,115,115,0.18)') : 'none' }}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.55)' : '#737373' }}>Past</h2>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(115,115,115,0.12)', color: dm ? '#d1d5db' : '#525252' }}>
+                            {pastBookings.length}
+                          </span>
+                        </div>
+                        <svg className={`h-4 w-4 transition-transform ${pastOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#9ca3af' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                      </button>
+                      {pastOpen && (
+                        <div className="space-y-3 p-3">
+                          {pastBookings.map(b => (
+                            <button key={b.id} onClick={e => openBooking(b, e)}
+                              className="w-full text-left booking-card group overflow-hidden flex opacity-70 hover:opacity-100" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                              <div className="w-[6px] shrink-0 bg-neutral-200" />
+                              <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
+                                  {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
+                                    {b.amount_cents && (
+                                      <>
+                                        <span className="text-neutral-200">·</span>
+                                        <p className="text-[10px] font-bold text-neutral-500">{'$'}{((b.amount_cents + PROTECTION_FEE_CENTS) / 100).toFixed(2)} paid</p>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <StatusBadge status={b.status} />
+                                  <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                  </svg>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <StatusBadge status={b.status} />
-                                <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                </svg>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

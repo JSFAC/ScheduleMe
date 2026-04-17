@@ -20,7 +20,7 @@ function getSupabase() {
 // CATEGORIES is now dynamic — built from loaded businesses below
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
-const PILL_STYLE = { background: '#EBF4FF', color: '#1A6FD4' };
+const PILL_STYLE = { background: '#E6F2EE', color: '#0F766E' };
 
 function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
   if (!hours || hours.length === 0) return { open: true, label: 'Open' };
@@ -426,12 +426,12 @@ const BrowsePage: NextPage = () => {
                 <input type="text" placeholder="Search businesses or services…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all placeholder:text-neutral-400"
-                  style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)' }}
+                  style={{ background: dm ? '#111111' : 'rgba(249,247,242,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)' }}
                 />
               </div>
               <div className="relative flex-shrink-0" data-sort-dropdown>
                 <button onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(255,255,255,0.25)', minWidth: 130 }}>
+                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'rgba(249,247,242,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)', minWidth: 130 }}>
                   <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -466,7 +466,7 @@ const BrowsePage: NextPage = () => {
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
                 style={activeCategory === cat
                   ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' }
-                  : { background: dm ? 'rgba(15,118,110,0.15)' : '#F9F7F2', color: dm ? '#93c5fd' : '#0F766E', borderColor: dm ? 'rgba(15,118,110,0.3)' : 'rgba(15,118,110,0.15)' }}>
+                  : { background: dm ? 'rgba(15,118,110,0.15)' : '#F9F7F2', color: dm ? '#6ee7b7' : '#0F766E', borderColor: dm ? 'rgba(15,118,110,0.3)' : 'rgba(15,118,110,0.15)' }}>
                 {cat}
               </button>
             ))}
@@ -481,7 +481,14 @@ const BrowsePage: NextPage = () => {
             ))}
           </div>
         </div>
-                <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-7">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-7">
+          <div className="rounded-[26px] border p-4 sm:p-5" style={{
+            background: dm
+              ? 'linear-gradient(180deg, rgba(23,23,23,0.9) 0%, rgba(10,10,10,0.95) 100%)'
+              : 'linear-gradient(180deg, rgba(244,239,230,0.9) 0%, rgba(249,247,242,0.95) 100%)',
+            borderColor: dm ? '#262626' : 'rgba(15,118,110,0.1)',
+            boxShadow: dm ? 'none' : '0 10px 30px rgba(15,118,110,0.05)',
+          }}>
           {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
@@ -680,6 +687,7 @@ const BrowsePage: NextPage = () => {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
       {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
