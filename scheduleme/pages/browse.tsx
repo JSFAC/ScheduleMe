@@ -166,6 +166,11 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <style>{`
         .leaflet-container { background: ${dm ? '#111827' : '#f3f4f6'} !important; }
+        .leaflet-container img,
+        .leaflet-container .leaflet-tile {
+          max-width: none !important;
+          max-height: none !important;
+        }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
         .leaflet-control-zoom { border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.15)!important;border-radius:10px!important;overflow:hidden!important; }
         .leaflet-popup-content-wrapper { border-radius:12px!important;box-shadow:0 4px 20px rgba(0,0,0,0.15)!important; }

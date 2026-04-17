@@ -155,8 +155,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const reviewCount = b.review_count ?? 0;
       const rating = reviewCount > 0 ? b.rating : null;
       const status = computeFounder50Status(b);
-      // Consumer web should keep listings fully visible for discovery/marketing.
-      // Preserve preview_locked flag for analytics/debugging, but do not mask card data.
       const businessSchoolDomain = normalizeDomain(b.school_domain);
       const sameCampusVerifiedViewer =
         viewerEduVerified
@@ -168,15 +166,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         && b.edu_verified === true
         && b.public_visibility === false
         && !sameCampusVerifiedViewer;
+
+      const maskedName = 'Student provider';
+      const maskedDescription = 'Private until student verification';
       return {
         ...b,
-        name: b.name,
-        description: b.description,
-        phone: b.phone,
-        website: b.website,
-        address: b.address || b.zip || null,
-        cover_url: b.cover_url,
-        media_urls: b.media_urls,
+        name: previewLocked ? maskedName : b.name,
+        description: previewLocked ? maskedDescription : b.description,
+        phone: previewLocked ? null : b.phone,
+        website: previewLocked ? null : b.website,
+        address: previewLocked ? null : (b.address || b.zip || null),
+        cover_url: previewLocked ? null : b.cover_url,
+        media_urls: previewLocked ? [] : b.media_urls,
         preview_locked: previewLocked,
         distance_miles: d,
         price_tier: priceTier,

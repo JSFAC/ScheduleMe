@@ -453,6 +453,7 @@ const HomePage: NextPage = () => {
   const [usingRealData, setUsingRealData] = useState(false);
   const [dataLoading, setDataLoading] = useState(true); // true until real data or fallback loads
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
+  const [showEduBanner, setShowEduBanner] = useState(true);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showReferModal, setShowReferModal] = useState(false);
@@ -508,6 +509,12 @@ const HomePage: NextPage = () => {
   }
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const dismissed = localStorage.getItem('sm_home_edu_banner_dismissed');
+    if (dismissed === '1') setShowEduBanner(false);
+  }, []);
+
+  useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
@@ -518,7 +525,13 @@ const HomePage: NextPage = () => {
       const supabaseInst = getSupabase();
       const { data: profile } = await supabaseInst
         .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
-      setEduVerified(profile?.edu_verified ?? false);
+      const verified = profile?.edu_verified ?? false;
+      setEduVerified(verified);
+      if (verified) {
+        setShowEduBanner(false);
+      } else if (typeof window !== 'undefined' && localStorage.getItem('sm_home_edu_banner_dismissed') !== '1') {
+        setShowEduBanner(true);
+      }
       // Show install banner on mobile if not already installed and not dismissed
       const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
       const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
@@ -666,7 +679,7 @@ const HomePage: NextPage = () => {
         )}
 
         {/* EDU Campus banner — only shown to non-verified users */}
-        {eduVerified === false && (
+        {eduVerified === false && showEduBanner && (
           <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
             <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
               style={{ background: dm ? 'rgba(15,118,110,0.12)' : '#EBF4FF', border: dm ? '1px solid rgba(15,118,110,0.3)' : '1px solid rgba(15,118,110,0.2)' }}>
@@ -682,7 +695,16 @@ const HomePage: NextPage = () => {
                 style={{ background: '#0F766E', color: 'white' }}>
                 Verify Now →
               </Link>
-              <button onClick={() => setEduVerified(true)} className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full ml-1" style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}><svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+              <button
+                onClick={() => {
+                  setShowEduBanner(false);
+                  if (typeof window !== 'undefined') localStorage.setItem('sm_home_edu_banner_dismissed', '1');
+                }}
+                className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full ml-1"
+                style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}
+              >
+                <svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
           </div>
         )}
