@@ -21,6 +21,7 @@ function getSupabase() {
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
 const PILL_STYLE = { background: '#E6F2EE', color: '#0F766E' };
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
 function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
   if (!hours || hours.length === 0) return { open: true, label: 'Open' };
@@ -158,13 +159,23 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours);
+  const hasCover = !!biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
   return (
     <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-        <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+        {hasCover ? (
+          <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+            </svg>
+            <span className="text-[11px] font-semibold">No photos added</span>
+          </div>
+        )}
       </div>
       <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
         <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
@@ -538,9 +549,18 @@ const BrowsePage: NextPage = () => {
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
                       style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
-                        <img src={biz.coverUrl} alt={biz.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-                          style={{ objectPosition: 'center 25%' }} />
+                        {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+                          <img src={biz.coverUrl} alt={biz.name}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                            style={{ objectPosition: 'center 25%' }} />
+                        ) : (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+                            </svg>
+                            <span className="text-[10px] font-semibold">No photos added</span>
+                          </div>
+                        )}
                         <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
                           <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
                           <span className="text-[9px] font-bold text-white">{listStatus.label}</span>
@@ -610,7 +630,13 @@ const BrowsePage: NextPage = () => {
               {selectedMapBizData && (
                 <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#0F766E' }}>
                   <div className="flex items-center gap-3 p-3">
-                    <img src={selectedMapBizData.coverUrl} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
+                    {selectedMapBizData.coverUrl && selectedMapBizData.coverUrl !== TRANSPARENT_PIXEL ? (
+                      <img src={selectedMapBizData.coverUrl} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                        <span className="text-[9px] font-semibold text-center leading-tight">No photos</span>
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
@@ -629,10 +655,19 @@ const BrowsePage: NextPage = () => {
                     className={`flex-shrink-0 md:w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''}`}
                     style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.3 : 1, transition: 'opacity 0.25s ease' }}>
                     <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
-                      <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" style={{ objectPosition: 'center 25%' }} />
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' }} />
+                      {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" style={{ objectPosition: 'center 25%' }} />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+                          </svg>
+                          <span className="text-[10px] font-semibold">No photos added</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0" style={{ background: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' : 'none' }} />
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-                        <p className="text-white text-[12px] font-black leading-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{biz.name}</p>
+                        <p className="text-[12px] font-black leading-tight" style={{ color: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? 'white' : (dm ? '#f3f4f6' : '#171717'), textShadow: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? '0 1px 6px rgba(0,0,0,0.5)' : 'none' }}>{biz.name}</p>
                       </div>
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
@@ -649,7 +684,15 @@ const BrowsePage: NextPage = () => {
                       className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
                       style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#262626' : 'rgba(15,118,110,0.1)'), background: dm ? '#171717' : 'white' }}>
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
-                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
+                        {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+                          <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
@@ -665,7 +708,13 @@ const BrowsePage: NextPage = () => {
                   </div>
                   {selectedMapBizData && (
                     <div className="rounded-2xl border p-3 flex items-center gap-3 animate-fade-up flex-shrink-0" style={{ background: dm ? '#171717' : 'white', borderColor: '#0F766E' }}>
-                      <img src={selectedMapBizData.coverUrl} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
+                      {selectedMapBizData.coverUrl && selectedMapBizData.coverUrl !== TRANSPARENT_PIXEL ? (
+                        <img src={selectedMapBizData.coverUrl} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                          <span className="text-[8px] font-semibold text-center leading-tight">No photos</span>
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
                         <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>

@@ -45,6 +45,18 @@ const QUICK_CATS = [
   { label: 'Handyman',   d: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z' },
   { label: 'Painting',   d: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
 ];
+const ALL_CATEGORY_ICON = 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z';
+
+function iconForCategory(label: string) {
+  const lower = label.toLowerCase();
+  const exact = QUICK_CATS.find((c) => c.label.toLowerCase() === lower);
+  if (exact) return exact.d;
+  if (lower.includes('photo') || lower.includes('video') || lower.includes('media')) return 'M6.429 9.75L3.75 12m0 0l2.679 2.25M3.75 12h9m3.75-1.5h.008v.008h-.008V10.5zm0 3h.008v.008h-.008V13.5zm3-3h.008v.008h-.008V10.5zm0 3h.008v.008h-.008V13.5zm3-3h.008v.008h-.008V10.5zm0 3h.008v.008h-.008V13.5z';
+  if (lower.includes('hair') || lower.includes('beauty') || lower.includes('barber') || lower.includes('nails')) return 'M3.75 9.75l8.25-6 8.25 6M4.5 10.5v8.25a1.5 1.5 0 001.5 1.5h12a1.5 1.5 0 001.5-1.5V10.5M9 21V12h6v9';
+  if (lower.includes('music') || lower.includes('audio') || lower.includes('dj')) return 'M9 19V6l12-2v13';
+  if (lower.includes('design') || lower.includes('print') || lower.includes('3d') || lower.includes('cad')) return 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42';
+  return 'M12 6v12m6-6H6';
+}
 
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {
   const { dm } = useDm();
@@ -197,15 +209,27 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
+  const hasCover = !!biz.coverUrl && biz.coverUrl !== 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   return (
     <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
       style={{ width: 'clamp(180px, 48vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
       {/* Square image */}
-      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }} className="overflow-hidden">
-        <img src={biz.coverUrl} alt={biz.name}
-          onLoad={() => setImgLoaded(true)}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-          style={{ objectPosition: '50% 20%', opacity: imgLoaded ? 1 : 0 }} />
+      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+        {hasCover ? (
+          <img src={biz.coverUrl} alt={biz.name}
+            onLoad={() => setImgLoaded(true)}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+            style={{ objectPosition: '50% 20%', opacity: imgLoaded ? 1 : 0 }} />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+              </svg>
+            </div>
+            <span className="text-[11px] font-semibold">No photos added</span>
+          </div>
+        )}
         <div className="absolute top-2 left-2">
           {biz.available
             ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(4px)' }}>
@@ -420,6 +444,20 @@ const HomePage: NextPage = () => {
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const categoryCounts = realBizList.reduce((acc, biz) => {
+    const key = (biz.category || '').trim();
+    if (!key) return acc;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const categoryQuickLinks = [
+    { label: 'All', d: ALL_CATEGORY_ICON },
+    ...(Object.keys(categoryCounts).length > 0
+      ? Object.keys(categoryCounts)
+        .sort((a, b) => (categoryCounts[b] - categoryCounts[a]) || a.localeCompare(b))
+        .map((label) => ({ label, d: iconForCategory(label) }))
+      : QUICK_CATS),
+  ];
 
   async function tryFetchNearbyWithCoords(lat: number, lng: number) {
     const mod = await import('../lib/realBusinesses');
@@ -570,7 +608,7 @@ const HomePage: NextPage = () => {
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
-            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS.filter(c => realBizList.length === 0 || realBizList.some(b => b.category === c.label))].map(cat => (
+            {categoryQuickLinks.map(cat => (
               <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label

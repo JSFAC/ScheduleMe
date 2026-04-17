@@ -670,7 +670,7 @@ const CampusPage: NextPage = () => {
               {cardInitials ? (
                 <span className="text-lg font-bold" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>{cardInitials}</span>
               ) : null}
-              <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos yet</span>
+              <span className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>No photos added</span>
             </div>
           )}
           <button
