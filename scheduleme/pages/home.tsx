@@ -13,6 +13,7 @@ import type { Business } from '../lib/mockBusinesses';
 import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import FeedbackModal from '../components/FeedbackModal';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
+import { formatPriceTierLabel } from '../lib/priceTierLabel';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -45,6 +46,26 @@ const QUICK_CATS = [
   { label: 'Handyman',   d: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z' },
   { label: 'Painting',   d: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
 ];
+const ALL_CATEGORY_ICON = 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z';
+
+function iconForCategory(label: string) {
+  const lower = label.toLowerCase();
+  const exact = QUICK_CATS.find((c) => c.label.toLowerCase() === lower);
+  if (exact) return exact.d;
+  if (lower.includes('photo') || lower.includes('video') || lower.includes('media')) return 'M6.429 9.75L3.75 12m0 0l2.679 2.25M3.75 12h9m3.75-1.5h.008v.008h-.008V10.5zm0 3h.008v.008h-.008V13.5zm3-3h.008v.008h-.008V10.5zm0 3h.008v.008h-.008V13.5zm3-3h.008v.008h-.008V10.5zm0 3h.008v.008h-.008V13.5z';
+  if (lower.includes('hair') || lower.includes('beauty') || lower.includes('barber') || lower.includes('nails')) return 'M3.75 9.75l8.25-6 8.25 6M4.5 10.5v8.25a1.5 1.5 0 001.5 1.5h12a1.5 1.5 0 001.5-1.5V10.5M9 21V12h6v9';
+  if (lower.includes('music') || lower.includes('audio') || lower.includes('dj')) return 'M9 19V6l12-2v13';
+  if (lower.includes('design') || lower.includes('print') || lower.includes('3d') || lower.includes('cad')) return 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42';
+  return 'M12 6v12m6-6H6';
+}
+
+function shouldShowNewBadge({ createdAt, reviewCount }: { createdAt?: string | null; reviewCount?: number | null }) {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (!Number.isFinite(t)) return false;
+  const ageDays = (Date.now() - t) / (1000 * 60 * 60 * 24);
+  return ageDays <= 30 && (reviewCount ?? 0) <= 2;
+}
 
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {
   const { dm } = useDm();
@@ -180,9 +201,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
             <button key={label} onClick={() => { setQuery(prompt); setTimeout(() => inputRef.current?.focus(), 0); }}
               className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all whitespace-nowrap"
-              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)', color: dm ? '#93c5fd' : '#2563eb', border: dm ? '1px solid rgba(147,197,253,0.3)' : '1px solid rgba(255,255,255,0.95)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,1)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(255,255,255,0.88)'; }}>
+              style={{ background: dm ? 'rgba(10,10,20,0.75)' : 'rgba(249,247,242,0.95)', color: dm ? '#6ee7b7' : '#0F766E', border: dm ? '1px solid rgba(110,231,183,0.35)' : '1px solid rgba(15,118,110,0.22)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(20,20,30,0.95)' : 'rgba(243,239,230,1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = dm ? 'rgba(10,10,20,0.75)' : 'rgba(249,247,242,0.95)'; }}>
               {label}
             </button>
           ))}
@@ -197,32 +218,82 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
+  const isLocked = biz.preview_locked === true;
+  const showName = biz.name || biz.category || 'Provider';
+  const initials = isLocked ? 'ST' : ((showName || '').split(' ').filter(Boolean).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || 'PR');
+  const hasCover = !!biz.coverUrl && biz.coverUrl !== 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   return (
-    <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
-      style={{ width: 'clamp(180px, 48vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
+    <button
+      onClick={isLocked ? undefined : onClick}
+      disabled={isLocked}
+      className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
+      style={{
+        width: 'clamp(180px, 48vw, 240px)',
+        animationDelay: `${index * 0.06}s`,
+        borderRadius: 16,
+        overflow: 'hidden',
+        background: cardBg,
+        boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)',
+        cursor: isLocked ? 'not-allowed' : 'pointer',
+      }}>
       {/* Square image */}
-      <div className="relative flex-shrink-0 w-full" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }} className="overflow-hidden">
-        <img src={biz.coverUrl} alt={biz.name}
-          onLoad={() => setImgLoaded(true)}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-          style={{ objectPosition: '50% 20%', opacity: imgLoaded ? 1 : 0 }} />
+      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+        {isLocked ? (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
+            <span className="text-[30px] font-black" style={{ color: dm ? '#9ca3af' : '#6b7280', letterSpacing: '-0.04em' }}>{initials}</span>
+          </div>
+        ) : hasCover ? (
+          <img src={biz.coverUrl} alt={biz.name}
+            onLoad={() => setImgLoaded(true)}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+            style={{ objectPosition: '50% 20%', opacity: imgLoaded ? 1 : 0 }} />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+              </svg>
+            </div>
+            <span className="text-[11px] font-semibold">No photos added</span>
+          </div>
+        )}
         <div className="absolute top-2 left-2">
           {biz.available
-            ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(4px)' }}>
+            ? <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: dm ? 'rgba(16,185,129,0.16)' : 'rgba(255,255,255,0.92)', border: dm ? '1px solid rgba(52,211,153,0.35)' : 'none', backdropFilter: 'blur(4px)' }}>
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-emerald-700">Open</span>
+                <span className="text-[10px] font-bold" style={{ color: dm ? '#86efac' : '#047857' }}>Open</span>
               </div>
-            : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+            : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: dm ? 'rgba(38,38,38,0.9)' : 'rgba(0,0,0,0.5)', border: dm ? '1px solid rgba(255,255,255,0.12)' : 'none', backdropFilter: 'blur(4px)' }}>
                 <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                <span className="text-[10px] font-bold text-white/70">Booked</span>
+                <span className="text-[10px] font-bold" style={{ color: dm ? '#d1d5db' : 'rgba(255,255,255,0.85)' }}>Booked</span>
               </div>
           }
         </div>
+        {isLocked && (
+          <div className="absolute left-2 bottom-2 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.08em]" style={{ background: dm ? 'rgba(23,23,23,0.94)' : 'rgba(31,41,55,0.92)', color: '#f3f4f6', border: '1px solid rgba(255,255,255,0.18)' }}>
+            Private until student verification
+          </div>
+        )}
       </div>
-      {/* Body — one item per line */}
+      {/* Body */}
       <div className="p-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
-        <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full self-start" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#DCEEEB', color: '#0F766E' }}>{biz.category}</span>
+        <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{showName}</p>
+        {isLocked && (
+          <p className="text-[10px] font-medium" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Private until student verification</p>
+        )}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#DCEEEB', color: '#0F766E' }}>{biz.category}</span>
+          {formatPriceTierLabel(biz.price_tier) ? (
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#DCEEEB', color: '#0F766E' }}>
+              {formatPriceTierLabel(biz.price_tier)}
+            </span>
+          ) : null}
+          {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) ? (
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>
+              New
+            </span>
+          ) : null}
+        </div>
         <p className="text-[10px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
         <div className="flex items-center gap-0.5">
           {[1,2,3,4,5].map(i => (
@@ -285,7 +356,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
   const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
-    <section>
+    <section className="py-4" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
       <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
         <div className="flex items-baseline gap-3">
           <h2 className="text-[1.2rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>{title}</h2>
@@ -301,10 +372,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F9F7F2' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F9F7F2' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
 
         <div
           ref={scrollRef}
@@ -334,6 +405,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
               width: 'clamp(160px, 13vw, 200px)',
               height: 'calc(clamp(185px, 15vw, 240px) + 68px)',
               marginBottom: '8px',
+              background: dm ? '#171717' : 'white',
             }}>
             <div className="h-10 w-10 rounded-full bg-accent/10 group-hover:bg-accent/15 flex items-center justify-center transition-colors">
               <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -357,21 +429,20 @@ function ReferCard() {
   const [sent, setSent] = useState(false);
 
   if (sent) return (
-    <div className="rounded-2xl border border-green-100 bg-green-50 px-6 py-5 text-center">
-      <p className="text-sm font-bold text-green-800">Referral received — thanks.</p>
-      <p className="text-xs text-green-600 mt-1">We'll reach out to {bizName} and let you know if they join.</p>
+    <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+      <p className="text-sm font-semibold text-green-800">Referral received — we'll reach out to {bizName}.</p>
     </div>
   );
   if (!open) return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-4 card-elevated">
-      <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+      <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-neutral-800">Know a skilled student?</p>
-        <p className="text-xs text-neutral-500 mt-0.5">Refer a trusted campus provider and we'll invite them to join.</p>
+        <p className="text-sm font-semibold text-neutral-800 leading-tight">Know a skilled student?</p>
+        <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">Refer someone trusted and we will invite them to your campus marketplace.</p>
       </div>
       <button onClick={() => setOpen(true)}
         className="shrink-0 text-xs font-bold text-accent bg-accent-light border border-accent/20 px-4 py-2 rounded-xl hover:brightness-95 transition-colors uppercase tracking-wide">
@@ -380,16 +451,16 @@ function ReferCard() {
     </div>
   );
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 space-y-3">
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-neutral-900">Who should we reach out to?</p>
+        <p className="text-sm font-semibold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
       </div>
       <input type="text" value={bizName} onChange={e => setBizName(e.target.value)}
-        placeholder="Business or person's name"
+        placeholder="Their name or business name"
         className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" />
       <button disabled={!bizName.trim()} onClick={() => { if (bizName.trim()) setSent(true); }}
-        className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${bizName.trim() ? 'bg-accent text-white hover:bg-accent-dark' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'}`}>
+        className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${bizName.trim() ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'}`}>
         Submit referral
       </button>
     </div>
@@ -407,12 +478,31 @@ const HomePage: NextPage = () => {
   const [usingRealData, setUsingRealData] = useState(false);
   const [dataLoading, setDataLoading] = useState(true); // true until real data or fallback loads
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
+  const [showEduBanner, setShowEduBanner] = useState(true);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showReferModal, setShowReferModal] = useState(false);
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const categoryCounts = realBizList.reduce((acc, biz) => {
+    const key = (biz.category || '').trim();
+    if (!key) return acc;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const categoryQuickLinks = [
+    { label: 'All', d: ALL_CATEGORY_ICON },
+    ...(Object.keys(categoryCounts).length > 0
+      ? Object.keys(categoryCounts)
+        .sort((a, b) => (categoryCounts[b] - categoryCounts[a]) || a.localeCompare(b))
+        .map((label) => ({ label, d: iconForCategory(label) }))
+      : QUICK_CATS),
+  ];
+  const openNowCount = realBizList.filter((biz) => biz.available).length;
+  const topCategoryEntry = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0];
+  const topCategoryName = topCategoryEntry?.[0] || 'Campus services';
+  const showCampusPulse = eduVerified === true;
 
   async function tryFetchNearbyWithCoords(lat: number, lng: number) {
     const mod = await import('../lib/realBusinesses');
@@ -444,6 +534,12 @@ const HomePage: NextPage = () => {
   }
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const dismissed = localStorage.getItem('sm_home_edu_banner_dismissed');
+    if (dismissed === '1') setShowEduBanner(false);
+  }, []);
+
+  useEffect(() => {
     const supabase = getSupabase();
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/signin'); return; }
@@ -454,7 +550,13 @@ const HomePage: NextPage = () => {
       const supabaseInst = getSupabase();
       const { data: profile } = await supabaseInst
         .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
-      setEduVerified(profile?.edu_verified ?? false);
+      const verified = profile?.edu_verified ?? false;
+      setEduVerified(verified);
+      if (verified) {
+        setShowEduBanner(false);
+      } else if (typeof window !== 'undefined' && localStorage.getItem('sm_home_edu_banner_dismissed') !== '1') {
+        setShowEduBanner(true);
+      }
       // Show install banner on mobile if not already installed and not dismissed
       const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
       const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
@@ -490,7 +592,7 @@ const HomePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F9F7F2' }}>
+      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b py-8" style={{ background: dm ? '#111' : '#0F766E' }}>
           <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
         </div>
@@ -507,7 +609,7 @@ const HomePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F9F7F2)' }} data-page-bg="true">
+      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F4EFE6)' }} data-page-bg="true">
 
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
@@ -563,39 +665,88 @@ const HomePage: NextPage = () => {
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
-            {[{ label: 'All', d: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' }, ...QUICK_CATS.filter(c => realBizList.length === 0 || realBizList.some(b => b.category === c.label))].map(cat => (
+            {categoryQuickLinks.map(cat => (
               <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label
                   ? { background: '#0F766E', borderColor: '#0F766E' }
-                  : { background: dm ? 'rgba(15,118,110,0.2)' : '#F9F7F2', borderColor: dm ? 'rgba(15,118,110,0.4)' : 'rgba(15,118,110,0.15)' }}>
-                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0F766E') }}>
+                  : { background: dm ? 'rgba(15,118,110,0.2)' : '#F4EFE6', borderColor: dm ? 'rgba(15,118,110,0.4)' : 'rgba(15,118,110,0.15)' }}>
+                <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#e5e7eb' : '#0F766E') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>
-                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#93c5fd' : '#0F766E') }}>{cat.label}</span>
+                <span className="text-[12px] font-semibold whitespace-nowrap transition-colors" style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#e5e7eb' : '#0F766E') }}>{cat.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* EDU Campus banner — only shown to non-verified users */}
-        {eduVerified === false && (
-          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
-            <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl"
-              style={{ background: dm ? 'rgba(15,118,110,0.12)' : '#EBF4FF', border: dm ? '1px solid rgba(15,118,110,0.3)' : '1px solid rgba(15,118,110,0.2)' }}>
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-xl shrink-0">🎓</span>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: dm ? '#93c5fd' : '#1d4ed8' }}>Are you a student?</p>
-                  <p className="text-xs truncate" style={{ color: dm ? '#60a5fa' : '#0F766E' }}>Verify your .edu email to unlock your campus marketplace</p>
+        {showCampusPulse && (
+          <div className="md:hidden px-4 pt-4">
+            <div className="rounded-2xl p-3.5 border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.15)' }}>
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Campus Pulse</p>
+                <p className="text-[11px] font-semibold" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Updated daily</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-xl border p-2.5" style={{ background: dm ? '#111111' : '#F4EFE6', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.14)' }}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: '#0F766E' }}>Trending On Campus</p>
+                  <p className="text-sm font-bold mt-1 line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{topCategoryName}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{topCategoryEntry?.[1] || 0} active providers</p>
+                </div>
+                <div className="rounded-xl border p-2.5" style={{ background: dm ? '#111111' : '#F4EFE6', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.14)' }}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: '#0F766E' }}>Open Now</p>
+                  <p className="text-sm font-bold mt-1" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{openNowCount} available</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Live provider status</p>
                 </div>
               </div>
-              <Link href="/campus" scroll={false}
-                className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
-                style={{ background: '#0F766E', color: 'white' }}>
-                Verify Now →
-              </Link>
-              <button onClick={() => setEduVerified(true)} className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full ml-1" style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}><svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+          </div>
+        )}
+
+        {/* EDU Campus banner — only shown to non-verified users */}
+        {eduVerified === false && showEduBanner && (
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
+            <div
+              className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl"
+              style={{
+                background: dm ? 'linear-gradient(135deg, rgba(6,35,32,0.96) 0%, rgba(11,66,60,0.84) 100%)' : '#EFF8F4',
+                border: dm ? '1px solid rgba(110,231,183,0.24)' : '1px solid rgba(15,118,110,0.2)',
+                boxShadow: dm ? 'none' : '0 6px 18px rgba(15,118,110,0.08)',
+              }}
+            >
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div
+                  className="h-8 w-8 shrink-0 rounded-full flex items-center justify-center"
+                  style={{ background: dm ? 'rgba(110,231,183,0.12)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0A50.57 50.57 0 0012 13.489a50.702 50.702 0 017.74-3.342m-15.48 0L12 3.493l7.74 6.654" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[15px] font-black leading-tight" style={{ color: dm ? '#f3f4f6' : '#111827' }}>Are you a student?</p>
+                  <p className="text-[12px] leading-snug mt-0.5" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                    Verify your .edu email to unlock your campus marketplace.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 shrink-0">
+                <Link href="/campus" scroll={false}
+                  className="text-xs font-bold px-3.5 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
+                  style={{ background: '#0F766E', color: 'white' }}>
+                  Sign up
+                </Link>
+                <button
+                  onClick={() => {
+                    setShowEduBanner(false);
+                    if (typeof window !== 'undefined') localStorage.setItem('sm_home_edu_banner_dismissed', '1');
+                  }}
+                  className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full"
+                  style={{ background: dm ? '#2c2c2e' : '#e5e7eb' }}
+                >
+                  <svg className="h-3.5 w-3.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -653,30 +804,20 @@ const HomePage: NextPage = () => {
         )}
 
         {/* Scrollable business rows */}
-        <div className="py-8 space-y-10">
+        <div className="py-8 space-y-10" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
           {(() => {
             const pool = realBizList.length > 0 ? realBizList : [];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
-            const sortedByRating = [...filtered].sort((a, b) => (b.rating - a.rating) || (b.reviews - a.reviews));
-            const sortedByReviews = [...filtered].sort((a, b) => b.reviews - a.reviews || b.rating - a.rating);
+            const sortedByRating = [...filtered].sort((a, b) => ((b.rating || 0) - (a.rating || 0)) || ((b.reviews || 0) - (a.reviews || 0)));
+            const sortedByReviews = [...filtered].sort((a, b) => (b.reviews - a.reviews) || ((b.rating || 0) - (a.rating || 0)));
+            const ratedOnly = sortedByRating.filter((b) => (b.rating || 0) > 0 && (b.reviews || 0) > 0);
+            const nonStudentOnly = sortedByReviews.filter((b) => b.campus_provider !== true);
 
-            const used = new Set<string>();
-            const takeUnique = (list: Business[], n: number) => {
-              const out: Business[] = [];
-              for (const biz of list) {
-                if (used.has(biz.id)) continue;
-                used.add(biz.id);
-                out.push(biz);
-                if (out.length >= n) break;
-              }
-              return out;
-            };
-            const topRated = takeUnique(sortedByRating, 6);
-            const independentFirst = takeUnique(
-              [...filtered.filter(b => b.independent === true), ...sortedByReviews],
-              6
-            );
-            const quickResponse = takeUnique(sortedByReviews, 6);
+            const takeMax = (arr: Business[], n: number) => arr.slice(0, n);
+
+            const topRated = takeMax(ratedOnly, 6);
+            const nonStudentProviders = takeMax(nonStudentOnly, 6);
+            const quickResponse = takeMax(sortedByReviews, 6);
             return (
               <>
                 <ScrollSection
@@ -685,7 +826,7 @@ const HomePage: NextPage = () => {
                   subtitle="Pros that pick up jobs fast"
                   href="/browse"
                   businesses={quickResponse}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (biz.preview_locked) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
@@ -695,7 +836,7 @@ const HomePage: NextPage = () => {
                   subtitle="Available now — highly reviewed"
                   href="/browse"
                   businesses={topRated}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (biz.preview_locked) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
@@ -703,9 +844,9 @@ const HomePage: NextPage = () => {
                   key={`indie-${activeCategory}`}
                   title="Non-student providers"
                   subtitle="Local businesses in your area"
-                  href="/browse?category=Independent"
-                  businesses={independentFirst}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  href="/browse"
+                  businesses={nonStudentProviders}
+                  onBizClick={(biz) => { if (biz.preview_locked) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
@@ -730,8 +871,8 @@ const HomePage: NextPage = () => {
         <>
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-lg font-bold" style={{ color: dm ? '#f2f2f7' : '#111', letterSpacing: '-0.02em' }}>Know a skilled student?</h3>
-              <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Refer a trusted campus provider and we&apos;ll invite them to join.</p>
+              <h3 className="text-lg font-bold" style={{ color: dm ? '#f2f2f7' : '#111', letterSpacing: '-0.02em' }}>Refer a Pro</h3>
+              <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Know a skilled student provider? Tell us.</p>
             </div>
             <button onClick={() => setShowReferModal(false)} className="h-8 w-8 flex items-center justify-center rounded-full" style={{ background: dm ? '#2c2c2e' : '#f5f5f5' }}>
               <svg className="h-4 w-4" style={{ color: dm ? '#8e8e93' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -748,7 +889,7 @@ const HomePage: NextPage = () => {
       {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
       {/* Floating feedback button */}
       <button onClick={() => setShowFeedback(true)}
-        className="fixed bottom-24 md:bottom-6 right-4 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] md:bottom-6 right-4 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
         style={{ background: '#0F766E', color: 'white' }}>
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
