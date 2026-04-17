@@ -92,6 +92,12 @@ with check (auth.role() = 'service_role');
 
 do $$
 begin
+  if to_regclass('public.campus_founder50_legacy_backup') is not null then
+    execute 'alter table public.campus_founder50_legacy_backup enable row level security';
+    execute 'drop policy if exists "Campus founder50 legacy service role only" on public.campus_founder50_legacy_backup';
+    execute 'create policy "Campus founder50 legacy service role only" on public.campus_founder50_legacy_backup for all to anon, authenticated using (auth.role() = ''service_role'') with check (auth.role() = ''service_role'')';
+    execute 'revoke all on table public.campus_founder50_legacy_backup from anon, authenticated';
+  end if;
   if to_regclass('public.campus_founder50_legacy') is not null then
     execute 'alter table public.campus_founder50_legacy enable row level security';
     execute 'drop policy if exists "Campus founder50 legacy service role only" on public.campus_founder50_legacy';

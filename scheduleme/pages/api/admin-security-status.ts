@@ -23,7 +23,7 @@ const TABLES = [
   'blocks',
   'campus_featured',
   'founder50_allowed_campuses',
-  'campus_founder50_legacy',
+  'campus_founder50_legacy_backup',
 ];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

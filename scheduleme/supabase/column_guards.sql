@@ -28,6 +28,7 @@ begin
     when 'founder50_allowed_campuses' then array['active','notes']
     when 'campus_featured' then array['slot','starts_at','ends_at','note','notified_on_at','notified_off_at']
     when 'campus_founder50_legacy' then array['__none__']
+    when 'campus_founder50_legacy_backup' then array['__none__']
     else null
   end;
 
@@ -114,6 +115,10 @@ execute function public.assert_only_columns_changed();
 -- Legacy Founder50 table (if present): block updates entirely
 do $$
 begin
+  if to_regclass('public.campus_founder50_legacy_backup') is not null then
+    execute 'drop trigger if exists trg_campus_founder50_legacy_column_guard on public.campus_founder50_legacy_backup';
+    execute 'create trigger trg_campus_founder50_legacy_column_guard before update on public.campus_founder50_legacy_backup for each row execute function public.assert_only_columns_changed()';
+  end if;
   if to_regclass('public.campus_founder50_legacy') is not null then
     execute 'drop trigger if exists trg_campus_founder50_legacy_column_guard on public.campus_founder50_legacy';
     execute 'create trigger trg_campus_founder50_legacy_column_guard before update on public.campus_founder50_legacy for each row execute function public.assert_only_columns_changed()';
