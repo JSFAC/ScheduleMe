@@ -307,10 +307,10 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
       <div className="relative">
         {/* Left curtain — solid cover + very subtle 20px feather */}
         <div className="absolute left-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F9F7F2' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
         {/* Right curtain */}
         <div className="absolute right-0 top-0 bottom-0 z-10 pointer-events-auto"
-          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F9F7F2' }} />
+          style={{ width: edgePad, background: dm ? '#0a0a0a' : '#F4EFE6' }} />
 
         <div
           ref={scrollRef}
@@ -340,7 +340,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
               width: 'clamp(160px, 13vw, 200px)',
               height: 'calc(clamp(185px, 15vw, 240px) + 68px)',
               marginBottom: '8px',
-              background: dm ? '#171717' : '#F4EFE6',
+              background: dm ? '#171717' : 'white',
             }}>
             <div className="h-10 w-10 rounded-full bg-accent/10 group-hover:bg-accent/15 flex items-center justify-center transition-colors">
               <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -660,7 +660,7 @@ const HomePage: NextPage = () => {
         )}
 
         {/* Scrollable business rows */}
-        <div className="py-8 space-y-10">
+        <div className="py-8 space-y-10" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
           {(() => {
             const pool = realBizList.length > 0 ? realBizList : [];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);

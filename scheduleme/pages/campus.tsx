@@ -520,14 +520,7 @@ const CampusPage: NextPage = () => {
 
         {/* Campus feed */}
         {canView && (
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-            <div className="rounded-[26px] border p-4 sm:p-5" style={{
-              background: dm
-                ? 'linear-gradient(180deg, rgba(23,23,23,0.9) 0%, rgba(10,10,10,0.95) 100%)'
-                : 'linear-gradient(180deg, rgba(244,239,230,0.92) 0%, rgba(249,247,242,0.95) 100%)',
-              borderColor: dm ? '#262626' : 'rgba(15,118,110,0.1)',
-              boxShadow: dm ? 'none' : '0 10px 30px rgba(15,118,110,0.05)',
-            }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
 
             {/* .edu verify prompt */}
 
@@ -645,7 +638,6 @@ const CampusPage: NextPage = () => {
                 ))}
               </div>
             )}
-            </div>
           </div>
         )}
       </div>

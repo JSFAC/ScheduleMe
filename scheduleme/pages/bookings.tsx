@@ -908,15 +908,33 @@ const BookingsPage: NextPage = () => {
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  setNearbyBizList(nearby);
+                  if ((nearby || []).length > 0) {
+                    setNearbyBizList(nearby);
+                    setNearbyLoading(false);
+                    return;
+                  }
+                  const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+                  const fallback = await fetchAllBusinesses({ limit: 12 });
+                  setNearbyBizList((fallback || []).slice(0, 6));
                   setNearbyLoading(false);
                 },
-                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                async () => {
+                  try {
+                    const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+                    const fallback = await fetchAllBusinesses({ limit: 12 });
+                    setNearbyBizList((fallback || []).slice(0, 6));
+                  } catch {
+                    setNearbyBizList([]);
+                  }
+                  setNearbyLoading(false);
+                },
                 { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
               );
               return; // setNearbyLoading handled in callbacks above
             }
-            setNearbyBizList([]);
+            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+            const fallback = await fetchAllBusinesses({ limit: 12 });
+            setNearbyBizList((fallback || []).slice(0, 6));
           } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
           // Check for unreviewed completed bookings — show review prompt
@@ -942,15 +960,33 @@ const BookingsPage: NextPage = () => {
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
-                  setNearbyBizList(nearby);
+                  if ((nearby || []).length > 0) {
+                    setNearbyBizList(nearby);
+                    setNearbyLoading(false);
+                    return;
+                  }
+                  const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+                  const fallback = await fetchAllBusinesses({ limit: 12 });
+                  setNearbyBizList((fallback || []).slice(0, 6));
                   setNearbyLoading(false);
                 },
-                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                async () => {
+                  try {
+                    const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+                    const fallback = await fetchAllBusinesses({ limit: 12 });
+                    setNearbyBizList((fallback || []).slice(0, 6));
+                  } catch {
+                    setNearbyBizList([]);
+                  }
+                  setNearbyLoading(false);
+                },
                 { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
               );
               return; // setNearbyLoading handled in callbacks above
             }
-            setNearbyBizList([]);
+            const { fetchAllBusinesses } = await import('../lib/realBusinesses');
+            const fallback = await fetchAllBusinesses({ limit: 12 });
+            setNearbyBizList((fallback || []).slice(0, 6));
           } catch { setNearbyBizList([]); }
           setNearbyLoading(false);
       }
@@ -960,8 +996,8 @@ const BookingsPage: NextPage = () => {
   const showOverlay = phase === 'welcome' || phase === 'transitioning';
   const overlayOut = phase === 'transitioning';
   const filteredBookings = bookings; // category filter removed - column doesn't exist in DB
-  const activeBookings = filteredBookings.filter(b => !['completed', 'cancelled'].includes(b.status));
-  const pastBookings   = filteredBookings.filter(b => ['completed', 'cancelled'].includes(b.status));
+  const activeBookings = filteredBookings.filter(b => !['completed', 'paid', 'cancelled'].includes(b.status));
+  const pastBookings   = filteredBookings.filter(b => ['completed', 'paid', 'cancelled'].includes(b.status));
 
   return (
     <>
@@ -1007,8 +1043,8 @@ const BookingsPage: NextPage = () => {
             <div className="flex gap-3 mb-6">
               {[
                 { label: 'Total', value: bookings.length },
-                { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
-                { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
+                { label: 'Active', value: bookings.filter(b => !['completed','paid','cancelled'].includes(b.status)).length },
+                { label: 'Completed', value: bookings.filter(b => ['completed','paid'].includes(b.status)).length },
               ].map(s => (
                 <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
                   <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0F766E' }}>{s.value}</p>

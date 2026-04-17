@@ -62,6 +62,7 @@ const MessagesPage: NextPage = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [gallery, setGallery] = useState<{ urls: string[]; index: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const supabaseRef = useRef<any>(null);
@@ -222,6 +223,7 @@ const MessagesPage: NextPage = () => {
     }
     return blocks;
   }, [messages]);
+  const galleryCurrent = gallery ? gallery.urls[gallery.index] : null;
 
   return (
     <>
@@ -302,7 +304,7 @@ const MessagesPage: NextPage = () => {
 
               {/* Message thread */}
               {activeThread ? (
-                <div className="flex-1 flex flex-col rounded-2xl border overflow-hidden" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.08)' }}>
+                <div className="relative flex-1 flex flex-col rounded-2xl border overflow-hidden" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.08)' }}>
                   {/* Thread header — booking info */}
                   <div className="px-5 py-3.5 border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                     <div className="flex items-center gap-3">
@@ -363,10 +365,16 @@ const MessagesPage: NextPage = () => {
                           <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                             {block.kind === 'media' ? (
                               <div className={`max-w-[78%] rounded-2xl p-2 ${isUser ? 'bg-accent rounded-br-md' : (dm ? 'bg-neutral-800 border border-neutral-700 rounded-bl-md' : 'bg-white border border-neutral-200 rounded-bl-md')}`}>
-                                <div className={`grid gap-1.5 ${block.items.length === 1 ? 'grid-cols-1' : block.items.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                                  {block.items.map((item) => (
-                                    <a key={item.id} href={item.image_url || '#'} target="_blank" rel="noreferrer"
-                                      className={`block overflow-hidden ${block.items.length === 1 ? 'rounded-xl' : 'rounded-lg'}`}
+                                <div className="space-y-1.5">
+                                  {block.items.map((item, mediaIndex) => (
+                                    <button
+                                      key={item.id}
+                                      onClick={() => {
+                                        const urls = block.items.map((m) => m.image_url).filter(Boolean) as string[];
+                                        const selectedIndex = Math.max(0, urls.findIndex((u) => u === item.image_url));
+                                        if (urls.length > 0) setGallery({ urls, index: selectedIndex >= 0 ? selectedIndex : mediaIndex });
+                                      }}
+                                      className="block overflow-hidden rounded-lg w-full text-left"
                                       style={{ background: dm ? '#0d0d0d' : '#f3f4f6' }}>
                                       {item.message_type === 'video' ? (
                                         <div className="h-24 sm:h-28 flex items-center justify-center text-xs font-semibold" style={{ color: isUser ? 'white' : (dm ? '#d1d5db' : '#374151') }}>
@@ -375,7 +383,7 @@ const MessagesPage: NextPage = () => {
                                       ) : (
                                         <img src={item.image_url || ''} alt="Shared media" className="w-full h-24 sm:h-28 object-cover" />
                                       )}
-                                    </a>
+                                    </button>
                                   ))}
                                 </div>
                               </div>
@@ -387,9 +395,12 @@ const MessagesPage: NextPage = () => {
                               }`}>
                                 {block.msg.content}
                                 {!!block.msg.image_url && (
-                                  <a href={block.msg.image_url} target="_blank" rel="noreferrer" className="block mt-2">
+                                  <button
+                                    onClick={() => setGallery({ urls: [block.msg.image_url as string], index: 0 })}
+                                    className="block mt-2 text-left"
+                                  >
                                     <img src={block.msg.image_url} alt="Shared media" className="w-full max-w-[220px] rounded-xl object-cover" />
-                                  </a>
+                                  </button>
                                 )}
                               </div>
                             )}
@@ -423,6 +434,58 @@ const MessagesPage: NextPage = () => {
                     </div>
                     <p className="text-[10px] text-neutral-400 mt-1.5 px-1">↵ to send · Shift+↵ for new line</p>
                   </div>
+                  {gallery && galleryCurrent && (
+                    <div
+                      className="absolute inset-0 z-50 flex items-center justify-center p-4"
+                      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(3px)' }}
+                      onClick={() => setGallery(null)}
+                    >
+                      <div
+                        className="relative w-full max-w-3xl rounded-2xl overflow-hidden"
+                        style={{ background: dm ? '#111111' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <img src={galleryCurrent} alt="Media preview" className="w-full max-h-[68vh] object-contain bg-black" />
+                        <div className="flex items-center justify-between px-3 py-2.5" style={{ background: dm ? '#171717' : '#f8fafc' }}>
+                          <p className="text-xs font-semibold" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                            {gallery.index + 1} / {gallery.urls.length}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setGallery((prev) => prev ? { ...prev, index: (prev.index - 1 + prev.urls.length) % prev.urls.length } : prev)}
+                              className="h-8 w-8 rounded-lg flex items-center justify-center"
+                              style={{ background: dm ? '#262626' : '#e5e7eb' }}
+                              aria-label="Previous image"
+                            >
+                              <svg className="h-4 w-4" style={{ color: dm ? '#f3f4f6' : '#374151' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setGallery((prev) => prev ? { ...prev, index: (prev.index + 1) % prev.urls.length } : prev)}
+                              className="h-8 w-8 rounded-lg flex items-center justify-center"
+                              style={{ background: dm ? '#262626' : '#e5e7eb' }}
+                              aria-label="Next image"
+                            >
+                              <svg className="h-4 w-4" style={{ color: dm ? '#f3f4f6' : '#374151' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setGallery(null)}
+                              className="h-8 w-8 rounded-lg flex items-center justify-center"
+                              style={{ background: dm ? '#262626' : '#e5e7eb' }}
+                              aria-label="Close gallery"
+                            >
+                              <svg className="h-4 w-4" style={{ color: dm ? '#f3f4f6' : '#374151' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="hidden sm:flex flex-1 items-center justify-center rounded-2xl border" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.08)' }}>

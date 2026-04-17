@@ -482,13 +482,6 @@ const BrowsePage: NextPage = () => {
           </div>
         </div>
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-7">
-          <div className="rounded-[26px] border p-4 sm:p-5" style={{
-            background: dm
-              ? 'linear-gradient(180deg, rgba(23,23,23,0.9) 0%, rgba(10,10,10,0.95) 100%)'
-              : 'linear-gradient(180deg, rgba(244,239,230,0.9) 0%, rgba(249,247,242,0.95) 100%)',
-            borderColor: dm ? '#262626' : 'rgba(15,118,110,0.1)',
-            boxShadow: dm ? 'none' : '0 10px 30px rgba(15,118,110,0.05)',
-          }}>
           {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
@@ -687,7 +680,6 @@ const BrowsePage: NextPage = () => {
               </div>
             </div>
           )}
-          </div>
         </div>
       </div>
       {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
