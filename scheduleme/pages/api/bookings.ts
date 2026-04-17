@@ -162,10 +162,28 @@ async function buildBusinessByIdMap(
 ): Promise<Record<string, any>> {
   const ids = Array.from(new Set((rows || []).map((r: any) => r?.business_id).filter((id: any) => isUuidLike(id))));
   if (ids.length === 0) return {};
-  const { data } = await supabase
+  let data: any[] | null = null;
+  let error: any = null;
+  ({ data, error } = await supabase
     .from('businesses')
     .select('id, name, phone, email')
-    .in('id', ids);
+    .in('id', ids));
+
+  if (error && isMissingColumnError(error)) {
+    ({ data, error } = await supabase
+      .from('businesses')
+      .select('id, name, phone')
+      .in('id', ids));
+  }
+
+  if (error && isMissingColumnError(error)) {
+    ({ data, error } = await supabase
+      .from('businesses')
+      .select('id, name')
+      .in('id', ids));
+  }
+
+  if (error) return {};
   const map: Record<string, any> = {};
   for (const b of data || []) {
     if (isUuidLike((b as any)?.id)) map[(b as any).id] = b;
@@ -676,38 +694,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         let { data, error } = await supabase
           .from('bookings')
-          .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+          .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
           .in('user_id', resolvedIds)
           .order('created_at', { ascending: false })
           .limit(100);
 
         if (error && isMissingColumnError(error)) {
-          const fallbackLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)');
+          const fallbackLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
           data = fallbackLegacyProof.data as any;
           error = fallbackLegacyProof.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallback = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, businesses(name, phone, email)');
+          const fallback = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action');
           data = fallback.data as any;
           error = fallback.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
           // Final compatibility fallback for legacy schemas missing `reviewed`.
-          const fallbackNoReviewed = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)');
+          const fallbackNoReviewed = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
           data = fallbackNoReviewed.data as any;
           error = fallbackNoReviewed.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallbackNoReviewedLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)');
+          const fallbackNoReviewedLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
           data = fallbackNoReviewedLegacyProof.data as any;
           error = fallbackNoReviewedLegacyProof.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallbackMinimal = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, businesses(name, phone, email)');
+          const fallbackMinimal = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action');
           data = fallbackMinimal.data as any;
           error = fallbackMinimal.error as any;
         }
@@ -721,9 +739,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           completion_proof_note: b.completion_proof_note ?? b.completion_proof_message ?? null,
           completion_proof_photo_urls: b.completion_proof_photo_urls ?? b.completion_proof_photos ?? [],
           completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
-          business_name: b.businesses?.name ?? businessById[b.business_id]?.name ?? null,
-          business_phone: b.businesses?.phone ?? businessById[b.business_id]?.phone ?? null,
-          business_email: b.businesses?.email ?? businessById[b.business_id]?.email ?? null,
+          business_name: businessById[b.business_id]?.name ?? null,
+          business_phone: businessById[b.business_id]?.phone ?? null,
+          business_email: businessById[b.business_id]?.email ?? null,
           businesses: undefined,
         }));
         return res.status(200).json({ bookings });

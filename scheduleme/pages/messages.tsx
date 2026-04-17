@@ -334,12 +334,12 @@ const MessagesPage: NextPage = () => {
         <title>Messages — ScheduleMe</title></Head>
       <Nav />
       <div
-        className="min-h-screen pb-[calc(78px+env(safe-area-inset-bottom,0px))] md:pb-0"
+        className={`${lockPageScroll ? 'h-[calc(100dvh-env(safe-area-inset-top,0px))]' : 'min-h-screen'} pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-0`}
         style={{
           paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))',
           background: dm ? '#0a0a0a' : '#F4EFE6',
           overflow: lockPageScroll ? 'hidden' : 'visible',
-          height: lockPageScroll ? 'calc(100vh - env(safe-area-inset-top, 0px))' : undefined,
+          height: lockPageScroll ? 'calc(100dvh - env(safe-area-inset-top, 0px))' : undefined,
         }}
       >
 
@@ -362,7 +362,7 @@ const MessagesPage: NextPage = () => {
           </div>
         </div>
 
-        <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${mobileThreadOpen ? 'py-2 sm:py-6' : 'py-5 sm:py-6'} ${lockPageScroll ? 'h-full' : ''}`}>
+        <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${mobileThreadOpen ? 'py-2 sm:py-6' : 'py-4 sm:py-6'} ${lockPageScroll ? 'h-full' : ''}`}>
           {loading ? (
             <div className="space-y-0">
               {Array.from({ length: 5 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
@@ -378,11 +378,13 @@ const MessagesPage: NextPage = () => {
             </div>
           ) : (
             <div
-              className="flex gap-3 sm:gap-4 md:h-[calc(100vh-280px)] sm:min-h-[500px]"
+              className="flex gap-3 sm:gap-4 sm:min-h-[500px]"
               style={{
-                height: mobileThreadOpen
-                  ? 'calc(100vh - (48px + env(safe-area-inset-top,0px) + 88px + env(safe-area-inset-bottom,0px)))'
-                  : 'calc(100vh - 250px)',
+                height: lockPageScroll
+                  ? (mobileThreadOpen
+                      ? 'calc(100dvh - (48px + env(safe-area-inset-top,0px) + 106px + env(safe-area-inset-bottom,0px)))'
+                      : 'calc(100dvh - (48px + env(safe-area-inset-top,0px) + 210px + env(safe-area-inset-bottom,0px)))')
+                  : undefined,
                 minHeight: mobileThreadOpen ? 0 : 420,
                 maxHeight: lockPageScroll ? '100%' : undefined,
               }}
@@ -393,7 +395,7 @@ const MessagesPage: NextPage = () => {
                 <div className="px-4 py-3 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
                   <p className="text-xs font-black uppercase tracking-[0.1em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>
                 </div>
-                <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                <div className="flex-1 overflow-y-auto pb-[calc(96px+env(safe-area-inset-bottom,0px))] sm:pb-0" style={{ scrollbarWidth: 'none' }}>
                   {threads.map(t => (
                     <button key={t.id} onClick={() => openThread(t)}
                       className="w-full text-left px-4 py-3.5 border-b transition-colors" style={{ borderColor: dm ? '#111111' : '#fafafa', background: activeThread?.id === t.id ? (dm ? '#111111' : '#eff6ff') : 'transparent' }}>

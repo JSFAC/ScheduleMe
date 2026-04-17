@@ -356,8 +356,8 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
   const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
-    <section className="py-4" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
-      <div className="flex items-center justify-between mb-4" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
+    <section className="py-2.5" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="flex items-center justify-between mb-2.5" style={{ paddingLeft: edgePad, paddingRight: edgePad }}>
         <div className="flex items-baseline gap-3">
           <h2 className="text-[1.2rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f3f4f6' : '#171717' }}>{title}</h2>
           <span className="text-[11px] text-neutral-400 font-medium hidden sm:block">{subtitle}</span>
@@ -611,7 +611,7 @@ const HomePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(108px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b py-8" style={{ background: dm ? '#111' : '#0F766E' }}>
           <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
         </div>
@@ -628,7 +628,7 @@ const HomePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Home — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F4EFE6)' }} data-page-bg="true">
+      <div className="min-h-screen pb-[calc(108px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: 'var(--page-bg, #F4EFE6)' }} data-page-bg="true">
 
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
@@ -823,7 +823,7 @@ const HomePage: NextPage = () => {
         )}
 
         {/* Scrollable business rows */}
-        <div className="py-5 space-y-6" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+        <div className="pt-3 pb-6 space-y-3.5" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
           {(() => {
             const pool = realBizList.length > 0 ? realBizList : [];
             const filtered = activeCategory === 'All' ? pool : pool.filter(b => b.category === activeCategory);
