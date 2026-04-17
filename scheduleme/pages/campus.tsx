@@ -236,6 +236,7 @@ const CampusPage: NextPage = () => {
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('recommended');
+  const [featuredMobileIndex, setFeaturedMobileIndex] = useState(0);
   
   const loadCampusBusinesses = useCallback(async (tag: string | null, domain?: string | null) => {
     if (!tag && !domain) { setBusinesses([]); setFeaturedBusinesses([]); return; }
@@ -443,6 +444,10 @@ const CampusPage: NextPage = () => {
     return merged;
   })();
   const featuredIds = new Set(featuredBusinesses.map(b => b.id));
+  const mobileFeaturedMax = Math.max(0, featuredBusinesses.length - 1);
+  useEffect(() => {
+    if (featuredMobileIndex > mobileFeaturedMax) setFeaturedMobileIndex(0);
+  }, [featuredMobileIndex, mobileFeaturedMax]);
   const search = searchTerm.trim().toLowerCase();
   const filtered = allBusinesses.filter(b => {
     if (activeCategory === 'Pinned') return pinnedIds.has(b.id);
@@ -479,7 +484,7 @@ const CampusPage: NextPage = () => {
         <title>Campus — ScheduleMe</title>
       </Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="h-[88px] border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }} />
         <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
@@ -496,7 +501,7 @@ const CampusPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Campus — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-20 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
 
         {/* Header */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
@@ -579,14 +584,53 @@ const CampusPage: NextPage = () => {
                     <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Top campus providers this week</p>
                   </div>
                 </div>
+                <div className="md:hidden mb-3 rounded-2xl border p-2.5" style={{ borderColor: dm ? '#262626' : 'rgba(0,126,109,0.16)', background: dm ? '#121212' : 'rgba(255,255,255,0.65)' }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => setFeaturedMobileIndex((v) => Math.max(0, v - 1))}
+                      disabled={featuredMobileIndex === 0}
+                      className="h-8 w-8 rounded-xl flex items-center justify-center disabled:opacity-30"
+                      style={{ background: dm ? '#1f1f1f' : 'white', border: dm ? '1px solid #2a2a2a' : '1px solid rgba(0,126,109,0.16)' }}
+                      aria-label="Previous featured"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                    </button>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.45)' : '#6b7280' }}>
+                      {Math.min(featuredMobileIndex + 1, featuredBusinesses.length)}/{featuredBusinesses.length}
+                    </p>
+                    <button
+                      onClick={() => setFeaturedMobileIndex((v) => Math.min(featuredBusinesses.length - 1, v + 1))}
+                      disabled={featuredMobileIndex >= featuredBusinesses.length - 1}
+                      className="h-8 w-8 rounded-xl flex items-center justify-center disabled:opacity-30"
+                      style={{ background: dm ? '#1f1f1f' : 'white', border: dm ? '1px solid #2a2a2a' : '1px solid rgba(0,126,109,0.16)' }}
+                      aria-label="Next featured"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    </button>
+                  </div>
+                  {featuredBusinesses[featuredMobileIndex] && (
+                    <div className="mt-2">
+                      <FeaturedMobileCard
+                        biz={featuredBusinesses[featuredMobileIndex]}
+                        dm={dm}
+                        pinned={pinnedIds.has(featuredBusinesses[featuredMobileIndex].id)}
+                        onTogglePin={togglePinned}
+                        onClick={() => {
+                          const biz = featuredBusinesses[featuredMobileIndex];
+                          if (biz.slug || biz.realId || biz.id) window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
                 {featuredBusinesses.length >= 3 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4">
                     {featuredBusinesses.map((biz, i) => (
                       <BizCard key={`featured-${biz.id}`} biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col md:flex-row md:justify-center gap-4">
+                  <div className="hidden md:flex flex-col md:flex-row md:justify-center gap-4">
                     {featuredBusinesses.map((biz, i) => (
                       <div key={`featured-${biz.id}`} className="w-full md:w-[300px]">
                         <BizCard biz={biz} onClick={() => { if (biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); }} dm={dm} index={i} pinned={pinnedIds.has(biz.id)} onTogglePin={togglePinned} />
@@ -594,6 +638,7 @@ const CampusPage: NextPage = () => {
                     ))}
                   </div>
                 )}
+                <div className="mt-5 border-t" style={{ borderColor: dm ? '#262626' : 'rgba(0,126,109,0.16)' }} />
               </section>
             )}
 
@@ -629,7 +674,7 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
             ) : (
-              <div className="grid gap-3" style={{ alignItems: 'stretch', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3" style={{ alignItems: 'stretch' }}>
                 {sorted.filter((biz) => {
                   if (activeCategory === 'All' && !search) return !featuredIds.has(biz.id);
                   return true;
@@ -651,6 +696,7 @@ const CampusPage: NextPage = () => {
     const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
     const cardLabel = biz.category || 'Provider';
     const cardName = biz.name || '';
+    const displayName = cardName || cardLabel;
     const cardInitials = initials(cardName || cardLabel);
     const website = String((biz as any).website || '').trim();
     const instagramRaw = String((biz as any).instagram || '').trim();
@@ -699,11 +745,9 @@ const CampusPage: NextPage = () => {
           )}
         </div>
         <div className="px-3 py-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
-          {cardName && (
-            <p className="text-sm font-semibold leading-tight line-clamp-1" style={{ color: dm ? '#f3f4f6' : '#111827' }}>
-              {cardName}
-            </p>
-          )}
+          <p className="text-[13px] sm:text-sm font-semibold leading-tight line-clamp-2" style={{ color: dm ? '#f3f4f6' : '#111827' }}>
+            {displayName}
+          </p>
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
             {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
@@ -714,7 +758,7 @@ const CampusPage: NextPage = () => {
               <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
             </span>
           </div>
-          <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
+          <p className="text-[10px] sm:text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
           {(website || instagramHandle) && (
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {website && (
@@ -736,6 +780,55 @@ const CampusPage: NextPage = () => {
               <span className="text-[11px]" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>({biz.reviews})</span>
             </div>
           )}
+        </div>
+      </button>
+    );
+  }
+
+  function FeaturedMobileCard({ biz, dm, onClick, pinned, onTogglePin }: { biz: Business; dm?: boolean; onClick: () => void; pinned?: boolean; onTogglePin?: (id: string) => void }) {
+    const status = getOpenStatus(biz.hours, (biz as any).availability_status, (biz as any).break_until);
+    const displayName = biz.name || biz.category || 'Provider';
+    const hasCover = !!biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
+    return (
+      <button
+        onClick={onClick}
+        className="w-full text-left rounded-2xl border p-2.5 flex gap-2.5"
+        style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.08)' }}
+      >
+        <div className="relative shrink-0 rounded-xl overflow-hidden" style={{ width: 104, height: 92, background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+          {hasCover ? (
+            <img src={biz.coverUrl} alt={displayName} className="w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              No photo
+            </div>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onTogglePin?.(biz.id); }}
+            className="absolute right-1.5 top-1.5 h-6 w-6 rounded-full flex items-center justify-center"
+            style={{ background: pinned ? 'rgba(16,185,129,0.18)' : 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.22)' }}
+            aria-label={pinned ? 'Unpin' : 'Pin'}
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke={pinned ? '#34d399' : 'white'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 4l6 6-3 3 1 4-4-1-3 3-6-6 3-3-1-4 4 1 3-3z" />
+              <path d="M9 15l-5 5" />
+            </svg>
+          </button>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[16px] font-black leading-tight line-clamp-2" style={{ color: dm ? '#f3f4f6' : '#111827', letterSpacing: '-0.02em' }}>{displayName}</p>
+          {biz.tagline && <p className="mt-1 text-[12px] leading-snug line-clamp-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.tagline}</p>}
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}>{biz.category}</span>
+            {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
+            )}
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.08)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#9ca3af' : '#9ca3af') }}>
+              <span className={`h-1.5 w-1.5 rounded-full ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />
+              {status.label}
+            </span>
+          </div>
+          <p className="mt-1 text-[11px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
         </div>
       </button>
     );

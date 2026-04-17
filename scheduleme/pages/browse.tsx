@@ -22,7 +22,7 @@ function getSupabase() {
 // CATEGORIES is now dynamic — built from loaded businesses below
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
-const PILL_STYLE = { background: '#E6F2EE', color: '#0F766E' };
+const PILL_STYLE = { background: '#DCEEEB', color: '#0F766E' };
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
 function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
@@ -162,12 +162,13 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours);
   const hasCover = !!biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
+  const displayName = biz.name || biz.category || 'Provider';
   return (
     <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {hasCover ? (
-          <img src={biz.coverUrl} alt={biz.name} onLoad={() => setImgLoaded(true)}
+          <img src={biz.coverUrl} alt={displayName} onLoad={() => setImgLoaded(true)}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
         ) : (
@@ -180,7 +181,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
         )}
       </div>
       <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
-        <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{biz.name}</p>
+        <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{displayName}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{biz.category}</span>
           {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#e8f0fe', color: '#0F766E' }}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
@@ -393,7 +394,7 @@ const BrowsePage: NextPage = () => {
     <>
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
@@ -407,7 +408,7 @@ const BrowsePage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <title>Browse — ScheduleMe</title></Head>
 
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <Nav />
 
         <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -573,7 +574,7 @@ const BrowsePage: NextPage = () => {
                       </div>
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</h3>
+                          <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</h3>
                           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" data-pill style={PILL_STYLE}>{biz.category}</span>
                         </div>
                         <p className="text-[13px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
@@ -643,7 +644,7 @@ const BrowsePage: NextPage = () => {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
+                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name || selectedMapBizData.category || 'Provider'}</p>
                       <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                     </div>
                     <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#0F766E', color: 'white' }}>View</button>
@@ -672,7 +673,7 @@ const BrowsePage: NextPage = () => {
                       )}
                       <div className="absolute inset-0" style={{ background: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' : 'none' }} />
                       <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-                        <p className="text-[12px] font-black leading-tight" style={{ color: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? 'white' : (dm ? '#f3f4f6' : '#171717'), textShadow: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? '0 1px 6px rgba(0,0,0,0.5)' : 'none' }}>{biz.name}</p>
+                        <p className="text-[12px] font-black leading-tight line-clamp-2" style={{ color: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? 'white' : (dm ? '#f3f4f6' : '#171717'), textShadow: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? '0 1px 6px rgba(0,0,0,0.5)' : 'none' }}>{biz.name || biz.category || 'Provider'}</p>
                       </div>
                     </div>
                     <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
@@ -700,7 +701,7 @@ const BrowsePage: NextPage = () => {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name}</p>
+                        <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</p>
                       </div>
@@ -721,7 +722,7 @@ const BrowsePage: NextPage = () => {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name}</p>
+                        <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name || selectedMapBizData.category || 'Provider'}</p>
                         <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
                       </div>
                       <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0" style={{ background: '#0F766E', color: 'white' }}>View</button>

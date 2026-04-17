@@ -454,6 +454,12 @@ html.dark .text-neutral-300 { color: #374151 !important; }
 
 html.dark .border-neutral-100 { border-color: #262626 !important; }
 html.dark .border-neutral-200 { border-color: #262626 !important; }
+
+/* Leaflet tiles must not inherit Tailwind img max-width constraints */
+.leaflet-container img,
+.leaflet-tile {
+  max-width: none !important;
+}
 html.dark .border-b { border-bottom-color: #262626 !important; }
 html.dark .divide-y > * { border-color: #262626 !important; }
 html.dark .divide-neutral-50 > * { border-color: #1e2130 !important; }

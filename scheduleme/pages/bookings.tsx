@@ -1008,7 +1008,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
@@ -1212,7 +1212,16 @@ const BookingsPage: NextPage = () => {
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
                   style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(15,118,110,0.12)', background: dm ? '#171717' : 'white' }}>
                   <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
-                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+                    {biz.coverUrl && biz.coverUrl !== 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' ? (
+                      <img src={biz.coverUrl} alt={biz.name || biz.category || 'Provider'} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+                        </svg>
+                        <span className="text-[10px] font-semibold">No photos added</span>
+                      </div>
+                    )}
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
                     {biz.available && (
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full px-2 py-0.5"
@@ -1222,7 +1231,7 @@ const BookingsPage: NextPage = () => {
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2">
-                      <p className="text-white text-[11px] font-black line-clamp-1" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{biz.name}</p>
+                      <p className="text-white text-[11px] font-black line-clamp-1" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{biz.name || biz.category || 'Provider'}</p>
                     </div>
                   </div>
                   <div className="px-3 py-2.5" style={{ background: dm ? '#171717' : 'white' }}>
