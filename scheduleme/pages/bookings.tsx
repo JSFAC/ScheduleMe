@@ -933,7 +933,8 @@ const BookingsPage: NextPage = () => {
           if (alive) {
             setUserName(firstName);
             setUserInitials(initials);
-            setPhase('welcome');
+            // Global cross-page tour now lives in Nav; keep bookings page onboarding disabled.
+            setPhase('done');
           }
           if (session.user.email) {
             maybeSendWelcomeEmail(session.user.email, fullName, session.access_token);

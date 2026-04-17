@@ -25,6 +25,37 @@ function writeCache(u: { email?: string; name?: string } | null) {
   else sessionStorage.removeItem(AUTH_CACHE_KEY);
 }
 
+const CONSUMER_TOUR_STEPS = [
+  {
+    path: '/home',
+    icon: 'home',
+    title: 'Home, your command center',
+    body: 'See top-rated providers, quick-response pros, and personalized suggestions in one place.',
+    cta: 'Next',
+  },
+  {
+    path: '/browse',
+    icon: 'browse',
+    title: 'Browse with confidence',
+    body: 'Filter by category, compare ratings, and find the right provider in seconds.',
+    cta: 'Next',
+  },
+  {
+    path: '/bookings',
+    icon: 'bookings',
+    title: 'Track every booking',
+    body: 'Create requests and monitor progress from pending to completed without losing details.',
+    cta: 'Next',
+  },
+  {
+    path: '/messages',
+    icon: 'messages',
+    title: 'Stay in sync with pros',
+    body: 'Keep confirmations, updates, and questions in one clean thread.',
+    cta: 'Finish tour',
+  },
+] as const;
+
 export default function Nav({ variant = 'light' }: NavProps) {
   const isDark = variant === 'dark';
   const router = useRouter();
@@ -39,6 +70,10 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(readCache);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const tourTargetPath = tourActive ? CONSUMER_TOUR_STEPS[tourStep]?.path : null;
+  const tourStepData = CONSUMER_TOUR_STEPS[tourStep];
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -83,6 +118,100 @@ export default function Nav({ variant = 'light' }: NavProps) {
     setUser(null);
     setMenuOpen(false);
     setTimeout(() => router.push('/'), 800);
+  }
+
+  useEffect(() => {
+    if (!user?.email) {
+      setTourActive(false);
+      setTourStep(0);
+      return;
+    }
+    const emailKey = user.email.toLowerCase();
+    const doneKey = `sm_consumer_tour_done_${emailKey}`;
+    const activeKey = `sm_consumer_tour_active_${emailKey}`;
+    const stepKey = `sm_consumer_tour_step_${emailKey}`;
+    const isDone = localStorage.getItem(doneKey) === '1';
+    if (isDone) {
+      setTourActive(false);
+      return;
+    }
+
+    const hasActive = localStorage.getItem(activeKey) === '1';
+    const saved = Number(localStorage.getItem(stepKey) || 0);
+    const safeSaved = Number.isFinite(saved) ? Math.max(0, Math.min(saved, CONSUMER_TOUR_STEPS.length - 1)) : 0;
+    const pathIdx = CONSUMER_TOUR_STEPS.findIndex((s) => s.path === router.pathname);
+
+    if (!hasActive) {
+      localStorage.setItem(activeKey, '1');
+      localStorage.setItem(stepKey, '0');
+      setTourStep(0);
+      setTourActive(true);
+      if (router.pathname !== '/home') {
+        router.push('/home', undefined, { scroll: false });
+      }
+      return;
+    }
+
+    setTourActive(true);
+    if (pathIdx >= 0) {
+      setTourStep(pathIdx);
+      localStorage.setItem(stepKey, String(pathIdx));
+    } else {
+      setTourStep(safeSaved);
+    }
+  }, [user?.email, router.pathname]);
+
+  function finishTour() {
+    if (user?.email) {
+      const emailKey = user.email.toLowerCase();
+      localStorage.setItem(`sm_consumer_tour_done_${emailKey}`, '1');
+      localStorage.removeItem(`sm_consumer_tour_active_${emailKey}`);
+      localStorage.removeItem(`sm_consumer_tour_step_${emailKey}`);
+    }
+    setTourActive(false);
+  }
+
+  function nextTourStep() {
+    if (tourStep >= CONSUMER_TOUR_STEPS.length - 1) {
+      finishTour();
+      return;
+    }
+    const next = tourStep + 1;
+    setTourStep(next);
+    if (user?.email) {
+      const emailKey = user.email.toLowerCase();
+      localStorage.setItem(`sm_consumer_tour_step_${emailKey}`, String(next));
+    }
+    router.push(CONSUMER_TOUR_STEPS[next].path, undefined, { scroll: false });
+  }
+
+  function getTourIcon(icon: string) {
+    if (icon === 'browse') {
+      return (
+        <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+      );
+    }
+    if (icon === 'bookings') {
+      return (
+        <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25M3 18.75A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75" />
+        </svg>
+      );
+    }
+    if (icon === 'messages') {
+      return (
+        <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+        </svg>
+      );
+    }
+    return (
+      <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" />
+      </svg>
+    );
   }
 
   // Cache edu_verified in localStorage so Campus tab never flashes on/off between pages
@@ -135,6 +264,12 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   return (
     <>
+      <style jsx global>{`
+        @keyframes sm-tour-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.38); }
+          50% { box-shadow: 0 0 0 8px rgba(15, 118, 110, 0); }
+        }
+      `}</style>
       {signingOut && (
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
           <div className="relative h-8 w-8 mb-4">
@@ -176,13 +311,14 @@ export default function Nav({ variant = 'light' }: NavProps) {
         <ul className="hidden md:flex items-center gap-1 shrink-0" role="list">
           {navLinks.map((link) => {
             const isActive = !link.href.includes('#') && (router.pathname === link.href || router.pathname === link.href.split('?')[0]);
+            const isTourTarget = tourActive && link.href === tourTargetPath;
             return (
               <li key={link.href}>
                 <Link href={link.href} scroll={false} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
                   isActive
                     ? isDark || darkMode ? 'text-white bg-accent' : 'text-accent bg-accent-light'
                     : isDark || darkMode ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
-                }`}>
+                }`} style={isTourTarget ? { animation: 'sm-tour-pulse 1.5s ease-in-out infinite' } : undefined}>
                   {link.label}
                 </Link>
               </li>
@@ -289,6 +425,61 @@ export default function Nav({ variant = 'light' }: NavProps) {
         </div>
       </nav>
     </header>
+      {user && tourActive && tourStepData && (
+        <div
+          className="fixed left-0 right-0 z-[90] px-3 md:px-0"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 66px)', pointerEvents: 'none' }}
+        >
+          <div
+            className={`mx-auto w-full max-w-[560px] rounded-2xl border p-3 md:p-4 shadow-2xl ${darkMode ? 'border-white/15 bg-[#121212f2]' : 'border-neutral-200 bg-white/97'}`}
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: darkMode ? 'rgba(255,255,255,0.62)' : '#6b7280' }}>
+                <span className={`flex h-7 w-7 items-center justify-center rounded-full ${darkMode ? 'bg-accent/30 text-[#9ee6dc]' : 'bg-accent-light text-accent'}`}>
+                  {getTourIcon(tourStepData.icon)}
+                </span>
+                Quick tour
+              </div>
+              <span className="text-xs font-semibold" style={{ color: darkMode ? 'rgba(255,255,255,0.62)' : '#6b7280' }}>
+                {tourStep + 1}/{CONSUMER_TOUR_STEPS.length}
+              </span>
+            </div>
+            <h3 className={`text-[1.03rem] font-black ${darkMode ? 'text-white' : 'text-neutral-900'}`} style={{ letterSpacing: '-0.02em', lineHeight: 1.25 }}>
+              {tourStepData.title}
+            </h3>
+            <div className="mt-2 mb-3 flex items-center gap-1.5">
+              {CONSUMER_TOUR_STEPS.map((_, idx) => (
+                <span
+                  key={idx}
+                  className="h-1.5 rounded-full transition-all duration-300"
+                  style={{
+                    width: idx === tourStep ? 22 : 8,
+                    background: idx === tourStep ? '#0F766E' : (darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(17,24,39,0.16)'),
+                  }}
+                />
+              ))}
+            </div>
+            <p className="mb-3 text-sm leading-relaxed" style={{ color: darkMode ? 'rgba(255,255,255,0.72)' : '#4b5563' }}>
+              {tourStepData.body}
+            </p>
+            <button
+              onClick={nextTourStep}
+              className="w-full rounded-xl px-4 py-2.5 text-sm font-black text-white transition-transform active:scale-[0.99]"
+              style={{ background: 'linear-gradient(135deg,#0F766E 0%, #0B5C56 100%)' }}
+            >
+              {tourStepData.cta}
+            </button>
+            <button
+              onClick={finishTour}
+              className="mt-2 text-xs font-semibold transition-opacity hover:opacity-70"
+              style={{ color: darkMode ? 'rgba(255,255,255,0.62)' : '#6b7280' }}
+            >
+              Skip tour
+            </button>
+          </div>
+        </div>
+      )}
       {/* Mobile bottom tab bar — outside header to avoid fixed-in-fixed stacking issues */}
       {user && (
         <div className="md:hidden" style={{
@@ -318,6 +509,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           }}>
             {[...appLinks].map((link) => {
               const isActive = router.pathname === link.href;
+              const isTourTarget = tourActive && link.href === tourTargetPath;
               const paths: Record<string, string> = {
                 '/campus': 'M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342',
                 '/home': 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25',
@@ -337,6 +529,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                   height: 56,
                   transition: 'background 0.18s ease',
                   background: isActive ? (darkMode ? 'rgba(15,118,110,0.28)' : 'rgba(15,118,110,0.14)') : 'transparent',
+                  animation: isTourTarget ? 'sm-tour-pulse 1.5s ease-in-out infinite' : undefined,
                 }}>
                   <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={col} strokeWidth={isActive ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
                     <path d={paths[link.href] || ''} />
