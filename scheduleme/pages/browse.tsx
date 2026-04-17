@@ -277,6 +277,14 @@ const BrowsePage: NextPage = () => {
     const [usingRealData, setUsingRealData] = useState(false);
   const [geoError, setGeoError] = useState(false);
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
+  const mobileViewLabel = viewMode === 'grid' ? 'Grid' : viewMode === 'list' ? 'List' : 'Map';
+  const cycleMobileViewMode = () => {
+    setViewMode((prev) => {
+      if (prev === 'grid') return 'list';
+      if (prev === 'list') return 'map';
+      return 'grid';
+    });
+  };
 
   async function loadNearbyFromCoords(lat: number, lng: number, currentRadius: number) {
     setUserLat(lat);
@@ -413,9 +421,27 @@ const BrowsePage: NextPage = () => {
 
         <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
           <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-7 pb-6">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Explore</p>
-            <div className="flex items-center justify-between gap-4 mb-5">
-              <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
+            <div className="md:hidden flex items-center justify-between gap-3 mb-5">
+              <div>
+                <h1 className="text-[2.1rem] font-black text-white leading-none" style={{ letterSpacing: '-0.03em' }}>Browse Pros</h1>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] mt-1.5" style={{ color: 'rgba(255,255,255,0.62)' }}>Explore</p>
+              </div>
+              <button
+                onClick={cycleMobileViewMode}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold"
+                style={{ background: 'rgba(255,255,255,0.92)', color: '#0F766E' }}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+                {mobileViewLabel}
+              </button>
+            </div>
+            <div className="hidden md:flex items-center justify-between gap-4 mb-5">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Explore</p>
+                <h1 className="text-[1.9rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Browse Pros</h1>
+              </div>
               <div className="flex items-center rounded-xl p-1 flex-shrink-0" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)' }}>
                 {([
                   ['list', 'List', 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'],
@@ -435,7 +461,7 @@ const BrowsePage: NextPage = () => {
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="flex-1 relative">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -448,7 +474,7 @@ const BrowsePage: NextPage = () => {
               </div>
               <div className="relative flex-shrink-0" data-sort-dropdown>
                 <button onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'rgba(244,239,230,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)', minWidth: 130 }}>
+                  className="w-full sm:w-auto flex items-center gap-2 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-semibold focus:outline-none" style={{ background: dm ? '#111111' : 'rgba(244,239,230,0.98)', color: dm ? '#f3f4f6' : '#171717', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.22)', minWidth: 130 }}>
                   <span className="flex-1 text-left">{SORT_LABELS[sortMode]}</span>
                   <svg className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${sortOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -573,9 +599,14 @@ const BrowsePage: NextPage = () => {
                         </div>
                       </div>
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</h3>
-                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5" data-pill style={PILL_STYLE}>{biz.category}</span>
+                        <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</h3>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
+                          {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
+                          {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span> : null}
+                          <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: listStatus.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: listStatus.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
+                            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{listStatus.label}
+                          </span>
                         </div>
                         <p className="text-[13px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
                         <div className="flex items-center gap-1.5">
@@ -630,39 +661,21 @@ const BrowsePage: NextPage = () => {
             </>
           ) : (
             <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
-              <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4" style={{ height: 300 }}>
+              <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4" style={{ height: 260 }}>
                 <MapPlaceholder businesses={filtered} selected={selectedMapBiz} onSelect={id => setSelectedMapBiz(id === selectedMapBiz ? null : id)} dm={dm} userLat={userLat} userLng={userLng} />
               </div>
-              {selectedMapBizData && (
-                <div className="md:hidden rounded-2xl overflow-hidden border animate-fade-up mb-3" style={{ background: dm ? '#171717' : 'white', borderColor: '#0F766E' }}>
-                  <div className="flex items-center gap-3 p-3">
-                    {selectedMapBizData.coverUrl && selectedMapBizData.coverUrl !== TRANSPARENT_PIXEL ? (
-                      <img src={selectedMapBizData.coverUrl} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
-                        <span className="text-[9px] font-semibold text-center leading-tight">No photos</span>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{selectedMapBizData.name || selectedMapBizData.category || 'Provider'}</p>
-                      <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{selectedMapBizData.category} · {selectedMapBizData.distance}</p>
-                    </div>
-                    <button onClick={() => setActiveBiz(selectedMapBizData)} className="text-sm font-bold px-3 py-2 rounded-xl flex-shrink-0" style={{ background: '#0F766E', color: 'white' }}>View</button>
-                    <button onClick={() => setSelectedMapBiz(null)} className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dm ? '#262626' : '#f5f5f5', color: dm ? '#9ca3af' : '#6b7280' }}>
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                </div>
-              )}
               <div className="md:hidden space-y-2.5">
-                <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em]">{filtered.length} {filtered.length === 1 ? 'result' : 'results'}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em]">{filtered.length} {filtered.length === 1 ? 'result' : 'results'}</p>
+                  <p className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Nearby providers</p>
+                </div>
                 {filtered.map((biz, i) => (
-                  <button key={biz.id} onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
-                    className={`flex-shrink-0 md:w-full text-left rounded-2xl overflow-hidden transition-all biz-card group animate-fade-up ${selectedMapBiz === biz.id ? 'ring-2 ring-accent shadow-lg' : ''}`}
-                    style={{ animationDelay: `${i * 0.04}s`, opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.3 : 1, transition: 'opacity 0.25s ease' }}>
-                    <div className="relative overflow-hidden bg-neutral-100" style={{ height: 110 }}>
+                  <button key={biz.id} onClick={() => { setSelectedMapBiz(biz.id); if (biz.slug || biz.realId || biz.id) window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                    className="w-full text-left rounded-2xl border p-2.5 flex items-center gap-3 animate-fade-up"
+                    style={{ animationDelay: `${i * 0.04}s`, background: dm ? '#171717' : 'white', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#2a2d3a' : 'rgba(15,118,110,0.18)') }}>
+                    <div className="relative overflow-hidden rounded-xl bg-neutral-100 flex-shrink-0" style={{ width: 80, height: 80 }}>
                       {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
-                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" style={{ objectPosition: 'center 25%' }} />
+                        <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -671,14 +684,15 @@ const BrowsePage: NextPage = () => {
                           <span className="text-[10px] font-semibold">No photos added</span>
                         </div>
                       )}
-                      <div className="absolute inset-0" style={{ background: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' : 'none' }} />
-                      <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5">
-                        <p className="text-[12px] font-black leading-tight line-clamp-2" style={{ color: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? 'white' : (dm ? '#f3f4f6' : '#171717'), textShadow: biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? '0 1px 6px rgba(0,0,0,0.5)' : 'none' }}>{biz.name || biz.category || 'Provider'}</p>
-                      </div>
                     </div>
-                    <div className="px-3 py-2.5 bg-white flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
-                      <span className="text-[10px] text-neutral-400 font-medium">{biz.reviews} reviews</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-bold leading-tight line-clamp-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={PILL_STYLE}>{biz.category}</span>
+                        {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={PILL_STYLE}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
+                        {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span> : null}
+                      </div>
+                      <p className="text-[12px] mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{biz.distance} · {biz.reviews} review{biz.reviews === 1 ? '' : 's'}</p>
                     </div>
                   </button>
                 ))}
