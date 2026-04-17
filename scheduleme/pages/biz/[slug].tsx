@@ -313,6 +313,8 @@ export default function BizPage() {
   const vidInputRef = useRef<HTMLInputElement | null>(null);
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const galleryTouchStart = useRef<{ x: number; y: number } | null>(null);
+  const lightboxTouchStart = useRef<{ x: number; y: number } | null>(null);
 
   const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
   const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
@@ -902,6 +904,14 @@ export default function BizPage() {
     setTimeout(() => setToast(null), 1800);
   }
 
+  function goPrevImage() {
+    setGalleryIdx((i) => (i - 1 + imgs.length) % imgs.length);
+  }
+
+  function goNextImage() {
+    setGalleryIdx((i) => (i + 1) % imgs.length);
+  }
+
   const orderedServices = [...services].sort((a: any, b: any) => {
     const ao = a.sort_order ?? 0;
     const bo = b.sort_order ?? 0;
@@ -969,7 +979,7 @@ export default function BizPage() {
   return (
     <>
       <Head><title>{titleName} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
-      <div style={{background:bg,minHeight:'100vh',paddingBottom:100}}>
+      <div style={{background:bg,minHeight:'100vh',paddingBottom: hideNav ? 100 : 220}}>
         {!hideNav && <Nav />}
         {shareOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={() => setShareOpen(false)}>
@@ -1010,13 +1020,31 @@ export default function BizPage() {
           <div className="fixed inset-0 z-[10001] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
             <button className="absolute top-6 right-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={() => setGalleryOpen(false)} style={{ background: 'rgba(0,0,0,0.4)' }}>×</button>
             {imgs.length > 1 && (
-              <button className="absolute left-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)} style={{ background: 'rgba(0,0,0,0.4)' }}>
+              <button className="absolute left-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={goPrevImage} style={{ background: 'rgba(0,0,0,0.4)' }}>
                 ‹
               </button>
             )}
-            <img src={imgs[galleryIdx]} alt="Gallery" className="max-h-[80vh] max-w-[90vw] rounded-2xl object-contain" />
+            <img
+              src={imgs[galleryIdx]}
+              alt="Gallery"
+              className="max-h-[80vh] max-w-[90vw] rounded-2xl object-contain"
+              onTouchStart={(e) => {
+                const t = e.touches[0];
+                lightboxTouchStart.current = { x: t.clientX, y: t.clientY };
+              }}
+              onTouchEnd={(e) => {
+                if (!lightboxTouchStart.current || imgs.length <= 1) return;
+                const t = e.changedTouches[0];
+                const dx = t.clientX - lightboxTouchStart.current.x;
+                const dy = t.clientY - lightboxTouchStart.current.y;
+                lightboxTouchStart.current = null;
+                if (Math.abs(dx) < 36 || Math.abs(dx) <= Math.abs(dy)) return;
+                if (dx < 0) goNextImage();
+                else goPrevImage();
+              }}
+            />
             {imgs.length > 1 && (
-              <button className="absolute right-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)} style={{ background: 'rgba(0,0,0,0.4)' }}>
+              <button className="absolute right-6 h-10 w-10 rounded-full flex items-center justify-center text-white" onClick={goNextImage} style={{ background: 'rgba(0,0,0,0.4)' }}>
                 ›
               </button>
             )}
@@ -1032,6 +1060,20 @@ export default function BizPage() {
                   className="object-contain rounded-2xl"
                   style={{ maxHeight: 320, maxWidth: '100%' }}
                   onClick={() => imgs.length > 0 && setGalleryOpen(true)}
+                  onTouchStart={(e) => {
+                    const t = e.touches[0];
+                    galleryTouchStart.current = { x: t.clientX, y: t.clientY };
+                  }}
+                  onTouchEnd={(e) => {
+                    if (!galleryTouchStart.current || imgs.length <= 1) return;
+                    const t = e.changedTouches[0];
+                    const dx = t.clientX - galleryTouchStart.current.x;
+                    const dy = t.clientY - galleryTouchStart.current.y;
+                    galleryTouchStart.current = null;
+                    if (Math.abs(dx) < 30 || Math.abs(dx) <= Math.abs(dy)) return;
+                    if (dx < 0) goNextImage();
+                    else goPrevImage();
+                  }}
                 />
               )}
               {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
@@ -1050,7 +1092,7 @@ export default function BizPage() {
               {imgs.length > 1 && (
                 <>
                   <button
-                    onClick={() => setGalleryIdx(i => (i - 1 + imgs.length) % imgs.length)}
+                    onClick={goPrevImage}
                     className="absolute left-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white leading-none"
                     style={{ background: 'rgba(0,0,0,0.35)' }}
                   >
@@ -1059,7 +1101,7 @@ export default function BizPage() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => setGalleryIdx(i => (i + 1) % imgs.length)}
+                    onClick={goNextImage}
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white leading-none"
                     style={{ background: 'rgba(0,0,0,0.35)' }}
                   >
@@ -1159,11 +1201,6 @@ export default function BizPage() {
               <div className="mb-4 text-[11px] font-semibold" style={{ color: accent }}>{editNotice}</div>
             )}
             <div className="flex gap-2 flex-wrap">
-              {isPreview ? (
-                <span className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:0.6}}>Message</span>
-              ) : (
-                <a href={`/messages?business=${biz.id}`} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Message</a>
-              )}
               <button onClick={isPreview ? undefined : shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:isPreview?0.6:1}} disabled={isPreview}>Share</button>
               {biz.website && (
                 isPreview ? (
@@ -1530,7 +1567,24 @@ export default function BizPage() {
         </div>
 
         </div>
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
+        <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)' }}>
+          <button onClick={book} disabled={bookingDisabled}
+            className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
+            style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment')}
+          </button>
+          {providerCannotAcceptPayments && (
+            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
+              Provider can&apos;t accept payments yet.
+            </p>
+          )}
+          {isSelfOwnedBusiness && (
+            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
+              You can&apos;t book your own business.
+            </p>
+          )}
+        </div>
+        <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
           <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
