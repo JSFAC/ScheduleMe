@@ -23,7 +23,6 @@ interface Booking {
   service: string;
   category: string;
   status: string;
-  reviewed?: boolean;
   created_at: string;
   scheduled_at?: string;
   address?: string;
@@ -42,13 +41,15 @@ interface Booking {
   dispute_reason?: string;
   dispute_details?: string;
   dispute_media_urls?: string[];
+  reviewed?: boolean;
+  requires_manual_action?: boolean;
 }
 const PROTECTION_FEE_CENTS = 99;
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
   pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-400', barColor: '#f59e0b' },
   confirmed:       { label: 'Confirmed',         bg: 'bg-accent-light   border-accent/20',   text: 'text-accent',   dot: 'bg-accent-light0',  barColor: '#0F766E' },
-  payment_pending: { label: 'Payment Pending',   bg: 'bg-violet-50 border-violet-100', text: 'text-violet-700', dot: 'bg-violet-500',barColor: '#8b5cf6' },
+  payment_pending: { label: 'Payment Pending',   bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700', dot: 'bg-amber-500',barColor: '#f59e0b' },
   paid:            { label: 'Paid',              bg: 'bg-green-50  border-green-100',  text: 'text-green-700',  dot: 'bg-green-500', barColor: '#22c55e' },
   awaiting_consumer_confirmation: { label: 'Awaiting Your Confirmation', bg: 'bg-indigo-50 border-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500', barColor: '#6366f1' },
   disputed:       { label: 'Disputed',           bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', barColor: '#d97706' },
@@ -57,8 +58,38 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444' },
 };
 
-const STEPS = ['pending', 'confirmed', 'paid', 'awaiting_consumer_confirmation', 'completed'];
-const STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Review', 'Done'];
+function isCustomFlow(booking: Booking) {
+  if (booking.requires_manual_action === true) return true;
+  const service = (booking.service || '').toLowerCase();
+  return service.includes('custom');
+}
+
+function isPresetFlow(booking: Booking) {
+  return !isCustomFlow(booking);
+}
+
+function getFlowConfig(booking: Booking) {
+  if (isPresetFlow(booking)) {
+    return {
+      steps: ['paid', 'confirmed', 'completed'],
+      labels: ['Paid', 'Confirmed', 'Done'],
+    };
+  }
+  return {
+    steps: ['pending', 'confirmed', 'paid', 'completed'],
+    labels: ['Submitted', 'Confirmed', 'Paid', 'Done'],
+  };
+}
+
+function normalizeFlowStatus(status: string, booking: Booking) {
+  let normalized = status;
+  if (normalized === 'payment_pending') {
+    normalized = isPresetFlow(booking) ? 'paid' : 'confirmed';
+  }
+  if (normalized === 'awaiting_consumer_confirmation' || normalized === 'disputed') normalized = 'completed';
+  if (isPresetFlow(booking) && normalized === 'pending') normalized = 'paid';
+  return normalized;
+}
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -86,45 +117,42 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ProgressBar({ status }: { status: string }) {
-  const normalized = status === 'payment_pending'
-    ? 'confirmed'
-    : status === 'disputed'
-      ? 'awaiting_consumer_confirmation'
-      : status;
-  const idx = STEPS.indexOf(normalized);
+function ProgressBar({ booking }: { booking: Booking }) {
+  const flow = getFlowConfig(booking);
+  const normalized = normalizeFlowStatus(booking.status, booking);
+  const idx = flow.steps.indexOf(normalized);
+  const safeIdx = idx < 0 ? 0 : idx;
   return (
     <div className="mt-5">
       <div className="flex items-center">
-        {STEPS.map((s, i) => {
-          const done = i <= idx;
-          const isLast = i === STEPS.length - 1;
+        {flow.steps.map((s, i) => {
+          const done = i <= safeIdx;
+          const isLast = i === flow.steps.length - 1;
           return (
             <div key={s} className={`flex items-center ${isLast ? '' : 'flex-1'}`}>
               <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 transition-colors ${done ? 'bg-accent' : 'bg-neutral-200'}`} />
-              {!isLast && <div className={`h-0.5 flex-1 transition-colors ${i < idx ? 'bg-accent' : 'bg-neutral-200'}`} />}
+              {!isLast && <div className={`h-0.5 flex-1 transition-colors ${i < safeIdx ? 'bg-accent' : 'bg-neutral-200'}`} />}
             </div>
           );
         })}
       </div>
       <div className="flex justify-between mt-1.5">
-        {STEP_LABELS.map((l, i) => (
-          <span key={l} className={`text-[10px] font-medium ${i <= idx ? 'text-accent' : 'text-neutral-400'}`}>{l}</span>
+        {flow.labels.map((l, i) => (
+          <span key={l} className={`text-[10px] font-medium ${i <= safeIdx ? 'text-accent' : 'text-neutral-400'}`}>{l}</span>
         ))}
       </div>
     </div>
   );
 }
 
-function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, onUploadDisputeMedia, onMessageProvider, onLeaveReview }: {
+function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, onUploadDisputeMedia, onOpenReview }: {
   booking: Booking;
   originRect: DOMRect | null;
   onClose: () => void;
   onCancel: (id: string) => void;
   onOpenDispute: (id: string, payload: { reason: string; details?: string; media_urls?: string[] }) => Promise<void>;
   onUploadDisputeMedia: (bookingId: string, file: File) => Promise<string | null>;
-  onMessageProvider: (bookingId: string) => void;
-  onLeaveReview: (booking: Booking) => void;
+  onOpenReview: (booking: Booking) => void;
 }) {
   const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.pending;
   const serviceAmountCents = booking.amount_cents || 0;
@@ -137,6 +165,8 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDetails, setDisputeDetails] = useState('');
   const [disputeMediaUrls, setDisputeMediaUrls] = useState<string[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
@@ -172,6 +202,17 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
   }
 
   const ready = mounted && !closing;
+  const previewOpen = previewUrls.length > 0;
+
+  function openMediaPreview(urls: string[], index: number) {
+    setPreviewUrls(urls);
+    setPreviewIndex(Math.max(0, Math.min(index, urls.length - 1)));
+  }
+
+  function closeMediaPreview() {
+    setPreviewUrls([]);
+    setPreviewIndex(0);
+  }
 
   // Compute morph origin: where on screen the card was
   const origin = originRect;
@@ -242,7 +283,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
 
           <StatusBadge status={booking.status} />
           {!['cancelled', 'payment_failed'].includes(booking.status) && (
-            <ProgressBar status={booking.status} />
+            <ProgressBar booking={booking} />
           )}
 
           <div className="h-px bg-neutral-100 my-6" />
@@ -402,10 +443,10 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
                 )}
                 {(booking.completion_proof_photo_urls || []).length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {(booking.completion_proof_photo_urls || []).slice(0, 6).map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer" className="block">
+                    {(booking.completion_proof_photo_urls || []).slice(0, 6).map((url, i, arr) => (
+                      <button key={url} type="button" onClick={() => openMediaPreview(arr, i)} className="block">
                         <img src={url} alt="Completion proof" className="h-20 w-full rounded-lg object-cover border border-indigo-100" />
-                      </a>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -416,14 +457,14 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
           {/* Consumer dispute window */}
           {booking.status === 'completed' && booking.consumer_confirmation_due_at && new Date(booking.consumer_confirmation_due_at).getTime() > Date.now() && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
-              <div className="rounded-2xl p-4 mb-4" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-                <p className="text-sm font-bold text-accent mb-0.5">Service auto-completed from provider proof</p>
-                <p className="text-xs text-accent">
+              <div className="rounded-2xl p-4 mb-4" style={{ background: '#fef3c7', border: '1px solid #fcd34d' }}>
+                <p className="text-sm font-bold text-amber-900 mb-0.5">Service auto-completed from provider proof</p>
+                <p className="text-xs text-amber-800">
                   If something is wrong, open a dispute before {new Date(booking.consumer_confirmation_due_at).toLocaleString()}.
                 </p>
               </div>
 
-              <div className="rounded-2xl p-4 border border-amber-200 bg-amber-50">
+              <div className="rounded-2xl p-4 border border-amber-200 bg-amber-50/80">
                 <p className="text-sm font-bold text-amber-800 mb-2">Report issue / dispute</p>
                 <select
                   className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm mb-2 bg-white"
@@ -478,29 +519,27 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
             </div>
           )}
 
-          {/* Completed booking actions */}
-          {['completed', 'paid'].includes(booking.status) && (
+          {(booking.status === 'completed' || booking.status === 'awaiting_consumer_confirmation') && (
             <div className="mt-6 pt-5 border-t border-neutral-100 space-y-2.5">
-              {!!booking.business_id && (
-                <button
-                  onClick={() => onMessageProvider(booking.id)}
-                  className="w-full py-3 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: 'linear-gradient(135deg,#0F766E 0%,#0B5C56 100%)' }}
-                >
-                  Message Provider
-                </button>
-              )}
               <button
-                onClick={() => onLeaveReview(booking)}
-                disabled={booking.reviewed === true}
-                className="w-full py-3 rounded-xl text-sm font-semibold border transition-colors disabled:cursor-not-allowed disabled:opacity-55"
+                onClick={() => { window.location.href = '/messages'; }}
+                className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+                style={{ background: '#0F766E' }}
+              >
+                Message Provider
+              </button>
+              <button
+                onClick={() => onOpenReview(booking)}
+                disabled={booking.reviewed || !booking.business_id}
+                className="w-full py-3 rounded-xl text-sm font-semibold border"
                 style={{
-                  background: booking.reviewed ? '#f5f5f5' : '#111111',
-                  color: booking.reviewed ? '#9ca3af' : 'white',
-                  borderColor: booking.reviewed ? '#e5e7eb' : '#111111',
+                  color: booking.reviewed ? '#9ca3af' : '#171717',
+                  background: booking.reviewed ? '#f3f4f6' : '#fff',
+                  borderColor: booking.reviewed ? '#e5e7eb' : '#d4d4d8',
+                  cursor: booking.reviewed || !booking.business_id ? 'not-allowed' : 'pointer',
                 }}
               >
-                {booking.reviewed ? 'Review already submitted' : 'Leave a Review'}
+                {booking.reviewed ? 'Review Submitted' : 'Leave a Review'}
               </button>
             </div>
           )}
@@ -517,6 +556,45 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
                 <button onClick={handleCancel}
                   className="w-full py-3 rounded-xl border-2 border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 hover:border-red-300 transition-colors">
                   Cancel Booking
+                </button>
+              )}
+            </div>
+          )}
+
+          {previewOpen && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" onClick={closeMediaPreview}>
+              <button
+                onClick={closeMediaPreview}
+                className="absolute right-4 top-4 h-10 w-10 rounded-full bg-black/55 text-white"
+              >
+                ✕
+              </button>
+              {previewUrls.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewIndex((prev) => (prev - 1 + previewUrls.length) % previewUrls.length);
+                  }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/55 text-white"
+                >
+                  ‹
+                </button>
+              )}
+              <img
+                src={previewUrls[previewIndex]}
+                alt="Proof preview"
+                className="max-h-[78vh] max-w-full rounded-xl object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+              {previewUrls.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewIndex((prev) => (prev + 1) % previewUrls.length);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/55 text-white"
+                >
+                  ›
                 </button>
               )}
             </div>
@@ -751,8 +829,11 @@ const BookingsPage: NextPage = () => {
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const [paymentToast, setPaymentToast] = useState<'cancelled' | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
-  const [activeOpen, setActiveOpen] = useState(false);
-  const [pastOpen, setPastOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [pastFilter, setPastFilter] = useState('all');
+  const [activePage, setActivePage] = useState(1);
+  const [pastPage, setPastPage] = useState(1);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Show toast if redirected back after cancelled payment
   useEffect(() => {
@@ -890,65 +971,15 @@ const BookingsPage: NextPage = () => {
   }
 
   useEffect(() => {
-    let alive = true;
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
-    const loadNearbyBusinesses = async () => {
-      if (alive) setNearbyLoading(true);
-      try {
-        const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
-
-        const loadFromCoords = async (lat: number, lng: number) => {
-          const nearby = await fetchNearbyBusinesses(lat, lng, { limit: 6, radius: 25 });
-          return (nearby || []).slice(0, 6);
-        };
-
-        let nearby: any[] = [];
-
-        if (typeof navigator !== 'undefined' && navigator.geolocation) {
-          nearby = await new Promise<any[]>((resolve) => {
-            navigator.geolocation.getCurrentPosition(
-              async (pos) => {
-                try {
-                  resolve(await loadFromCoords(pos.coords.latitude, pos.coords.longitude));
-                } catch {
-                  resolve([]);
-                }
-              },
-              () => resolve([]),
-              { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
-            );
-          });
-        }
-
-        if ((nearby || []).length === 0) {
-          const ipSources = ['https://ipapi.co/json/', 'https://ipwho.is/'];
-          for (const src of ipSources) {
-            try {
-              const res = await fetch(src);
-              const json = await res.json();
-              const lat = Number(json.latitude ?? json.lat);
-              const lng = Number(json.longitude ?? json.lon);
-              if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-              nearby = await loadFromCoords(lat, lng);
-              if (nearby.length > 0) break;
-            } catch {
-              // Try next IP source.
-            }
-          }
-        }
-
-        if (alive) setNearbyBizList(nearby || []);
-      } catch {
-        if (alive) setNearbyBizList([]);
-      } finally {
-        if (alive) setNearbyLoading(false);
-      }
-    };
-
-    const init = async () => {
-      const supabase = getSupabase();
-      const { data: { session } } = await supabase.auth.getSession();
-
+  useEffect(() => {
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         const fullName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
         const firstName = fullName.split(' ')[0];
@@ -961,19 +992,18 @@ const BookingsPage: NextPage = () => {
 
         if (isFirstVisit) {
           await supabase.from('profiles').update({ has_seen_welcome: true }).eq('id', session.user.id);
-          if (alive) {
-            setUserName(firstName);
-            setUserInitials(initials);
-            // Global cross-page tour now lives in Nav; keep bookings page onboarding disabled.
-            setPhase('done');
-          }
+          setUserName(firstName);
+          setUserInitials(initials);
+          setPhase('welcome');
           if (session.user.email) {
             maybeSendWelcomeEmail(session.user.email, fullName, session.access_token);
           }
-        } else if (alive) {
+        } else {
           setPhase('done');
+
         }
 
+        // Fetch real bookings for this user (requires auth header)
         let bookingsData: any[] = [];
         try {
           const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(session.user.id)}`, {
@@ -982,19 +1012,37 @@ const BookingsPage: NextPage = () => {
           if (res.ok) {
             const data = await res.json();
             bookingsData = data.bookings || [];
-            if (alive) setBookings(bookingsData);
-          } else if (alive) {
+            setBookings(bookingsData);
+          } else {
             setBookings([]);
           }
         } catch {
-          if (alive) setBookings([]);
+          setBookings([]);
         } finally {
-          if (alive) setLoadingBookings(false);
-          await loadNearbyBusinesses();
+          setLoadingBookings(false);
+          // Also fetch nearby businesses for the "Available near you" section
+          try {
+            const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                  const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
+                  setNearbyBizList(nearby);
+                  setNearbyLoading(false);
+                },
+                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
+              );
+              return; // setNearbyLoading handled in callbacks above
+            }
+            setNearbyBizList([]);
+          } catch { setNearbyBizList([]); }
+          setNearbyLoading(false);
+          // Check for unreviewed completed bookings — show review prompt
           const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
           );
-          if (alive && unreviewed && unreviewed.business_name) {
+          if (unreviewed && unreviewed.business_name) {
             setTimeout(() => setReviewTarget({
               bookingId: unreviewed.id,
               businessId: unreviewed.business_id,
@@ -1004,23 +1052,57 @@ const BookingsPage: NextPage = () => {
           }
         }
       } else {
-        if (alive) {
-          setPhase('done');
-          setLoadingBookings(false);
-        }
-        await loadNearbyBusinesses();
+        setPhase('done');
+        setLoadingBookings(false);
+          // Also fetch nearby businesses for the "Available near you" section
+          try {
+            const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                  const nearby = await fetchNearbyBusinesses(pos.coords.latitude, pos.coords.longitude, { limit: 6, radius: 25 });
+                  setNearbyBizList(nearby);
+                  setNearbyLoading(false);
+                },
+                () => { setNearbyBizList([]); setNearbyLoading(false); },
+                { timeout: 8000, enableHighAccuracy: false, maximumAge: 300000 }
+              );
+              return; // setNearbyLoading handled in callbacks above
+            }
+            setNearbyBizList([]);
+          } catch { setNearbyBizList([]); }
+          setNearbyLoading(false);
       }
-    };
-
-    init();
-    return () => { alive = false; };
+    });
   }, []);
 
   const showOverlay = phase === 'welcome' || phase === 'transitioning';
   const overlayOut = phase === 'transitioning';
-  const filteredBookings = bookings; // category filter removed - column doesn't exist in DB
-  const activeBookings = filteredBookings.filter(b => !['completed', 'paid', 'cancelled'].includes(b.status));
-  const pastBookings   = filteredBookings.filter(b => ['completed', 'paid', 'cancelled'].includes(b.status));
+  const filteredBookings = bookings;
+  const baseActiveBookings = filteredBookings.filter(b => !['completed', 'cancelled'].includes(b.status));
+  const basePastBookings = filteredBookings.filter(b => ['completed', 'cancelled'].includes(b.status));
+
+  const activeBookings = baseActiveBookings.filter((b) => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'in_progress') return ['confirmed', 'payment_pending', 'paid'].includes(b.status);
+    if (activeFilter === 'pending') return b.status === 'pending';
+    if (activeFilter === 'review') return ['awaiting_consumer_confirmation', 'disputed'].includes(b.status);
+    return b.status === activeFilter;
+  });
+
+  const pastBookings = basePastBookings.filter((b) => {
+    if (pastFilter === 'all') return true;
+    return b.status === pastFilter;
+  });
+
+  const pageSize = isMobile ? 4 : 8;
+  const activeTotalPages = Math.max(1, Math.ceil(activeBookings.length / pageSize));
+  const pastTotalPages = Math.max(1, Math.ceil(pastBookings.length / pageSize));
+  const paginatedActiveBookings = activeBookings.slice((activePage - 1) * pageSize, activePage * pageSize);
+  const paginatedPastBookings = pastBookings.slice((pastPage - 1) * pageSize, pastPage * pageSize);
+
+  useEffect(() => { setActivePage(1); }, [activeFilter, bookings.length, isMobile]);
+  useEffect(() => { setPastPage(1); }, [pastFilter, bookings.length, isMobile]);
 
   return (
     <>
@@ -1040,7 +1122,7 @@ const BookingsPage: NextPage = () => {
 
       <Nav />
 
-      <div className="min-h-screen pb-[calc(132px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+      <div className="min-h-screen pb-[calc(104px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F9F7F2' }}>
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
@@ -1066,8 +1148,8 @@ const BookingsPage: NextPage = () => {
             <div className="flex gap-3 mb-6">
               {[
                 { label: 'Total', value: bookings.length },
-                { label: 'Active', value: bookings.filter(b => !['completed','paid','cancelled'].includes(b.status)).length },
-                { label: 'Completed', value: bookings.filter(b => ['completed','paid'].includes(b.status)).length },
+                { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
+                { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
               ].map(s => (
                 <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
                   <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0F766E' }}>{s.value}</p>
@@ -1108,113 +1190,168 @@ const BookingsPage: NextPage = () => {
 
               ) : (
                 <>
-                  {activeBookings.length > 0 && (
-                    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: dm ? '#262626' : 'rgba(15,118,110,0.12)', background: dm ? '#111111' : 'rgba(255,255,255,0.8)' }}>
-                      <button
-                        onClick={() => setActiveOpen((prev) => !prev)}
-                        className="w-full px-4 py-3.5 flex items-center justify-between text-left"
-                        style={{ borderBottom: activeOpen ? (dm ? '1px solid #262626' : '1px solid rgba(15,118,110,0.1)') : 'none' }}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: '#0F766E' }}>Active</h2>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.22)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}>
-                            {activeBookings.length}
-                          </span>
+                  {baseActiveBookings.length > 0 && (
+                    <div>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: '#0F766E' }}>Active</h2>
+                        <div className="flex items-center gap-2 ml-auto">
+                          <select
+                            value={activeFilter}
+                            onChange={(e) => setActiveFilter(e.target.value)}
+                            className="rounded-xl border px-2.5 py-1.5 text-xs font-semibold"
+                            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#d1d5db' : '#374151' }}
+                          >
+                            <option value="all">All Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="review">Pending Review</option>
+                            <option value="disputed">Disputed</option>
+                          </select>
                         </div>
-                        <svg className={`h-4 w-4 transition-transform ${activeOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#9ca3af' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                        </svg>
-                      </button>
-                      {activeOpen && (
-                        <div className="space-y-3 p-3">
-                          {activeBookings.map(b => {
-                            const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
-                            return (
-                              <button key={b.id} onClick={e => openBooking(b, e)}
-                                className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
-                                <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
-                                <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                      <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
-                                      {b.business_name
-                                        ? <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>
-                                        : <p className="text-xs mt-0.5 italic" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>Matching you with a pro…</p>}
-                                      <div className="flex items-center gap-2 mt-1.5">
-                                        <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
-                                        {b.scheduled_at && (
-                                          <>
-                                            <span className="text-neutral-200">·</span>
-                                            <span className="text-[10px] font-semibold" style={{ color: cfg.barColor }}>
-                                              {new Date(b.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                            </span>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <StatusBadge status={b.status} />
-                                      <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                      </svg>
+                      </div>
+                      <div className="space-y-3">
+                        {paginatedActiveBookings.map(b => {
+                          const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending;
+                          return (
+                            <button key={b.id} onClick={e => openBooking(b, e)}
+                              className="w-full text-left booking-card group overflow-hidden flex" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                              {/* Left accent bar — status color */}
+                              <div className="w-[6px] shrink-0" style={{ background: cfg.barColor }} />
+                              <div className="flex-1 p-6 pt-5 pb-5" style={{ background: dm ? '#171717' : 'white' }}>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-black text-[17px] line-clamp-2 group-hover:text-accent transition-colors" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{b.service}</h3>
+                                    {b.business_name
+                                      ? <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>
+                                      : <p className="text-xs mt-0.5 italic" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>Matching you with a pro…</p>}
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                      <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
+                                      {b.scheduled_at && (
+                                        <>
+                                          <span className="text-neutral-200">·</span>
+                                          <span className="text-[10px] font-semibold" style={{ color: cfg.barColor }}>
+                                            {new Date(b.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                          </span>
+                                        </>
+                                      )}
                                     </div>
                                   </div>
-                                  <ProgressBar status={b.status} />
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <StatusBadge status={b.status} />
+                                    <svg className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                  </div>
                                 </div>
-                              </button>
-                            );
-                          })}
+                                <ProgressBar booking={b} />
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {activeBookings.length === 0 && (
+                          <div className="rounded-2xl border p-5 text-sm" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                            No active bookings match this filter.
+                          </div>
+                        )}
+                      </div>
+                      {activeBookings.length > pageSize && (
+                        <div className="mt-3 flex items-center justify-end gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setActivePage((p) => Math.max(1, p - 1))}
+                            disabled={activePage <= 1}
+                            className="px-3 py-1.5 rounded-lg border disabled:opacity-40"
+                            style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}
+                          >
+                            Prev
+                          </button>
+                          <span style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Page {activePage}/{activeTotalPages}</span>
+                          <button
+                            type="button"
+                            onClick={() => setActivePage((p) => Math.min(activeTotalPages, p + 1))}
+                            disabled={activePage >= activeTotalPages}
+                            className="px-3 py-1.5 rounded-lg border disabled:opacity-40"
+                            style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}
+                          >
+                            Next
+                          </button>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {pastBookings.length > 0 && (
-                    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: dm ? '#262626' : 'rgba(115,115,115,0.2)', background: dm ? '#111111' : 'rgba(255,255,255,0.75)' }}>
-                      <button
-                        onClick={() => setPastOpen((prev) => !prev)}
-                        className="w-full px-4 py-3.5 flex items-center justify-between text-left"
-                        style={{ borderBottom: pastOpen ? (dm ? '1px solid #262626' : '1px solid rgba(115,115,115,0.18)') : 'none' }}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.55)' : '#737373' }}>Past</h2>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(255,255,255,0.1)' : 'rgba(115,115,115,0.12)', color: dm ? '#d1d5db' : '#525252' }}>
-                            {pastBookings.length}
-                          </span>
+                  {basePastBookings.length > 0 && (
+                    <div>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>Completed / Past</h2>
+                        <div className="flex items-center gap-2 ml-auto">
+                          <select
+                            value={pastFilter}
+                            onChange={(e) => setPastFilter(e.target.value)}
+                            className="rounded-xl border px-2.5 py-1.5 text-xs font-semibold"
+                            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#d1d5db' : '#374151' }}
+                          >
+                            <option value="all">All Past</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
                         </div>
-                        <svg className={`h-4 w-4 transition-transform ${pastOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#9ca3af' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                        </svg>
-                      </button>
-                      {pastOpen && (
-                        <div className="space-y-3 p-3">
-                          {pastBookings.map(b => (
-                            <button key={b.id} onClick={e => openBooking(b, e)}
-                              className="w-full text-left booking-card group overflow-hidden flex opacity-70 hover:opacity-100" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
-                              <div className="w-[6px] shrink-0 bg-neutral-200" />
-                              <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
-                                  {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
-                                  <div className="flex items-center gap-2 mt-1.5">
-                                    <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
-                                    {b.amount_cents && (
-                                      <>
-                                        <span className="text-neutral-200">·</span>
-                                        <p className="text-[10px] font-bold text-neutral-500">{'$'}{((b.amount_cents + PROTECTION_FEE_CENTS) / 100).toFixed(2)} paid</p>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <StatusBadge status={b.status} />
-                                  <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                  </svg>
+                      </div>
+                      <div className="space-y-3">
+                        {paginatedPastBookings.map(b => (
+                          <button key={b.id} onClick={e => openBooking(b, e)}
+                            className="w-full text-left booking-card group overflow-hidden flex opacity-55 hover:opacity-100" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : undefined }}>
+                            <div className="w-[6px] shrink-0 bg-neutral-200" />
+                            <div className="flex-1 p-6 pt-5 pb-5 flex items-start justify-between gap-3" style={{ background: dm ? '#171717' : 'white' }}>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-black text-[17px] line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#d1d5db' : '#404040' }}>{b.service}</h3>
+                                {b.business_name && <p className="text-xs mt-0.5 font-medium" style={{ color: dm ? '#9ca3af' : '#737373' }}>{b.business_name}</p>}
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  <p className="text-[10px]" style={{ color: dm ? 'rgba(255,255,255,0.3)' : '#d4d4d4' }}>{formatDate(b.created_at)}</p>
+                                  {b.amount_cents && (
+                                    <>
+                                      <span className="text-neutral-200">·</span>
+                                      <p className="text-[10px] font-bold text-neutral-500">{'$'}{((b.amount_cents + PROTECTION_FEE_CENTS) / 100).toFixed(2)} paid</p>
+                                    </>
+                                  )}
                                 </div>
                               </div>
-                            </button>
-                          ))}
+                              <div className="flex items-center gap-2 shrink-0">
+                                <StatusBadge status={b.status} />
+                                <svg className="h-4 w-4 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                </svg>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                        {pastBookings.length === 0 && (
+                          <div className="rounded-2xl border p-5 text-sm" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
+                            No past bookings match this filter.
+                          </div>
+                        )}
+                      </div>
+                      {pastBookings.length > pageSize && (
+                        <div className="mt-3 flex items-center justify-end gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setPastPage((p) => Math.max(1, p - 1))}
+                            disabled={pastPage <= 1}
+                            className="px-3 py-1.5 rounded-lg border disabled:opacity-40"
+                            style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}
+                          >
+                            Prev
+                          </button>
+                          <span style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Page {pastPage}/{pastTotalPages}</span>
+                          <button
+                            type="button"
+                            onClick={() => setPastPage((p) => Math.min(pastTotalPages, p + 1))}
+                            disabled={pastPage >= pastTotalPages}
+                            className="px-3 py-1.5 rounded-lg border disabled:opacity-40"
+                            style={{ borderColor: dm ? '#262626' : '#e5e7eb' }}
+                          >
+                            Next
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1244,16 +1381,7 @@ const BookingsPage: NextPage = () => {
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
                   style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(15,118,110,0.12)', background: dm ? '#171717' : 'white' }}>
                   <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
-                    {biz.coverUrl && biz.coverUrl !== 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' ? (
-                      <img src={biz.coverUrl} alt={biz.name || biz.category || 'Provider'} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
-                    ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
-                        </svg>
-                        <span className="text-[10px] font-semibold">No photos added</span>
-                      </div>
-                    )}
+                    <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 55%)' }} />
                     {biz.available && (
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full px-2 py-0.5"
@@ -1263,7 +1391,7 @@ const BookingsPage: NextPage = () => {
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2">
-                      <p className="text-white text-[11px] font-black line-clamp-1" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{biz.name || biz.category || 'Provider'}</p>
+                      <p className="text-white text-[11px] font-black line-clamp-1" style={{ letterSpacing: '-0.01em', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{biz.name}</p>
                     </div>
                   </div>
                   <div className="px-3 py-2.5" style={{ background: dm ? '#171717' : 'white' }}>
@@ -1295,19 +1423,15 @@ const BookingsPage: NextPage = () => {
           onCancel={cancelBooking}
           onOpenDispute={openDispute}
           onUploadDisputeMedia={uploadDisputeMedia}
-          onMessageProvider={(bookingId) => {
+          onOpenReview={(booking) => {
+            if (!booking.business_id || booking.reviewed) return;
             setSelectedBooking(null);
-            router.push(`/messages?booking=${encodeURIComponent(bookingId)}`, undefined, { scroll: false });
-          }}
-          onLeaveReview={(booking) => {
-            if (!booking.business_id || !booking.business_name) return;
-            setSelectedBooking(null);
-            setReviewTarget({
+            setTimeout(() => setReviewTarget({
               bookingId: booking.id,
-              businessId: booking.business_id,
-              businessName: booking.business_name,
-              serviceName: booking.service,
-            });
+              businessId: booking.business_id as string,
+              businessName: booking.business_name || 'Provider',
+              serviceName: booking.service || 'Service',
+            }), 80);
           }}
         />
       )}
@@ -1319,9 +1443,8 @@ const BookingsPage: NextPage = () => {
           businessName={reviewTarget.businessName}
           serviceName={reviewTarget.serviceName}
           onDone={() => {
-            const bid = reviewTarget.bookingId;
+            setBookings((prev) => prev.map((b) => b.id === reviewTarget.bookingId ? { ...b, reviewed: true } : b));
             setReviewTarget(null);
-            setBookings(prev => prev.map(b => b.id === bid ? { ...b, reviewed: true } : b));
           }}
         />
       )}

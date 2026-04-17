@@ -27,6 +27,32 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+async function getOptionalAuthUser(req: NextApiRequest): Promise<{ id: string; email: string; user_metadata?: Record<string, any> } | null> {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.replace('Bearer ', '').trim();
+  if (!token) return null;
+
+  const supabaseURL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const verifyKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseURL || !verifyKey) return null;
+
+  try {
+    const authClient = createClient(supabaseURL, verifyKey, { auth: { persistSession: false } });
+    const { data, error } = await authClient.auth.getUser(token);
+    if (error || !data?.user) return null;
+    return {
+      id: data.user.id,
+      email: data.user.email || '',
+      user_metadata: data.user.user_metadata || {},
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseSlotTo24h(slot?: string): { hours: number; minutes: number } | null {
   if (!slot || typeof slot !== 'string') return null;
   const m = slot.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -89,74 +115,10 @@ function deriveBookingStatus(row: any): string {
   return row?.status || 'pending';
 }
 
-function isUuidLike(value: unknown): value is string {
-  const s = String(value || '').trim();
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
-}
-
-async function resolveUserIdsByEmail(supabase: ReturnType<typeof getSupabase>, email?: string | null): Promise<string[]> {
-  const normalizedEmail = String(email || '').trim().toLowerCase();
-  if (!normalizedEmail) return [];
-  const ids = new Set<string>();
-  try {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', normalizedEmail)
-      .limit(50);
-    for (const p of profiles || []) {
-      if (isUuidLike((p as any)?.id)) ids.add((p as any).id);
-    }
-  } catch {}
-  try {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id')
-      .ilike('email', normalizedEmail)
-      .limit(50);
-    for (const u of users || []) {
-      if (isUuidLike((u as any)?.id)) ids.add((u as any).id);
-    }
-  } catch {}
-  return Array.from(ids);
-}
-
-async function fetchBookingsForUserIds(
-  supabase: ReturnType<typeof getSupabase>,
-  userIds: string[]
-) {
-  const ids = (userIds || []).filter((v) => isUuidLike(v));
-  if (ids.length === 0) return { data: [], error: null as any };
-
-  return await supabase
-    .from('bookings')
-    .select('*')
-    .in('user_id', ids)
-    .order('created_at', { ascending: false })
-    .limit(100);
-}
-
-async function buildBusinessByIdMap(
-  supabase: ReturnType<typeof getSupabase>,
-  rows: any[]
-): Promise<Record<string, any>> {
-  const ids = Array.from(
-    new Set(
-      (rows || [])
-        .map((r: any) => r?.business_id)
-        .filter((id: any) => isUuidLike(id))
-    )
-  );
-  if (ids.length === 0) return {};
-  const { data } = await supabase
-    .from('businesses')
-    .select('id, name, phone, email, stripe_onboarded, stripe_account_id')
-    .in('id', ids);
-  const map: Record<string, any> = {};
-  for (const b of data || []) {
-    if (isUuidLike((b as any)?.id)) map[(b as any).id] = b;
-  }
-  return map;
+function isMissingColumnError(err: any): boolean {
+  const msg = String(err?.message || '').toLowerCase();
+  const details = String(err?.details || '').toLowerCase();
+  return msg.includes('column') || msg.includes('does not exist') || details.includes('does not exist');
 }
 
 async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof getSupabase>) {
@@ -261,15 +223,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     if (!(await rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
-    const authUser = req.headers.authorization ? await requireAuth(req, res) : null;
-    if (req.headers.authorization && !authUser) return;
 
+    const authUser = await getOptionalAuthUser(req);
     const {
       business_id,
       user_id,
       service,
-      service_price_cents,
-      customer_proposed_price_cents,
       user_name,
       user_phone,
       user_email,
@@ -293,25 +252,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const safeAddress = typeof address === 'string' ? address.trim().slice(0, 300) : null;
     const safeNote = typeof note === 'string' ? note.trim().slice(0, 2000) : null;
     const scheduledStart = buildScheduledStart(scheduled_date, scheduled_slot, scheduled_start);
-    const normalizedService = service?.slice(0, 500) ?? 'General Service';
-    const normalizedServiceLower = String(normalizedService || '').toLowerCase();
-    const isCustomService = normalizedServiceLower.includes('custom');
-
-    const parsedServicePriceCents = Number(service_price_cents);
-    const safeServicePriceCents = Number.isFinite(parsedServicePriceCents) && parsedServicePriceCents >= 500
-      ? Math.round(parsedServicePriceCents)
-      : null;
-    const parsedCustomerProposedCents = Number(customer_proposed_price_cents);
-    const safeCustomerProposedCents = Number.isFinite(parsedCustomerProposedCents) && parsedCustomerProposedCents >= 500
-      ? Math.round(parsedCustomerProposedCents)
-      : null;
 
     try {
       const supabase = getSupabase();
+      const normalizedEmail = typeof user_email === 'string' ? user_email.trim().toLowerCase() : '';
+      const authEmail = (authUser?.email || '').trim().toLowerCase();
 
       const { data: businessRow } = await supabase
         .from('businesses')
-        .select('id, availability_status, stripe_onboarded, stripe_account_id')
+        .select('id, availability_status')
         .eq('id', business_id)
         .maybeSingle();
       if (!businessRow) return res.status(404).json({ error: 'Provider not found' });
@@ -321,26 +270,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           error: `Provider is currently ${availabilityStatus} and not accepting bookings.`,
         });
       }
-      if (!isCustomService) {
-        const canAcceptPayments = !!(businessRow as any).stripe_account_id;
-        if (!canAcceptPayments) {
-          return res.status(409).json({ error: 'This provider can’t accept payments yet.' });
-        }
-      }
 
       let resolvedUserId = user_id;
-      if (authUser?.id) {
+      if (authUser) {
         if (resolvedUserId && resolvedUserId !== authUser.id) {
           return res.status(403).json({ error: 'Authenticated user does not match booking user_id' });
         }
+
         resolvedUserId = authUser.id;
         await supabase
           .from('profiles')
           .upsert(
             {
               id: authUser.id,
-              email: user_email || authUser.email || null,
-              name: user_name?.slice(0, 100) || null,
+              email: authEmail || normalizedEmail || null,
+              name: user_name?.slice(0, 100) || authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
               phone: user_phone?.slice(0, 20) || null,
             },
             { onConflict: 'id' }
@@ -366,11 +310,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .insert({
           business_id,
           user_id: resolvedUserId ?? null,
-          service: normalizedService,
-          status: isCustomService ? 'pending' : 'payment_pending',
+          service: service?.slice(0, 500) ?? 'General Service',
+          status: 'pending',
           requires_manual_action: true,
-          amount_cents: isCustomService ? null : safeServicePriceCents,
-          customer_proposed_price_cents: isCustomService ? safeCustomerProposedCents : null,
           notes: safeNote,
           address: safeAddress,
           scheduled_start: scheduledStart,
@@ -380,9 +322,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (error) return res.status(500).json({ error: 'Failed to create booking' });
 
-      // Only notify provider immediately for custom requests.
-      // Standard priced bookings notify after payment succeeds.
-      if (isCustomService) notifyNewBooking(data.id, supabase);
+      notifyNewBooking(data.id, supabase);
 
       return res.status(200).json({ booking: data });
     } catch {
@@ -412,15 +352,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ownerEmail = ((booking.businesses as any)?.owner_email || '').toLowerCase().trim();
     const userEmail = (user.email || '').toLowerCase().trim();
     const isBusinessOwner = ownerID === user.id || (!ownerID && !!ownerEmail && !!userEmail && ownerEmail === userEmail);
-    let isCustomer = booking.user_id === user.id;
-    if (!isCustomer && booking.user_id && user.email) {
-      const altIds = await resolveUserIdsByEmail(supabase, user.email);
-      if (altIds.length > 0) isCustomer = altIds.includes(String(booking.user_id));
-    }
-    if (!isCustomer) {
-      const consumerEmail = ((booking.profiles as any)?.email || '').toLowerCase().trim();
-      if (consumerEmail && userEmail) isCustomer = consumerEmail === userEmail;
-    }
+    const isCustomer = booking.user_id === user.id;
     const consumer = booking.profiles as any;
     const businessName = (booking.businesses as any)?.name || 'Your provider';
 
@@ -677,18 +609,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (user.id !== user_id) return res.status(403).json({ error: 'Access denied' });
 
       try {
-        let { data, error } = await fetchBookingsForUserIds(supabase, [String(user_id)]);
+        let { data, error } = await supabase
+          .from('bookings')
+          .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+          .eq('user_id', user_id)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (error && isMissingColumnError(error)) {
+          const fallbackLegacyProof = await supabase
+            .from('bookings')
+            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls, businesses(name, phone, email)')
+            .eq('user_id', user_id)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          data = fallbackLegacyProof.data as any;
+          error = fallbackLegacyProof.error as any;
+        }
+
+        if (error && isMissingColumnError(error)) {
+          const fallback = await supabase
+            .from('bookings')
+            .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, businesses(name, phone, email)')
+            .eq('user_id', user_id)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          data = fallback.data as any;
+          error = fallback.error as any;
+        }
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-        if ((!data || data.length === 0) && user.email) {
-          const altIds = await resolveUserIdsByEmail(supabase, user.email);
-          const mergedIds = Array.from(new Set([String(user_id), user.id, ...altIds].filter(Boolean)));
-          if (mergedIds.length > 0) {
-            const altQuery = await fetchBookingsForUserIds(supabase, mergedIds);
-            if (!altQuery.error && altQuery.data) data = altQuery.data as any;
-          }
-        }
-        const businessById = await buildBusinessByIdMap(supabase, data || []);
         const bookings = (data || []).map((b: any) => ({
           ...b,
           status: deriveBookingStatus(b),
@@ -696,11 +646,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           completion_proof_note: b.completion_proof_note ?? b.completion_proof_message ?? null,
           completion_proof_photo_urls: b.completion_proof_photo_urls ?? b.completion_proof_photos ?? [],
           completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
-          business_name: b.businesses?.name ?? businessById[b.business_id]?.name ?? null,
-          business_phone: b.businesses?.phone ?? businessById[b.business_id]?.phone ?? null,
-          business_email: b.businesses?.email ?? businessById[b.business_id]?.email ?? null,
-          business_stripe_onboarded: b.businesses?.stripe_onboarded ?? businessById[b.business_id]?.stripe_onboarded ?? null,
-          business_stripe_account_id: b.businesses?.stripe_account_id ?? businessById[b.business_id]?.stripe_account_id ?? null,
+          business_name: b.businesses?.name ?? null,
+          business_phone: b.businesses?.phone ?? null,
+          business_email: b.businesses?.email ?? null,
           businesses: undefined,
         }));
         return res.status(200).json({ bookings });
@@ -746,43 +694,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Fallback: if caller is authenticated, return their own bookings even
-    // when user_id is omitted (defensive compatibility with older clients).
-    const user = await requireAuth(req, res);
-    if (!user) return;
-    if (!(await rateLimitByPrincipal(res, user.id, { max: 60, windowMs: 60_000, keyPrefix: 'book-get-user-fallback' }))) return;
-
-    try {
-      let { data, error } = await fetchBookingsForUserIds(supabase, [user.id]);
-
-      if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-      if ((!data || data.length === 0) && user.email) {
-        const altIds = await resolveUserIdsByEmail(supabase, user.email);
-        const mergedIds = Array.from(new Set([user.id, ...altIds].filter(Boolean)));
-        if (mergedIds.length > 0) {
-          const altQuery = await fetchBookingsForUserIds(supabase, mergedIds);
-          if (!altQuery.error && altQuery.data) data = altQuery.data as any;
-        }
-      }
-      const businessById = await buildBusinessByIdMap(supabase, data || []);
-      const bookings = (data || []).map((b: any) => ({
-        ...b,
-        status: deriveBookingStatus(b),
-        scheduled_at: b.scheduled_start ?? null,
-        completion_proof_note: b.completion_proof_note ?? b.completion_proof_message ?? null,
-        completion_proof_photo_urls: b.completion_proof_photo_urls ?? b.completion_proof_photos ?? [],
-        completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
-        business_name: b.businesses?.name ?? businessById[b.business_id]?.name ?? null,
-        business_phone: b.businesses?.phone ?? businessById[b.business_id]?.phone ?? null,
-        business_email: b.businesses?.email ?? businessById[b.business_id]?.email ?? null,
-        business_stripe_onboarded: b.businesses?.stripe_onboarded ?? businessById[b.business_id]?.stripe_onboarded ?? null,
-        business_stripe_account_id: b.businesses?.stripe_account_id ?? businessById[b.business_id]?.stripe_account_id ?? null,
-        businesses: undefined,
-      }));
-      return res.status(200).json({ bookings });
-    } catch {
-      return res.status(500).json({ error: 'Internal server error' });
-    }
+    return res.status(400).json({ error: 'business_id or user_id required' });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

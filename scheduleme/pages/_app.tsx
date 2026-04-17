@@ -5,7 +5,6 @@ import { Analytics } from '@vercel/analytics/react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
-import 'leaflet/dist/leaflet.css';
 import '../styles/globals.css';
 import { DarkModeProvider } from '../lib/DarkModeContext';
 
@@ -18,7 +17,6 @@ export default function App({ Component, pageProps }: AppProps) {
   const [overlayFade, setOverlayFade] = useState(false);
   const [toBusiness, setToBusiness] = useState(false);
   const isTransitioning = useRef(false);
-  const recentErrorMap = useRef<Map<string, number>>(new Map());
 
   // We track scroll position and restore it ourselves so Next's
   // built-in scroll-restoration doesn't cause the jarring jump.
@@ -31,7 +29,7 @@ export default function App({ Component, pageProps }: AppProps) {
         document.documentElement.classList.contains('dark') ||
         window.matchMedia('(prefers-color-scheme: dark)').matches;
       const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', isDark ? '#0a0a0a' : '#F4EFE6');
+      if (meta) meta.setAttribute('content', isDark ? '#0a0a0a' : '#F9F7F2');
     }
     updateThemeColor();
     const observer = new MutationObserver(updateThemeColor);
@@ -48,7 +46,7 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     const isDark = localStorage.getItem('sm_dark_mode') === 'true';
     const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
-    if (meta) meta.content = isDark ? '#0a0a0a' : '#F4EFE6';
+    if (meta) meta.content = isDark ? '#0a0a0a' : '#F9F7F2';
     // Start visible immediately — no fade-in on mount
     setVisible(true);
     return () => {};
@@ -101,92 +99,13 @@ export default function App({ Component, pageProps }: AppProps) {
     };
   }, [router]);
 
-  useEffect(() => {
-    function stringify(value: unknown, maxLen = 4000): string {
-      if (!value) return '';
-      if (typeof value === 'string') return value.slice(0, maxLen);
-      try {
-        return JSON.stringify(value).slice(0, maxLen);
-      } catch {
-        return String(value).slice(0, maxLen);
-      }
-    }
-
-    function shouldSend(fingerprint: string): boolean {
-      const now = Date.now();
-      for (const [key, ts] of recentErrorMap.current.entries()) {
-        if (now - ts > 60_000) recentErrorMap.current.delete(key);
-      }
-      const prev = recentErrorMap.current.get(fingerprint);
-      if (prev && now - prev < 10_000) return false;
-      recentErrorMap.current.set(fingerprint, now);
-      return true;
-    }
-
-    function reportClientError(payload: Record<string, unknown>) {
-      const body = JSON.stringify(payload);
-      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-        const sent = navigator.sendBeacon('/api/client-error', new Blob([body], { type: 'application/json' }));
-        if (sent) return;
-      }
-      void fetch('/api/client-error', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        keepalive: true,
-      }).catch(() => {});
-    }
-
-    function onWindowError(event: ErrorEvent) {
-      const message = stringify(event.message || 'Unknown client error', 1000);
-      const stack = stringify((event.error as any)?.stack || '', 8000);
-      const component = stringify(event.filename || '', 200);
-      const fingerprint = `${message}|${stack.slice(0, 200)}|${router.asPath}`;
-      if (!shouldSend(fingerprint)) return;
-      reportClientError({
-        message,
-        stack,
-        route: router.asPath || null,
-        component,
-        severity: 'error',
-        payload: {
-          line: event.lineno || null,
-          column: event.colno || null,
-        },
-      });
-    }
-
-    function onUnhandledRejection(event: PromiseRejectionEvent) {
-      const reason = event.reason as any;
-      const message = stringify(reason?.message || reason || 'Unhandled promise rejection', 1000);
-      const stack = stringify(reason?.stack || '', 8000);
-      const fingerprint = `${message}|${stack.slice(0, 200)}|${router.asPath}|promise`;
-      if (!shouldSend(fingerprint)) return;
-      reportClientError({
-        message,
-        stack,
-        route: router.asPath || null,
-        component: 'promise',
-        severity: 'warning',
-        payload: {
-          type: typeof reason,
-        },
-      });
-    }
-
-    window.addEventListener('error', onWindowError);
-    window.addEventListener('unhandledrejection', onUnhandledRejection);
-    return () => {
-      window.removeEventListener('error', onWindowError);
-      window.removeEventListener('unhandledrejection', onUnhandledRejection);
-    };
-  }, [router.asPath]);
-
   return (
     <>
       <Head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#F4EFE6" id="theme-color-meta" />
+        <link rel="icon" href="/icon-192.png" sizes="192x192" />
+        <link rel="shortcut icon" href="/icon-192.png" />
+        <meta name="theme-color" content="#F9F7F2" id="theme-color-meta" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -194,7 +113,7 @@ export default function App({ Component, pageProps }: AppProps) {
   try {
     var dark = localStorage.getItem('sm_dark_mode') === 'true';
     var meta = document.getElementById('theme-color-meta');
-    if (meta) meta.content = dark ? '#0a0a0a' : '#F4EFE6';
+    if (meta) meta.content = dark ? '#0a0a0a' : '#F9F7F2';
     if (dark) document.documentElement.classList.add('dark');
     document.documentElement.style.overflowX = 'hidden';
     document.body && (document.body.style.overflowX = 'hidden');
