@@ -44,6 +44,7 @@ interface Booking {
   dispute_media_urls?: string[];
 }
 const PROTECTION_FEE_CENTS = 99;
+const REVIEW_SKIP_STORAGE_KEY = 'sm_review_skips_v1';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
   pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-400', barColor: '#f59e0b' },
@@ -56,6 +57,26 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   cancelled:       { label: 'Cancelled',         bg: 'bg-neutral-50 border-neutral-200', text: 'text-neutral-500', dot: 'bg-neutral-400', barColor: '#a3a3a3' },
   payment_failed:  { label: 'Payment Failed',    bg: 'bg-red-50    border-red-100',    text: 'text-red-600',    dot: 'bg-red-400',   barColor: '#ef4444' },
 };
+
+function getSkippedReviewIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set<string>();
+  try {
+    const raw = localStorage.getItem(REVIEW_SKIP_STORAGE_KEY);
+    if (!raw) return new Set<string>();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set<string>();
+    return new Set(parsed.filter((v) => typeof v === 'string'));
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function persistSkippedReviewId(bookingId: string) {
+  if (typeof window === 'undefined' || !bookingId) return;
+  const next = getSkippedReviewIds();
+  next.add(bookingId);
+  localStorage.setItem(REVIEW_SKIP_STORAGE_KEY, JSON.stringify(Array.from(next)));
+}
 
 const CUSTOM_STEPS = ['pending', 'confirmed', 'paid', 'completed'];
 const CUSTOM_STEP_LABELS = ['Submitted', 'Confirmed', 'Paid', 'Done'];
@@ -1066,8 +1087,9 @@ const BookingsPage: NextPage = () => {
         } finally {
           if (alive) setLoadingBookings(false);
           await loadNearbyBusinesses();
+          const skippedIds = getSkippedReviewIds();
           const unreviewed = bookingsData.find(
-            (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed
+            (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed && !skippedIds.has(String(b.id))
           );
           if (alive && unreviewed && unreviewed.business_name) {
             setTimeout(() => setReviewTarget({
@@ -1212,8 +1234,15 @@ const BookingsPage: NextPage = () => {
                           <select
                             value={activeFilter}
                             onChange={(e) => setActiveFilter(e.target.value as any)}
-                            className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border bg-transparent"
-                            style={{ borderColor: dm ? '#2f2f2f' : '#d1d5db', color: dm ? '#d1d5db' : '#374151' }}
+                            className="text-[11px] font-semibold pl-2 pr-7 py-1.5 rounded-lg border bg-transparent appearance-none"
+                            style={{
+                              borderColor: dm ? '#2f2f2f' : '#d1d5db',
+                              color: dm ? '#d1d5db' : '#374151',
+                              backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'><path d='M5 7.5L10 12.5L15 7.5' stroke='${dm ? '#ffffff' : '#374151'}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>`)}")`,
+                              backgroundRepeat: 'no-repeat',
+                              backgroundPosition: 'right 0.45rem center',
+                              backgroundSize: '14px 14px',
+                            }}
                           >
                             <option value="all">All</option>
                             <option value="pending">Pending</option>
@@ -1223,7 +1252,7 @@ const BookingsPage: NextPage = () => {
                             <option value="disputed">Disputed</option>
                           </select>
                           <button onClick={() => setActiveOpen((prev) => !prev)} className="h-7 w-7 rounded-lg flex items-center justify-center" style={{ background: dm ? '#1b1b1b' : '#f3f4f6' }}>
-                            <svg className={`h-4 w-4 transition-transform ${activeOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#9ca3af' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                            <svg className={`h-4 w-4 transition-transform ${activeOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#ffffff' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                             </svg>
                           </button>
@@ -1309,15 +1338,22 @@ const BookingsPage: NextPage = () => {
                           <select
                             value={completedFilter}
                             onChange={(e) => setCompletedFilter(e.target.value as any)}
-                            className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border bg-transparent"
-                            style={{ borderColor: dm ? '#2f2f2f' : '#d1d5db', color: dm ? '#d1d5db' : '#374151' }}
+                            className="text-[11px] font-semibold pl-2 pr-7 py-1.5 rounded-lg border bg-transparent appearance-none"
+                            style={{
+                              borderColor: dm ? '#2f2f2f' : '#d1d5db',
+                              color: dm ? '#d1d5db' : '#374151',
+                              backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'><path d='M5 7.5L10 12.5L15 7.5' stroke='${dm ? '#ffffff' : '#374151'}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>`)}")`,
+                              backgroundRepeat: 'no-repeat',
+                              backgroundPosition: 'right 0.45rem center',
+                              backgroundSize: '14px 14px',
+                            }}
                           >
                             <option value="all">All</option>
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
                           </select>
                           <button onClick={() => setPastOpen((prev) => !prev)} className="h-7 w-7 rounded-lg flex items-center justify-center" style={{ background: dm ? '#1b1b1b' : '#f3f4f6' }}>
-                            <svg className={`h-4 w-4 transition-transform ${pastOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#9ca3af' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                            <svg className={`h-4 w-4 transition-transform ${pastOpen ? 'rotate-180' : ''}`} style={{ color: dm ? '#ffffff' : '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                             </svg>
                           </button>
@@ -1478,9 +1514,13 @@ const BookingsPage: NextPage = () => {
           businessId={reviewTarget.businessId}
           businessName={reviewTarget.businessName}
           serviceName={reviewTarget.serviceName}
-          onDone={() => {
+          onDone={(mode) => {
             const bid = reviewTarget.bookingId;
             setReviewTarget(null);
+            if (mode === 'skipped') {
+              persistSkippedReviewId(bid);
+              return;
+            }
             setBookings(prev => prev.map(b => b.id === bid ? { ...b, reviewed: true } : b));
           }}
         />

@@ -344,7 +344,7 @@ const MessagesPage: NextPage = () => {
       >
 
         <div className={`${mobileThreadOpen ? 'hidden sm:block' : 'block'} border-b`} style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
-          <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-7 pb-6">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-5 pb-4 sm:pt-7 sm:pb-6">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-[2rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Messages</h1>
@@ -382,10 +382,10 @@ const MessagesPage: NextPage = () => {
               style={{
                 height: lockPageScroll
                   ? (mobileThreadOpen
-                      ? 'calc(100dvh - (48px + env(safe-area-inset-top,0px) + 106px + env(safe-area-inset-bottom,0px)))'
-                      : 'calc(100dvh - (48px + env(safe-area-inset-top,0px) + 210px + env(safe-area-inset-bottom,0px)))')
+                      ? 'calc(100dvh - (48px + env(safe-area-inset-top,0px) + 114px + env(safe-area-inset-bottom,0px)))'
+                      : 'calc(100dvh - (48px + env(safe-area-inset-top,0px) + 250px + env(safe-area-inset-bottom,0px)))')
                   : undefined,
-                minHeight: mobileThreadOpen ? 0 : 420,
+                minHeight: mobileThreadOpen ? 0 : 300,
                 maxHeight: lockPageScroll ? '100%' : undefined,
               }}
             >
@@ -395,7 +395,7 @@ const MessagesPage: NextPage = () => {
                 <div className="px-4 py-3 border-b" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
                   <p className="text-xs font-black uppercase tracking-[0.1em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>
                 </div>
-                <div className="flex-1 overflow-y-auto pb-[calc(96px+env(safe-area-inset-bottom,0px))] sm:pb-0" style={{ scrollbarWidth: 'none' }}>
+                <div className="flex-1 overflow-y-auto pb-[calc(112px+env(safe-area-inset-bottom,0px))] sm:pb-0" style={{ scrollbarWidth: 'none' }}>
                   {threads.map(t => (
                     <button key={t.id} onClick={() => openThread(t)}
                       className="w-full text-left px-4 py-3.5 border-b transition-colors" style={{ borderColor: dm ? '#111111' : '#fafafa', background: activeThread?.id === t.id ? (dm ? '#111111' : '#eff6ff') : 'transparent' }}>

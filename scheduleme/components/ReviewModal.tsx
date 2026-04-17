@@ -12,7 +12,7 @@ interface Props {
   businessId: string;
   businessName: string;
   serviceName: string;
-  onDone: () => void;
+  onDone: (mode: 'submitted' | 'skipped') => void;
 }
 
 export default function ReviewModal({ bookingId, businessId, businessName, serviceName, onDone }: Props) {
@@ -44,7 +44,7 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
       setDone(true);
-      setTimeout(onDone, 1800);
+      setTimeout(() => onDone('submitted'), 1800);
     } catch { setError('Something went wrong. Please try again.'); }
     finally { setSubmitting(false); }
   }
@@ -110,7 +110,7 @@ export default function ReviewModal({ bookingId, businessId, businessName, servi
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{serviceName}</p>
               </div>
-              <button onClick={onDone} className="text-xs px-3 py-1.5 rounded-xl"
+              <button onClick={() => onDone('skipped')} className="text-xs px-3 py-1.5 rounded-xl"
                 style={{ color: dm ? '#6b7280' : '#a3a3a3', background: dm ? '#262626' : '#f5f5f5' }}>
                 Skip
               </button>
