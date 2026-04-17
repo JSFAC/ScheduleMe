@@ -218,13 +218,31 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
 function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () => void; dm?: boolean; index?: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
+  const isLocked = biz.preview_locked === true;
+  const showName = biz.name || biz.category || 'Provider';
+  const initials = isLocked ? 'ST' : ((showName || '').split(' ').filter(Boolean).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || 'PR');
   const hasCover = !!biz.coverUrl && biz.coverUrl !== 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   return (
-    <button onClick={onClick} className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
-      style={{ width: 'clamp(180px, 48vw, 240px)', animationDelay: `${index * 0.06}s`, borderRadius: 16, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)' }}>
+    <button
+      onClick={isLocked ? undefined : onClick}
+      disabled={isLocked}
+      className="biz-card group text-left flex-shrink-0 animate-fade-up flex flex-col"
+      style={{
+        width: 'clamp(180px, 48vw, 240px)',
+        animationDelay: `${index * 0.06}s`,
+        borderRadius: 16,
+        overflow: 'hidden',
+        background: cardBg,
+        boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 1px 4px rgba(0,0,0,0.08)',
+        cursor: isLocked ? 'not-allowed' : 'pointer',
+      }}>
       {/* Square image */}
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '3/2', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-        {hasCover ? (
+        {isLocked ? (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
+            <span className="text-[30px] font-black" style={{ color: dm ? '#9ca3af' : '#6b7280', letterSpacing: '-0.04em' }}>{initials}</span>
+          </div>
+        ) : hasCover ? (
           <img src={biz.coverUrl} alt={biz.name}
             onLoad={() => setImgLoaded(true)}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
@@ -251,10 +269,18 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
               </div>
           }
         </div>
+        {isLocked && (
+          <div className="absolute left-2 bottom-2 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.08em]" style={{ background: dm ? 'rgba(23,23,23,0.94)' : 'rgba(31,41,55,0.92)', color: '#f3f4f6', border: '1px solid rgba(255,255,255,0.18)' }}>
+            Private until student verification
+          </div>
+        )}
       </div>
       {/* Body */}
       <div className="p-2.5 flex flex-col gap-1" style={{ background: cardBg }}>
-        <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{biz.name}</p>
+        <p className="font-bold text-[12px] leading-snug" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.01em' }}>{showName}</p>
+        {isLocked && (
+          <p className="text-[10px] font-medium" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Private until student verification</p>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.2)' : '#DCEEEB', color: '#0F766E' }}>{biz.category}</span>
           {formatPriceTierLabel(biz.price_tier) ? (
@@ -681,18 +707,18 @@ const HomePage: NextPage = () => {
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && showEduBanner && (
           <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 sm:py-4 rounded-2xl"
+            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl"
               style={{ background: dm ? 'rgba(15,118,110,0.12)' : '#EBF4FF', border: dm ? '1px solid rgba(15,118,110,0.3)' : '1px solid rgba(15,118,110,0.2)' }}>
               <div className="flex items-start gap-3 min-w-0">
                 <span className="text-xl shrink-0">🎓</span>
                 <div className="min-w-0">
                   <p className="text-sm font-bold leading-tight" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Are you a student?</p>
-                  <p className="text-xs leading-snug mt-0.5" style={{ color: dm ? '#d1d5db' : '#525252' }}>Verify your .edu email to unlock your campus marketplace.</p>
+                  <p className="text-xs leading-snug mt-0.5" style={{ color: dm ? '#d1d5db' : '#525252' }}>Verify your .edu email to unlock your campus marketplace</p>
                 </div>
               </div>
-              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 shrink-0">
                 <Link href="/campus" scroll={false}
-                  className="text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
+                  className="text-xs font-bold px-3.5 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
                   style={{ background: '#0F766E', color: 'white' }}>
                   Verify Now →
                 </Link>
@@ -786,7 +812,7 @@ const HomePage: NextPage = () => {
                   subtitle="Available now — highly reviewed"
                   href="/browse"
                   businesses={topRated}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (biz.preview_locked) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
@@ -796,7 +822,7 @@ const HomePage: NextPage = () => {
                   subtitle="Local businesses in your area"
                   href="/browse"
                   businesses={nonStudentProviders}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (biz.preview_locked) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />
@@ -806,7 +832,7 @@ const HomePage: NextPage = () => {
                   subtitle="Pros that pick up jobs fast"
                   href="/browse"
                   businesses={quickResponse}
-                  onBizClick={(biz) => { window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  onBizClick={(biz) => { if (biz.preview_locked) return; window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
                   dm={dm}
                   isLoading={dataLoading}
                 />

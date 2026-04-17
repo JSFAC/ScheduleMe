@@ -458,7 +458,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           />
           <div
             className="fixed left-0 right-0 z-[90] px-3 md:px-0"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 44px)', pointerEvents: 'none' }}
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 6px)', pointerEvents: 'none' }}
           >
             <div
               className={`mx-auto w-full max-w-[520px] rounded-2xl border p-2 md:p-3 shadow-2xl ${darkMode ? 'border-white/15' : 'border-neutral-200'}`}

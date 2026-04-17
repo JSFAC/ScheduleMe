@@ -79,6 +79,9 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
   const markersRef = useRef<any[]>([]);
 
   function markerHtml(biz: Business, isSel: boolean) {
+    if (biz.preview_locked === true) {
+      return `<div style="width:44px;height:44px;border-radius:9999px;overflow:hidden;border:2px solid ${isSel ? '#0F766E' : (dm ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)')};box-shadow:${isSel ? '0 0 0 2px rgba(15,118,110,0.35), 0 8px 16px rgba(0,0,0,0.22)' : '0 6px 14px rgba(0,0,0,0.18)'};background:${dm ? '#30333f' : '#d1d5db'};display:flex;align-items:center;justify-content:center;font:900 13px -apple-system,BlinkMacSystemFont,sans-serif;color:${dm ? '#d1d5db' : '#4b5563'};letter-spacing:-0.02em;">ST</div>`;
+    }
     const hasCover = !!biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
     const border = isSel ? '#0F766E' : (dm ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)');
     const ring = isSel ? '0 0 0 2px rgba(15,118,110,0.35), 0 8px 16px rgba(0,0,0,0.22)' : '0 6px 14px rgba(0,0,0,0.18)';
@@ -102,8 +105,11 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
           : [39.8283, -98.5795]; // continental US fallback (never hard-default to SF)
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true, maxZoom: 20 });
       leafletMapRef.current = map;
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+      const tileUrl = dm
+        ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
+      L.tileLayer(tileUrl, {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
         maxZoom: 20,
       }).addTo(map);
       map.setView(center, hasUserCenter ? 12 : 13);
@@ -137,7 +143,10 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
           iconSize: [44, 44],
           iconAnchor: [22, 22],
         });
-        const marker = L.marker([markerLat, markerLng], { icon }).addTo(map).on('click', () => onSelect(biz.id));
+        const marker = L.marker([markerLat, markerLng], { icon }).addTo(map).on('click', () => {
+          if (biz.preview_locked) return;
+          onSelect(biz.id);
+        });
         return { id: biz.id, marker };
       });
       if (markersRef.current.length > 0) {
@@ -186,14 +195,14 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
         .leaflet-container img,
         .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; }
         .leaflet-container .leaflet-tile {
-          filter: ${dm ? 'saturate(0.6) hue-rotate(128deg) brightness(0.58) contrast(1.08)' : 'saturate(0.62) hue-rotate(18deg) sepia(0.22) brightness(1.02) contrast(1.02)'} !important;
+          filter: ${dm ? 'saturate(0.9) brightness(0.86) contrast(1.02)' : 'saturate(0.96) brightness(1.01)'} !important;
         }
         .leaflet-container::after {
           content: '';
           position: absolute;
           inset: 0;
           pointer-events: none;
-          background: ${dm ? 'rgba(6,22,28,0.22)' : 'rgba(15,118,110,0.07)'};
+          background: ${dm ? 'rgba(6,22,28,0.12)' : 'rgba(15,118,110,0.04)'};
         }
         .leaflet-control-zoom a { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif!important;font-weight:700!important;color:${dm?'#f3f4f6':'#171717'}!important;background:${dm?'#171717':'white'}!important;border-color:${dm?'#404040':'#e5e7eb'}!important; }
         .leaflet-control-zoom { border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.15)!important;border-radius:10px!important;overflow:hidden!important; }
@@ -210,13 +219,22 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
   const status = getOpenStatus(biz.hours);
+  const isLocked = biz.preview_locked === true;
   const hasCover = !!biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
   const displayName = biz.name || biz.category || 'Provider';
+  const initials = isLocked ? 'ST' : (displayName.split(' ').filter(Boolean).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || 'PR');
   return (
-    <button onClick={href ? () => window.location.href = href : onClick} className="biz-card group w-full text-left flex flex-col animate-fade-up"
-      style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
+    <button
+      onClick={isLocked ? undefined : (href ? () => window.location.href = href : onClick)}
+      disabled={isLocked}
+      className="biz-card group w-full text-left flex flex-col animate-fade-up"
+      style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)', cursor: isLocked ? 'not-allowed' : 'pointer' }}>
       <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
-        {hasCover ? (
+        {isLocked ? (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
+            <span className="text-[34px] font-black" style={{ color: dm ? '#d1d5db' : '#6b7280', letterSpacing: '-0.04em' }}>{initials}</span>
+          </div>
+        ) : hasCover ? (
           <img src={biz.coverUrl} alt={displayName} onLoad={() => setImgLoaded(true)}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
@@ -228,9 +246,15 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
             <span className="text-[11px] font-semibold">No photos added</span>
           </div>
         )}
+        {isLocked && (
+          <div className="absolute left-2 bottom-2 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.08em]" style={{ background: dm ? 'rgba(23,23,23,0.94)' : 'rgba(31,41,55,0.92)', color: '#f3f4f6', border: '1px solid rgba(255,255,255,0.18)' }}>
+            Private until student verification
+          </div>
+        )}
       </div>
       <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
         <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{displayName}</p>
+        {isLocked && <p className="text-[12px] leading-snug" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Private until student verification</p>}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.12)', color: dm ? '#6ee7b7' : '#0F766E' }}>{biz.category}</span>
           {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.12)', color: dm ? '#6ee7b7' : '#0F766E' }}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
@@ -325,6 +349,7 @@ const BrowsePage: NextPage = () => {
   const [userLng, setUserLng] = useState(null);
     const [usingRealData, setUsingRealData] = useState(false);
   const [geoError, setGeoError] = useState(false);
+  const mapListRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
   const mobileViewLabel = viewMode === 'grid' ? 'Grid' : viewMode === 'list' ? 'List' : 'Map';
   const cycleMobileViewMode = () => {
@@ -449,6 +474,11 @@ const BrowsePage: NextPage = () => {
       .finally(() => setBizLoading(false));
   }, [radius]);
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
+  useEffect(() => {
+    if (viewMode !== 'map' || !selectedMapBiz) return;
+    const node = mapListRefs.current[selectedMapBiz];
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedMapBiz, viewMode]);
 
   if (loading) return (
     <>
@@ -629,11 +659,15 @@ const BrowsePage: NextPage = () => {
                   {paginated.map(biz => {
                     const listStatus = getOpenStatus(biz.hours);
                     return (
-                    <button key={biz.id} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }}
+                    <button key={biz.id} onClick={() => { if (biz.preview_locked) return; if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }}
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
-                      style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s` }}>
+                      style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s`, cursor: biz.preview_locked ? 'not-allowed' : 'pointer' }}>
                       <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
-                        {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+                        {biz.preview_locked ? (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
+                            <span className="text-xl font-black" style={{ color: dm ? '#d1d5db' : '#6b7280', letterSpacing: '-0.03em' }}>ST</span>
+                          </div>
+                        ) : biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
                           <img src={biz.coverUrl} alt={biz.name}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                             style={{ objectPosition: 'center 25%' }} />
@@ -652,6 +686,7 @@ const BrowsePage: NextPage = () => {
                       </div>
                       <div className="flex-1 min-w-0 py-1 flex flex-col gap-1.5">
                         <h3 className="font-bold text-[16px] leading-snug group-hover:text-accent transition-colors line-clamp-2" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</h3>
+                        {biz.preview_locked && <p className="text-[12px] font-medium -mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Private until student verification</p>}
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={pillStyle}>{biz.category}</span>
                           {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={pillStyle}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
@@ -722,11 +757,19 @@ const BrowsePage: NextPage = () => {
                   <p className="text-[11px] font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Nearby providers</p>
                 </div>
                 {filtered.map((biz, i) => (
-                  <button key={biz.id} onClick={() => { setSelectedMapBiz(biz.id); if (biz.slug || biz.realId || biz.id) window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id); }}
+                  <button key={biz.id} ref={(el) => { mapListRefs.current[biz.id] = el; }} onClick={() => {
+                    if (biz.preview_locked) return;
+                    if (selectedMapBiz !== biz.id) { setSelectedMapBiz(biz.id); return; }
+                    if (biz.slug || biz.realId || biz.id) window.location.href = '/biz/' + (biz.slug || biz.realId || biz.id);
+                  }}
                     className="w-full text-left rounded-2xl border p-2.5 flex items-center gap-3 animate-fade-up"
-                    style={{ animationDelay: `${i * 0.04}s`, background: dm ? '#171717' : 'white', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#2a2d3a' : 'rgba(15,118,110,0.18)') }}>
+                    style={{ animationDelay: `${i * 0.04}s`, background: dm ? '#171717' : 'white', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#2a2d3a' : 'rgba(15,118,110,0.18)'), cursor: biz.preview_locked ? 'not-allowed' : 'pointer' }}>
                     <div className="relative overflow-hidden rounded-xl bg-neutral-100 flex-shrink-0" style={{ width: 80, height: 80 }}>
-                      {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+                      {biz.preview_locked ? (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
+                          <span className="text-xl font-black" style={{ color: dm ? '#d1d5db' : '#6b7280', letterSpacing: '-0.03em' }}>ST</span>
+                        </div>
+                      ) : biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
                         <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" style={{ objectPosition: 'center 25%' }} />
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
@@ -739,6 +782,7 @@ const BrowsePage: NextPage = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-bold leading-tight line-clamp-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</p>
+                      {biz.preview_locked && <p className="text-[12px] font-medium mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Private until student verification</p>}
                       <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                         <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={pillStyle}>{biz.category}</span>
                         {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" data-pill style={pillStyle}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
@@ -752,11 +796,15 @@ const BrowsePage: NextPage = () => {
               <div className="hidden md:flex gap-4" style={{ height: 560 }}>
                 <div className="w-72 flex-shrink-0 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'none' }}>
                   {filtered.map((biz, i) => (
-                    <button key={biz.id} onClick={() => setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id)}
+                    <button key={biz.id} ref={(el) => { mapListRefs.current[biz.id] = el; }} onClick={() => { if (biz.preview_locked) return; setSelectedMapBiz(biz.id === selectedMapBiz ? null : biz.id); }}
                       className="w-full text-left flex gap-3 p-3 rounded-2xl border transition-all group"
-                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#262626' : 'rgba(15,118,110,0.1)'), background: dm ? '#171717' : 'white' }}>
+                      style={{ opacity: selectedMapBiz && selectedMapBiz !== biz.id ? 0.35 : 1, transition: 'opacity 0.2s ease', borderColor: selectedMapBiz === biz.id ? '#0F766E' : (dm ? '#262626' : 'rgba(15,118,110,0.1)'), background: dm ? '#171717' : 'white', cursor: biz.preview_locked ? 'not-allowed' : 'pointer' }}>
                       <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 56, height: 56 }}>
-                        {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
+                        {biz.preview_locked ? (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
+                            <span className="text-sm font-black" style={{ color: dm ? '#d1d5db' : '#6b7280', letterSpacing: '-0.03em' }}>ST</span>
+                          </div>
+                        ) : biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
                           <img src={biz.coverUrl} alt={biz.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-1.5 gap-1" style={{ background: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#9ca3af' : '#6b7280' }}>
@@ -769,7 +817,7 @@ const BrowsePage: NextPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate" style={{ color: dm ? '#f3f4f6' : '#171717' }}>{biz.name || biz.category || 'Provider'}</p>
-                        <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.category}</p>
+                        <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.preview_locked ? 'Private until student verification' : biz.category}</p>
                         <p className="text-xs" style={{ color: dm ? '#6b7280' : '#a3a3a3' }}>{biz.distance}</p>
                       </div>
                     </button>

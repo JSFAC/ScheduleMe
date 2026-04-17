@@ -29,15 +29,15 @@ const Pricing: NextPage = () => {
   useReveal('.js-psec', 0);
   const { dm } = useDm();
 
-  const bg = dm ? '#0a0a0a' : 'white';
+  const bg = dm ? '#0a0a0a' : '#fcfcfb';
   const textPrimary = dm ? '#f2f2f7' : '#111827';
   const textSecondary = dm ? '#8e8e93' : '#6b7280';
   const textMuted = dm ? '#6b7280' : '#9ca3af';
   const cardBg = dm ? '#1c1c1e' : 'white';
   const cardBorder = dm ? '#2c2c2e' : '#e5e7eb';
-  const featureCardBg = dm ? 'rgba(15,118,110,0.16)' : '#F4EFE6';
-  const featureCardBorder = dm ? 'rgba(15,118,110,0.36)' : 'rgba(15,118,110,0.24)';
-  const darkBannerBg = dm ? '#171717' : '#F4EFE6';
+  const featureCardBg = dm ? 'rgba(15,118,110,0.16)' : '#ffffff';
+  const featureCardBorder = dm ? 'rgba(15,118,110,0.36)' : 'rgba(15,23,42,0.12)';
+  const darkBannerBg = dm ? '#171717' : '#ffffff';
   const darkBannerBorder = dm ? '#2c2c2e' : 'rgba(15,118,110,0.22)';
 
   return (
@@ -53,7 +53,18 @@ const Pricing: NextPage = () => {
       <main style={{ paddingTop: 72, paddingBottom: 96, background: bg, minHeight: '100vh' }}>
 
         {/* Header */}
-        <section style={{ padding: '64px 24px', textAlign: 'center' }}>
+        <section style={{ padding: '64px 24px 40px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+          {!dm && (
+            <div aria-hidden="true" style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: 'linear-gradient(to right, #ececec 1px, transparent 1px), linear-gradient(to bottom, #ececec 1px, transparent 1px)',
+              backgroundSize: '34px 34px',
+              maskImage: 'radial-gradient(ellipse at center, black 46%, transparent 86%)',
+              WebkitMaskImage: 'radial-gradient(ellipse at center, black 46%, transparent 86%)',
+              pointerEvents: 'none',
+            }} />
+          )}
           <div className="js-psec mx-auto" style={{ maxWidth: 720 }}>
             <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#007e6d', marginBottom: 16 }}>
               Pricing
@@ -70,8 +81,12 @@ const Pricing: NextPage = () => {
         {/* User pricing card */}
         <section style={{ padding: '0 24px', marginBottom: 64 }}>
           <div className="js-psec mx-auto" style={{ maxWidth: 640, textAlign: 'center' }}>
-            <div style={{ borderRadius: 24, border: `2px solid ${featureCardBorder}`, background: featureCardBg, padding: 48, marginBottom: 40 }}>
-              <p style={{ fontSize: 56, marginBottom: 24 }} aria-hidden="true">🎉</p>
+            <div style={{ borderRadius: 24, border: `1.5px solid ${featureCardBorder}`, background: featureCardBg, padding: 48, marginBottom: 40, boxShadow: dm ? 'none' : '0 18px 44px rgba(15,23,42,0.08)' }}>
+              <div style={{ width: 54, height: 54, borderRadius: 16, margin: '0 auto 20px', background: dm ? 'rgba(15,118,110,0.22)' : 'white', border: `1px solid ${dm ? 'rgba(110,231,183,0.3)' : 'rgba(15,118,110,0.18)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </div>
               <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 800, color: textPrimary, letterSpacing: '-0.025em', marginBottom: 16 }}>
                 Always free for users.
               </h2>
@@ -106,10 +121,10 @@ const Pricing: NextPage = () => {
         {/* Student provider CTA banner */}
         <section style={{ padding: '0 24px', marginBottom: 64 }}>
           <div className="mx-auto" style={{ maxWidth: 720 }}>
-            <div style={{ borderRadius: 20, background: darkBannerBg, border: `1px solid ${darkBannerBorder}`, padding: '32px 40px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+            <div style={{ borderRadius: 20, background: darkBannerBg, border: `1px solid ${darkBannerBorder}`, padding: '26px 28px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20, boxShadow: dm ? 'none' : '0 8px 26px rgba(15,23,42,0.06)' }}>
               <div>
                 <p style={{ color: dm ? 'white' : '#111827', fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Are you a student provider?</p>
-                <p style={{ color: dm ? '#9ca3af' : '#525252', fontSize: 14 }}>Grow your campus client base, appear in discovery, and only pay for results.</p>
+                <p style={{ color: dm ? '#9ca3af' : '#525252', fontSize: 14 }}>Join your campus marketplace, get discovered faster, and only pay when real jobs are completed.</p>
               </div>
               <Link href="/business/pricing" style={{ display: 'inline-block', background: '#007e6d', color: 'white', fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 See Student Provider Plans →
