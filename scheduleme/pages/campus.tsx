@@ -192,16 +192,40 @@ function deriveCampusTag(domain?: string | null): string | null {
   return base.toUpperCase();
 }
 
+function formatCampusName(input?: string | null): string {
+  const value = String(input || '').trim().toLowerCase();
+  if (!value) return 'Campus';
+  const normalized = value
+    .replace(/[^a-z0-9.]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  if (
+    normalized === 'sfsu' ||
+    normalized === 'sfsu.edu' ||
+    normalized === 'sf_state' ||
+    normalized === 'san_francisco_state_university' ||
+    normalized === 'csu_sf'
+  ) return 'SF State';
+  if (normalized === 'ucsc' || normalized === 'ucsc.edu' || normalized === 'uc_santa_cruz') return 'UCSC';
+  if (normalized === 'asu' || normalized === 'asu.edu' || normalized === 'arizona_state_university' || normalized === 'a') return 'ASU';
+
+  if (value.includes('.edu')) return value.replace('.edu', '').toUpperCase();
+  return input!.toString();
+}
+
 function normalizeCampusKey(name?: string | null): string | null {
   if (!name) return null;
   const trimmed = name.toLowerCase().trim();
   if (trimmed.includes('.')) {
-    return trimmed.replace(/[^a-z0-9.]+/g, '');
+    const normalizedDomain = trimmed.replace(/[^a-z0-9.]+/g, '');
+    if (normalizedDomain === 'sfsu.edu') return 'sfsu.edu';
+    return normalizedDomain;
   }
   const cleaned = trimmed.replace(/[^a-z0-9]+/g, ' ').trim();
   const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
   if (!key) return null;
   if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc.edu';
+  if (key === 'san_francisco_state_university' || key === 'sf_state' || key === 'sfsu' || key === 'sfsu_edu' || key === 'csu_sf') return 'sfsu.edu';
   if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu' || key === 'a') return 'asu.edu';
   return key;
 }
@@ -474,7 +498,7 @@ const CampusPage: NextPage = () => {
   }, [campusCategories.join('|')]);
 
   const campusName = (eduVerified && (schoolDomain || campusTag))
-    ? (schoolDomain ? schoolDomain.replace('.edu', '').toUpperCase() : campusTag!)
+    ? formatCampusName(schoolDomain || campusTag)
     : 'Campus';
 
   if (loading) return (

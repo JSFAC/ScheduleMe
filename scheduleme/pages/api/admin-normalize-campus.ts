@@ -58,5 +58,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (err2) return res.status(500).json({ error: err2.message || 'Failed to normalize ASU' });
 
+  // Normalize San Francisco State University -> SF State (keep domain key when present)
+  const { error: err3 } = await supabase
+    .from('businesses')
+    .update({ campus_key: 'sfsu.edu', campus_school_name: 'SF State' })
+    .is('school_domain', null)
+    .or('campus_key.eq.san_francisco_state_university,campus_key.eq.sf_state,campus_key.eq.sfsu,campus_key.eq.sfsu.edu,campus_key.eq.csu_sf,campus_school_name.ilike.%san% francisco% state% university%,campus_school_name.ilike.%sf% state%,campus_school_name.ilike.%sfsu%,campus_school_name.ilike.%csu% sf%');
+
+  if (err3) return res.status(500).json({ error: err3.message || 'Failed to normalize SF State' });
+
   return res.status(200).json({ success: true, message: 'Campus names normalized' });
 }

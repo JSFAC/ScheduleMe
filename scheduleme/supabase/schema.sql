@@ -154,6 +154,10 @@ insert into founder50_allowed_campuses (campus_key, active, notes)
 values ('ucsc', true, 'Launch campus')
 on conflict (campus_key) do nothing;
 
+insert into founder50_allowed_campuses (campus_key, active, notes)
+values ('sfsu', true, 'SF State Founder50 campus')
+on conflict (campus_key) do nothing;
+
 -- Atomic Founder50 assignment.
 -- Enforces eligibility + 50-cap in the database to prevent race conditions.
 create or replace function assign_founder50_if_eligible(p_business_id uuid)
@@ -202,6 +206,8 @@ begin
   normalized_key := regexp_replace(normalized_key, '^_+|_+$', '', 'g');
   if normalized_key in ('ucsc', 'ucsc.edu', 'uc_santa_cruz', 'university_of_california_santa_cruz') then
     normalized_key := 'ucsc';
+  elsif normalized_key in ('sfsu', 'sfsu.edu', 'sf_state', 'san_francisco_state_university', 'csu_sf') then
+    normalized_key := 'sfsu';
   end if;
   if normalized_key = '' then
     return query select false, 'missing_campus_key';

@@ -16,12 +16,15 @@ function normalizeCampusKey(name?: string | null): string | null {
   if (!name) return null;
   const trimmed = name.toLowerCase().trim();
   if (trimmed.includes('.')) {
-    return trimmed.replace(/[^a-z0-9.]+/g, '');
+    const normalizedDomain = trimmed.replace(/[^a-z0-9.]+/g, '');
+    if (normalizedDomain === 'sfsu.edu') return 'sfsu.edu';
+    return normalizedDomain;
   }
   const cleaned = trimmed.replace(/[^a-z0-9]+/g, ' ').trim();
   const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
   if (!key) return null;
   if (key === 'uc_santa_cruz' || key === 'ucsc' || key === 'ucsc_edu') return 'ucsc.edu';
+  if (key === 'san_francisco_state_university' || key === 'sf_state' || key === 'sfsu' || key === 'sfsu_edu' || key === 'csu_sf') return 'sfsu.edu';
   if (key === 'arizona_state_university' || key === 'asu' || key === 'asu_edu' || key === 'a') return 'asu.edu';
   return key;
 }
@@ -53,6 +56,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const legacyKey = campusKey.split('.')[0];
         const keys = legacyKey && legacyKey !== campusKey ? [campusKey, legacyKey] : [campusKey];
         if (campusKey === 'asu.edu' && !keys.includes('a')) keys.push('a');
+        if (campusKey === 'sfsu.edu') {
+          if (!keys.includes('sf_state')) keys.push('sf_state');
+          if (!keys.includes('san_francisco_state_university')) keys.push('san_francisco_state_university');
+          if (!keys.includes('csu_sf')) keys.push('csu_sf');
+        }
         query = query.in('campus_key', keys);
       } else {
         query = query.eq('campus_key', campusKey);

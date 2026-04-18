@@ -6,6 +6,13 @@ const UCSC_ALIASES = new Set([
   'uc_santa_cruz',
   'university_of_california_santa_cruz',
 ]);
+const SFSU_ALIASES = new Set([
+  'sfsu',
+  'sfsu.edu',
+  'sf_state',
+  'san_francisco_state_university',
+  'csu_sf',
+]);
 
 function normalizeCampusToken(input?: string | null): string | null {
   if (!input) return null;
@@ -16,6 +23,7 @@ function normalizeCampusToken(input?: string | null): string | null {
     .replace(/^_+|_+$/g, '');
   if (!cleaned) return null;
   if (UCSC_ALIASES.has(cleaned)) return 'ucsc';
+  if (SFSU_ALIASES.has(cleaned)) return 'sfsu';
   return cleaned;
 }
 

@@ -37,6 +37,7 @@ function normalizeCampusKey(name?: string | null): string | null {
   const key = cleaned ? cleaned.replace(/\s+/g, '_') : null;
   if (!key) return null;
   if (key === 'uc_santa_cruz' || key === 'ucsc') return 'ucsc';
+  if (key === 'san_francisco_state_university' || key === 'sf_state' || key === 'sfsu' || key === 'csu_sf') return 'sfsu';
   if (key === 'arizona_state_university' || key === 'asu') return 'asu';
   return key;
 }
