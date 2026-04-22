@@ -26,7 +26,7 @@
     "subheadline": "From stylists to photographers to home repair — ScheduleMe connects you with vetted local professionals and student service providers on campus. Browse, book, and pay in one place.",
     "cta_primary": {
       "label": "Get Started for Free",
-      "href": "/signin?mode=signup"
+      "href": "/browse"
     },
     "cta_secondary": {
       "label": "See how it works",

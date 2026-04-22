@@ -314,6 +314,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
     { label: 'Messages', href: '/messages' },
   ];
   const marketingLinks = [
+    { label: 'Browse', href: '/browse' },
     { label: 'Features', href: '/#features' },
     { label: 'How It Works', href: '/#how-it-works' },
     { label: 'Pricing', href: '/pricing' },
