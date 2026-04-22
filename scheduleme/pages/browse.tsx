@@ -426,37 +426,47 @@ const BrowsePage: NextPage = () => {
   }, [sortOpen]);
 
   useEffect(() => {
-    const supabase = getSupabase();
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { router.replace('/signin'); return; }
-      setLoading(false);
+    let alive = true;
+    const init = async () => {
+      try {
+        // We intentionally allow guest browsing for better top-of-funnel UX.
+        // Session check is still read here so logged-in behavior can evolve safely.
+        const supabase = getSupabase();
+        await supabase.auth.getSession();
+        if (!alive) return;
+        setLoading(false);
 
-      let loaded = false;
-      // Always try precise device location first so map defaults to current area.
-      if (navigator.geolocation) {
-        await new Promise<void>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-              loaded = await loadNearbyFromCoords(pos.coords.latitude, pos.coords.longitude, radius);
-              resolve();
-            },
-            () => resolve(),
-            { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
-          );
-        });
+        let loaded = false;
+        // Always try precise device location first so map defaults to current area.
+        if (navigator.geolocation) {
+          await new Promise<void>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              async (pos) => {
+                loaded = await loadNearbyFromCoords(pos.coords.latitude, pos.coords.longitude, radius);
+                resolve();
+              },
+              () => resolve(),
+              { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
+            );
+          });
+        }
+        if (!loaded) {
+          loaded = await tryIpFallback(radius);
+        }
+        if (!alive) return;
+        if (!loaded) {
+          setBizList([]);
+          setGeoError(true);
+        } else {
+          setGeoError(false);
+        }
+      } finally {
+        if (alive) setBizLoading(false);
       }
-      if (!loaded) {
-        loaded = await tryIpFallback(radius);
-      }
-      if (!loaded) {
-        setBizList([]);
-        setGeoError(true);
-      } else {
-        setGeoError(false);
-      }
-      setBizLoading(false);
-    });
-  }, [router]);
+    };
+    init();
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     if (router.query.category) setActiveCategory(router.query.category as string);

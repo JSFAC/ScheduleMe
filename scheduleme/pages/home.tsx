@@ -489,7 +489,7 @@ function ReferCard() {
 const HomePage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState('there');
   const [loading, setLoading] = useState(true);
   const [activeBiz, setActiveBiz] = useState<Business | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -559,53 +559,73 @@ const HomePage: NextPage = () => {
   }, []);
 
   useEffect(() => {
-    const supabase = getSupabase();
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { router.replace('/signin'); return; }
-      const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
-      setUserName(name.split(' ')[0]);
-      setLoading(false);
-      // Check edu verification status
-      const supabaseInst = getSupabase();
-      const { data: profile } = await supabaseInst
-        .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
-      const verified = profile?.edu_verified ?? false;
-      setEduVerified(verified);
-      if (verified) {
-        setShowEduBanner(false);
-      } else if (typeof window !== 'undefined' && localStorage.getItem('sm_home_edu_banner_dismissed') !== '1') {
-        setShowEduBanner(true);
-      }
-      // Show install banner on mobile if not already installed and not dismissed
-      const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
-      const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
-      const isMobile = isIOS || isAndroid;
-      if (isIOS) setIsIOSDevice(true);
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
-      const dismissed = localStorage.getItem('sm_install_dismissed');
-      if (isMobile && !isStandalone && !dismissed) {
-        setShowInstallBanner(true);
-      }
-      let loaded = false;
-      if (typeof navigator !== 'undefined' && navigator.geolocation) {
-        await new Promise<void>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-              loaded = await tryFetchNearbyWithCoords(pos.coords.latitude, pos.coords.longitude);
-              resolve();
-            },
-            () => resolve(),
-            { timeout: 8000, maximumAge: 300000 }
-          );
-        });
-      }
+    let alive = true;
+    const init = async () => {
+      try {
+        const supabase = getSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!alive) return;
 
-      // Fall back to IP-approximate location when geolocation is denied/unavailable.
-      if (!loaded) loaded = await tryIpFallbackNearby();
-      if (!loaded) setRealBizList([]);
-      setDataLoading(false);
-    });
-  }, [router]);
+        const name = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'there';
+        setUserName(String(name).split(' ')[0] || 'there');
+
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
+          if (!alive) return;
+          const verified = profile?.edu_verified ?? false;
+          setEduVerified(verified);
+          if (verified) {
+            setShowEduBanner(false);
+          } else if (typeof window !== 'undefined' && localStorage.getItem('sm_home_edu_banner_dismissed') !== '1') {
+            setShowEduBanner(true);
+          }
+        } else {
+          setEduVerified(false);
+          if (typeof window !== 'undefined' && localStorage.getItem('sm_home_edu_banner_dismissed') !== '1') {
+            setShowEduBanner(true);
+          }
+        }
+
+        // Show install banner on mobile if not already installed and not dismissed
+        const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+        const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
+        const isMobile = isIOS || isAndroid;
+        if (isIOS) setIsIOSDevice(true);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+        const dismissed = localStorage.getItem('sm_install_dismissed');
+        if (isMobile && !isStandalone && !dismissed) {
+          setShowInstallBanner(true);
+        }
+
+        let loaded = false;
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          await new Promise<void>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              async (pos) => {
+                loaded = await tryFetchNearbyWithCoords(pos.coords.latitude, pos.coords.longitude);
+                resolve();
+              },
+              () => resolve(),
+              { timeout: 8000, maximumAge: 300000 }
+            );
+          });
+        }
+
+        // Fall back to IP-approximate location when geolocation is denied/unavailable.
+        if (!loaded) loaded = await tryIpFallbackNearby();
+        if (!loaded && alive) setRealBizList([]);
+      } finally {
+        if (alive) {
+          setDataLoading(false);
+          setLoading(false);
+        }
+      }
+    };
+
+    init();
+    return () => { alive = false; };
+  }, []);
 
   if (loading) return (
     <>
