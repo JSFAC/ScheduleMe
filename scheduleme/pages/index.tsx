@@ -53,6 +53,27 @@ function useScrollRevealScale(selector: string, delayStep = 100) {
   }, [selector, delayStep]);
 }
 
+function useScrollRevealLeft(selector: string, delayStep = 120) {
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    els.forEach((el, i) => {
+      el.setAttribute('data-reveal-left', 'hidden');
+      el.style.transitionDelay = `${i * delayStep}ms`;
+    });
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.setAttribute('data-reveal-left', 'visible');
+          io.unobserve(e.target);
+        }
+      }),
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [selector, delayStep]);
+}
+
 const ICONS: Record<string, JSX.Element> = {
   brain: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15m-4.8-.786V20.25" /></svg>,
   zap: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>,
@@ -70,13 +91,15 @@ const STATS = [
 const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
   const { dm } = useDm();
   useScrollReveal('.js-feat', 100);
-  useScrollReveal('.js-step', 130);
+  useScrollReveal('.js-step', 180);
   useScrollReveal('.js-stat', 80);
   useScrollReveal('.js-section', 0);
   useScrollReveal('.js-testimonial', 100);
   useScrollReveal('.js-biz-item', 90);
-  useScrollRevealScale('.js-hero-pop', 120);
-  useScrollRevealScale('.js-step-dot', 140);
+  useScrollRevealScale('.js-hero-shell', 0);
+  useScrollRevealScale('.js-hero-pop', 150);
+  useScrollRevealScale('.js-step-dot', 190);
+  useScrollRevealLeft('.js-step-copy', 180);
 
   return (
     <>
@@ -185,7 +208,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                   <div className="js-step-dot relative flex-shrink-0 h-12 w-12 rounded-full bg-accent text-white flex items-center justify-center text-lg font-bold shadow-lg shadow-accent/20 z-10" aria-hidden="true">
                     {step.step}
                   </div>
-                  <div className="pt-2.5">
+                  <div className="js-step-copy pt-2.5">
                     <h3 className="text-lg font-semibold mb-1" style={{ color: dm ? 'white' : '#171717' }}>{step.title}</h3>
                     <p className="leading-relaxed" style={{ color: dm ? '#737373' : '#737373' }}>{step.description}</p>
                   </div>

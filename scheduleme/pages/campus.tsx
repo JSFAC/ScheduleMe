@@ -332,7 +332,7 @@ const CampusPage: NextPage = () => {
     try {
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace('/signin'); return; }
+      if (!session) { router.replace('/signin?next=/campus&shell=app'); return; }
       await loadPinned(session.user.id);
       const { data: existing } = await supabase
         .from('favorites')
@@ -356,7 +356,7 @@ const CampusPage: NextPage = () => {
 
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace('/signin'); return; }
+      if (!session) { router.replace('/signin?next=/campus&shell=app'); return; }
       await loadPinned(session.user.id);
 
       const cacheKey = `sm_edu_verified_${session.user.id}`;

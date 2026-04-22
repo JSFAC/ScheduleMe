@@ -339,6 +339,39 @@ html, body {
               transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.js-hero-shell[data-reveal-scale="hidden"] {
+  opacity: 0;
+  transform: translateY(34px) scale(0.94) perspective(900px) rotateX(6deg);
+}
+.js-hero-shell[data-reveal-scale="visible"] {
+  opacity: 1;
+  transform: translateY(0) scale(1) perspective(900px) rotateX(0deg);
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.js-hero-pop[data-reveal-scale="hidden"] {
+  opacity: 0;
+  transform: translateY(18px) scale(0.9);
+}
+.js-hero-pop[data-reveal-scale="visible"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 0.62s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.js-step-dot[data-reveal-scale="hidden"] {
+  opacity: 0;
+  transform: scale(0.6) translateY(8px);
+}
+.js-step-dot[data-reveal-scale="visible"] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.52s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-reveal],
   [data-reveal-left],

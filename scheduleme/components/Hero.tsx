@@ -84,7 +84,7 @@ export default function Hero({
         </p>
 
         {/* Mock UI preview */}
-        <div className="mt-16 mx-auto max-w-2xl opacity-0-init animate-fade-up animate-delay-500">
+        <div className="js-hero-shell mt-16 mx-auto max-w-2xl opacity-0-init animate-fade-up animate-delay-500">
           <div className="p-1 shadow-modal rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
             <div className="rounded-2xl text-left space-y-3 p-5" style={{ background: dm ? '#0f0f0f' : '#f5f5f7', border: dm ? '1px solid #1c1c1e' : '1px solid rgba(0,0,0,0.06)' }}>
               {/* User message */}

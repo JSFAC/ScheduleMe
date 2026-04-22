@@ -307,24 +307,29 @@ export default function Nav({ variant = 'light' }: NavProps) {
     : '?';
 
   const appLinks = [
-    ...(eduVerified ? [{ label: '🎓 Campus', href: '/campus' }] : []),
+    ...(user && eduVerified ? [{ label: '🎓 Campus', href: '/campus' }] : []),
+    { label: 'Home', href: '/home' },
+    { label: 'Browse', href: '/browse' },
+    { label: 'Bookings', href: '/bookings' },
+    { label: 'Messages', href: '/messages' },
+  ];
+  const guestAppLinks = [
     { label: 'Home', href: '/home' },
     { label: 'Browse', href: '/browse' },
     { label: 'Bookings', href: '/bookings' },
     { label: 'Messages', href: '/messages' },
   ];
   const marketingLinks = [
-    { label: 'Browse', href: '/browse' },
     { label: 'Features', href: '/#features' },
     { label: 'How It Works', href: '/#how-it-works' },
     { label: 'Pricing', href: '/pricing' },
     { label: 'FAQ', href: '/#faq' },
   ];
-  const isGuestAppShell = !user && (router.pathname === '/home' || router.pathname === '/browse');
-  const navLinks = (user || isGuestAppShell) ? appLinks : marketingLinks;
-  const logoHref = (user || isGuestAppShell) ? '/home' : '/';
-
   const isLandingGuest = !user && router.pathname === '/';
+  const isSigninGuestAppShell = !user && router.pathname === '/signin' && router.query.shell === 'app';
+  const isGuestAppShell = !user && (router.pathname === '/home' || router.pathname === '/browse' || isSigninGuestAppShell);
+  const navLinks = user ? appLinks : (isGuestAppShell ? guestAppLinks : marketingLinks);
+  const logoHref = (user || isGuestAppShell || isLandingGuest) ? '/home' : '/';
   const navBg = (isDark || darkMode)
     ? 'rgba(10,10,10,0.92)'
     : isLandingGuest
@@ -495,8 +500,10 @@ export default function Nav({ variant = 'light' }: NavProps) {
                 className="flex items-center gap-1.5 pl-1 pr-3 py-1 md:py-1.5 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-colors"
                 aria-label="Guest menu"
               >
-                <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-accent flex items-center justify-center text-white text-[11px] md:text-[12px] font-bold shrink-0">
-                  G
+                <div className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
+                  <svg className="h-4 w-4 md:h-4.5 md:w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a8.25 8.25 0 0114.998 0" />
+                  </svg>
                 </div>
                 <svg className={`h-3 w-3 text-neutral-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />

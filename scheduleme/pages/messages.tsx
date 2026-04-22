@@ -81,7 +81,7 @@ const MessagesPage: NextPage = () => {
     }
     supabaseRef.current = supabase;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.replace('/signin'); return; }
+      if (!session) { router.replace('/signin?next=/messages&shell=app'); return; }
       setUserId(session.user.id);
       authHeadersRef.current = {
         'Content-Type': 'application/json',
