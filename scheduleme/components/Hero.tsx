@@ -89,7 +89,7 @@ export default function Hero({
             <div className="rounded-2xl text-left space-y-3 p-5" style={{ background: dm ? '#0f0f0f' : '#f5f5f7', border: dm ? '1px solid #1c1c1e' : '1px solid rgba(0,0,0,0.06)' }}>
               {/* User message */}
               <div className="flex items-end gap-2.5 justify-end">
-                <div className="rounded-2xl rounded-br-sm px-4 py-2.5 text-sm text-white max-w-[220px]" style={{ background: '#0F766E' }}>
+                <div className="js-hero-pop rounded-2xl rounded-br-sm px-4 py-2.5 text-sm text-white max-w-[220px]" style={{ background: '#0F766E' }}>
                   <p className="leading-snug">My kitchen faucet won't stop dripping. Getting worse every day.</p>
                 </div>
                 <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg,#0F766E,#0B5C56)' }}>J</div>
@@ -99,7 +99,7 @@ export default function Hero({
                 <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5' }}>
                   <svg className="h-3.5 w-3.5" style={{ color: '#0F766E' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                 </div>
-                <div className="rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[240px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717' }}>
+                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[240px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717' }}>
                   <div className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0" />
                     <p className="text-xs font-semibold" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>3 pros available near you</p>
@@ -126,7 +126,7 @@ export default function Hero({
               {/* Matched provider cards */}
               <div className="grid grid-cols-3 gap-2 pt-2">
                 {[{label:'Verified Pro',color:'#0F766E'},{label:'Top Rated',color:'#0F766E'},{label:'Nearby',color:'#0F766E'}].map((item) => (
-                  <div key={item.label} className="rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined }}>
+                  <div key={item.label} className="js-hero-pop rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined }}>
                     <div className="h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold" style={{ background: item.color }}>✓</div>
                     <p className="text-xs font-semibold truncate" style={{ color: dm ? '#d1d5db' : '#262626' }}>{item.label}</p>
                     <p className="text-xs" style={{ color: dm ? '#525252' : '#a3a3a3' }}>★★★★★</p>
