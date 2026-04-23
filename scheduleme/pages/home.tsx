@@ -863,7 +863,7 @@ const HomePage: NextPage = () => {
             const sortedByRating = [...filtered].sort((a, b) => ((b.rating || 0) - (a.rating || 0)) || ((b.reviews || 0) - (a.reviews || 0)));
             const sortedByReviews = [...filtered].sort((a, b) => (b.reviews - a.reviews) || ((b.rating || 0) - (a.rating || 0)));
             const ratedOnly = sortedByRating.filter((b) => (b.rating || 0) > 0 && (b.reviews || 0) > 0);
-            const nonStudentOnly = sortedByReviews.filter((b) => b.campus_provider !== true);
+            const nonStudentOnly = sortedByReviews.filter((b: any) => !(b.campus_provider === true && b.edu_verified === true));
 
             const takeMax = (arr: Business[], n: number) => arr.slice(0, n);
 

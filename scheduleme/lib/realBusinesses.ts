@@ -86,6 +86,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     preview_locked: previewLocked,
     public_visibility: b.public_visibility,
     campus_provider: b.campus_provider === true,
+    edu_verified: b.edu_verified === true,
     created_at: b.created_at || null,
   } as Business;
 }

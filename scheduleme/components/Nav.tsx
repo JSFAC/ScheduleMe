@@ -331,15 +331,18 @@ export default function Nav({ variant = 'light' }: NavProps) {
     router.pathname === '/home' ||
     router.pathname === '/browse' ||
     router.pathname === '/bookings' ||
+    router.pathname === '/biz/[slug]' ||
     isSigninGuestAppShell
   );
   const navLinks = user ? appLinks : (isGuestAppShell ? guestAppLinks : marketingLinks);
   const logoHref = (user || isGuestAppShell || isLandingGuest) ? '/home' : '/';
+  const useSolidChrome = user || isGuestAppShell;
   const navBg = (isDark || darkMode)
-    ? 'rgba(10,10,10,0.92)'
-    : isLandingGuest
-      ? 'rgba(255,255,255,0.95)'
-      : 'rgba(249,247,242,0.9)';
+    ? '#0a0a0a'
+    : useSolidChrome
+      ? '#f9f7f2'
+      : '#ffffff';
+  const navBlur = useSolidChrome ? 'none' : 'blur(12px)';
 
   return (
     <>
@@ -375,16 +378,16 @@ export default function Nav({ variant = 'light' }: NavProps) {
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 41,
         height: 'env(safe-area-inset-top, 0px)',
         background: navBg,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        backdropFilter: navBlur,
+        WebkitBackdropFilter: navBlur,
         transition: 'background 0.15s ease',
       }} />
       <header className={`fixed left-0 right-0 z-40 border-b ${isDark || darkMode ? 'border-neutral-800' : 'border-neutral-150 shadow-[0_1px_0_0_rgba(0,0,0,0.07)]'}`}
         style={{
           top: 'env(safe-area-inset-top, 0px)',
           background: navBg,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
+          backdropFilter: navBlur,
+          WebkitBackdropFilter: navBlur,
           transition: 'background 0.15s ease',
         }}>
       <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: "clamp(48px, 4vw, 60px)" }} aria-label="Main navigation">

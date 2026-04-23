@@ -258,7 +258,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               </div>
             </div>
 
-            <div className="js-pricing-item mt-8 rounded-2xl p-6 md:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: dm ? '#121212' : '#f8fbfb', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.16)' }}>
+            <div className="js-pricing-item mt-8 rounded-2xl p-6 md:p-7 mx-auto max-w-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: dm ? '#121212' : '#f8fbfb', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.16)' }}>
               <div>
                 <p className="text-lg font-bold mb-1" style={{ color: dm ? 'white' : '#111827' }}>Building as a student provider?</p>
                 <p className="text-sm md:text-base" style={{ color: dm ? '#9ca3af' : '#4b5563' }}>

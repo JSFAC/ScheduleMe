@@ -25,9 +25,10 @@ export default function Hero({
   const hasStartedSequenceRef = useRef(false);
   const [typedCount, setTypedCount] = useState(0);
   const [messageState, setMessageState] = useState<'typing' | 'ready' | 'sent'>('typing');
-  const [matchState, setMatchState] = useState<'idle' | 'loading' | 'done'>('idle');
+  const [matchState, setMatchState] = useState<'idle' | 'loading' | 'transition' | 'done'>('idle');
   const [visibleStudents, setVisibleStudents] = useState(0);
   const [badgeStages, setBadgeStages] = useState([0, 0, 0]);
+  const [showViewAll, setShowViewAll] = useState(false);
 
   const HERO_MESSAGE = "Need a fade + lineup before Friday night. Near campus if possible.";
   const STUDENT_MATCHES = [
@@ -39,6 +40,8 @@ export default function Hero({
   const typedMessage = HERO_MESSAGE.slice(0, typedCount);
   const isTyping = typedCount > 0 && typedCount < HERO_MESSAGE.length;
   const hasTyped = typedCount >= HERO_MESSAGE.length;
+  const showMessageShell = typedCount > 0 || hasTyped;
+  const showMatchShell = matchState !== 'idle';
 
   useEffect(() => {
     const node = previewRef.current;
@@ -58,6 +61,7 @@ export default function Hero({
       setMatchState('idle');
       setVisibleStudents(0);
       setBadgeStages([0, 0, 0]);
+      setShowViewAll(false);
 
       typingInterval = window.setInterval(() => {
         setTypedCount((prev) => {
@@ -65,23 +69,25 @@ export default function Hero({
             if (typingInterval != null) window.clearInterval(typingInterval);
             typingInterval = null;
             setMessageState('ready');
-            timers.push(window.setTimeout(() => setMessageState('sent'), 860));
-            timers.push(window.setTimeout(() => setMatchState('loading'), 1300));
-            timers.push(window.setTimeout(() => setMatchState('done'), 3600));
-            timers.push(window.setTimeout(() => setVisibleStudents(1), 4100));
-            timers.push(window.setTimeout(() => setVisibleStudents(2), 4700));
+            timers.push(window.setTimeout(() => setMessageState('sent'), 980));
+            timers.push(window.setTimeout(() => setMatchState('loading'), 1460));
+            timers.push(window.setTimeout(() => setMatchState('transition'), 4600));
+            timers.push(window.setTimeout(() => setMatchState('done'), 5480));
+            timers.push(window.setTimeout(() => setVisibleStudents(1), 5800));
+            timers.push(window.setTimeout(() => setVisibleStudents(2), 6520));
+            timers.push(window.setTimeout(() => setShowViewAll(true), 7300));
 
             BADGES.forEach((_, idx) => {
-              const base = 5600 + idx * 620;
+              const base = 7300 + idx * 740;
               timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 1 : v))), base));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 380));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 760));
+              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 520));
+              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 1020));
             });
             return prev;
           }
           return prev + 1;
         });
-      }, 54);
+      }, 62);
     };
 
     const io = new IntersectionObserver(
@@ -172,37 +178,98 @@ export default function Hero({
               <div className="flex items-end gap-2.5 justify-end">
                 <div
                   className="js-hero-pop rounded-2xl rounded-br-sm px-4 py-2.5 text-sm text-white max-w-[300px]"
-                  style={{ background: '#0F766E', minHeight: 50, transition: 'transform 580ms cubic-bezier(0.22, 1.2, 0.36, 1), box-shadow 580ms cubic-bezier(0.22, 1.2, 0.36, 1)', transform: messageState === 'sent' ? 'translateY(-3px) scale(1.01)' : 'translateY(0) scale(1)', boxShadow: messageState === 'sent' ? '0 12px 30px rgba(15,118,110,0.28)' : 'none' }}
+                  style={{
+                    background: '#0F766E',
+                    minHeight: 50,
+                    opacity: showMessageShell ? 1 : 0,
+                    transition: 'opacity 560ms ease, transform 760ms cubic-bezier(0.18, 1.22, 0.32, 1), box-shadow 620ms cubic-bezier(0.22, 1.2, 0.36, 1)',
+                    transform: showMessageShell
+                      ? messageState === 'sent'
+                        ? 'translateY(-4px) scale(1.015)'
+                        : 'translateY(0) scale(1)'
+                      : 'translateY(18px) scale(0.86)',
+                    boxShadow: messageState === 'sent' ? '0 12px 30px rgba(15,118,110,0.28)' : 'none',
+                  }}
                 >
                   <p className="leading-snug">
                     {typedMessage || '\u00a0'}
                     {isTyping && <span className="inline-block ml-[1px] h-[1.05em] w-[2px] align-middle bg-white/90 animate-pulse" />}
                   </p>
                 </div>
-                <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white transition-all duration-500" style={{ background: 'linear-gradient(135deg,#0F766E,#0B5C56)', transform: messageState === 'sent' ? 'scale(1)' : 'scale(0.86)', opacity: messageState === 'sent' ? 1 : 0.66 }}>
+                <div
+                  className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white transition-all duration-700"
+                  style={{
+                    background: 'linear-gradient(135deg,#0F766E,#0B5C56)',
+                    transform: showMessageShell ? (messageState === 'sent' ? 'scale(1)' : 'scale(0.9)') : 'translateY(14px) scale(0.72)',
+                    opacity: showMessageShell ? (messageState === 'sent' ? 1 : 0.74) : 0,
+                  }}
+                >
                   J
                 </div>
               </div>
               {hasTyped && (
-                <div className="pr-0.5 -mt-1 flex justify-end">
-                  <p className="text-[10px] font-semibold" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
+                <div
+                  className="pr-0.5 mt-0.5 flex justify-end"
+                  style={{
+                    opacity: hasTyped ? 1 : 0,
+                    transform: hasTyped ? 'translateY(0)' : 'translateY(6px)',
+                    transition: 'opacity 460ms ease, transform 560ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                  }}
+                >
+                  <p
+                    className="text-[10px] font-semibold"
+                    style={{
+                      color: dm ? '#6b7280' : '#9ca3af',
+                      opacity: messageState === 'sent' ? 1 : 0.88,
+                      transform: messageState === 'sent' ? 'translateY(0)' : 'translateY(1px)',
+                      transition: 'opacity 360ms ease, transform 460ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                    }}
+                  >
                     {messageState === 'sent' ? 'Sent' : 'Ready to send'}
                   </p>
                 </div>
               )}
               {/* System match result */}
               <div className="flex items-end gap-2.5">
-                <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5' }}>
+                <div
+                  className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    background: dm ? '#1c1c1e' : 'white',
+                    border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5',
+                    opacity: showMatchShell ? 1 : 0,
+                    transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(18px) scale(0.72)',
+                    transition: 'opacity 620ms ease, transform 820ms cubic-bezier(0.18, 1.22, 0.32, 1)',
+                  }}
+                >
                   <svg className="h-3.5 w-3.5" style={{ color: '#0F766E' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                 </div>
-                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: matchState === 'idle' ? 0 : 1, transform: matchState === 'idle' ? 'translateY(14px) scale(0.92)' : 'translateY(0) scale(1)', transition: 'opacity 620ms cubic-bezier(0.16, 1.18, 0.3, 1), transform 620ms cubic-bezier(0.16, 1.18, 0.3, 1)' }}>
+                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: showMatchShell ? 1 : 0, transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(18px) scale(0.9)', transition: 'opacity 700ms cubic-bezier(0.16, 1.2, 0.3, 1), transform 820ms cubic-bezier(0.16, 1.26, 0.3, 1)' }}>
                   <div className="flex items-center gap-2">
-                    <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${matchState === 'loading' ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
-                    <p className="text-xs font-semibold" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>
-                      {matchState === 'loading' ? 'Matching you with student barbers...' : '2 student barbers near you'}
-                    </p>
+                    <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${matchState === 'loading' || matchState === 'transition' ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
+                    <div className="relative h-4 overflow-hidden">
+                      <p
+                        className="text-xs font-semibold absolute left-0 top-0 transition-all duration-700"
+                        style={{
+                          color: dm ? '#8e8e93' : '#6b7280',
+                          opacity: matchState === 'loading' || matchState === 'transition' ? 1 : 0,
+                          transform: matchState === 'loading' || matchState === 'transition' ? 'translateY(0)' : 'translateY(-8px)',
+                        }}
+                      >
+                        Matching you with student barbers...
+                      </p>
+                      <p
+                        className="text-xs font-semibold absolute left-0 top-0 transition-all duration-700"
+                        style={{
+                          color: dm ? '#8e8e93' : '#6b7280',
+                          opacity: matchState === 'done' ? 1 : 0,
+                          transform: matchState === 'done' ? 'translateY(0)' : 'translateY(8px)',
+                        }}
+                      >
+                        2 student barbers near you
+                      </p>
+                    </div>
                   </div>
-                  {matchState === 'loading' && (
+                  {(matchState === 'loading' || matchState === 'transition') && (
                     <div className="px-3 py-2 rounded-xl text-[11px] font-medium" style={{ background: dm ? '#2c2c2e' : '#f5f5f7', color: dm ? '#cbd5e1' : '#475569' }}>
                       Finding students nearby
                       <span className="ml-1 inline-flex gap-0.5 align-middle">
@@ -220,10 +287,10 @@ export default function Hero({
                         style={{
                           background: dm ? '#2c2c2e' : '#f5f5f7',
                           opacity: visibleStudents > i ? 1 : 0,
-                          transform: visibleStudents > i ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.95)',
+                          transform: visibleStudents > i ? 'translateY(0) scale(1)' : 'translateY(14px) scale(0.9)',
                           maxHeight: visibleStudents > i ? 70 : 0,
                           overflow: 'hidden',
-                          transition: `opacity 760ms cubic-bezier(0.16, 1.2, 0.3, 1) ${i * 110}ms, transform 760ms cubic-bezier(0.16, 1.2, 0.3, 1) ${i * 110}ms, max-height 720ms ease ${i * 110}ms`,
+                          transition: `opacity 820ms cubic-bezier(0.16, 1.24, 0.3, 1) ${i * 140}ms, transform 860ms cubic-bezier(0.16, 1.28, 0.3, 1) ${i * 140}ms, max-height 780ms cubic-bezier(0.22, 1, 0.36, 1) ${i * 140}ms`,
                         }}
                       >
                         <div className="flex items-center gap-2">
@@ -240,8 +307,17 @@ export default function Hero({
                       </div>
                     ))}
                   </div>
-                  {matchState === 'done' && (
-                    <button type="button" className="text-[11px] font-semibold underline underline-offset-2 mt-1" style={{ color: dm ? '#9ca3af' : '#4b5563' }}>
+                  {showViewAll && (
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold underline underline-offset-2 mt-1"
+                      style={{
+                        color: dm ? '#9ca3af' : '#4b5563',
+                        opacity: showViewAll ? 1 : 0,
+                        transform: showViewAll ? 'translateY(0)' : 'translateY(4px)',
+                        transition: 'opacity 380ms ease, transform 460ms cubic-bezier(0.22, 1.2, 0.36, 1)',
+                      }}
+                    >
                       View all
                     </button>
                   )}
@@ -251,7 +327,7 @@ export default function Hero({
               <div className="grid grid-cols-3 gap-2 pt-2">
                 {BADGES.map((item, idx) => (
                   <div key={item.label} className="js-hero-pop rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined, opacity: badgeStages[idx] > 0 ? 1 : 0, transform: badgeStages[idx] > 0 ? 'translateY(0) scale(1)' : 'translateY(16px) scale(0.88)', transition: 'opacity 640ms cubic-bezier(0.16, 1.2, 0.3, 1), transform 640ms cubic-bezier(0.16, 1.2, 0.3, 1)' }}>
-                    <div className={`h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold ${badgeStages[idx] === 1 ? 'animate-spin' : ''}`} style={{ background: '#0F766E', transition: 'transform 420ms ease', transform: badgeStages[idx] >= 1 ? 'scale(1)' : 'scale(0.7)' }}>✓</div>
+                    <div className={`h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold ${badgeStages[idx] >= 1 ? 'hero-badge-check-reveal' : ''}`} style={{ background: '#0F766E', transition: 'transform 520ms cubic-bezier(0.16, 1.25, 0.3, 1)', transform: badgeStages[idx] >= 1 ? 'scale(1)' : 'scale(0.65)' }}>✓</div>
                     <p className="text-xs font-semibold truncate transition-all duration-500" style={{ color: dm ? '#d1d5db' : '#262626', opacity: badgeStages[idx] >= 2 ? 1 : 0, transform: badgeStages[idx] >= 2 ? 'translateY(0)' : 'translateY(6px)' }}>{item.label}</p>
                     <p className="text-xs transition-all duration-500" style={{ color: dm ? '#525252' : '#a3a3a3', opacity: badgeStages[idx] >= 3 ? 1 : 0, transform: badgeStages[idx] >= 3 ? 'translateY(0)' : 'translateY(4px)' }}>
                       {Array.from({ length: 5 }).map((_, sIdx) => (

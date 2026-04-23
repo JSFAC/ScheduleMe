@@ -805,13 +805,13 @@ export default function BizPage() {
     return;
   }
 
-  const bg = dm ? '#0a0a0a' : '#f9fafb';
+  const bg = dm ? '#0a0a0a' : '#f6f2e9';
   const accent = '#007e6d';
   const accentDark = '#1e554c';
   const accentWash = dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)';
   const accentBorder = dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.25)';
-  const card = dm ? '#1c1c1e' : '#ffffff';
-  const bdr = dm ? '#2c2c2e' : '#f0f0f0';
+  const card = dm ? '#1c1c1e' : '#fcfbf8';
+  const bdr = dm ? '#2c2c2e' : '#e6ded2';
   const tx = dm ? '#f2f2f7' : '#111';
   const mu = dm ? '#8e8e93' : '#6b7280';
 
@@ -883,6 +883,7 @@ export default function BizPage() {
     || guestNeedsAuth
     || isSelfOwnedBusiness
     || providerCannotAcceptPayments;
+  const bookingCtaLabel = submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Confirm booking');
 
   const availableSlots = date && requiresTime ? (() => {
     const dk = localDateKey(date);
@@ -1544,7 +1545,7 @@ export default function BizPage() {
               Exit edit mode to book this service.
             </div>
           )}
-          {providerCannotAcceptPayments && (
+          {providerCannotAcceptPayments && !guestNeedsAuth && (
             <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(156,163,175,0.18)' : 'rgba(156,163,175,0.16)', color: dm ? '#d1d5db' : '#4b5563', border: '1px solid ' + (dm ? '#4b5563' : '#d1d5db') }}>
               This provider can&apos;t accept payments yet, so booking is temporarily unavailable.
             </div>
@@ -1615,18 +1616,18 @@ export default function BizPage() {
         </div>
 
         </div>
-        <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)' }}>
-          <button onClick={guestNeedsAuth ? (() => router.push(authRedirect)) : book} disabled={guestNeedsAuth ? false : bookingDisabled}
+        <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)' }}>
+          <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background: (guestNeedsAuth ? false : bookingDisabled) ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
-            {guestNeedsAuth ? 'Log in to book' : (submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment'))}
+            style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            {bookingCtaLabel}
           </button>
           {guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
               Booking is available after you log in and create your account.
             </p>
           )}
-          {providerCannotAcceptPayments && (
+          {providerCannotAcceptPayments && !guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
               Provider can&apos;t accept payments yet.
             </p>
@@ -1637,18 +1638,18 @@ export default function BizPage() {
             </p>
           )}
         </div>
-        <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-4 pt-2 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={guestNeedsAuth ? (() => router.push(authRedirect)) : book} disabled={guestNeedsAuth ? false : bookingDisabled}
+        <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-4 pt-2 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)'}}>
+          <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background: (guestNeedsAuth ? false : bookingDisabled) ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
-            {guestNeedsAuth ? 'Log in to book' : (submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment'))}
+            style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            {bookingCtaLabel}
           </button>
           {guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
               Booking is available after you log in and create your account.
             </p>
           )}
-          {providerCannotAcceptPayments && (
+          {providerCannotAcceptPayments && !guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
               Provider can&apos;t accept payments yet.
             </p>
