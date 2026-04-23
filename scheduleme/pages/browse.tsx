@@ -697,7 +697,7 @@ const BrowsePage: NextPage = () => {
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
                 style={activeCategory === cat
                   ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' }
-                  : { background: dm ? 'rgba(15,118,110,0.15)' : '#F4EFE6', color: dm ? '#6ee7b7' : '#0F766E', borderColor: dm ? 'rgba(15,118,110,0.3)' : 'rgba(15,118,110,0.15)' }}>
+                  : { background: dm ? 'rgba(15,118,110,0.15)' : '#FFFFFF', color: dm ? '#6ee7b7' : '#0F766E', borderColor: dm ? 'rgba(15,118,110,0.3)' : 'rgba(15,118,110,0.28)' }}>
                 {cat}
               </button>
             ))}

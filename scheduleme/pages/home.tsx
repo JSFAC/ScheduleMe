@@ -722,7 +722,7 @@ const HomePage: NextPage = () => {
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"
                 style={activeCategory === cat.label
                   ? { background: '#0F766E', borderColor: '#0F766E' }
-                  : { background: dm ? 'rgba(15,118,110,0.2)' : '#F4EFE6', borderColor: dm ? 'rgba(15,118,110,0.4)' : 'rgba(15,118,110,0.15)' }}>
+                  : { background: dm ? 'rgba(15,118,110,0.2)' : '#FFFFFF', borderColor: dm ? 'rgba(15,118,110,0.4)' : 'rgba(15,118,110,0.28)' }}>
                 <svg className="h-4 w-4 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: activeCategory === cat.label ? 'white' : (dm ? '#e5e7eb' : '#0F766E') }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={cat.d} />
                 </svg>

@@ -23,7 +23,7 @@ function useScrollReveal(selector: string, delayStep = 90) {
     });
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) { e.target.setAttribute('data-reveal', 'visible'); io.unobserve(e.target); }
+        e.target.setAttribute('data-reveal', e.isIntersecting ? 'visible' : 'hidden');
       }),
       { threshold: 0.1, rootMargin: '0px 0px -48px 0px' }
     );
@@ -41,10 +41,7 @@ function useScrollRevealScale(selector: string, delayStep = 100) {
     });
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) {
-          e.target.setAttribute('data-reveal-scale', 'visible');
-          io.unobserve(e.target);
-        }
+        e.target.setAttribute('data-reveal-scale', e.isIntersecting ? 'visible' : 'hidden');
       }),
       { threshold: 0.12, rootMargin: '0px 0px -32px 0px' }
     );
@@ -62,10 +59,7 @@ function useScrollRevealLeft(selector: string, delayStep = 120) {
     });
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) {
-          e.target.setAttribute('data-reveal-left', 'visible');
-          io.unobserve(e.target);
-        }
+        e.target.setAttribute('data-reveal-left', e.isIntersecting ? 'visible' : 'hidden');
       }),
       { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
     );
