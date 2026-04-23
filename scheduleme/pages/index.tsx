@@ -136,7 +136,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 Everything you need,<br className="hidden md:block" /> nothing you don&apos;t.
               </h2>
               <p className="mt-5 text-lg max-w-xl mx-auto leading-relaxed" style={{ color: dm ? '#737373' : '#737373' }}>
-                Built for the moment you need help fast — and for the businesses that show up.
+                Built for the moment you need help fast — and for providers that actually show up.
               </p>
             </div>
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
@@ -216,7 +216,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="py-28" style={{ background: dm ? '#0d0d0d' : '#fafafa' }} aria-labelledby="pricing-heading">
+        <section id="pricing" className="py-28" style={{ background: dm ? '#0a0a0a' : 'white' }} aria-labelledby="pricing-heading">
           <div className="mx-auto max-w-5xl px-6">
             <div className="js-section text-center mb-16">
               <span className="section-eyebrow">Pricing</span>
@@ -228,7 +228,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               </p>
             </div>
 
-            <div className="js-pricing-item rounded-3xl p-8 md:p-12 mx-auto max-w-3xl" style={{ background: dm ? '#161616' : 'white', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.16)', boxShadow: dm ? 'none' : '0 18px 46px rgba(15,118,110,0.1)' }}>
+            <div className="js-pricing-item rounded-3xl p-8 md:p-12 mx-auto max-w-3xl" style={{ background: dm ? 'linear-gradient(180deg,#141414,#101010)' : 'linear-gradient(180deg,#ffffff,#fbfdfd)', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.14)', boxShadow: dm ? '0 20px 46px rgba(0,0,0,0.45)' : '0 10px 28px rgba(15,118,110,0.08)' }}>
               <p className="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.08em]" style={{ background: dm ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}>
                 Consumer pricing
               </p>
@@ -258,7 +258,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               </div>
             </div>
 
-            <div className="js-pricing-item mt-8 rounded-2xl p-6 md:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: dm ? '#121212' : 'white', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.2)' }}>
+            <div className="js-pricing-item mt-8 rounded-2xl p-6 md:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: dm ? '#121212' : '#f8fbfb', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.16)' }}>
               <div>
                 <p className="text-lg font-bold mb-1" style={{ color: dm ? 'white' : '#111827' }}>Building as a student provider?</p>
                 <p className="text-sm md:text-base" style={{ color: dm ? '#9ca3af' : '#4b5563' }}>
@@ -270,12 +270,12 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           </div>
         </section>
 
-        {/* Business teaser */}
+        {/* Provider teaser */}
         <section className="py-24 bg-neutral-950" aria-labelledby="biz-teaser-heading">
           <div className="mx-auto max-w-5xl px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-12">
               <div className="max-w-lg js-section js-biz-copy">
-                <span className="section-eyebrow mb-4 block">For Service Businesses</span>
+                <span className="section-eyebrow mb-4 block">For Service Providers</span>
                 <h2 id="biz-teaser-heading" className="text-3xl md:text-4xl font-bold text-white mb-5">
                   Get pre-qualified leads delivered directly to you.
                 </h2>
@@ -285,14 +285,14 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 <div className="flex flex-wrap gap-3">
                   <Link href="/business" className="btn-primary px-7 py-3">Learn More</Link>
                   <Link href="/business/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Join for Free</Link>
-                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Business Dashboard →</Link>
+                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Provider Dashboard →</Link>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-4 w-full md:w-auto md:flex-shrink-0" role="list">
                 {[
                   { label: 'Instant lead alerts' },
                   { label: 'Pre-qualified matches' },
-                  { label: 'Business dashboard' },
+                  { label: 'Provider dashboard' },
                   { label: 'Pay per lead' },
                 ].map((item) => (
                   <li key={item.label} className="js-biz-item bg-neutral-900 border border-neutral-800 rounded-2xl px-5 py-4 flex items-center gap-3">

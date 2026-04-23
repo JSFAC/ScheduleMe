@@ -38,7 +38,7 @@ const BusinessLoginPage: NextPage = () => {
     }
   }, [router.query.error, router]);
   const [success, setSuccess] = useState<string | null>(null);
-  const [autoGoogleStarted, setAutoGoogleStarted] = useState(false);
+  const [autoOAuthStarted, setAutoOAuthStarted] = useState(false);
 
   async function findBusinessForSession(session: any) {
     const supabase = getSupabase();
@@ -143,18 +143,21 @@ const BusinessLoginPage: NextPage = () => {
       setShowEmail(false);
       return;
     }
-    if (method === 'google' && !autoGoogleStarted) {
-      setAutoGoogleStarted(true);
-      handleGoogle();
+    if ((method === 'google' || method === 'apple') && !autoOAuthStarted) {
+      setAutoOAuthStarted(true);
+      handleOAuth(method as 'google' | 'apple');
     }
-  }, [router.isReady, router.query.email, router.query.method, router.query.setup, autoGoogleStarted]);
+  }, [router.isReady, router.query.email, router.query.method, router.query.setup, autoOAuthStarted]);
 
-  async function handleGoogle() {
+  async function handleOAuth(provider: 'google' | 'apple') {
     const supabase = getSupabase();
     localStorage.setItem('auth_source', 'business');
     await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback`, queryParams: { prompt: 'select_account' } },
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        ...(provider === 'google' ? { queryParams: { prompt: 'select_account' } } : {}),
+      },
     });
   }
 
@@ -257,7 +260,7 @@ const BusinessLoginPage: NextPage = () => {
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <Link href="/business/signup"
                     className="flex items-center justify-center px-3 py-2 rounded-lg bg-accent/20 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/30 transition-colors text-center">
-                    Create Provider Draft
+                    Create Provider Account
                   </Link>
                   <Link href="/signin"
                     className="flex items-center justify-center px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs font-semibold hover:bg-neutral-700 transition-colors text-center">
@@ -288,7 +291,7 @@ const BusinessLoginPage: NextPage = () => {
               </form>
             ) : !showEmail ? (
               <div className="space-y-3">
-                <button onClick={handleGoogle}
+                <button onClick={() => handleOAuth('google')}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 transition-colors text-sm font-semibold text-white">
                   <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -298,7 +301,15 @@ const BusinessLoginPage: NextPage = () => {
                   </svg>
                   Continue with Google
                 </button>
-                <p className="text-xs text-neutral-600 text-center -mt-1">For approved providers only</p>
+                <button onClick={() => handleOAuth('apple')}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 transition-colors text-sm font-semibold text-white">
+                  <svg className="h-5 w-5 flex-shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M16.365 12.06c.022 2.411 2.115 3.212 2.138 3.223-.018.056-.333 1.15-1.096 2.279-.658.976-1.34 1.948-2.415 1.97-1.057.021-1.397-.628-2.606-.628-1.21 0-1.588.607-2.585.648-1.038.039-1.83-1.038-2.493-2.01-1.357-1.967-2.394-5.557-1.004-8.038.69-1.232 1.928-2.013 3.27-2.034 1.02-.02 1.982.689 2.606.689.623 0 1.794-.852 3.023-.727.514.022 1.955.207 2.88 1.563-.074.046-1.718 1.002-1.718 3.065z" />
+                    <path d="M14.91 5.235c.553-.67.926-1.602.823-2.535-.797.032-1.761.53-2.333 1.198-.512.591-.963 1.539-.84 2.445.888.07 1.798-.454 2.35-1.108z" />
+                  </svg>
+                  Continue with Apple
+                </button>
+                <p className="text-xs text-neutral-600 text-center -mt-1">Existing provider accounts can sign in here.</p>
 
                 <div className="flex items-center gap-3 my-1">
                   <div className="flex-1 h-px bg-neutral-800" />
@@ -316,7 +327,7 @@ const BusinessLoginPage: NextPage = () => {
 
                 <p className="text-center text-xs text-neutral-600 pt-1">
                   New provider?{' '}
-                  <Link href="/business/signup" className="text-accent hover:underline">Apply to join →</Link>
+                  <Link href="/business/signup" className="text-accent hover:underline">Create provider account →</Link>
                 </p>
               </div>
             ) : (
@@ -329,7 +340,7 @@ const BusinessLoginPage: NextPage = () => {
                   Back
                 </button>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business email</label>
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Provider email</label>
                   <input type="email" required
                     className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                     placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />

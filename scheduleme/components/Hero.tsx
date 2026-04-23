@@ -33,7 +33,6 @@ export default function Hero({
   const STUDENT_MATCHES = [
     { name: 'Camila R.', tag: 'Student barber', rating: '4.9', time: '~20 min' },
     { name: 'Jordan K.', tag: 'Campus fade specialist', rating: '4.8', time: '~35 min' },
-    { name: 'Niko P.', tag: 'Dorm cuts + lineups', rating: '4.9', time: '~45 min' },
   ];
   const BADGES = [{ label: 'Verified Pro' }, { label: 'Top Rated' }, { label: 'Nearby' }];
 
@@ -66,24 +65,23 @@ export default function Hero({
             if (typingInterval != null) window.clearInterval(typingInterval);
             typingInterval = null;
             setMessageState('ready');
-            timers.push(window.setTimeout(() => setMessageState('sent'), 680));
-            timers.push(window.setTimeout(() => setMatchState('loading'), 980));
-            timers.push(window.setTimeout(() => setMatchState('done'), 1860));
-            timers.push(window.setTimeout(() => setVisibleStudents(1), 2100));
-            timers.push(window.setTimeout(() => setVisibleStudents(2), 2360));
-            timers.push(window.setTimeout(() => setVisibleStudents(3), 2620));
+            timers.push(window.setTimeout(() => setMessageState('sent'), 860));
+            timers.push(window.setTimeout(() => setMatchState('loading'), 1300));
+            timers.push(window.setTimeout(() => setMatchState('done'), 3600));
+            timers.push(window.setTimeout(() => setVisibleStudents(1), 4100));
+            timers.push(window.setTimeout(() => setVisibleStudents(2), 4700));
 
             BADGES.forEach((_, idx) => {
-              const base = 2920 + idx * 320;
+              const base = 5600 + idx * 620;
               timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 1 : v))), base));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 220));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 430));
+              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 380));
+              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 760));
             });
             return prev;
           }
           return prev + 1;
         });
-      }, 38);
+      }, 54);
     };
 
     const io = new IntersectionObserver(
@@ -91,7 +89,7 @@ export default function Hero({
         entries.forEach((entry) => {
           if (!entry.isIntersecting || hasStartedSequenceRef.current) return;
           hasStartedSequenceRef.current = true;
-          startSequence();
+          timers.push(window.setTimeout(startSequence, 1000));
         });
       },
       { threshold: 0.5 }
@@ -180,16 +178,18 @@ export default function Hero({
                     {typedMessage || '\u00a0'}
                     {isTyping && <span className="inline-block ml-[1px] h-[1.05em] w-[2px] align-middle bg-white/90 animate-pulse" />}
                   </p>
-                  {hasTyped && (
-                    <p className="mt-1.5 text-[10px] text-right font-semibold" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                      {messageState === 'sent' ? 'Sent' : 'Ready to send'}
-                    </p>
-                  )}
                 </div>
                 <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white transition-all duration-500" style={{ background: 'linear-gradient(135deg,#0F766E,#0B5C56)', transform: messageState === 'sent' ? 'scale(1)' : 'scale(0.86)', opacity: messageState === 'sent' ? 1 : 0.66 }}>
                   J
                 </div>
               </div>
+              {hasTyped && (
+                <div className="pr-0.5 -mt-1 flex justify-end">
+                  <p className="text-[10px] font-semibold" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>
+                    {messageState === 'sent' ? 'Sent' : 'Ready to send'}
+                  </p>
+                </div>
+              )}
               {/* System match result */}
               <div className="flex items-end gap-2.5">
                 <div className="h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5' }}>
@@ -199,7 +199,7 @@ export default function Hero({
                   <div className="flex items-center gap-2">
                     <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${matchState === 'loading' ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
                     <p className="text-xs font-semibold" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>
-                      {matchState === 'loading' ? 'Matching you with student barbers...' : '3 student barbers near you'}
+                      {matchState === 'loading' ? 'Matching you with student barbers...' : '2 student barbers near you'}
                     </p>
                   </div>
                   {matchState === 'loading' && (
@@ -213,8 +213,19 @@ export default function Hero({
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    {STUDENT_MATCHES.slice(0, visibleStudents).map((pro, i) => (
-                      <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl" style={{ background: dm ? '#2c2c2e' : '#f5f5f7', opacity: 1, transform: 'translateY(0) scale(1)', transition: 'all 580ms cubic-bezier(0.22, 1.2, 0.36, 1)' }}>
+                    {STUDENT_MATCHES.map((pro, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl"
+                        style={{
+                          background: dm ? '#2c2c2e' : '#f5f5f7',
+                          opacity: visibleStudents > i ? 1 : 0,
+                          transform: visibleStudents > i ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.95)',
+                          maxHeight: visibleStudents > i ? 70 : 0,
+                          overflow: 'hidden',
+                          transition: `opacity 760ms cubic-bezier(0.16, 1.2, 0.3, 1) ${i * 110}ms, transform 760ms cubic-bezier(0.16, 1.2, 0.3, 1) ${i * 110}ms, max-height 720ms ease ${i * 110}ms`,
+                        }}
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: '#0F766E' }}>{pro.name[0]}</div>
                           <div>
@@ -229,6 +240,11 @@ export default function Hero({
                       </div>
                     ))}
                   </div>
+                  {matchState === 'done' && (
+                    <button type="button" className="text-[11px] font-semibold underline underline-offset-2 mt-1" style={{ color: dm ? '#9ca3af' : '#4b5563' }}>
+                      View all
+                    </button>
+                  )}
                 </div>
               </div>
               {/* Matched provider cards */}

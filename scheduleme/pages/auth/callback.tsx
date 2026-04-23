@@ -1,7 +1,7 @@
 // pages/auth/callback.tsx
 // Single OAuth landing page — figures out where to send the user
 import type { NextPage } from 'next';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 
@@ -23,6 +23,12 @@ function hasValidAdminCodeSession(): boolean {
 
 const AuthCallback: NextPage = () => {
   const router = useRouter();
+  const [authSource, setAuthSource] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setAuthSource(localStorage.getItem('auth_source') || '');
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -65,9 +71,9 @@ const AuthCallback: NextPage = () => {
             router.replace('/business/dashboard');
           } else {
             // Not a registered business — sign out but DO NOT delete their account
-            // They may be a consumer who accidentally hit the business login
+            // Route to provider signup so they can agree to terms + complete onboarding.
             await supabase.auth.signOut();
-            router.replace('/business/auth/login?error=not_a_business');
+            router.replace(`/business/signup?from=oauth-login&email=${encodeURIComponent(email || '')}`);
           }
         } else {
           // Consumer flow — profiles is source of truth (trigger creates row on signup)
@@ -122,9 +128,17 @@ const AuthCallback: NextPage = () => {
 
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-      <div className="relative h-12 w-12">
-        <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+      <div className="flex flex-col items-center text-center">
+        <div className="mb-3 leading-none">
+          <p className="text-4xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</p>
+          <p className="text-[12px] font-semibold tracking-[0.14em] uppercase text-accent mt-1">
+            {authSource === 'business' ? 'for providers' : 'secure sign in'}
+          </p>
+        </div>
+        <div className="relative h-8 w-8 mt-1">
+          <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+        </div>
       </div>
     </div>
   );

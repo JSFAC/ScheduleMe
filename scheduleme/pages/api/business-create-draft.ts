@@ -67,7 +67,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .maybeSingle();
   const ownerName = String(profileRow.data?.name || '').trim();
 
-  const candidateName = String(businessName || '').trim() || defaultBusinessName(ownerName, normalizedEmail);
+  const submittedName = String(businessName || '').trim();
+  if (!submittedName) return res.status(400).json({ error: 'Business name is required.' });
+  const candidateName = submittedName || defaultBusinessName(ownerName, normalizedEmail);
   const moderation = await moderateText(candidateName);
   if (!moderation.ok) return res.status(400).json({ error: moderation.reason || 'Business name violates content policy' });
   const nameCheck = validateAndFilter(candidateName, { maxLength: 60, fieldName: 'Business name' });
