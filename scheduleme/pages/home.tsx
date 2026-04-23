@@ -768,7 +768,7 @@ const HomePage: NextPage = () => {
                   style={{ background: dm ? 'rgba(110,231,183,0.12)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0A50.57 50.57 0 0012 13.489a50.702 50.702 0 017.74-3.342m-15.48 0L12 3.493l7.74 6.654" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 14L3 9.5 12 5l9 4.5-9 4.5zM7 12.5V16c0 .7 2.2 2 5 2s5-1.3 5-2v-3.5" />
                   </svg>
                 </div>
                 <div className="min-w-0">
