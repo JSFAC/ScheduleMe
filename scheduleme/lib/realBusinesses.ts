@@ -45,15 +45,23 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
   const mediaUrls = Array.isArray(b.media_urls) && b.media_urls.length > 0 ? b.media_urls : [];
   const cover = getCover(b.cover_url, mediaUrls);
   const allImages = mediaUrls.length > 0 ? mediaUrls : (cover && cover !== TRANSPARENT_PIXEL ? [cover] : []);
-  const previewLocked = b.preview_locked === true;
+  // If preview_locked is not provided (table fallback path), conservatively lock
+  // campus student providers to preserve privacy for guest/non-verified views.
+  const inferredLocked =
+    typeof b.preview_locked === 'undefined'
+      ? (b.campus_provider === true && b.edu_verified === true)
+      : false;
+  const previewLocked = b.preview_locked === true || inferredLocked;
+  const name = previewLocked ? 'Student provider' : (b.name || 'Local Business');
+  const description = previewLocked ? 'Private until student verification' : (b.description || '');
   return {
     id: b.id,
     realId: b.id,
-    name: b.name || 'Local Business',
+    name,
     slug: b.slug || b.id,
-    description: b.description || '',
-    tagline: b.description ? b.description.split('.')[0] : '',
-    address: b.address || '',
+    description,
+    tagline: description ? description.split('.')[0] : '',
+    address: previewLocked ? '' : (b.address || ''),
     lat: b.lat,
     lng: b.lng,
     category,
@@ -68,15 +76,15 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     price_tier: b.price_tier ?? null,
     availability_status: effectiveAvailability,
     break_until: breakUntil ? breakUntil.toISOString() : null,
-    coverUrl: cover,
-    allImages,
-    phone: b.phone || '',
-    website: b.website || '',
+    coverUrl: previewLocked ? TRANSPARENT_PIXEL : cover,
+    allImages: previewLocked ? [] : allImages,
+    phone: previewLocked ? '' : (b.phone || ''),
+    website: previewLocked ? '' : (b.website || ''),
     instagram: b.instagram || '',
     calendly_url: b.calendly_url || '',
     hours: [],
     services: [],
-    about: b.description || '',
+    about: description,
     badges: [],
     preview_locked: previewLocked,
     public_visibility: b.public_visibility,
