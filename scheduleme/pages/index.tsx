@@ -14,58 +14,51 @@ interface Feature { icon: string; title: string; description: string; }
 interface DemoStep { step: number; title: string; description: string; }
 interface HomeProps { features: Feature[]; demoSteps: DemoStep[]; }
 
-function useScrollReveal(selector: string, delayStep = 90) {
-  useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
-    els.forEach((el, i) => {
-      el.setAttribute('data-reveal', 'hidden');
-      el.style.transitionDelay = `${i * delayStep}ms`;
-    });
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        e.target.setAttribute('data-reveal', e.isIntersecting ? 'visible' : 'hidden');
-      }),
-      { threshold: 0.1, rootMargin: '0px 0px -48px 0px' }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [selector, delayStep]);
-}
+function useScrollReveal(
+  selector: string,
+  opts?: { delayStep?: number; reverseOnUp?: boolean; type?: 'reveal' | 'scale' | 'left' }
+) {
+  const delayStep = opts?.delayStep ?? 90;
+  const reverseOnUp = opts?.reverseOnUp ?? false;
+  const type = opts?.type ?? 'reveal';
+  const attrName = type === 'scale' ? 'data-reveal-scale' : type === 'left' ? 'data-reveal-left' : 'data-reveal';
 
-function useScrollRevealScale(selector: string, delayStep = 100) {
   useEffect(() => {
     const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
-    els.forEach((el, i) => {
-      el.setAttribute('data-reveal-scale', 'hidden');
-      el.style.transitionDelay = `${i * delayStep}ms`;
-    });
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        e.target.setAttribute('data-reveal-scale', e.isIntersecting ? 'visible' : 'hidden');
-      }),
-      { threshold: 0.12, rootMargin: '0px 0px -32px 0px' }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [selector, delayStep]);
-}
+    let lastY = typeof window !== 'undefined' ? window.scrollY : 0;
+    const observerOpts = type === 'scale'
+      ? { threshold: 0.12, rootMargin: '0px 0px -32px 0px' }
+      : type === 'left'
+        ? { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+        : { threshold: 0.1, rootMargin: '0px 0px -48px 0px' };
 
-function useScrollRevealLeft(selector: string, delayStep = 120) {
-  useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
     els.forEach((el, i) => {
-      el.setAttribute('data-reveal-left', 'hidden');
-      el.style.transitionDelay = `${i * delayStep}ms`;
+      el.setAttribute(attrName, 'hidden');
+      el.setAttribute('data-reveal-index', String(i));
+      el.style.transitionDelay = '0ms';
     });
+
     const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        e.target.setAttribute('data-reveal-left', e.isIntersecting ? 'visible' : 'hidden');
-      }),
-      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+      (entries) => {
+        const nextY = typeof window !== 'undefined' ? window.scrollY : lastY;
+        const scrollingUp = nextY < lastY;
+        lastY = nextY;
+        const total = els.length;
+
+        entries.forEach((e) => {
+          const target = e.target as HTMLElement;
+          const idx = Number(target.getAttribute('data-reveal-index') || '0');
+          const ord = reverseOnUp && scrollingUp ? (total - 1 - idx) : idx;
+          target.style.transitionDelay = e.isIntersecting ? `${ord * delayStep}ms` : '0ms';
+          target.setAttribute(attrName, e.isIntersecting ? 'visible' : 'hidden');
+        });
+      },
+      observerOpts
     );
+
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [selector, delayStep]);
+  }, [selector, delayStep, reverseOnUp, attrName]);
 }
 
 const ICONS: Record<string, JSX.Element> = {
@@ -73,6 +66,9 @@ const ICONS: Record<string, JSX.Element> = {
   zap: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>,
   calendar: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>,
   shield: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>,
+  clock: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>,
+  graduation: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 14.25L3.75 9.75 12 5.25l8.25 4.5L12 14.25z" /><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 11.25V15c0 1.5 2.25 2.75 5.25 2.75S17.25 16.5 17.25 15v-3.75" /></svg>,
+  dollar: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3.75v16.5M15.75 7.5c0-1.5-1.68-2.75-3.75-2.75S8.25 6 8.25 7.5s1.68 2.75 3.75 2.75 3.75 1.25 3.75 2.75S14.07 15.75 12 15.75s-3.75-1.25-3.75-2.75" /></svg>,
 };
 
 const STATS = [
@@ -84,16 +80,18 @@ const STATS = [
 
 const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
   const { dm } = useDm();
-  useScrollReveal('.js-feat', 100);
-  useScrollReveal('.js-step', 180);
-  useScrollReveal('.js-stat', 80);
-  useScrollReveal('.js-section', 0);
-  useScrollReveal('.js-testimonial', 100);
-  useScrollReveal('.js-biz-item', 90);
-  useScrollRevealScale('.js-hero-shell', 0);
-  useScrollRevealScale('.js-hero-pop', 150);
-  useScrollRevealScale('.js-step-dot', 190);
-  useScrollRevealLeft('.js-step-copy', 180);
+  useScrollReveal('.js-feat', { delayStep: 100 });
+  useScrollReveal('.js-step', { delayStep: 180, reverseOnUp: true });
+  useScrollReveal('.js-stat', { delayStep: 80 });
+  useScrollReveal('.js-section', { delayStep: 0 });
+  useScrollReveal('.js-testimonial', { delayStep: 100 });
+  useScrollReveal('.js-pricing-item', { delayStep: 120 });
+  useScrollReveal('.js-biz-item', { delayStep: 120, reverseOnUp: true });
+  useScrollReveal('.js-biz-copy', { delayStep: 0, reverseOnUp: true });
+  useScrollReveal('.js-hero-shell', { delayStep: 0, type: 'scale' });
+  useScrollReveal('.js-hero-pop', { delayStep: 150, type: 'scale' });
+  useScrollReveal('.js-step-dot', { delayStep: 190, reverseOnUp: true, type: 'scale' });
+  useScrollReveal('.js-step-copy', { delayStep: 180, reverseOnUp: true, type: 'left' });
 
   return (
     <>
@@ -167,10 +165,12 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 { quote: "Described a leaking pipe, got three plumbers within 2 minutes. Booked in 45 seconds. Incredible.", name: "Noah F.", location: "Berkeley, CA", service: "Plumbing" },
                 { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "Andrew C.", location: "Tempe, AZ", service: "HVAC" },
                 { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Misty V.", location: "Fresno, CA", service: "Home Repair" },
-              ].map((t) => (
+              ].map((t, cardIdx) => (
                 <li key={t.name} className="js-testimonial p-7 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
-                  <div className="flex gap-0.5 mb-4" aria-label="5 stars">
-                    {Array.from({ length: 5 }).map((_, i) => <span key={i} className="text-amber-400 text-sm" aria-hidden="true">★</span>)}
+                  <div className="flex gap-0.5 mb-4 js-testimonial-stars" aria-label="5 stars">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} className="js-testimonial-star text-amber-400 text-sm" style={{ animationDelay: `${160 + (cardIdx * 140) + (i * 70)}ms` }} aria-hidden="true">★</span>
+                    ))}
                   </div>
                   <blockquote className="text-sm leading-relaxed mb-5" style={{ color: dm ? '#a3a3a3' : '#404040' }}>&ldquo;{t.quote}&rdquo;</blockquote>
                   <div className="flex items-center gap-3">
@@ -215,11 +215,66 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           </div>
         </section>
 
+        {/* Pricing */}
+        <section id="pricing" className="py-28" style={{ background: dm ? '#0d0d0d' : '#fafafa' }} aria-labelledby="pricing-heading">
+          <div className="mx-auto max-w-5xl px-6">
+            <div className="js-section text-center mb-16">
+              <span className="section-eyebrow">Pricing</span>
+              <h2 id="pricing-heading" className="mt-4 text-4xl md:text-5xl font-bold" style={{ color: dm ? 'white' : '#171717' }}>
+                Simple, honest pricing.
+              </h2>
+              <p className="mt-5 text-lg max-w-xl mx-auto leading-relaxed" style={{ color: dm ? '#8b8b8b' : '#6b7280' }}>
+                Free for people who need help. Providers only pay for results.
+              </p>
+            </div>
+
+            <div className="js-pricing-item rounded-3xl p-8 md:p-12 mx-auto max-w-3xl" style={{ background: dm ? '#161616' : 'white', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.16)', boxShadow: dm ? 'none' : '0 18px 46px rgba(15,118,110,0.1)' }}>
+              <p className="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.08em]" style={{ background: dm ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}>
+                Consumer pricing
+              </p>
+              <h3 className="mt-5 text-3xl md:text-4xl font-black" style={{ color: dm ? 'white' : '#111827', letterSpacing: '-0.02em' }}>
+                Always free for users.
+              </h3>
+              <p className="mt-4 text-base md:text-lg leading-relaxed" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>
+                No account required. No credit card. No hidden fees.
+                Describe your issue and get matched with vetted pros for free.
+              </p>
+              <ul className="mt-6 space-y-2.5">
+                {[
+                  'AI triage of your issue',
+                  'Instant matching with local pros',
+                  'Real reviews and ratings',
+                  'Direct contact with providers',
+                  'No booking fees or commissions',
+                ].map((f) => (
+                  <li key={f} className="flex items-center gap-2.5 text-sm md:text-base" style={{ color: dm ? '#d1d5db' : '#374151' }}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8">
+                <Link href="/signin?mode=signup" className="btn-primary text-base px-8 py-3.5 shadow-lg shadow-accent/20">Find a Pro Now — Free →</Link>
+              </div>
+            </div>
+
+            <div className="js-pricing-item mt-8 rounded-2xl p-6 md:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: dm ? '#121212' : 'white', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.2)' }}>
+              <div>
+                <p className="text-lg font-bold mb-1" style={{ color: dm ? 'white' : '#111827' }}>Building as a student provider?</p>
+                <p className="text-sm md:text-base" style={{ color: dm ? '#9ca3af' : '#4b5563' }}>
+                  Grow in your campus marketplace and only pay for real completed bookings.
+                </p>
+              </div>
+              <Link href="/business/pricing" className="btn-primary px-6 py-3 text-sm shrink-0">See Student Provider Plans →</Link>
+            </div>
+          </div>
+        </section>
+
         {/* Business teaser */}
         <section className="py-24 bg-neutral-950" aria-labelledby="biz-teaser-heading">
           <div className="mx-auto max-w-5xl px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-12">
-              <div className="max-w-lg js-section">
+              <div className="max-w-lg js-section js-biz-copy">
                 <span className="section-eyebrow mb-4 block">For Service Businesses</span>
                 <h2 id="biz-teaser-heading" className="text-3xl md:text-4xl font-bold text-white mb-5">
                   Get pre-qualified leads delivered directly to you.
@@ -287,7 +342,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               <div>
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Product</p>
                 <ul className="space-y-2" role="list">
-                  {[{ label: 'Find a Pro', href: '/demo' }, { label: 'Pricing', href: '/pricing' }, { label: 'How It Works', href: '/#how-it-works' }].map((l) => (
+                  {[{ label: 'Find a Pro', href: '/demo' }, { label: 'Pricing', href: '/#pricing' }, { label: 'How It Works', href: '/#how-it-works' }].map((l) => (
                     <li key={l.href}><Link href={l.href} className="text-sm text-neutral-500 hover:text-neutral-200 transition-colors">{l.label}</Link></li>
                   ))}
                 </ul>

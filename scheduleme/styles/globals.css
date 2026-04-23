@@ -335,8 +335,8 @@ html, body {
 [data-reveal-scale="visible"] {
   opacity: 1;
   transform: scale(1) translateY(0);
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.78s cubic-bezier(0.16, 1.2, 0.3, 1),
+              transform 0.78s cubic-bezier(0.16, 1.2, 0.3, 1);
 }
 
 .js-hero-shell[data-reveal-scale="hidden"] {
@@ -346,8 +346,8 @@ html, body {
 .js-hero-shell[data-reveal-scale="visible"] {
   opacity: 1;
   transform: translateY(0) scale(1) perspective(900px) rotateX(0deg);
-  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 1.05s cubic-bezier(0.16, 1.2, 0.3, 1),
+              transform 1.05s cubic-bezier(0.16, 1.2, 0.3, 1);
 }
 
 .js-hero-pop[data-reveal-scale="hidden"] {
@@ -357,8 +357,8 @@ html, body {
 .js-hero-pop[data-reveal-scale="visible"] {
   opacity: 1;
   transform: translateY(0) scale(1);
-  transition: opacity 0.62s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.86s cubic-bezier(0.22, 1.24, 0.36, 1),
+              transform 0.86s cubic-bezier(0.22, 1.24, 0.36, 1);
 }
 
 .js-step-dot[data-reveal-scale="hidden"] {
@@ -368,8 +368,76 @@ html, body {
 .js-step-dot[data-reveal-scale="visible"] {
   opacity: 1;
   transform: scale(1) translateY(0);
-  transition: opacity 0.52s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.52s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.72s cubic-bezier(0.16, 1.25, 0.3, 1),
+              transform 0.72s cubic-bezier(0.16, 1.25, 0.3, 1);
+}
+
+@keyframes heroCtaPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.035);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hero-cta-pop {
+  animation: heroCtaPopIn 760ms cubic-bezier(0.22, 1.18, 0.36, 1) both;
+}
+.hero-cta-pop-primary { animation-delay: 430ms; }
+.hero-cta-pop-secondary { animation-delay: 560ms; }
+
+@keyframes testimonialStarIn {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.72);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.js-testimonial[data-reveal="hidden"] .js-testimonial-star {
+  opacity: 0;
+  transform: translateY(5px) scale(0.72);
+  animation: none;
+}
+.js-testimonial[data-reveal="visible"] .js-testimonial-star {
+  animation: testimonialStarIn 420ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+@keyframes heroBadgeStarIn {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.74);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hero-badge-star {
+  opacity: 0;
+  transform: translateY(4px) scale(0.74);
+}
+.hero-badge-star-visible {
+  animation: heroBadgeStarIn 340ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
