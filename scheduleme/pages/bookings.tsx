@@ -861,6 +861,7 @@ const BookingsPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
   const [phase, setPhase] = useState<Phase>('loading');
+  const [isGuestViewer, setIsGuestViewer] = useState(false);
   const [userName, setUserName] = useState('');
   const [userInitials, setUserInitials] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -1087,6 +1088,7 @@ const BookingsPage: NextPage = () => {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
+        if (alive) setIsGuestViewer(false);
         const cachedBookings = readBookingsCache(session.user.id);
         if (alive && cachedBookings) {
           setBookings(cachedBookings);
@@ -1153,6 +1155,7 @@ const BookingsPage: NextPage = () => {
         }
       } else {
         if (alive) {
+          setIsGuestViewer(true);
           setPhase('done');
           setLoadingBookings(false);
         }
@@ -1229,9 +1232,9 @@ const BookingsPage: NextPage = () => {
             {/* Stats row — white cards on blue */}
             <div className="flex gap-3 mb-6">
               {[
-                { label: 'Total', value: bookings.length },
-                { label: 'Active', value: bookings.filter(b => !['completed','cancelled'].includes(b.status)).length },
-                { label: 'Completed', value: bookings.filter(b => ['completed','cancelled'].includes(b.status)).length },
+                { label: 'Total', value: isGuestViewer ? '-' : String(bookings.length) },
+                { label: 'Active', value: isGuestViewer ? '-' : String(bookings.filter(b => !['completed','cancelled'].includes(b.status)).length) },
+                { label: 'Completed', value: isGuestViewer ? '-' : String(bookings.filter(b => ['completed','cancelled'].includes(b.status)).length) },
               ].map(s => (
                 <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
                   <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0F766E' }}>{s.value}</p>
@@ -1265,9 +1268,22 @@ const BookingsPage: NextPage = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
                     </svg>
                   </div>
-                  <p className="font-bold text-neutral-700 mb-1" style={{ letterSpacing: '-0.01em' }}>No bookings yet</p>
-                  <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
-                  <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
+                  {isGuestViewer ? (
+                    <>
+                      <p className="font-bold text-neutral-700 mb-1" style={{ letterSpacing: '-0.01em' }}>Track bookings after you sign up</p>
+                      <p className="text-neutral-400 text-sm mt-1 mb-6">Create an account to request services, message providers, and manage all your bookings in one place.</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <Link href="/signup?next=%2Fbookings" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Create account</Link>
+                        <Link href="/signin?next=%2Fbookings" scroll={false} className="px-6 py-2.5 text-sm font-bold rounded-xl border" style={{ borderColor: dm ? '#475569' : '#cbd5e1', color: dm ? '#cbd5e1' : '#334155' }}>Log in</Link>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-bold text-neutral-700 mb-1" style={{ letterSpacing: '-0.01em' }}>No bookings yet</p>
+                      <p className="text-neutral-400 text-sm mt-1 mb-6">Browse local professionals and book your first service</p>
+                      <Link href="/browse" scroll={false} className="btn-primary px-6 py-2.5 text-sm">Browse professionals</Link>
+                    </>
+                  )}
                 </div>
 
               ) : (

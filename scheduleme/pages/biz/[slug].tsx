@@ -871,6 +871,8 @@ export default function BizPage() {
     (biz?.owner_id && viewerUserId && biz.owner_id === viewerUserId) ||
     (biz?.owner_email && viewerEmail && String(biz.owner_email).toLowerCase().trim() === String(viewerEmail).toLowerCase().trim())
   );
+  const guestNeedsAuth = !isPreview && !viewerUserId;
+  const authRedirect = '/signin?next=' + encodeURIComponent('/biz/' + slug);
   const bookingDisabled =
     !date
     || (requiresTime && !slot)
@@ -878,6 +880,7 @@ export default function BizPage() {
     || done
     || (isCustom && (!customServiceName.trim() || !note.trim() || customPriceTooLow))
     || isPreview
+    || guestNeedsAuth
     || isSelfOwnedBusiness
     || providerCannotAcceptPayments;
 
@@ -991,7 +994,7 @@ export default function BizPage() {
   return (
     <>
       <Head><title>{titleName} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
-      <div style={{background:bg,minHeight:'100vh',paddingBottom: hideNav ? 100 : 220}}>
+      <div style={{background:bg,minHeight:'100vh',paddingBottom: hideNav ? 100 : 136}}>
         {!hideNav && <Nav />}
         {shareOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={() => setShareOpen(false)}>
@@ -1551,6 +1554,15 @@ export default function BizPage() {
               You can&apos;t book your own business listing from this account.
             </div>
           )}
+          {guestNeedsAuth && (
+            <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(15,118,110,0.16)' : '#ecfeff', color: dm ? '#d1fae5' : '#0f766e', border: '1px solid ' + (dm ? '#0f766e' : '#99f6e4') }}>
+              To book this provider, please log in or create an account first.
+              <div className="mt-2 flex items-center gap-2">
+                <button onClick={() => router.push(authRedirect)} className="text-[11px] font-bold px-2.5 py-1 rounded-lg" style={{ background: dm ? '#0f766e' : '#0f766e', color: 'white' }}>Log in</button>
+                <button onClick={() => router.push('/signup?next=' + encodeURIComponent('/biz/' + slug))} className="text-[11px] font-bold px-2.5 py-1 rounded-lg" style={{ background: dm ? '#1f2937' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151' }}>Create account</button>
+              </div>
+            </div>
+          )}
           <div className="space-y-4" style={{ opacity: (editMode || isPreview) ? 0.5 : 1, pointerEvents: (editMode || isPreview) ? 'none' : 'auto' }}>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#737373' }}>{requiresTime ? 'Preferred date' : 'Due date'}</p>
@@ -1604,11 +1616,16 @@ export default function BizPage() {
 
         </div>
         <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)' }}>
-          <button onClick={book} disabled={bookingDisabled}
+          <button onClick={guestNeedsAuth ? (() => router.push(authRedirect)) : book} disabled={guestNeedsAuth ? false : bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
-            {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment')}
+            style={{background: (guestNeedsAuth ? false : bookingDisabled) ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            {guestNeedsAuth ? 'Log in to book' : (submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment'))}
           </button>
+          {guestNeedsAuth && (
+            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
+              Booking is available after you log in and create your account.
+            </p>
+          )}
           {providerCannotAcceptPayments && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
               Provider can&apos;t accept payments yet.
@@ -1620,12 +1637,17 @@ export default function BizPage() {
             </p>
           )}
         </div>
-        <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
-          <button onClick={book} disabled={bookingDisabled}
+        <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-4 pt-2 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f9fafb 70%,transparent)'}}>
+          <button onClick={guestNeedsAuth ? (() => router.push(authRedirect)) : book} disabled={guestNeedsAuth ? false : bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
-            style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
-            {submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment')}
+            style={{background: (guestNeedsAuth ? false : bookingDisabled) ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
+            {guestNeedsAuth ? 'Log in to book' : (submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Book Appointment'))}
           </button>
+          {guestNeedsAuth && (
+            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
+              Booking is available after you log in and create your account.
+            </p>
+          )}
           {providerCannotAcceptPayments && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
               Provider can&apos;t accept payments yet.
