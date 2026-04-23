@@ -991,7 +991,15 @@ const BookingsPage: NextPage = () => {
     const loadNearbyBusinesses = async () => {
       if (alive) setNearbyLoading(true);
       try {
-        const { fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+        const { fetchAllBusinesses, fetchNearbyBusinesses } = await import('../lib/realBusinesses');
+
+        // Fast seed load so "Available near you" renders quickly before geo/IP lookup completes.
+        const seeded = await fetchAllBusinesses({ limit: 6 });
+        if (!alive) return;
+        if (seeded.length > 0) {
+          setNearbyBizList(seeded.slice(0, 6));
+          setNearbyLoading(false);
+        }
 
         const loadFromCoords = async (lat: number, lng: number) => {
           const nearby = await fetchNearbyBusinesses(lat, lng, { limit: 6, radius: 25 });
@@ -1033,7 +1041,11 @@ const BookingsPage: NextPage = () => {
           }
         }
 
-        if (alive) setNearbyBizList(nearby || []);
+        if (alive && (nearby || []).length > 0) {
+          setNearbyBizList(nearby || []);
+        } else if (alive && seeded.length === 0) {
+          setNearbyBizList([]);
+        }
       } catch {
         if (alive) setNearbyBizList([]);
       } finally {
