@@ -441,7 +441,8 @@ const CampusPage: NextPage = () => {
       setCampusTag(resolvedTag);
       if (typeof window !== 'undefined' && resolvedTag) localStorage.setItem(cacheTagKey, resolvedTag);
       if (resolvedTag || resolvedSchool) {
-        await loadCampusBusinesses(resolvedTag, resolvedSchool);
+        // Don't block initial render on network; load campus feed in background.
+        void loadCampusBusinesses(resolvedTag, resolvedSchool);
       } else {
         setCampusLoaded(true);
       }
@@ -720,7 +721,11 @@ const CampusPage: NextPage = () => {
               </section>
             )}
 
-            {sorted.length === 0 && campusLoaded ? (
+            {!campusLoaded ? (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3" style={{ alignItems: 'stretch' }}>
+                {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`campus-feed-skeleton-${i}`} />)}
+              </div>
+            ) : sorted.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">🎓</p>
                 <p className="font-semibold mb-2" style={{ color: dm ? '#f3f4f6' : '#171717' }}>
