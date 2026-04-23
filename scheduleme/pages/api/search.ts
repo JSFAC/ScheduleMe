@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ids = rows.map(r => r.id).filter(Boolean);
     const { data: visRows } = await supabase
       .from('businesses')
-      .select('id, public_visibility, public_show_name, public_show_photos, zip, address, trust_status, trust_flagged, is_onboarded')
+      .select('id, public_visibility, public_show_name, public_show_photos, zip, address, trust_status, trust_flagged, is_onboarded, approved_at, published_at')
       .in('id', ids);
     const visMap = new Map((visRows || []).map((r: any) => [r.id, r]));
 

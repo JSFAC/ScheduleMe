@@ -6,6 +6,7 @@
 import { getSupabaseClient } from './supabaseClient';
 import type { Business } from './mockBusinesses';
 import { normalizeServiceTag, serviceTagToLabel } from './categoryNormalization';
+import { isProviderPubliclyVisible } from './providerTrust';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
@@ -47,13 +48,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
   const mediaUrls = Array.isArray(b.media_urls) && b.media_urls.length > 0 ? b.media_urls : [];
   const cover = getCover(b.cover_url, mediaUrls);
   const allImages = mediaUrls.length > 0 ? mediaUrls : (cover && cover !== TRANSPARENT_PIXEL ? [cover] : []);
-  // If preview_locked is not provided (table fallback path), conservatively lock
-  // campus student providers to preserve privacy for guest/non-verified views.
-  const inferredLocked =
-    typeof b.preview_locked === 'undefined'
-      ? (b.campus_provider === true && b.edu_verified === true)
-      : false;
-  const previewLocked = b.preview_locked === true || inferredLocked;
+  const previewLocked = false;
   const name = previewLocked ? 'Student provider' : (b.name || 'Local Business');
   const description = previewLocked ? 'Private until student verification' : (b.description || '');
   return {
@@ -154,9 +149,8 @@ export async function fetchNearbyBusinesses(
       const normalizedCategory = opts.category ? normalizeServiceTag(opts.category) : '';
       const { data: rawRows } = await supabase
       .from('businesses')
-      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, created_at')
+      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, approved_at, published_at, created_at')
       .eq('is_onboarded', true)
-      .or('public_visibility.eq.true,public_visibility.is.null')
       .not('lat', 'is', null)
       .not('lng', 'is', null)
         .limit(Math.min(300, Math.max(50, (opts.limit ?? 40) * 5)));
@@ -166,9 +160,7 @@ export async function fetchNearbyBusinesses(
         const bLat = Number(row?.lat);
         const bLng = Number(row?.lng);
         if (!Number.isFinite(bLat) || !Number.isFinite(bLng)) return false;
-        if (row?.public_visibility === false) return false;
-        if (String(row?.trust_status || '').toLowerCase() === 'suspended') return false;
-        if (row?.trust_flagged === true || String(row?.trust_status || '').toLowerCase() === 'flagged') return false;
+        if (!isProviderPubliclyVisible(row)) return false;
         const serviceTags = Array.isArray(row?.service_tags) ? row.service_tags.map((t: any) => normalizeServiceTag(String(t))) : [];
         if (normalizedCategory && !serviceTags.includes(normalizedCategory)) return false;
         const distance = haversineMiles(lat, lng, bLat, bLng);
@@ -213,16 +205,12 @@ export async function fetchAllBusinesses(
     const supabase = getSupabaseClient();
     const { data: rows } = await supabase
       .from('businesses')
-      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, created_at')
+      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, approved_at, published_at, created_at')
       .eq('is_onboarded', true)
-      .or('public_visibility.eq.true,public_visibility.is.null')
       .order('last_completed_booking_at', { ascending: false, nullsFirst: false })
       .limit(opts.limit ?? 40);
     return (rows || [])
-      .filter((row: any) => {
-        const trust = String(row?.trust_status || '').toLowerCase();
-        return !(trust === 'suspended' || trust === 'flagged' || row?.trust_flagged === true);
-      })
+      .filter((row: any) => isProviderPubliclyVisible(row))
       .map((b: any) => mapBusiness(b));
   } catch {
     return [];

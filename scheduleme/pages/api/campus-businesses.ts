@@ -56,14 +56,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const nowIso = new Date().toISOString();
 
-    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name, public_visibility, trust_status, trust_flagged';
-    const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, public_visibility';
+    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name, public_visibility, trust_status, trust_flagged, approved_at, published_at';
+    const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, public_visibility, approved_at, published_at';
 
     let query = sb
       .from('businesses')
       .select(baseSelect)
       .eq('is_onboarded', true)
-      .or('public_visibility.eq.true,public_visibility.is.null')
       .eq('edu_verified', true)
       .eq('campus_provider', true)
       .order('rating', { ascending: false });
@@ -105,7 +104,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('businesses')
       .select(legacySelect)
       .eq('is_onboarded', true)
-      .or('public_visibility.eq.true,public_visibility.is.null')
       .eq('edu_verified', true)
       .eq('campus_provider', true)
       .order('rating', { ascending: false });
@@ -130,7 +128,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('businesses')
       .select(legacyMode ? legacySelect : baseSelect)
       .eq('is_onboarded', true)
-      .or('public_visibility.eq.true,public_visibility.is.null')
       .eq('edu_verified', true)
       .eq('campus_provider', true)
       .order('rating', { ascending: false })
@@ -182,7 +179,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (manualActiveIds.length > 0) {
       const { data: manualBiz } = await sb
         .from('businesses')
-        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name')
+        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name, public_visibility, trust_status, trust_flagged, approved_at, published_at')
         .in('id', manualActiveIds)
         .eq('edu_verified', true);
       const manualMap = new Map((manualBiz || []).map((b: any) => [b.id, b]));
@@ -198,7 +195,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!legacyMode) {
   const autoFeaturedQuery = sb
     .from('businesses')
-    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name')
+    .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name, public_visibility, trust_status, trust_flagged, approved_at, published_at')
     .eq('is_onboarded', true)
     .eq('edu_verified', true)
     .eq('campus_provider', true)

@@ -310,7 +310,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data: businessRow } = await supabase
         .from('businesses')
-        .select('id, availability_status, is_onboarded, public_visibility, trust_status, trust_flagged, campus_provider, edu_verified, school_domain, campus_key')
+        .select('id, availability_status, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key')
         .eq('id', business_id)
         .maybeSingle();
       if (!businessRow) return res.status(404).json({ error: 'Provider not found' });

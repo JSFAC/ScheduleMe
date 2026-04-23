@@ -350,7 +350,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller is party to this booking
     const { data: booking } = await supabase
       .from('bookings')
-      .select('user_id, business_id, businesses(owner_id, owner_email, is_onboarded, public_visibility, trust_status, trust_flagged, campus_provider, edu_verified, school_domain, campus_key)')
+      .select('user_id, business_id, businesses(owner_id, owner_email, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key)')
       .eq('id', booking_id)
       .maybeSingle();
 

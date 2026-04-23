@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, name, description, hours, calendly_url, availability_status, service_tags, cover_url, media_urls, is_onboarded, public_visibility, trust_status, trust_flagged')
+    .select('id, name, description, hours, calendly_url, availability_status, service_tags, cover_url, media_urls, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at')
     .eq('id', business_id)
     .maybeSingle();
 

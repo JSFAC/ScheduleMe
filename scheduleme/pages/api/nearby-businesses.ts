@@ -8,21 +8,6 @@ import { computeFounder50Status } from '../../lib/founder50';
 import { normalizeServiceTag } from '../../lib/categoryNormalization';
 import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
-function normalizeDomain(domain?: string | null): string | null {
-  if (!domain) return null;
-  const trimmed = String(domain).trim().toLowerCase();
-  if (!trimmed) return null;
-  return trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
-}
-
-function domainFromSchoolEmail(schoolEmail?: string | null): string | null {
-  if (!schoolEmail) return null;
-  const email = String(schoolEmail).trim().toLowerCase();
-  const at = email.lastIndexOf('@');
-  if (at < 0) return null;
-  return normalizeDomain(email.slice(at + 1));
-}
-
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
   const R = 3958.8;
@@ -55,8 +40,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!serviceKey) return res.status(200).json({ businesses: [], error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
-    let viewerEduVerified = false;
-    let viewerSchoolDomain: string | null = null;
     let isLoggedInViewer = false;
     const authHeader = String(req.headers.authorization || '');
     if (authHeader.startsWith('Bearer ')) {
@@ -69,29 +52,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isLoggedInViewer = true;
             const { data: profile } = await sb
               .from('profiles')
-              .select('edu_verified, school_email, school_name')
+              .select('id')
               .eq('id', viewerId)
               .maybeSingle();
-            viewerEduVerified = !!profile?.edu_verified;
-            viewerSchoolDomain =
-              domainFromSchoolEmail(profile?.school_email)
-              || normalizeDomain(profile?.school_name)
-              || null;
-          }
+            if (profile?.id) isLoggedInViewer = true;
+          } 
         } catch {
           // Keep public/locked behavior when token parsing fails.
         }
       }
     }
 
-    const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos, trust_status, trust_flagged, created_at';
-    const legacySelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, created_at';
+    const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos, trust_status, trust_flagged, approved_at, published_at, created_at';
+    const legacySelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, approved_at, published_at, created_at';
 
     let query = sb
       .from('businesses')
       .select(baseSelect)
       .eq('is_onboarded', true)
-      .or('public_visibility.eq.true,public_visibility.is.null')
       .not('lat', 'is', null)
       .not('lng', 'is', null);
 
@@ -121,7 +99,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from('businesses')
         .select(legacySelect)
         .eq('is_onboarded', true)
-        .or('public_visibility.eq.true,public_visibility.is.null')
         .not('lat', 'is', null)
         .not('lng', 'is', null);
       if (eduOnly) legacyQuery = legacyQuery.eq('edu_verified', true);
@@ -160,38 +137,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const reviewCount = b.review_count ?? 0;
       const rating = reviewCount > 0 ? b.rating : null;
       const status = computeFounder50Status(b);
-      const businessSchoolDomain = normalizeDomain(b.school_domain);
-      const sameCampusVerifiedViewer =
-        viewerEduVerified
-        && !!viewerSchoolDomain
-        && !!businessSchoolDomain
-        && viewerSchoolDomain === businessSchoolDomain;
-      // Campus providers should stay private until the viewer is EDU-verified
-      // at the same campus (matches iOS behavior).
-      const previewLocked =
-        b.campus_provider === true
-        && b.edu_verified === true
-        && !sameCampusVerifiedViewer;
-
-      const maskedName = 'Student provider';
-      const maskedDescription = 'Private until student verification';
       const guestCoarse = !isLoggedInViewer;
       const coarseDistance = `${Math.max(1, Math.round(d))} mi away`;
       return {
         ...b,
-        name: previewLocked ? maskedName : b.name,
-        description: previewLocked ? maskedDescription : b.description,
-        phone: previewLocked ? null : b.phone,
-        website: previewLocked ? null : b.website,
-        address: previewLocked ? null : (b.address || b.zip || null),
-        cover_url: previewLocked ? null : b.cover_url,
-        media_urls: previewLocked ? [] : b.media_urls,
+        name: b.name,
+        description: b.description,
+        phone: b.phone,
+        website: b.website,
+        address: b.address || b.zip || null,
+        cover_url: b.cover_url,
+        media_urls: b.media_urls,
         lat: guestCoarse ? null : b.lat,
         lng: guestCoarse ? null : b.lng,
         distance_label: guestCoarse ? coarseDistance : null,
         guest_coarse_location: guestCoarse,
         map_locked_for_guest: !isLoggedInViewer,
-        preview_locked: previewLocked,
+        preview_locked: false,
         distance_miles: d,
         price_tier: priceTier,
         rating,

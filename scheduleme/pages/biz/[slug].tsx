@@ -9,6 +9,7 @@ import { useDm } from '../../lib/DarkModeContext';
 import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
 import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
 import { shouldShowNewBadge } from '../../lib/newBadge';
+import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 function getSB() {
   return getSupabaseClient();
@@ -367,13 +368,7 @@ export default function BizPage() {
           data = byId;
         }
 
-        if (data && !isPreview) {
-          const trust = String(data.trust_status || '').toLowerCase();
-          const hiddenByTrust = data.trust_flagged === true || trust === 'flagged' || trust === 'suspended';
-          if (data.public_visibility === false || hiddenByTrust) {
-            data = null;
-          }
-        }
+        if (data && !isPreview && !isProviderPubliclyVisible(data)) data = null;
 
         if (!data) {
           if (!isPreview) router.replace('/browse');

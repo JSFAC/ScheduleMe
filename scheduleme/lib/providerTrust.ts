@@ -39,7 +39,14 @@ export function isProviderFlagged(row: any): boolean {
 export function isProviderPubliclyVisible(row: any): boolean {
   if (!row) return false;
   if (row.is_onboarded !== true) return false;
-  if (row.public_visibility === false) return false;
+  // Legacy compatibility:
+  // older approved providers may have public_visibility=false before the
+  // publish flow existed. Treat those as public unless/until they explicitly
+  // use the new publish toggle (published_at gets populated).
+  if (row.public_visibility === false) {
+    const legacyApproved = !!row.approved_at && !row.published_at;
+    if (!legacyApproved) return false;
+  }
   if (isProviderSuspended(row)) return false;
   if (isProviderFlagged(row)) return false;
   return true;
