@@ -202,7 +202,6 @@ export async function fetchAllBusinesses(
       .from('businesses')
       .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, created_at')
       .eq('is_onboarded', true)
-      .or('campus_provider.is.false,campus_provider.is.null')
       .order('last_completed_booking_at', { ascending: false, nullsFirst: false })
       .limit(opts.limit ?? 40);
 
