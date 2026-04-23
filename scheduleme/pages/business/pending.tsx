@@ -1,6 +1,6 @@
 // @ts-nocheck
 // pages/business/pending.tsx
-// Shown to businesses that have applied but not yet been approved by admin
+// Legacy route: providers are no longer manually approved.
 
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -40,7 +40,7 @@ export default function BusinessPending() {
   return (
     <>
       <Head>
-        <title>Application Under Review — ScheduleMe</title>
+        <title>Finish Setup — ScheduleMe</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: '#f9fafb' }}>
@@ -48,19 +48,24 @@ export default function BusinessPending() {
           <div className="mb-4 flex justify-center">
             <PendingIcon />
           </div>
-          <h1 className="text-2xl font-bold text-neutral-900 mb-2">Application Under Review</h1>
+          <h1 className="text-2xl font-bold text-neutral-900 mb-2">Finish your provider setup</h1>
           <p className="text-neutral-500 text-sm leading-relaxed mb-6">
-            Thank you for applying to ScheduleMe! Our team is reviewing your application.
-            You'll receive an email once you've been approved and can access your provider dashboard.
+            Manual approval is no longer required. Complete your profile checklist in the dashboard to publish instantly.
           </p>
           <div className="bg-blue-50 rounded-xl p-4 mb-6 text-left">
-            <p className="text-blue-800 text-sm font-semibold mb-1">What happens next?</p>
+            <p className="text-blue-800 text-sm font-semibold mb-1">Before you go live</p>
             <ul className="text-blue-700 text-sm space-y-1">
-              <li>• We review your application within 1–2 business days</li>
-              <li>• You'll get an email when approved</li>
-              <li>• Then you can log in and set up your profile</li>
+              <li>• Complete core profile fields</li>
+              <li>• Add at least one service + media</li>
+              <li>• Connect Stripe payouts</li>
             </ul>
           </div>
+          <button
+            onClick={() => router.replace('/business/dashboard')}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors mb-2"
+          >
+            Open Dashboard
+          </button>
           <button
             onClick={handleSignOut}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-neutral-500 border border-neutral-200 hover:bg-neutral-50 transition-colors"

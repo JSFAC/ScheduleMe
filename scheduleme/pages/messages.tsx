@@ -62,6 +62,7 @@ const MessagesPage: NextPage = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [eduGateMessage, setEduGateMessage] = useState<string | null>(null);
   const [gallery, setGallery] = useState<{ urls: string[]; index: number } | null>(null);
   const [blockedByUser, setBlockedByUser] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -141,6 +142,7 @@ const MessagesPage: NextPage = () => {
   async function openThread(thread: Thread) {
     setActiveThread(thread);
     setMessages([]);
+    setEduGateMessage(null);
     setActionsOpen(false);
     const authH = authHeadersRef.current;
     const threadQuery = thread.business_id
@@ -219,6 +221,12 @@ const MessagesPage: NextPage = () => {
       setMessages(m => [...m, data.message]);
       setThreads(ts => ts.map(t => t.id === activeThread.id ? { ...t, lastMessage: data.message } : t));
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      setEduGateMessage(null);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      if (data?.code === 'edu_verification_required' || data?.code === 'campus_match_required') {
+        setEduGateMessage(data.error || 'Verify your .edu email to continue messaging this provider.');
+      }
     }
     setSending(false);
     inputRef.current?.focus();
@@ -603,6 +611,19 @@ const MessagesPage: NextPage = () => {
 
                   {/* Input */}
                   <div className="px-4 py-3 border-t" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
+                    {eduGateMessage && (
+                      <div className="mb-2 rounded-xl border px-3 py-2 text-xs flex items-center justify-between gap-2"
+                        style={{ borderColor: '#f59e0b', background: dm ? 'rgba(245,158,11,0.12)' : '#fff7ed', color: dm ? '#fbbf24' : '#9a3412' }}>
+                        <span>{eduGateMessage}</span>
+                        <button
+                          className="shrink-0 px-2 py-1 rounded-lg text-[11px] font-bold"
+                          style={{ background: '#0F766E', color: 'white' }}
+                          onClick={() => router.push('/account')}
+                        >
+                          Verify
+                        </button>
+                      </div>
+                    )}
                     <div className="flex items-end gap-2">
                       <textarea
                         ref={inputRef}

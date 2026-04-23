@@ -6,6 +6,7 @@ import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 import { computeFounder50Status } from '../../lib/founder50';
 import { normalizeServiceTag } from '../../lib/categoryNormalization';
+import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 function normalizeDomain(domain?: string | null): string | null {
   if (!domain) return null;
@@ -56,6 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
     let viewerEduVerified = false;
     let viewerSchoolDomain: string | null = null;
+    let isLoggedInViewer = false;
     const authHeader = String(req.headers.authorization || '');
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
@@ -64,6 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const { data: authData } = await sb.auth.getUser(token);
           const viewerId = authData?.user?.id;
           if (viewerId) {
+            isLoggedInViewer = true;
             const { data: profile } = await sb
               .from('profiles')
               .select('edu_verified, school_email, school_name')
@@ -81,13 +84,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos, created_at';
+    const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos, trust_status, trust_flagged, created_at';
     const legacySelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, created_at';
 
     let query = sb
       .from('businesses')
       .select(baseSelect)
       .eq('is_onboarded', true)
+      .or('public_visibility.eq.true,public_visibility.is.null')
       .not('lat', 'is', null)
       .not('lng', 'is', null);
 
@@ -117,6 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from('businesses')
         .select(legacySelect)
         .eq('is_onboarded', true)
+        .or('public_visibility.eq.true,public_visibility.is.null')
         .not('lat', 'is', null)
         .not('lng', 'is', null);
       if (eduOnly) legacyQuery = legacyQuery.eq('edu_verified', true);
@@ -146,7 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const filtered = (rows as any[]).map((b) => {
+    const filtered = (rows as any[]).filter((b) => isProviderPubliclyVisible(b)).map((b) => {
       const d = haversineMiles(latNum, lngNum, b.lat, b.lng);
       const tags = (b.service_tags || []).map((t: string) => normalizeServiceTag(t)).filter(Boolean);
       const primaryTag = tags[0] || null;
@@ -170,6 +175,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const maskedName = 'Student provider';
       const maskedDescription = 'Private until student verification';
+      const guestCoarse = !isLoggedInViewer;
+      const coarseDistance = `${Math.max(1, Math.round(d))} mi away`;
       return {
         ...b,
         name: previewLocked ? maskedName : b.name,
@@ -179,6 +186,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         address: previewLocked ? null : (b.address || b.zip || null),
         cover_url: previewLocked ? null : b.cover_url,
         media_urls: previewLocked ? [] : b.media_urls,
+        lat: guestCoarse ? null : b.lat,
+        lng: guestCoarse ? null : b.lng,
+        distance_label: guestCoarse ? coarseDistance : null,
+        guest_coarse_location: guestCoarse,
+        map_locked_for_guest: !isLoggedInViewer,
         preview_locked: previewLocked,
         distance_miles: d,
         price_tier: priceTier,

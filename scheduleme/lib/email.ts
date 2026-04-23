@@ -491,7 +491,7 @@ export function reviewRequestHtml(opts: {
   return layout('How did your service go? Leave a review', body, `Your ${opts.service} is complete — leave a quick review.`);
 }
 
-// ─── Template: new business application alert ─────────────────────────────────
+// ─── Template: new provider signup alert ─────────────────────────────────
 export function newBusinessApplicationHtml(opts: {
   name: string; ownerName: string; email: string; phone: string;
   category: string; city: string; campusProvider: boolean; schoolName?: string;
@@ -499,7 +499,7 @@ export function newBusinessApplicationHtml(opts: {
   const adminUrl = `${SITE_URL}/admin`;
   const body = `
     <tr><td bgcolor="#0f172a" style="background:#0f172a;padding:28px 32px;">
-      <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase;">New Application</p>
+      <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.12em;text-transform:uppercase;">New Provider Signup</p>
       <h1 style="margin:6px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">${opts.name}</h1>
     </td></tr>
     <tr><td style="padding:28px 32px;">
@@ -520,12 +520,12 @@ export function newBusinessApplicationHtml(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr><td align="center">
           <a href="${adminUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:8px;">
-            Review in Admin Panel →
+            Open in Admin Panel →
           </a>
         </td></tr>
       </table>
     </td></tr>`;
-  return layout(`New application: ${opts.name}`, body, `${opts.ownerName} just applied to join ScheduleMe`);
+  return layout(`New provider signup: ${opts.name}`, body, `${opts.ownerName} created a new provider draft profile`);
 }
 
 // ─── Template: business change request (admin) ─────────────────────────
@@ -599,7 +599,7 @@ export function changeRequestDecisionHtml(opts: {
   return layout(`Update ${opts.approved ? 'approved' : 'rejected'}`, body, `Your update request was ${opts.approved ? 'approved' : 'rejected'}`);
 }
 
-// ─── Template: business application received (applicant) ─────────────────────
+// ─── Template: provider draft created (applicant) ─────────────────────
 export function businessApplicationReceivedHtml(opts: {
   businessName: string; ownerName: string; category: string; city: string;
 }) {
@@ -608,9 +608,9 @@ export function businessApplicationReceivedHtml(opts: {
       <div style="width:56px;height:56px;background:rgba(255,255,255,0.12);border-radius:50%;margin:0 auto 14px;text-align:center;line-height:56px;">
         <span style="font-size:26px;color:#ffffff;">&#10003;</span>
       </div>
-      <p style="margin:0;font-size:12px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:0.18em;text-transform:uppercase;">Application Received</p>
-      <h1 style="margin:8px 0 0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Thanks for applying, ${opts.ownerName}</h1>
-      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.75);">We are reviewing your provider profile and will get back to you within 24 hours.</p>
+      <p style="margin:0;font-size:12px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:0.18em;text-transform:uppercase;">Draft Created</p>
+      <h1 style="margin:8px 0 0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Your provider profile is ready to finish, ${opts.ownerName}</h1>
+      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.75);">Complete setup in your dashboard to publish and start receiving bookings.</p>
     </td></tr>
     <tr><td style="padding:28px 32px;">
       <p style="margin:0 0 16px;font-size:14px;color:#64748b;">Here is what we have on file:</p>
@@ -629,17 +629,17 @@ export function businessApplicationReceivedHtml(opts: {
         <tr><td style="padding:18px 20px;">
           <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">What happens next</p>
           <ol style="margin:0;padding-left:18px;color:#0f172a;font-size:14px;line-height:1.7;">
-            <li>We verify your provider details (up to 24 hours).</li>
-            <li>You receive an approval email with your dashboard login.</li>
-            <li>Connect Stripe to get paid once your profile is live.</li>
-            <li><strong>Get featured:</strong> complete 3 bookings or be selected for a campus spotlight.</li>
+            <li>Sign in and finish your profile details.</li>
+            <li>Add at least one service and upload media.</li>
+            <li>Connect Stripe to receive payouts.</li>
+            <li>Publish instantly once your checklist is complete.</li>
           </ol>
         </td></tr>
       </table>
       <p style="margin:18px 0 0;font-size:13px;color:#94a3b8;">Questions? Reply to this email and we will help right away.</p>
     </td></tr>
   `;
-  return layout(`We received your application`, body, `Thanks for applying to ScheduleMe, ${opts.ownerName}`);
+  return layout(`Your provider draft is ready`, body, `Finish setup to publish your ScheduleMe profile`);
 }
 
 // ─── Template: provider application rejected (applicant) ────────────────────
@@ -804,7 +804,7 @@ export async function sendNewBusinessApplicationEmail(opts: {
   phone: string; category: string; city: string; campusProvider: boolean; schoolName?: string;
 }) {
   const resend = getResend();
-  return resend.emails.send({ from: FROM, to: opts.to, subject: `New provider application: ${opts.name}`, html: newBusinessApplicationHtml(opts) });
+  return resend.emails.send({ from: FROM, to: opts.to, subject: `New provider signup: ${opts.name}`, html: newBusinessApplicationHtml(opts) });
 }
 
 export async function sendChangeRequestAdminEmail(opts: {
@@ -851,7 +851,7 @@ export async function sendBusinessApplicationReceivedEmail(opts: {
   return resend.emails.send({
     from: FROM,
     to: opts.to,
-    subject: `We received your application, ${opts.businessName}`,
+    subject: `Your provider draft is ready, ${opts.businessName}`,
     html: businessApplicationReceivedHtml({
       businessName: opts.businessName,
       ownerName: opts.ownerName,

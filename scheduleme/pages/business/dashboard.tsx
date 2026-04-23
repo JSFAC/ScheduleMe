@@ -817,6 +817,9 @@ const BusinessDashboard: NextPage = () => {
   const [publicShowPhotos, setPublicShowPhotos] = useState(false);
   const [campusShowName, setCampusShowName] = useState(false);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [publishChecklist, setPublishChecklist] = useState<any>(null);
+  const [publishReady, setPublishReady] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
@@ -836,6 +839,16 @@ const BusinessDashboard: NextPage = () => {
     return HOURS_DAYS
       .map(day => (map[day] ? { day, time: map[day] } : null))
       .filter(Boolean) as { day: string; time: string }[];
+  }
+
+  async function refreshPublishStatus() {
+    try {
+      const res = await fetch('/api/provider-publish', { headers: await getAuthHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      setPublishChecklist(data.checklist || null);
+      setPublishReady(!!data.checklist?.readyToPublish);
+    } catch {}
   }
 
   const loadData = useCallback(async () => {
@@ -894,11 +907,6 @@ const BusinessDashboard: NextPage = () => {
         has_seen_welcome: true,
       }, { onConflict: 'id', ignoreDuplicates: false });
     } catch {}
-    // Approval gate — business must be approved (is_onboarded) to access dashboard
-    if (!biz.is_onboarded) {
-      router.replace('/business/pending');
-      return;
-    }
     setBusiness(biz);
     loadBlockedCustomers(biz.id);
     setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
@@ -911,6 +919,7 @@ const BusinessDashboard: NextPage = () => {
     setPublicShowName(Boolean(biz.public_show_name));
     setPublicShowPhotos(Boolean(biz.public_show_photos));
     setCampusShowName(Boolean(biz.campus_show_name));
+    refreshPublishStatus();
     setLoading(false);
     const authHeaders = await getAuthHeaders();
     const [bkgRes, msgsRes, balRes] = await Promise.all([
@@ -936,6 +945,21 @@ const BusinessDashboard: NextPage = () => {
       .then(data => { setServices(data.services || []); setSvcLoading(false); })
       .catch(() => setSvcLoading(false));
   }, [tab, business]);
+
+  useEffect(() => {
+    if (!business?.id) return;
+    refreshPublishStatus();
+  }, [
+    business?.id,
+    business?.description,
+    business?.address,
+    business?.phone,
+    business?.website,
+    business?.stripe_onboarded,
+    mediaImages.length,
+    mediaVideo,
+    services.length,
+  ]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
 
@@ -1640,6 +1664,38 @@ const BusinessDashboard: NextPage = () => {
     showToast('Visibility settings saved', true);
   }
 
+  async function handlePublish(action: 'publish' | 'unpublish') {
+    setPublishLoading(true);
+    try {
+      const res = await fetch('/api/provider-publish', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || 'Failed to update publish status', false);
+        if (data.checklist) {
+          setPublishChecklist(data.checklist);
+          setPublishReady(!!data.checklist.readyToPublish);
+        }
+        return;
+      }
+      if (action === 'publish') {
+        setBusiness((b: any) => b ? { ...b, is_onboarded: true, public_visibility: true } : b);
+        setPublicVisibility(true);
+        showToast('Profile published and now bookable.', true);
+      } else {
+        setBusiness((b: any) => b ? { ...b, public_visibility: false } : b);
+        setPublicVisibility(false);
+        showToast('Profile unpublished.', true);
+      }
+      await refreshPublishStatus();
+    } finally {
+      setPublishLoading(false);
+    }
+  }
+
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
   async function handleDeleteProviderAccount() {
     setDeleteAccountError('');
@@ -2092,6 +2148,54 @@ const BusinessDashboard: NextPage = () => {
                 </div>
                   );
                 })()}
+
+                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-neutral-900">Publish Checklist</h2>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Draft profiles stay private until all requirements are complete.
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                      style={{ background: publishReady ? '#ecfdf5' : '#fff7ed', color: publishReady ? '#047857' : '#9a3412' }}>
+                      {publishReady ? 'Ready to publish' : 'Draft'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
+                    {[
+                      { key: 'coreProfile', label: 'Core profile fields' },
+                      { key: 'services', label: 'At least one service' },
+                      { key: 'media', label: 'Photo or media uploaded' },
+                      { key: 'stripe', label: 'Stripe connected' },
+                    ].map((item) => {
+                      const ok = !!publishChecklist?.[item.key];
+                      return (
+                        <div key={item.key} className="rounded-xl border px-3 py-2 flex items-center justify-between"
+                          style={{ borderColor: ok ? '#bbf7d0' : '#fed7aa', background: ok ? '#f0fdf4' : '#fff7ed' }}>
+                          <span style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</span>
+                          <span style={{ color: ok ? '#166534' : '#9a3412', fontWeight: 700 }}>{ok ? 'Done' : 'Needed'}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePublish('publish')}
+                      disabled={publishLoading || !publishReady}
+                      className="btn-primary text-sm px-4 py-2 disabled:opacity-50"
+                    >
+                      {publishLoading ? 'Updating…' : 'Publish Profile'}
+                    </button>
+                    <button
+                      onClick={() => handlePublish('unpublish')}
+                      disabled={publishLoading || !business?.public_visibility}
+                      className="text-sm font-semibold px-4 py-2 rounded-xl border border-neutral-300 text-neutral-700 disabled:opacity-50"
+                    >
+                      Unpublish
+                    </button>
+                  </div>
+                </div>
 
                 <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                   <div className="flex items-center justify-between mb-5">
@@ -3270,7 +3374,7 @@ const BusinessDashboard: NextPage = () => {
                       {[
                         { label: 'Owner', value: business?.owner_name },
                         { label: 'Email', value: business?.owner_email },
-                        { label: 'Status', value: business?.is_onboarded ? '✓ Active on ScheduleMe' : '⏳ Pending Review' },
+                        { label: 'Status', value: business?.public_visibility ? '✓ Live on ScheduleMe' : 'Draft (not public yet)' },
                         { label: 'Rating', value: business?.rating ? business.rating + ' ★' : 'No ratings yet' },
                       ].map(r => (
                         <div key={r.label} className="flex items-start justify-between gap-4 py-2 border-b border-neutral-50 last:border-0">

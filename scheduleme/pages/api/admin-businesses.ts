@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const campus = typeof req.query.campus === 'string' ? req.query.campus : '';
 
-  const baseSelect = 'id, name, owner_name, owner_email, phone, address, city, zip, website, instagram, service_tags, is_onboarded, stripe_onboarded, created_at, approved_at, campus_school_name, campus_key, campus_provider, school_domain, founder50, founder50_status';
+  const baseSelect = 'id, name, owner_name, owner_email, phone, address, city, zip, website, instagram, service_tags, is_onboarded, stripe_onboarded, public_visibility, created_at, approved_at, published_at, campus_school_name, campus_key, campus_provider, school_domain, founder50, founder50_status, trust_status, trust_flagged, trust_notes, trust_last_action_at, trust_last_action_by';
   const extendedSelect = `${baseSelect}, status, review_notes`;
 
   async function run(selectString: string) {

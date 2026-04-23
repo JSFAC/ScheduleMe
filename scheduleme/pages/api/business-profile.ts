@@ -3,6 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 function getSupabase() {
   return createClient(
@@ -23,10 +24,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, name, description, hours, calendly_url, availability_status, service_tags, cover_url, media_urls')
+    .select('id, name, description, hours, calendly_url, availability_status, service_tags, cover_url, media_urls, is_onboarded, public_visibility, trust_status, trust_flagged')
     .eq('id', business_id)
     .maybeSingle();
 
-  if (error || !data) return res.status(200).json({ business: null });
+  if (error || !data || !isProviderPubliclyVisible(data)) return res.status(200).json({ business: null });
   return res.status(200).json({ business: data });
 }

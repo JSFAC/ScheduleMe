@@ -284,6 +284,7 @@ export default function BizPage() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [eduGateModal, setEduGateModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const [err, setErr] = useState('');
   const [shareOpen, setShareOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -364,6 +365,14 @@ export default function BizPage() {
             .eq('is_onboarded', true)
             .maybeSingle();
           data = byId;
+        }
+
+        if (data && !isPreview) {
+          const trust = String(data.trust_status || '').toLowerCase();
+          const hiddenByTrust = data.trust_flagged === true || trust === 'flagged' || trust === 'suspended';
+          if (data.public_visibility === false || hiddenByTrust) {
+            data = null;
+          }
         }
 
         if (!data) {
@@ -770,7 +779,15 @@ export default function BizPage() {
         }),
       });
       d = await res.json().catch(() => ({}));
-      if (!res.ok) { setErr(d.error || 'Booking failed'); setSubmitting(false); return; }
+      if (!res.ok) {
+        if (d?.code === 'edu_verification_required' || d?.code === 'campus_match_required') {
+          setEduGateModal({ open: true, message: d.error || 'Verify your .edu email to continue.' });
+        } else {
+          setErr(d.error || 'Booking failed');
+        }
+        setSubmitting(false);
+        return;
+      }
     } catch (e) {
       setErr('Booking failed. Please try again.');
       setSubmitting(false);
@@ -1014,6 +1031,30 @@ export default function BizPage() {
         {toast && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2 rounded-full text-xs font-semibold" style={{ background: dm ? '#0f172a' : '#111827', color: 'white', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
             {toast}
+          </div>
+        )}
+        {eduGateModal.open && (
+          <div className="fixed inset-0 z-[10002] flex items-center justify-center px-5" style={{ background: 'rgba(0,0,0,0.55)' }}>
+            <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: card, border: '1px solid ' + bdr }}>
+              <h2 className="text-base font-bold" style={{ color: tx }}>Action requires .edu verification</h2>
+              <p className="text-sm mt-2" style={{ color: mu }}>{eduGateModal.message}</p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  className="flex-1 py-2 rounded-xl text-sm font-semibold"
+                  style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}
+                  onClick={() => setEduGateModal({ open: false, message: '' })}
+                >
+                  Close
+                </button>
+                <button
+                  className="flex-1 py-2 rounded-xl text-sm font-bold"
+                  style={{ background: accent, color: 'white' }}
+                  onClick={() => router.push('/account')}
+                >
+                  Verify .edu
+                </button>
+              </div>
+            </div>
           </div>
         )}
         {galleryOpen && imgs.length > 0 && (

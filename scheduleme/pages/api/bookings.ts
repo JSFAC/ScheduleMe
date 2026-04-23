@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
+import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
 const VALID_STATUSES = [
@@ -25,32 +26,6 @@ function getSupabase() {
   const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
   if (!url || !key) throw new Error('Missing Supabase env vars');
   return createClient(url, key, { auth: { persistSession: false } });
-}
-
-async function getOptionalAuthUser(req: NextApiRequest): Promise<{ id: string; email: string; user_metadata?: Record<string, any> } | null> {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.replace('Bearer ', '').trim();
-  if (!token) return null;
-
-  const supabaseURL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const verifyKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
-
-  if (!supabaseURL || !verifyKey) return null;
-
-  try {
-    const authClient = createClient(supabaseURL, verifyKey, { auth: { persistSession: false } });
-    const { data, error } = await authClient.auth.getUser(token);
-    if (error || !data?.user) return null;
-    return {
-      id: data.user.id,
-      email: data.user.email || '',
-      user_metadata: data.user.user_metadata || {},
-    };
-  } catch {
-    return null;
-  }
 }
 
 function parseSlotTo24h(slot?: string): { hours: number; minutes: number } | null {
@@ -294,7 +269,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     if (!(await rateLimit(req, res, { max: 10, windowMs: 10 * 60_000, keyPrefix: 'book-post' }))) return;
 
-    const authUser = await getOptionalAuthUser(req);
+    const authUser = await requireAuth(req, res);
+    if (!authUser) return;
+    if (!(await rateLimitByPrincipal(res, authUser.id, { max: 40, windowMs: 60_000, keyPrefix: 'book-post-user' }))) return;
     const {
       business_id,
       user_id,
@@ -327,13 +304,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const supabase = getSupabase();
       const normalizedEmail = typeof user_email === 'string' ? user_email.trim().toLowerCase() : '';
       const authEmail = (authUser?.email || '').trim().toLowerCase();
+      if (normalizedEmail && authEmail && normalizedEmail !== authEmail) {
+        return res.status(403).json({ error: 'Authenticated email does not match booking email' });
+      }
 
       const { data: businessRow } = await supabase
         .from('businesses')
-        .select('id, availability_status')
+        .select('id, availability_status, is_onboarded, public_visibility, trust_status, trust_flagged, campus_provider, edu_verified, school_domain, campus_key')
         .eq('id', business_id)
         .maybeSingle();
       if (!businessRow) return res.status(404).json({ error: 'Provider not found' });
+      if (!isProviderPubliclyVisible(businessRow)) {
+        return res.status(403).json({ error: 'This provider is currently unavailable for booking.' });
+      }
       const availabilityStatus = String((businessRow as any).availability_status || '').trim().toLowerCase();
       if (availabilityStatus && availabilityStatus !== 'open') {
         return res.status(409).json({
@@ -341,39 +324,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      let resolvedUserId = user_id;
-      if (authUser) {
-        if (resolvedUserId && resolvedUserId !== authUser.id) {
-          return res.status(403).json({ error: 'Authenticated user does not match booking user_id' });
-        }
-
-        resolvedUserId = authUser.id;
-        await supabase
-          .from('profiles')
-          .upsert(
-            {
-              id: authUser.id,
-              email: authEmail || normalizedEmail || null,
-              name: user_name?.slice(0, 100) || authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
-              phone: user_phone?.slice(0, 20) || null,
-            },
-            { onConflict: 'id' }
-          );
-      } else if (!resolvedUserId && user_email) {
-        const { data: userData } = await supabase
-          .from('profiles')
-          .upsert(
-            {
-              email: user_email,
-              name: user_name?.slice(0, 100),
-              phone: user_phone?.slice(0, 20),
-            },
-            { onConflict: 'email' }
-          )
-          .select('id')
-          .single();
-        resolvedUserId = userData?.id;
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('edu_verified, school_domain, school_email, campus_key')
+        .eq('id', authUser.id)
+        .maybeSingle();
+      const eligibility = canUserTransactWithStudentProvider({
+        business: businessRow,
+        profile: profileRow,
+      });
+      if (!eligibility.ok) {
+        return res.status(403).json({
+          error: eligibility.message || 'EDU verification required.',
+          code: eligibility.code || 'edu_verification_required',
+        });
       }
+
+      let resolvedUserId = user_id;
+      if (resolvedUserId && resolvedUserId !== authUser.id) {
+        return res.status(403).json({ error: 'Authenticated user does not match booking user_id' });
+      }
+      resolvedUserId = authUser.id;
+      await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: authUser.id,
+            email: authEmail || normalizedEmail || null,
+            name: user_name?.slice(0, 100) || null,
+            phone: user_phone?.slice(0, 20) || null,
+          },
+          { onConflict: 'id' }
+        );
 
       const { data, error } = await supabase
         .from('bookings')

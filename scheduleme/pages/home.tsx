@@ -14,6 +14,7 @@ import { SkeletonScrollRow, SkeletonCard } from '../components/SkeletonCard';
 import FeedbackModal from '../components/FeedbackModal';
 import { fetchAllBusinesses } from '../lib/realBusinesses';
 import { formatPriceTierLabel } from '../lib/priceTierLabel';
+import { shouldShowNewBadge } from '../lib/newBadge';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
@@ -57,14 +58,6 @@ function iconForCategory(label: string) {
   if (lower.includes('music') || lower.includes('audio') || lower.includes('dj')) return 'M9 19V6l12-2v13';
   if (lower.includes('design') || lower.includes('print') || lower.includes('3d') || lower.includes('cad')) return 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42';
   return 'M12 6v12m6-6H6';
-}
-
-function shouldShowNewBadge({ createdAt, reviewCount }: { createdAt?: string | null; reviewCount?: number | null }) {
-  if (!createdAt) return false;
-  const t = new Date(createdAt).getTime();
-  if (!Number.isFinite(t)) return false;
-  const ageDays = (Date.now() - t) / (1000 * 60 * 60 * 24);
-  return ageDays <= 30 && (reviewCount ?? 0) <= 2;
 }
 
 function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: string) => void }) {

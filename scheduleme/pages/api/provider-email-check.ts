@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data } = await supabase
       .from('businesses')
-      .select('id, is_onboarded')
+      .select('id, is_onboarded, public_visibility')
       .ilike('owner_email', email)
       .limit(1)
       .maybeSingle();
@@ -32,9 +32,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const exists = !!data?.id;
     const status = !exists
       ? null
-      : data?.is_onboarded === true
-        ? 'approved'
-        : 'pending';
+      : data?.public_visibility === true
+        ? 'live'
+        : data?.is_onboarded === true
+          ? 'setup_incomplete'
+          : 'draft';
 
     return res.status(200).json({ exists, status });
   } catch {

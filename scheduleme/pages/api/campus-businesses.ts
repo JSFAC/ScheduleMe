@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 import { computeFounder50Status } from '../../lib/founder50';
+import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 const FEATURED_LIMIT = 3;
 
@@ -55,13 +56,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const nowIso = new Date().toISOString();
 
-    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name';
-    const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50';
+    const baseSelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, campus_key, featured_until, featured_on_notified_at, featured_off_notified_at, campus_show_name, public_visibility, trust_status, trust_flagged';
+    const legacySelect = 'id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, public_visibility';
 
     let query = sb
       .from('businesses')
       .select(baseSelect)
       .eq('is_onboarded', true)
+      .or('public_visibility.eq.true,public_visibility.is.null')
       .eq('edu_verified', true)
       .eq('campus_provider', true)
       .order('rating', { ascending: false });
@@ -103,6 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('businesses')
       .select(legacySelect)
       .eq('is_onboarded', true)
+      .or('public_visibility.eq.true,public_visibility.is.null')
       .eq('edu_verified', true)
       .eq('campus_provider', true)
       .order('rating', { ascending: false });
@@ -127,6 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('businesses')
       .select(legacyMode ? legacySelect : baseSelect)
       .eq('is_onboarded', true)
+      .or('public_visibility.eq.true,public_visibility.is.null')
       .eq('edu_verified', true)
       .eq('campus_provider', true)
       .order('rating', { ascending: false })
@@ -184,7 +188,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const manualMap = new Map((manualBiz || []).map((b: any) => [b.id, b]));
       manualActive.forEach((row: any) => {
         const biz = manualMap.get(row.business_id);
-        if (biz) featuredManual.push(biz);
+        if (biz && isProviderPubliclyVisible(biz)) featuredManual.push(biz);
       });
     }
 
@@ -228,7 +232,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     autoFeaturedQuery.eq('school_domain', schoolDomain);
   }
   const { data: autoFeaturedRows } = await autoFeaturedQuery;
-  (autoFeaturedRows || []).forEach((b: any) => featuredAuto.push(b));
+  (autoFeaturedRows || []).forEach((b: any) => {
+    if (isProviderPubliclyVisible(b)) featuredAuto.push(b);
+  });
 
   // Featured email notifications are handled by a secured admin job.
   }
@@ -247,7 +253,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
-  const enriched = (rows as any[]).map((b) => {
+  const enriched = (rows as any[]).filter((b) => isProviderPubliclyVisible(b)).map((b) => {
     const tags = (b.service_tags || []).map((t: string) => t.toLowerCase());
     const primaryTag = tags[0] || null;
     const avgCents = averagePriceCents(serviceMap[b.id] || []);

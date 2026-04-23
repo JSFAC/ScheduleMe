@@ -376,13 +376,21 @@ const BrowsePage: NextPage = () => {
   const [usingRealData, setUsingRealData] = useState(false);
   const [geoError, setGeoError] = useState(false);
   const [mapListMobile, setMapListMobile] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showMapLoginPrompt, setShowMapLoginPrompt] = useState(false);
   const mapListRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
   const mobileViewLabel = viewMode === 'grid' ? 'Grid' : viewMode === 'list' ? 'List' : 'Map';
   const cycleMobileViewMode = () => {
     setViewMode((prev) => {
       if (prev === 'grid') return 'list';
-      if (prev === 'list') return 'map';
+      if (prev === 'list') {
+        if (!isLoggedIn) {
+          setShowMapLoginPrompt(true);
+          return 'list';
+        }
+        return 'map';
+      }
       return 'grid';
     });
   };
@@ -438,7 +446,8 @@ const BrowsePage: NextPage = () => {
         // We intentionally allow guest browsing for better top-of-funnel UX.
         // Session check is still read here so logged-in behavior can evolve safely.
         const supabase = getSupabase();
-        await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsLoggedIn(!!session);
         if (!alive) return;
         setLoading(false);
 
@@ -613,7 +622,13 @@ const BrowsePage: NextPage = () => {
                   ['grid', 'Grid', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
                   ['map', 'Map', 'M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z'],
                 ] as const).map(([mode, label, d]) => (
-                  <button key={mode} onClick={() => setViewMode(mode as 'list' | 'grid' | 'map')}
+                  <button key={mode} onClick={() => {
+                    if (mode === 'map' && !isLoggedIn) {
+                      setShowMapLoginPrompt(true);
+                      return;
+                    }
+                    setViewMode(mode as 'list' | 'grid' | 'map');
+                  }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={viewMode === mode
                       ? { background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#0F766E', border: dm ? '1px solid #262626' : 'none' }
@@ -829,6 +844,20 @@ const BrowsePage: NextPage = () => {
               )}
               {filtered.length > 0 && <div className="mt-5"><ReferInline /></div>}
             </>
+          ) : !isLoggedIn ? (
+            <div className="rounded-2xl border p-8 text-center" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+              <p className="text-lg font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>Map view is locked</p>
+              <p className="text-sm mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                Sign in to unlock exact map locations.
+              </p>
+              <button
+                onClick={() => window.location.href = '/signin?next=/browse'}
+                className="mt-4 px-4 py-2 rounded-xl text-sm font-bold"
+                style={{ background: '#0F766E', color: 'white' }}
+              >
+                Sign in to view map
+              </button>
+            </div>
           ) : (
             <div className="flex flex-col animate-fade-up" style={{ animationDuration: '0.3s' }}>
               <div className="md:hidden relative rounded-2xl overflow-hidden border border-neutral-200 shadow-sm mb-4" style={{ height: 260 }}>
@@ -983,6 +1012,33 @@ const BrowsePage: NextPage = () => {
           )}
         </div>
       </div>
+
+      {showMapLoginPrompt && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-5" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid #e5e7eb' }}>
+            <h2 className="text-base font-bold" style={{ color: dm ? '#f3f4f6' : '#111827' }}>Map view requires sign in</h2>
+            <p className="text-sm mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+              Browse cards as a guest, then sign in for exact map locations and booking.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                className="flex-1 py-2 rounded-xl text-sm font-semibold"
+                style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}
+                onClick={() => setShowMapLoginPrompt(false)}
+              >
+                Not now
+              </button>
+              <button
+                className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={{ background: '#0F766E', color: 'white' }}
+                onClick={() => { window.location.href = '/signin?next=/browse'; }}
+              >
+                Sign in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
     </>
   );

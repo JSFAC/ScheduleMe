@@ -131,16 +131,16 @@ const SignupPage: NextPage = () => {
 
   if (hasSubmitted && step === 'form') return (
     <>
-      <Head><title>Application Pending — ScheduleMe for Providers</title></Head>
+      <Head><title>Provider Draft Exists — ScheduleMe for Providers</title></Head>
       <BusinessNav />
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-24">
         <div className="w-full max-w-lg rounded-2xl border border-neutral-800 bg-neutral-900 p-8 text-center">
           <div className="mx-auto h-12 w-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent mb-4">
             <PendingIcon />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Application under review</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Provider draft already created</h1>
           <p className="text-sm text-neutral-400">
-            You’ve already submitted a provider application. We’re reviewing it now and will email you once it’s approved.
+            You already created a provider profile draft. Sign in to finish setup and publish instantly.
           </p>
           <div className="mt-6 flex flex-col gap-2">
             <Link href="/business/auth/login" className="btn-primary w-full py-3">Provider login</Link>
@@ -163,7 +163,7 @@ const SignupPage: NextPage = () => {
           <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
           <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
         </div>
-        <p className="text-white font-semibold text-lg">Submitting your application…</p>
+        <p className="text-white font-semibold text-lg">Creating your provider draft…</p>
         <p className="text-neutral-500 text-sm mt-2">Just a moment</p>
       </div>
     </div>
@@ -171,7 +171,7 @@ const SignupPage: NextPage = () => {
 
   if (step === 'success') return (
     <>
-      <Head><title>Application Submitted — ScheduleMe for Providers</title></Head>
+      <Head><title>Draft Created — ScheduleMe for Providers</title></Head>
       <BusinessNav />
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-24">
         <div className="max-w-md w-full text-center">
@@ -180,19 +180,18 @@ const SignupPage: NextPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-3">Application received!</h1>
+          <h1 className="text-3xl font-bold text-white mb-3">Draft created!</h1>
           <p className="text-neutral-400 leading-relaxed mb-8">
-            Thanks, <strong className="text-white">{form.ownerName}</strong>. We will review{' '}
-            <strong className="text-white">{form.businessName}</strong> and send approval to{' '}
-            <strong className="text-white">{form.email}</strong> within 24 hours.
+            Thanks, <strong className="text-white">{form.ownerName}</strong>. Your provider draft for{' '}
+            <strong className="text-white">{form.businessName}</strong> is ready. Finish setup to publish and start taking bookings.
           </p>
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 text-left space-y-4 mb-8">
             <p className="text-xs font-semibold text-neutral-500 uppercase tracking-widest">What happens next</p>
             {[
-              'We verify your license and provider details (up to 24 hrs)',
-              'You receive a welcome email with your dashboard login',
-              'Connect your bank account via Stripe to receive payments',
-              'First job requests start arriving once your profile is live',
+              'Sign in to your provider dashboard',
+              'Complete profile basics, services, and media',
+              'Connect Stripe to receive payouts',
+              'Publish instantly once checklist items are complete',
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-3">
                 <span className="h-6 w-6 rounded-full bg-accent/20 text-accent text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
@@ -222,7 +221,7 @@ const SignupPage: NextPage = () => {
       <div className="min-h-screen bg-neutral-950 pt-20 pb-20 px-4 md:px-6">
         <div className="mx-auto max-w-2xl">
           <div className="text-center mb-8">
-            <span className="section-eyebrow mb-3 block">Provider Application</span>
+            <span className="section-eyebrow mb-3 block">Provider Setup</span>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ letterSpacing: '-0.02em' }}>
               Create your provider profile
             </h1>

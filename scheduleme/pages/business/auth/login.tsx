@@ -200,7 +200,7 @@ const BusinessLoginPage: NextPage = () => {
         if (!biz) {
           // Sign them back out — not a business account
           await supabase.auth.signOut();
-          setError('No provider account found for this email. If you applied, please wait for your approval email.');
+          setError('No provider account found for this email. If you started signup, create your provider draft first.');
           setLoading(false);
           return;
         }
@@ -251,13 +251,13 @@ const BusinessLoginPage: NextPage = () => {
                 <p className="font-semibold mb-1 text-red-300">No provider account found</p>
                 <p className="text-red-400 leading-relaxed">
                   {error === 'not_a_business'
-                    ? 'This email is not registered as a ScheduleMe provider. If you applied, wait for your approval email. Otherwise choose an option below.'
+                    ? 'This email is not registered as a ScheduleMe provider. Create your provider draft to continue.'
                     : error}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <Link href="/business/signup"
                     className="flex items-center justify-center px-3 py-2 rounded-lg bg-accent/20 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/30 transition-colors text-center">
-                    Apply as a Provider
+                    Create Provider Draft
                   </Link>
                   <Link href="/signin"
                     className="flex items-center justify-center px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs font-semibold hover:bg-neutral-700 transition-colors text-center">

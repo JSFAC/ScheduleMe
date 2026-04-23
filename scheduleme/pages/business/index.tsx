@@ -42,7 +42,7 @@ const WHY_ITEMS = [
 
 const HOW_STEPS = [
   { step: 1, title: 'Create your profile', desc: 'Add your services, pricing, coverage area, and photos. Takes about 5 minutes.' },
-  { step: 2, title: 'Get verified', desc: 'We review your profile so students can trust the listing before you go live.' },
+  { step: 2, title: 'Complete checklist', desc: 'Add services, media, and Stripe to unlock publish.' },
   { step: 3, title: 'Receive matched leads', desc: 'When a student requests your service nearby, you get an instant alert with their details.' },
   { step: 4, title: 'Confirm and complete', desc: 'Confirm the booking, message the customer, and get paid after completion.' },
 ];
@@ -59,7 +59,7 @@ const FAQ = [
   { q: 'How are leads matched to my profile?', a: 'Requests are matched by service category, campus area, and availability so you only see relevant inquiries.' },
   { q: 'Can I set my own service area?', a: 'Yes. During onboarding you set your coverage radius. You can adjust this anytime from your dashboard.' },
   { q: 'What if a lead is bad quality?', a: 'If a request does not match your profile or looks incorrect, report it and we’ll review it quickly.' },
-  { q: 'How quickly will I be approved?', a: 'Most providers are reviewed and approved within 24 hours.' },
+  { q: 'How quickly can I go live?', a: 'As soon as your setup checklist is complete, you can publish instantly.' },
 ];
 
 const StarRating = () => (
@@ -120,7 +120,7 @@ const Business: NextPage = () => {
                 See how it works
               </a>
             </div>
-            <p className="mt-6 text-sm text-neutral-600">No credit card required · Approval within 24 hours</p>
+            <p className="mt-6 text-sm text-neutral-600">No credit card required · Publish when ready</p>
           </div>
         </section>
 
@@ -132,7 +132,7 @@ const Business: NextPage = () => {
                 { value: '2,400+', label: 'providers joined' },
                 { value: '14', label: 'service categories' },
                 { value: '$0', label: 'to get started' },
-                { value: '24 hr', label: 'approval time' },
+                { value: 'Instant', label: 'publish when ready' },
                 { value: '4.8', label: 'provider rating' },
               ].map((s) => (
                 <li key={s.label} className="flex items-baseline gap-2 text-sm">
@@ -176,7 +176,7 @@ const Business: NextPage = () => {
             <div className="js-sec text-center mb-20">
               <span className="section-eyebrow mb-4 block">How It Works</span>
               <h2 id="how-biz-heading" className="text-4xl md:text-5xl font-bold text-white">
-                Up and running<br className="hidden md:block" /> in 24 hours.
+                Up and running<br className="hidden md:block" /> in minutes.
               </h2>
             </div>
             <ol className="relative space-y-0" role="list">
@@ -269,7 +269,7 @@ const Business: NextPage = () => {
               Ready to grow your provider profile?
             </h2>
             <p className="text-neutral-400 mb-10 text-lg leading-relaxed">
-              Join free in 5 minutes. No credit card, no commitment.<br className="hidden md:block" /> Start receiving leads within 24 hours of approval.
+              Join free in 5 minutes. No credit card, no commitment.<br className="hidden md:block" /> Publish as soon as your checklist is complete.
             </p>
             <Link href="/business/signup" className="btn-primary text-base px-12 py-4 shadow-xl shadow-accent/20">
               Create Your Provider Profile →

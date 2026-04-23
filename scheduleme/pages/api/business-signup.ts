@@ -162,7 +162,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch {}
     }
     if (!ownerId) {
-      return res.status(400).json({ error: 'Please create your account first, then submit provider signup.' });
+      return res.status(400).json({ error: 'Please create your account first, then create your provider profile.' });
     }
 
     const geo = await geocodeLocation(cleanAddress);
@@ -196,11 +196,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }).select('id').single();
 
     if (error) {
-      if (error.code === '23505') return res.status(409).json({ error: 'A business with this email already exists' });
-      return res.status(500).json({ error: 'Failed to submit application' });
+      if (error.code === '23505') return res.status(409).json({ error: 'A provider profile with this email already exists' });
+      return res.status(500).json({ error: 'Failed to create provider draft' });
     }
 
-    // Email admin and applicant (direct send to avoid notify issues)
+    // Notify ops + provider (draft created flow)
     try {
       await sendNewBusinessApplicationEmail({
         to: ADMIN_EMAIL,
@@ -229,7 +229,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('[business-signup] applicant email failed', err);
     }
 
-    return res.status(200).json({ success: true, businessId: data.id });
+    return res.status(200).json({ success: true, businessId: data.id, status: 'draft_created' });
   } catch {
     return res.status(500).json({ error: 'Internal server error' });
   }

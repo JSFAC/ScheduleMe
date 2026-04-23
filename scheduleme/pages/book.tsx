@@ -151,6 +151,10 @@ const BookPage: NextPage = () => {
 
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        router.push(`/signin?next=${encodeURIComponent('/book')}`);
+        return;
+      }
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: {

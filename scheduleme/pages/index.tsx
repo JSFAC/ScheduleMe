@@ -170,9 +170,9 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
             </div>
             <ul className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
               {[
-                { quote: "Described a leaking pipe, got three plumbers within 2 minutes. Booked in 45 seconds. Incredible.", name: "Maria L.", location: "Austin, TX", service: "Plumbing" },
-                { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "James T.", location: "Phoenix, AZ", service: "HVAC" },
-                { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Sandra K.", location: "Denver, CO", service: "Home Repair" },
+                { quote: "Described a leaking pipe, got three plumbers within 2 minutes. Booked in 45 seconds. Incredible.", name: "Noah F.", location: "Berkeley, CA", service: "Plumbing" },
+                { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "Andrew C.", location: "Tempe, AZ", service: "HVAC" },
+                { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Misty V.", location: "Fresno, CA", service: "Home Repair" },
               ].map((t) => (
                 <li key={t.name} className="js-testimonial p-7 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
                   <div className="flex gap-0.5 mb-4" aria-label="5 stars">

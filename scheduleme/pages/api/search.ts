@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
+import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 export interface BusinessResult {
   id: string; name: string; slug: string | null; description: string | null;
@@ -54,11 +55,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ids = rows.map(r => r.id).filter(Boolean);
     const { data: visRows } = await supabase
       .from('businesses')
-      .select('id, public_visibility, public_show_name, public_show_photos, zip, address')
+      .select('id, public_visibility, public_show_name, public_show_photos, zip, address, trust_status, trust_flagged, is_onboarded')
       .in('id', ids);
     const visMap = new Map((visRows || []).map((r: any) => [r.id, r]));
 
-    const filtered = rows.filter(r => visMap.get(r.id)?.public_visibility === true);
+    const filtered = rows.filter(r => {
+      const vis = visMap.get(r.id);
+      if (!vis) return false;
+      return isProviderPubliclyVisible(vis);
+    });
     const mapped = filtered.map(r => {
       const vis = visMap.get(r.id);
       const showName = vis?.public_show_name === true;

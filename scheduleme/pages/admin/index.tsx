@@ -19,10 +19,17 @@ interface Business {
   status?: string | null;
   review_notes?: string | null;
   approved_at?: string | null;
+  published_at?: string | null;
   city?: string | null;
   zip?: string | null;
   website?: string | null;
   instagram?: string | null;
+  public_visibility?: boolean | null;
+  trust_status?: string | null;
+  trust_flagged?: boolean | null;
+  trust_notes?: string | null;
+  trust_last_action_at?: string | null;
+  trust_last_action_by?: string | null;
 }
 
 interface ChangeRequest {
@@ -285,7 +292,7 @@ const AdminPage: NextPage = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [schoolDomains, setSchoolDomains] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
+  const [filter, setFilter] = useState<'all' | 'recent' | 'live' | 'flagged'>('recent');
   const [campusFilter, setCampusFilter] = useState<string>('all');
   const [campusOptions, setCampusOptions] = useState<Array<{ key: string; label: string }>>([]);
   const [stripeHealth, setStripeHealth] = useState<any>(null);
@@ -799,6 +806,22 @@ const AdminPage: NextPage = () => {
     }
   }
 
+  async function applyTrustAction(id: string, action: 'flag' | 'clear_flag' | 'warn' | 'request_info' | 'suspend' | 'unsuspend', notes?: string) {
+    try {
+      const res = await fetch('/api/admin-provider-trust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ businessId: id, action, notes: notes || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed trust action');
+      await loadBusinesses(authToken, campusFilter);
+      showToast('Provider trust action saved', true);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed trust action', false);
+    }
+  }
+
   async function refundBooking() {
     if (!refundBookingId.trim()) return;
     setRefunding(true);
@@ -949,14 +972,23 @@ const AdminPage: NextPage = () => {
       const key = getBusinessCampusKey(b);
       if (key !== campusFilter) return false;
     }
-    if (filter === 'pending') return !b.is_onboarded && b.status !== 'rejected';
-    if (filter === 'approved') return b.is_onboarded;
+    const trust = String(b.trust_status || '').toLowerCase();
+    const isFlagged = b.trust_flagged === true || trust === 'flagged' || trust === 'suspended';
+    if (filter === 'flagged') return isFlagged;
+    if (filter === 'live') return b.public_visibility === true && !isFlagged;
+    if (filter === 'recent') {
+      const createdMs = new Date(b.created_at || 0).getTime();
+      return Number.isFinite(createdMs) && (Date.now() - createdMs) <= (1000 * 60 * 60 * 24 * 14);
+    }
     return true;
   });
   const visibleFeaturedRows = featuredCampusKey === 'all'
     ? featuredRows
     : featuredRows.filter(row => normalizeCampusKey(row.campus_key) === featuredCampusKey);
-  const pendingCount = businesses.filter(b => !b.is_onboarded && b.status !== 'rejected').length;
+  const pendingCount = businesses.filter((b) => {
+    const trust = String(b.trust_status || '').toLowerCase();
+    return b.trust_flagged === true || trust === 'flagged' || trust === 'suspended';
+  }).length;
   const pendingRequests = requests.filter(r => r.status === 'pending').length;
   const issueCounts = errorIssues.reduce((acc, issue) => {
     acc.total += 1;
@@ -1233,7 +1265,7 @@ const AdminPage: NextPage = () => {
           <div className="flex items-center gap-4">
             {pendingCount > 0 && (
               <span className="text-xs font-semibold bg-yellow-500/15 text-yellow-400 border border-yellow-500/20 px-2.5 py-1 rounded-full">
-                {pendingCount} pending
+                {pendingCount} flagged
               </span>
             )}
             <button onClick={() => { if (authToken) handleAdminRefresh(); }} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Refresh</button>
@@ -1244,8 +1276,8 @@ const AdminPage: NextPage = () => {
           <div className="grid grid-cols-3 gap-4 mb-8">
             {[
               { label: 'Total Providers', value: businesses.length },
-              { label: 'Pending', value: pendingCount },
-              { label: 'Live Providers', value: businesses.filter(b => b.is_onboarded).length },
+              { label: 'Flagged', value: pendingCount },
+              { label: 'Live Providers', value: businesses.filter(b => b.public_visibility === true).length },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
                 <p className="text-2xl font-bold text-white">{value}</p>
@@ -2065,10 +2097,10 @@ const AdminPage: NextPage = () => {
             </div>
             {activeTab === 'businesses' && (
             <div className="flex gap-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1 w-fit">
-              {(['pending', 'approved', 'all'] as const).map(f => (
+              {(['recent', 'live', 'flagged', 'all'] as const).map(f => (
                 <button key={f} onClick={() => setFilter(f)}
                   className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${filter === f ? 'bg-neutral-700 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}>
-                  {f}{f === 'pending' && pendingCount > 0 && <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingCount}</span>}
+                  {f}{f === 'flagged' && pendingCount > 0 && <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingCount}</span>}
                 </button>
               ))}
             </div>
@@ -2118,24 +2150,28 @@ const AdminPage: NextPage = () => {
           ) : activeTab === 'businesses' && filtered.length === 0 ? (
             <div className="text-center py-20 text-neutral-500">
               <p className="text-3xl mb-3">🎉</p>
-              <p>No {filter === 'pending' ? 'pending' : ''} providers</p>
+              <p>No providers found for this filter</p>
             </div>
           ) : activeTab === 'businesses' ? (
             <div className="space-y-3">
               {filtered.map(b => (
-                <div key={b.id} className={`rounded-2xl border bg-neutral-900 p-6 ${b.is_onboarded ? 'border-neutral-800' : 'border-yellow-500/20 bg-yellow-500/5'}`}>
+                <div key={b.id} className={`rounded-2xl border bg-neutral-900 p-6 ${(b.trust_flagged || b.trust_status === 'flagged' || b.trust_status === 'suspended') ? 'border-yellow-500/20 bg-yellow-500/5' : 'border-neutral-800'}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 mb-3 flex-wrap">
                         <h2 className="text-base font-bold text-white">{b.name}</h2>
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                          b.status === 'rejected'
+                          (b.trust_status === 'suspended')
                             ? 'bg-red-500/15 text-red-400 border-red-500/20'
-                            : b.is_onboarded
-                              ? 'bg-green-500/15 text-green-400 border-green-500/20'
-                              : 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20'
+                            : (b.trust_flagged || b.trust_status === 'flagged')
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/20'
+                              : (b.public_visibility ? 'bg-green-500/15 text-green-400 border-green-500/20' : 'bg-neutral-700 text-neutral-200 border-neutral-600')
                         }`}>
-                          {b.status === 'rejected' ? 'Rejected' : b.is_onboarded ? 'Approved' : 'Pending'}
+                          {b.trust_status === 'suspended'
+                            ? 'Suspended'
+                            : (b.trust_flagged || b.trust_status === 'flagged')
+                              ? 'Flagged'
+                              : (b.public_visibility ? 'Live' : 'Draft')}
                         </span>
                         {b.stripe_onboarded && <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-500/15 text-blue-400 border-blue-500/20">Stripe ✓</span>}
                         {b.campus_provider && <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/20">🎓 Campus</span>}
@@ -2153,7 +2189,7 @@ const AdminPage: NextPage = () => {
                           { label: 'Instagram', value: b.instagram ?? '—', link: b.instagram ? (String(b.instagram).startsWith('http') ? String(b.instagram) : `https://instagram.com/${String(b.instagram).replace(/^@/, '')}`) : undefined },
                           { label: 'Services', value: b.service_tags?.join(', ') ?? '—' },
                           { label: 'Applied', value: formatDate(b.created_at) },
-                          { label: 'Approved', value: b.approved_at ? formatDate(b.approved_at) : '—' },
+                          { label: 'Published', value: b.published_at ? formatDate(b.published_at) : '—' },
                           { label: 'Founder50', value: b.founder50_status || (b.founder50 ? 'active' : 'standard') },
                           ...(b.campus_provider ? [{ label: 'School', value: b.campus_school_name ?? '—' }] : []),
                           ...(b.campus_provider ? [{ label: 'School domain', value: b.school_domain ?? '—' }] : []),
@@ -2164,39 +2200,56 @@ const AdminPage: NextPage = () => {
                           </div>
                         ))}
                       </div>
-                      {b.review_notes ? (
-                        <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
-                          <p className="text-[11px] text-red-300 uppercase tracking-wide">Last rejection reason</p>
-                          <p className="text-xs text-red-200 mt-1 whitespace-pre-wrap">{b.review_notes}</p>
+                      {b.trust_notes ? (
+                        <div className="mt-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
+                          <p className="text-[11px] text-yellow-300 uppercase tracking-wide">Trust notes</p>
+                          <p className="text-xs text-yellow-100 mt-1 whitespace-pre-wrap">{b.trust_notes}</p>
                         </div>
                       ) : null}
                     </div>
-                    {!b.is_onboarded && b.status !== 'rejected' && (
-                      <div className="flex flex-col gap-2 items-end flex-shrink-0 w-full sm:w-[220px]">
-                        {b.campus_provider && (
-                          <div className="flex flex-col gap-1">
-                            <label className="text-xs text-neutral-500">School domain (e.g. asu.edu)</label>
-                            <input
-                              type="text"
-                              placeholder="asu.edu"
-                              value={schoolDomains[b.id] || ''}
-                              onChange={e => setSchoolDomains(prev => ({ ...prev, [b.id]: e.target.value }))}
-                              className="px-3 py-1.5 text-xs rounded-lg bg-neutral-800 border border-neutral-700 text-white placeholder:text-neutral-600 focus:outline-none focus:border-accent"
-                            />
-                          </div>
-                        )}
-                        <button onClick={() => approveBusiness(b.id)} disabled={approvingId === b.id}
-                          className="btn-primary text-sm px-5 py-2.5 w-full">
-                          {approvingId === b.id ? 'Approving…' : 'Approve & Send Email'}
-                        </button>
+                    <div className="flex flex-col gap-2 items-end flex-shrink-0 w-full sm:w-[220px]">
+                      <button
+                        onClick={() => applyTrustAction(b.id, 'flag')}
+                        className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-amber-500/40 text-amber-300 hover:bg-amber-500/15 w-full"
+                      >
+                        Flag
+                      </button>
+                      <button
+                        onClick={() => applyTrustAction(b.id, 'warn')}
+                        className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-blue-500/40 text-blue-300 hover:bg-blue-500/15 w-full"
+                      >
+                        Warn (email)
+                      </button>
+                      <button
+                        onClick={() => applyTrustAction(b.id, 'request_info')}
+                        className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-violet-500/40 text-violet-300 hover:bg-violet-500/15 w-full"
+                      >
+                        Request Info (email)
+                      </button>
+                      {(b.trust_status === 'suspended') ? (
                         <button
-                          onClick={() => { setRejectModalFor(b); setRejectReason(''); }}
+                          onClick={() => applyTrustAction(b.id, 'unsuspend')}
+                          className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 w-full"
+                        >
+                          Unsuspend
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => applyTrustAction(b.id, 'suspend')}
                           className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-red-500/40 text-red-300 hover:bg-red-500/15 w-full"
                         >
-                          Reject with Reason
+                          Suspend / Hide
                         </button>
-                      </div>
-                    )}
+                      )}
+                      {(b.trust_flagged || b.trust_status === 'flagged') && (
+                        <button
+                          onClick={() => applyTrustAction(b.id, 'clear_flag')}
+                          className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-neutral-600 text-neutral-300 hover:bg-neutral-800 w-full"
+                        >
+                          Clear Flag
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

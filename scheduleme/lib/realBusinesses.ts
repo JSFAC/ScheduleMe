@@ -35,9 +35,11 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     : (b.service_tags ? [String(b.service_tags)] : []);
   const tags = rawTags.filter(Boolean).map((t: any) => String(t));
   const category = tags.length > 0 ? serviceTagToLabel(tags[0]) : 'General';
-  const dist = distanceMiles != null
-    ? (distanceMiles < 0.1 ? 'Nearby' : distanceMiles.toFixed(1) + ' mi away')
-    : b.address || 'Local';
+  const dist = b.distance_label
+    ? String(b.distance_label)
+    : distanceMiles != null
+      ? (distanceMiles < 0.1 ? 'Nearby' : distanceMiles.toFixed(1) + ' mi away')
+      : b.address || 'Local';
   const availability = b.availability_status ?? 'open';
   const breakUntil = b.break_until ? new Date(b.break_until) : null;
   const breakActive = availability === 'break' && breakUntil && !Number.isNaN(breakUntil.getTime()) && breakUntil.getTime() > Date.now();
@@ -151,11 +153,12 @@ export async function fetchNearbyBusinesses(
     try {
       const normalizedCategory = opts.category ? normalizeServiceTag(opts.category) : '';
       const { data: rawRows } = await supabase
-        .from('businesses')
-        .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, created_at')
-        .eq('is_onboarded', true)
-        .not('lat', 'is', null)
-        .not('lng', 'is', null)
+      .from('businesses')
+      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, created_at')
+      .eq('is_onboarded', true)
+      .or('public_visibility.eq.true,public_visibility.is.null')
+      .not('lat', 'is', null)
+      .not('lng', 'is', null)
         .limit(Math.min(300, Math.max(50, (opts.limit ?? 40) * 5)));
 
       const radiusMiles = opts.radius ?? 25;
@@ -164,6 +167,8 @@ export async function fetchNearbyBusinesses(
         const bLng = Number(row?.lng);
         if (!Number.isFinite(bLat) || !Number.isFinite(bLng)) return false;
         if (row?.public_visibility === false) return false;
+        if (String(row?.trust_status || '').toLowerCase() === 'suspended') return false;
+        if (row?.trust_flagged === true || String(row?.trust_status || '').toLowerCase() === 'flagged') return false;
         const serviceTags = Array.isArray(row?.service_tags) ? row.service_tags.map((t: any) => normalizeServiceTag(String(t))) : [];
         if (normalizedCategory && !serviceTags.includes(normalizedCategory)) return false;
         const distance = haversineMiles(lat, lng, bLat, bLng);
@@ -208,12 +213,17 @@ export async function fetchAllBusinesses(
     const supabase = getSupabaseClient();
     const { data: rows } = await supabase
       .from('businesses')
-      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, created_at')
+      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, created_at')
       .eq('is_onboarded', true)
+      .or('public_visibility.eq.true,public_visibility.is.null')
       .order('last_completed_booking_at', { ascending: false, nullsFirst: false })
       .limit(opts.limit ?? 40);
-
-    return (rows || []).map((b: any) => mapBusiness(b));
+    return (rows || [])
+      .filter((row: any) => {
+        const trust = String(row?.trust_status || '').toLowerCase();
+        return !(trust === 'suspended' || trust === 'flagged' || row?.trust_flagged === true);
+      })
+      .map((b: any) => mapBusiness(b));
   } catch {
     return [];
   }

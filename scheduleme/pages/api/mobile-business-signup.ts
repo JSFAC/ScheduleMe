@@ -327,7 +327,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('[mobile-business-signup] admin notify failed', notifyError);
     });
 
-    return res.status(200).json({ success: true, businessId: insertedID });
+    return res.status(200).json({ success: true, businessId: insertedID, status: 'draft_created' });
   } catch (error) {
     console.error('[mobile-business-signup]', error);
     return res.status(500).json({ error: 'Internal server error' });

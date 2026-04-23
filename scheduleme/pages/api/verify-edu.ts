@@ -141,17 +141,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('owner_id', user.id)
       .maybeSingle();
     if (!biz) return res.status(404).json({ error: 'Business account not found' });
-    if (!biz.school_domain) {
-      if (biz.campus_provider === true) {
-        return res.status(400).json({
-          error: 'Campus listing is still pending approval. Your approved school domain is not set yet. Contact support.',
-        });
-      }
-      return res.status(400).json({
-        error: 'Your business is not enabled for campus listing. Contact support.',
-      });
-    }
-    if (submittedDomain !== biz.school_domain) {
+    const effectiveSchoolDomain = biz.school_domain || submittedDomain;
+    if (biz.school_domain && submittedDomain !== biz.school_domain) {
       return res.status(400).json({ error: `Email did not match listed school domain (${biz.school_domain}). Contact support.` });
     }
     const verifyCode = generate6DigitCode();
@@ -159,6 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await supabase
       .from('businesses')
       .update({
+        school_domain: effectiveSchoolDomain,
         school_email: normalizedSchoolEmail,
         edu_code: verifyCode,
         edu_code_expires_at: expiresAt,

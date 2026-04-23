@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { filterMessage } from '../../lib/profanity';
 import { moderateUserText, hasHardModerationSignal } from '../../lib/openaiModeration';
 import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -349,7 +350,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verify caller is party to this booking
     const { data: booking } = await supabase
       .from('bookings')
-      .select('user_id, business_id, businesses(owner_id, owner_email)')
+      .select('user_id, business_id, businesses(owner_id, owner_email, is_onboarded, public_visibility, trust_status, trust_flagged, campus_provider, edu_verified, school_domain, campus_key)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -358,6 +359,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isUser = booking.user_id === user.id && sender_type === 'user';
     const isBiz = isBusinessOwnerForUser(booking.businesses, user) && sender_type === 'business';
     if (!isUser && !isBiz) return res.status(403).json({ error: 'Access denied' });
+
+    if (sender_type === 'user') {
+      if (!isProviderPubliclyVisible(booking.businesses)) {
+        return res.status(403).json({ error: 'This provider is currently unavailable for messaging.' });
+      }
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('edu_verified, school_domain, school_email, campus_key')
+        .eq('id', user.id)
+        .maybeSingle();
+      const eligibility = canUserTransactWithStudentProvider({
+        business: booking.businesses,
+        profile: profileRow,
+      });
+      if (!eligibility.ok) {
+        return res.status(403).json({
+          error: eligibility.message || 'EDU verification required.',
+          code: eligibility.code || 'edu_verification_required',
+        });
+      }
+    }
 
     // Respect user/business blocks for this conversation.
     if (booking.business_id && booking.user_id) {
