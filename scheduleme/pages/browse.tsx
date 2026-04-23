@@ -22,6 +22,14 @@ function getSupabase() {
 // CATEGORIES is now dynamic — built from loaded businesses below
 type SortMode = 'distance' | 'rating' | 'reviews';
 const SORT_LABELS: Record<SortMode, string> = { distance: 'Nearest', rating: 'Top Rated', reviews: 'Most Reviewed' };
+
+function parseDistanceMiles(value: string): number {
+  const raw = String(value || '').toLowerCase();
+  if (!raw) return Number.POSITIVE_INFINITY;
+  if (raw.includes('nearby')) return 0;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+}
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
 function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean; label: string } {
@@ -514,7 +522,7 @@ const BrowsePage: NextPage = () => {
   }).sort((a, b) => {
     if (sortMode === 'rating') return b.rating - a.rating;
     if (sortMode === 'reviews') return b.reviews - a.reviews;
-    return parseFloat(a.distance) - parseFloat(b.distance);
+    return parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);

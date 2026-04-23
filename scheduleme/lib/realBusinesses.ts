@@ -40,7 +40,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     ? String(b.distance_label)
     : distanceMiles != null
       ? (distanceMiles < 0.1 ? 'Nearby' : distanceMiles.toFixed(1) + ' mi away')
-      : b.address || 'Local';
+      : 'Nearby';
   const availability = b.availability_status ?? 'open';
   const breakUntil = b.break_until ? new Date(b.break_until) : null;
   const breakActive = availability === 'break' && breakUntil && !Number.isNaN(breakUntil.getTime()) && breakUntil.getTime() > Date.now();

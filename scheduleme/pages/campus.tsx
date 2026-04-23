@@ -74,7 +74,7 @@ function mapCampusBusiness(b: any): Business {
     : (b.service_tags ? [String(b.service_tags)] : []);
   const tags = rawTags.filter(Boolean).map((t: any) => String(t));
   const category = tags.length > 0 ? serviceTagToLabel(tags[0]) : 'General';
-  const dist = b.address || 'Local';
+  const dist = 'Nearby';
   const cover = getCover(b.cover_url, b.media_urls);
   const availability = b.availability_status ?? 'open';
   const breakUntil = b.break_until ? new Date(b.break_until) : null;

@@ -138,7 +138,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const rating = reviewCount > 0 ? b.rating : null;
       const status = computeFounder50Status(b);
       const guestCoarse = !isLoggedInViewer;
-      const coarseDistance = `${Math.max(1, Math.round(d))} mi away`;
+      const coarseDistance = `${Math.max(0.1, Math.round(d * 10) / 10).toFixed(1)} mi away`;
       return {
         ...b,
         name: b.name,
