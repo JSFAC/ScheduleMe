@@ -327,7 +327,12 @@ export default function Nav({ variant = 'light' }: NavProps) {
   ];
   const isLandingGuest = !user && router.pathname === '/';
   const isSigninGuestAppShell = !user && router.pathname === '/signin' && router.query.shell === 'app';
-  const isGuestAppShell = !user && (router.pathname === '/home' || router.pathname === '/browse' || isSigninGuestAppShell);
+  const isGuestAppShell = !user && (
+    router.pathname === '/home' ||
+    router.pathname === '/browse' ||
+    router.pathname === '/bookings' ||
+    isSigninGuestAppShell
+  );
   const navLinks = user ? appLinks : (isGuestAppShell ? guestAppLinks : marketingLinks);
   const logoHref = (user || isGuestAppShell || isLandingGuest) ? '/home' : '/';
   const navBg = (isDark || darkMode)
