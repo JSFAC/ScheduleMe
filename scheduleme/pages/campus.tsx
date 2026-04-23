@@ -16,6 +16,7 @@ import { shouldShowNewBadge } from '../lib/newBadge';
 import { formatPriceTierLabel } from '../lib/priceTierLabel';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+const CAMPUS_CACHE_TTL_MS = 2 * 60 * 1000;
 
 function getCover(cover_url?: string | null, media_urls?: string[] | null): string {
   if (cover_url) return cover_url;
@@ -238,6 +239,44 @@ function normalizeSchoolDomain(value?: string | null): string | null {
   return null;
 }
 
+function campusFeedCacheKey(tag?: string | null, domain?: string | null): string | null {
+  const normalized = normalizeCampusKey(tag || null) || normalizeCampusKey(domain || null);
+  if (!normalized) return null;
+  return `sm_campus_feed_${normalized}`;
+}
+
+function readCampusFeedCache(tag?: string | null, domain?: string | null): { businesses: Business[]; featured: Business[] } | null {
+  if (typeof window === 'undefined') return null;
+  const key = campusFeedCacheKey(tag, domain);
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!parsed.ts || Date.now() - Number(parsed.ts) > CAMPUS_CACHE_TTL_MS) return null;
+    if (!Array.isArray(parsed.businesses) || !Array.isArray(parsed.featured)) return null;
+    return { businesses: parsed.businesses as Business[], featured: parsed.featured as Business[] };
+  } catch {
+    return null;
+  }
+}
+
+function writeCampusFeedCache(tag: string | null, domain: string | null, businesses: Business[], featured: Business[]) {
+  if (typeof window === 'undefined') return;
+  const key = campusFeedCacheKey(tag, domain);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      ts: Date.now(),
+      businesses: businesses || [],
+      featured: featured || [],
+    }));
+  } catch {
+    // Ignore cache write failures.
+  }
+}
+
 const CampusPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
@@ -305,8 +344,11 @@ const CampusPage: NextPage = () => {
 
       const verifiedFeatured = (featured || []).filter((b: any) => b?.edu_verified);
       const verifiedRows = (rows || []).filter((b: any) => b?.edu_verified);
-      setFeaturedBusinesses(verifiedFeatured.map((b: any) => mapCampusBusiness(b)));
-      setBusinesses(verifiedRows.map((b: any) => mapCampusBusiness(b)));
+      const mappedFeatured = verifiedFeatured.map((b: any) => mapCampusBusiness(b));
+      const mappedRows = verifiedRows.map((b: any) => mapCampusBusiness(b));
+      setFeaturedBusinesses(mappedFeatured);
+      setBusinesses(mappedRows);
+      writeCampusFeedCache(tag, domain || null, mappedRows, mappedFeatured);
     } catch (err: any) {
       setLastCampusFetch((prev) => prev ? { ...prev, error: err?.message || 'Fetch failed' } : { url: '', status: null, error: err?.message || 'Fetch failed' });
       setBusinesses([]);
@@ -357,12 +399,25 @@ const CampusPage: NextPage = () => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/signin?next=/campus&shell=app'); return; }
-      await loadPinned(session.user.id);
+      void loadPinned(session.user.id);
 
       const cacheKey = `sm_edu_verified_${session.user.id}`;
       const cacheTagKey = `sm_campus_tag_${session.user.id}`;
       const cachedVerified = typeof window !== 'undefined' ? localStorage.getItem(cacheKey) : null;
-      if (cachedVerified === 'true') setEduVerified(true);
+      const cachedCampusTag = typeof window !== 'undefined' ? localStorage.getItem(cacheTagKey) : null;
+      if (cachedVerified === 'true') {
+        setEduVerified(true);
+        setLoading(false);
+      }
+      if (cachedVerified === 'true' && cachedCampusTag) {
+        setCampusTag(cachedCampusTag);
+        const cachedFeed = readCampusFeedCache(cachedCampusTag, null);
+        if (cachedFeed) {
+          setFeaturedBusinesses(cachedFeed.featured);
+          setBusinesses(cachedFeed.businesses);
+          setCampusLoaded(true);
+        }
+      }
 
       // Check EDU verification via API (service role to avoid RLS)
       let verified = false;

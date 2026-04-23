@@ -45,6 +45,7 @@ interface Booking {
 }
 const PROTECTION_FEE_CENTS = 99;
 const REVIEW_SKIP_STORAGE_KEY = 'sm_review_skips_v1';
+const BOOKINGS_CACHE_TTL_MS = 2 * 60 * 1000;
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; barColor: string }> = {
   pending:         { label: 'Pending Review',   bg: 'bg-amber-50  border-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-400', barColor: '#f59e0b' },
@@ -76,6 +77,34 @@ function persistSkippedReviewId(bookingId: string) {
   const next = getSkippedReviewIds();
   next.add(bookingId);
   localStorage.setItem(REVIEW_SKIP_STORAGE_KEY, JSON.stringify(Array.from(next)));
+}
+
+function bookingsCacheKey(userId: string): string {
+  return `sm_bookings_cache_${userId}`;
+}
+
+function readBookingsCache(userId: string): Booking[] | null {
+  if (typeof window === 'undefined' || !userId) return null;
+  try {
+    const raw = localStorage.getItem(bookingsCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!Array.isArray(parsed.bookings)) return null;
+    if (!parsed.ts || Date.now() - Number(parsed.ts) > BOOKINGS_CACHE_TTL_MS) return null;
+    return parsed.bookings as Booking[];
+  } catch {
+    return null;
+  }
+}
+
+function writeBookingsCache(userId: string, rows: Booking[]) {
+  if (typeof window === 'undefined' || !userId) return;
+  try {
+    localStorage.setItem(bookingsCacheKey(userId), JSON.stringify({ ts: Date.now(), bookings: rows || [] }));
+  } catch {
+    // Ignore cache write errors (storage full/private mode).
+  }
 }
 
 const CUSTOM_STEPS = ['pending', 'confirmed', 'paid', 'completed'];
@@ -1058,6 +1087,12 @@ const BookingsPage: NextPage = () => {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
+        const cachedBookings = readBookingsCache(session.user.id);
+        if (alive && cachedBookings) {
+          setBookings(cachedBookings);
+          setLoadingBookings(false);
+        }
+
         const fullName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'there';
         const firstName = fullName.split(' ')[0];
         const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -1090,15 +1125,19 @@ const BookingsPage: NextPage = () => {
           if (res.ok) {
             const data = await res.json();
             bookingsData = data.bookings || [];
-            if (alive) setBookings(bookingsData);
-          } else if (alive) {
+            if (alive) {
+              setBookings(bookingsData);
+              writeBookingsCache(session.user.id, bookingsData);
+            }
+          } else if (alive && !cachedBookings) {
             setBookings([]);
+            writeBookingsCache(session.user.id, []);
           }
         } catch {
-          if (alive) setBookings([]);
+          if (alive && !cachedBookings) setBookings([]);
         } finally {
           if (alive) setLoadingBookings(false);
-          await loadNearbyBusinesses();
+          void loadNearbyBusinesses();
           const skippedIds = getSkippedReviewIds();
           const unreviewed = bookingsData.find(
             (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed && !skippedIds.has(String(b.id))
@@ -1117,7 +1156,7 @@ const BookingsPage: NextPage = () => {
           setPhase('done');
           setLoadingBookings(false);
         }
-        await loadNearbyBusinesses();
+        void loadNearbyBusinesses();
       }
     };
 
