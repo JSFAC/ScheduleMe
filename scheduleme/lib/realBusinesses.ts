@@ -186,9 +186,28 @@ export async function fetchNearbyBusinesses(
 export async function fetchAllBusinesses(
   opts: { lat?: number; lng?: number; radius?: number; limit?: number } = {}
 ): Promise<Business[]> {
-  if (!opts.lat || !opts.lng) return [];
-  return fetchNearbyBusinesses(opts.lat, opts.lng, {
-    radius: opts.radius ?? 25,
-    limit: opts.limit ?? 40,
-  });
+  // Preferred path: geo-filtered list around coordinates.
+  if (Number.isFinite(opts.lat) && Number.isFinite(opts.lng)) {
+    return fetchNearbyBusinesses(opts.lat as number, opts.lng as number, {
+      radius: opts.radius ?? 25,
+      limit: opts.limit ?? 40,
+    });
+  }
+
+  // Fallback path: non-geo list so app pages do not appear empty when
+  // location lookup is blocked/denied/unavailable.
+  try {
+    const supabase = getSupabaseClient();
+    const { data: rows } = await supabase
+      .from('businesses')
+      .select('id, name, slug, description, address, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, created_at')
+      .eq('is_onboarded', true)
+      .or('campus_provider.is.false,campus_provider.is.null')
+      .order('last_completed_booking_at', { ascending: false, nullsFirst: false })
+      .limit(opts.limit ?? 40);
+
+    return (rows || []).map((b: any) => mapBusiness(b));
+  } catch {
+    return [];
+  }
 }

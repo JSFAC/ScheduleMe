@@ -391,9 +391,15 @@ const BrowsePage: NextPage = () => {
     setUserLat(lat);
     setUserLng(lng);
     const real = await fetchNearbyBusinesses(lat, lng, { limit: 40, radius: currentRadius });
-    setBizList(real);
-    if (real.length > 0) setUsingRealData(true);
-    return real.length > 0;
+    if (real.length > 0) {
+      setBizList(real);
+      setUsingRealData(true);
+      return true;
+    }
+    const fallback = await fetchAllBusinesses({ limit: 40 });
+    setBizList(fallback);
+    if (fallback.length > 0) setUsingRealData(true);
+    return fallback.length > 0;
   }
 
   async function tryIpFallback(currentRadius: number) {
@@ -455,8 +461,10 @@ const BrowsePage: NextPage = () => {
         }
         if (!alive) return;
         if (!loaded) {
-          setBizList([]);
-          setGeoError(true);
+          const fallback = await fetchAllBusinesses({ limit: 40 });
+          setBizList(fallback);
+          setGeoError(fallback.length === 0);
+          if (fallback.length > 0) setUsingRealData(true);
         } else {
           setGeoError(false);
         }
@@ -517,8 +525,20 @@ const BrowsePage: NextPage = () => {
     if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) return;
     setBizLoading(true);
     fetchNearbyBusinesses(userLat as number, userLng as number, { limit: 40, radius })
-      .then(real => { setBizList(real.length > 0 ? real : []); if (real.length > 0) setUsingRealData(true); })
-      .catch(() => setBizList([]))
+      .then(async (real) => {
+        if (real.length > 0) {
+          setBizList(real);
+          setUsingRealData(true);
+          return;
+        }
+        const fallback = await fetchAllBusinesses({ limit: 40 });
+        setBizList(fallback);
+        if (fallback.length > 0) setUsingRealData(true);
+      })
+      .catch(async () => {
+        const fallback = await fetchAllBusinesses({ limit: 40 });
+        setBizList(fallback);
+      })
       .finally(() => setBizLoading(false));
   }, [radius]);
   const selectedMapBizData = bizList.find(b => b.id === selectedMapBiz) ?? null;
