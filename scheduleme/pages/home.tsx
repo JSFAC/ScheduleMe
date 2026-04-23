@@ -614,7 +614,16 @@ const HomePage: NextPage = () => {
 
         // Fall back to IP-approximate location when geolocation is denied/unavailable.
         if (!loaded) loaded = await tryIpFallbackNearby();
-        if (!loaded && alive) setRealBizList([]);
+        if (!loaded && alive) {
+          // Last-resort fallback: show available providers even without location.
+          const allBusinesses = await fetchAllBusinesses();
+          if (allBusinesses.length > 0) {
+            setRealBizList(allBusinesses.slice(0, 24));
+            setUsingRealData(true);
+          } else {
+            setRealBizList([]);
+          }
+        }
       } finally {
         if (alive) {
           setDataLoading(false);
