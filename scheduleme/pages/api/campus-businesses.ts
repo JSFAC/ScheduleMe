@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const explicitCampusKey = typeof campus_key === 'string' && campus_key.trim() ? campus_key.trim() : null;
     const campusKey = explicitCampusKey || normalizeCampusKey(campusSchoolName) || campusKeyFromDomain(schoolDomain);
 
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
     if (!serviceKey) return res.status(200).json({ featured: [], businesses: [], error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });

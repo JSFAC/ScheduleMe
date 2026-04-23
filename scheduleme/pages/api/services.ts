@@ -7,7 +7,7 @@ import { filterMessage } from '../../lib/profanity';
 import { moderateUserText } from '../../lib/openaiModeration';
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)!, { auth: { persistSession: false } });
 }
 
 function isMissingColumnError(error: any, column: string): boolean {

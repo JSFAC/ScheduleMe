@@ -15,10 +15,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!token) return res.status(401).json({ error: 'Authentication required' });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
   if (!url || !serviceKey) return res.status(500).json({ error: 'Server misconfigured' });
 
-  const anonClient = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const anonClient = createClient(url, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
   const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
   if (userError || !user) return res.status(401).json({ error: 'Invalid or expired session' });
 

@@ -257,7 +257,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
     const bizId = (biz).realId || biz.id;
     if (!bizId) return;
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const key = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
     if (!url || !key) return;
     setLoadingSlots(true);
     const from = new Date().toISOString();
@@ -467,7 +467,7 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
             setSubmitting(true); setSubmitError('');
             try {
               const { createClient } = await import('@supabase/supabase-js');
-              const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+              const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
               const { data: { session } } = await sb.auth.getSession();
               const realId = (biz as any).realId || biz.id;
               const res = await fetch('/api/bookings', {
@@ -545,7 +545,7 @@ export default function BusinessProfile({ biz, onClose }: { biz: Business; onClo
       import('@supabase/supabase-js').then(({ createClient }) => {
         const sb = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!
         );
         sb.from('businesses').select('media_urls, video_url').eq('id', realId).maybeSingle()
           .then(({ data }) => {

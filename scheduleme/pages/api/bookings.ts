@@ -22,7 +22,7 @@ const VALID_STATUSES = [
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
   if (!url || !key) throw new Error('Missing Supabase env vars');
   return createClient(url, key, { auth: { persistSession: false } });
 }
@@ -35,7 +35,7 @@ async function getOptionalAuthUser(req: NextApiRequest): Promise<{ id: string; e
   const supabaseURL = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const verifyKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+    (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
 
   if (!supabaseURL || !verifyKey) return null;
 

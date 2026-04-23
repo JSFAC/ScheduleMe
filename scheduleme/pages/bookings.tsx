@@ -14,7 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
 }
 
 interface Booking {
@@ -394,7 +394,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
               </div>
               <button
                 onClick={async () => {
-                  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+                  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
                   const { data: { session } } = await supabase.auth.getSession();
                   if (!session) return;
                   const res = await fetch('/api/checkout', {

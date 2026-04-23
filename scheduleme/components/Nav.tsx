@@ -9,7 +9,7 @@ import { useDm } from '../lib/DarkModeContext';
 interface NavProps { variant?: 'light' | 'dark'; }
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
 }
 
 // Cache key — avoids async flash that causes the nav layout shift/shake
@@ -291,9 +291,9 @@ export default function Nav({ variant = 'light' }: NavProps) {
   useEffect(() => {
     if (!user?.email) return;
     // Check if user owns a business
-    const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
     sbBiz.from('businesses').select('id').eq('owner_email', user.email).maybeSingle().then(({data}) => { if(data?.id) setIsBiz(true); });
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
     supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
       .then(({ data }) => {
         const verified = data?.edu_verified === true;

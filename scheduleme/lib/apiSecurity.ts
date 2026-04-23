@@ -199,13 +199,13 @@ async function maybeSendFirstLoginWelcome(user: any) {
   if (!userId || !email) return;
   if (welcomeEmailInFlight.has(userId)) return;
   if (!process.env.RESEND_API_KEY) return;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)) return;
 
   welcomeEmailInFlight.add(userId);
   try {
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)!,
       { auth: { persistSession: false } }
     );
 
@@ -269,13 +269,13 @@ export async function requireAuth(
     const supabaseURL = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const verifyKey =
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      process.env.SUPABASE_SERVICE_ROLE_KEY;
+      (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
 
     if (!supabaseURL || !verifyKey) {
       console.error('[requireAuth] Missing Supabase auth env vars', {
         hasURL: !!supabaseURL,
-        hasAnon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasAnon: !!(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
+        hasServiceRole: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY),
       });
       await logSecurityEvent({
         eventType: 'auth_server_misconfigured',
@@ -285,8 +285,8 @@ export async function requireAuth(
         message: 'Missing Supabase auth env vars in requireAuth',
         metadata: {
           hasURL: !!supabaseURL,
-          hasAnon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-          hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+          hasAnon: !!(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
+          hasServiceRole: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY),
         },
       });
       res.status(500).json({ error: 'Server auth configuration is missing.' });
@@ -356,7 +356,7 @@ export async function requireAdmin(
     try {
       const adminClient = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)!,
         { auth: { persistSession: false } }
       );
       const { data: profile } = await adminClient
@@ -488,7 +488,7 @@ export async function logAuditEvent(
 ): Promise<void> {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
     if (!url || !key || !action) return;
 
     const supabase = createClient(url, key, { auth: { persistSession: false } });

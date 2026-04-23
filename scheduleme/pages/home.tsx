@@ -16,7 +16,7 @@ import { fetchAllBusinesses } from '../lib/realBusinesses';
 import { formatPriceTierLabel } from '../lib/priceTierLabel';
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
 }
 function timeOfDay() {
   const h = new Date().getHours();
