@@ -442,6 +442,14 @@ const BrowsePage: NextPage = () => {
         if (!alive) return;
         setLoading(false);
 
+        // Fast seed load so UI can render quickly before location resolves.
+        const seeded = await fetchAllBusinesses({ limit: 40 });
+        if (!alive) return;
+        setBizList(seeded);
+        if (seeded.length > 0) setUsingRealData(true);
+        setBizLoading(false);
+
+        // Then refine in background with geolocation/IP-based nearby fetch.
         let loaded = false;
         // Always try precise device location first so map defaults to current area.
         if (navigator.geolocation) {
@@ -461,10 +469,8 @@ const BrowsePage: NextPage = () => {
         }
         if (!alive) return;
         if (!loaded) {
-          const fallback = await fetchAllBusinesses({ limit: 40 });
-          setBizList(fallback);
-          setGeoError(fallback.length === 0);
-          if (fallback.length > 0) setUsingRealData(true);
+          // Keep seeded list instead of forcing blank state when geo lookup fails.
+          setGeoError(seeded.length === 0);
         } else {
           setGeoError(false);
         }

@@ -598,6 +598,17 @@ const HomePage: NextPage = () => {
           setShowInstallBanner(true);
         }
 
+        // Fast seed load so skeletons clear quickly even if geolocation is slow.
+        const seeded = await fetchAllBusinesses({ limit: 24 });
+        if (!alive) return;
+        if (seeded.length > 0) {
+          setRealBizList(seeded);
+          setUsingRealData(true);
+        }
+        setDataLoading(false);
+        setLoading(false);
+
+        // Then refine in background with precise nearby/location data.
         let loaded = false;
         if (typeof navigator !== 'undefined' && navigator.geolocation) {
           await new Promise<void>((resolve) => {
@@ -614,7 +625,7 @@ const HomePage: NextPage = () => {
 
         // Fall back to IP-approximate location when geolocation is denied/unavailable.
         if (!loaded) loaded = await tryIpFallbackNearby();
-        if (!loaded && alive) {
+        if (!loaded && alive && seeded.length === 0) {
           // Last-resort fallback: show available providers even without location.
           const allBusinesses = await fetchAllBusinesses();
           if (allBusinesses.length > 0) {
