@@ -1,7 +1,7 @@
 // pages/auth/callback.tsx
 // Single OAuth landing page — figures out where to send the user
 import type { NextPage } from 'next';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 
@@ -23,12 +23,6 @@ function hasValidAdminCodeSession(): boolean {
 
 const AuthCallback: NextPage = () => {
   const router = useRouter();
-  const [authSource, setAuthSource] = useState<string>('');
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setAuthSource(localStorage.getItem('auth_source') || '');
-  }, []);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -127,18 +121,10 @@ const AuthCallback: NextPage = () => {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-      <div className="flex flex-col items-center text-center">
-        <div className="mb-3 leading-none">
-          <p className="text-4xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</p>
-          <p className="text-[12px] font-semibold tracking-[0.14em] uppercase text-accent mt-1">
-            {authSource === 'business' ? 'for providers' : 'secure sign in'}
-          </p>
-        </div>
-        <div className="relative h-8 w-8 mt-1">
-          <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
-        </div>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'transparent' }}>
+      <div className="relative h-6 w-6" aria-label="Signing in">
+        <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
+        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
       </div>
     </div>
   );

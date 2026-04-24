@@ -241,7 +241,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
       disabled={isLocked}
       className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)', cursor: isLocked ? 'not-allowed' : 'pointer' }}>
-      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '4/3', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '16 / 10', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {isLocked ? (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
             <span className="text-[34px] font-black" style={{ color: dm ? '#d1d5db' : '#6b7280', letterSpacing: '-0.04em' }}>{initials}</span>
@@ -264,7 +264,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           </div>
         )}
       </div>
-      <div className="px-4 py-3.5 flex flex-col gap-1.5" style={{ background: cardBg }}>
+      <div className="px-3.5 py-3 flex flex-col gap-1.5" style={{ background: cardBg }}>
         <p className="font-bold text-[15px] leading-snug group-hover:text-accent transition-colors" style={{ color: dm ? '#f2f2f7' : '#1c1c1e', letterSpacing: '-0.02em' }}>{displayName}</p>
         {isLocked && <p className="text-[12px] leading-snug" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Private until student verification</p>}
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -720,7 +720,7 @@ const BrowsePage: NextPage = () => {
                 {!bizLoading && totalPages > 1 && <span className="ml-2 text-neutral-300">· Page {page} of {totalPages}</span>}
               </p>
               {bizLoading ? (
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                   {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
@@ -755,7 +755,7 @@ const BrowsePage: NextPage = () => {
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                   {paginated.map((biz, i) => (
                     <BizCard key={biz.id} biz={biz} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }} dm={dm} index={i} />
                   ))}
