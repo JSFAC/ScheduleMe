@@ -852,6 +852,7 @@ const BusinessDashboard: NextPage = () => {
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','services','edit','settings'];
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
+  const [previewKey, setPreviewKey] = useState(() => Date.now());
   const [signingOut, setSigningOut] = useState(false);
   const [services, setServices] = useState([]);
   const [svcLoading, setSvcLoading] = useState(false);
@@ -1211,16 +1212,6 @@ const BusinessDashboard: NextPage = () => {
     mediaVideo,
     services.length,
   ]);
-
-  useEffect(() => {
-    if (tab !== 'edit' || !business?.slug) return;
-    if (typeof window === 'undefined') return;
-    const target = `/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`;
-    const timeout = window.setTimeout(() => {
-      window.location.assign(target);
-    }, 120);
-    return () => window.clearTimeout(timeout);
-  }, [tab, business?.slug, business?.id]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
 
@@ -2285,10 +2276,6 @@ const BusinessDashboard: NextPage = () => {
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {NAV.map(item => (
               <button key={item.id} onClick={() => {
-                if (item.id === 'edit' && business?.slug) {
-                  window.location.assign(`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`);
-                  return;
-                }
                 setTab(item.id);
                 try {
                   window.history.replaceState(null, '', '#' + item.id);
@@ -2554,10 +2541,6 @@ const BusinessDashboard: NextPage = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                if (business?.slug) {
-                                  window.location.assign(`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`);
-                                  return;
-                                }
                                 setTab('edit');
                               }}
                               className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
@@ -3670,34 +3653,35 @@ const BusinessDashboard: NextPage = () => {
                 <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Edit Listing</p>
-                    <p className="text-sm font-semibold text-neutral-900 mt-1">Full Editor</p>
+                    <p className="text-sm font-semibold text-neutral-900 mt-1">Embedded Full Editor</p>
                   </div>
-                  {business?.slug && (
-                    <a
-                      href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#f5fbf8] text-accent border border-[#cfe7de]"
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPreviewKey(Date.now())}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
                     >
-                      Open full-page editor
-                    </a>
-                  )}
-                </div>
-                <div className="p-8 md:p-12">
-                  {business?.slug ? (
-                    <div className="min-h-[52vh] rounded-[24px] border border-[#e5e7eb] bg-[#fcfbf7] flex flex-col items-center justify-center text-center px-6">
-                      <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
-                        <div className="h-5 w-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-                      </div>
-                      <h3 className="text-lg font-black text-neutral-900">Opening the full editor…</h3>
-                      <p className="mt-2 max-w-md text-sm text-neutral-500">
-                        Edit now opens the actual full-page provider editor instead of the broken embedded shell.
-                      </p>
+                      Refresh
+                    </button>
+                    {business?.slug && (
                       <a
                         href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`}
-                        className="mt-5 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#f5fbf8] text-accent border border-[#cfe7de]"
                       >
-                        Open editor now
+                        Open full-page editor
                       </a>
-                    </div>
+                    )}
+                  </div>
+                </div>
+                <div className="p-5" key={previewKey}>
+                  {business?.slug ? (
+                    <iframe
+                      title="ScheduleMe Full Editor"
+                      src={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}&embedded=1&k=${previewKey}`}
+                      className="w-full rounded-[24px] border border-neutral-100 bg-white"
+                      style={{ minHeight: '82vh' }}
+                    />
                   ) : (
                     <div className="p-6 text-sm text-neutral-500">Editor unavailable until your provider slug is ready.</div>
                   )}
