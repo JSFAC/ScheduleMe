@@ -17,7 +17,7 @@ function getSupabase() {
   return getSupabaseClient();
 }
 
-type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings' | 'preview' | 'services';
+type TabId = 'overview' | 'bookings' | 'messages' | 'clients' | 'calendar' | 'settings' | 'edit' | 'services';
 
 interface Booking {
   id: string; service: string; status: string; created_at: string;
@@ -108,11 +108,11 @@ function normalizeBusiness(input: any): Business | null {
 }
 
 const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text: string; border: string }> = {
-  pending:         { label: 'Pending',         dot: 'bg-amber-400',   bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
-  confirmed:       { label: 'Confirmed',       dot: 'bg-blue-500',    bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
-  price_disputed:  { label: 'Disputed',        dot: 'bg-orange-500',  bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200' },
+  pending:         { label: 'Pending',         dot: 'bg-accent',      bg: 'bg-[#eef8f5]',  text: 'text-[#0f766e]',   border: 'border-[#bfe5db]' },
+  confirmed:       { label: 'Confirmed',       dot: 'bg-accent',      bg: 'bg-[#eef8f5]',  text: 'text-[#0f766e]',   border: 'border-[#bfe5db]' },
+  price_disputed:  { label: 'Disputed',        dot: 'bg-rose-500',    bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
   paid:            { label: 'Paid',            dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  payment_pending: { label: 'Price Pending',   dot: 'bg-orange-400',  bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200' },
+  payment_pending: { label: 'Price Pending',   dot: 'bg-[#0f766e]',   bg: 'bg-[#f5fbf8]',  text: 'text-[#0f766e]',   border: 'border-[#cfe7de]' },
   payment_failed:  { label: 'Pmt Failed',      dot: 'bg-red-500',     bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200' },
   completed:       { label: 'Completed',       dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   cancelled:       { label: 'Cancelled',       dot: 'bg-neutral-400', bg: 'bg-neutral-100',text: 'text-neutral-500', border: 'border-neutral-200' },
@@ -125,7 +125,7 @@ const NAV: { id: TabId; label: string; d: string }[] = [
   { id: 'clients',   label: 'Clients',   d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
   { id: 'calendar',  label: 'Calendar',  d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
   { id: 'services', label: 'Services', d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
-  { id: 'preview',   label: 'Edit',   d: 'M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+  { id: 'edit',   label: 'Edit',   d: 'M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   { id: 'settings',  label: 'Settings',  d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
 
@@ -416,7 +416,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
     { id: 'bookings' as TabId, label: 'Bookings', icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5' },
     { id: 'messages' as TabId, label: 'Messages', icon: 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z' },
     { id: 'clients' as TabId, label: 'Clients', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z' },
-    { id: 'preview' as TabId, label: 'Edit', icon: 'M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+    { id: 'edit' as TabId, label: 'Edit', icon: 'M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
     { id: 'settings' as TabId, label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   ];
 
@@ -441,7 +441,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
               </svg>
               {item.label}
               {item.id === 'bookings' && pendingCount > 0 && (
-                <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-500 text-white tabular-nums min-w-[18px] text-center">{pendingCount}</span>
+                <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-md bg-accent text-white tabular-nums min-w-[18px] text-center">{pendingCount}</span>
               )}
               {item.id === 'messages' && totalUnreadMsgs > 0 && (
                 <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full bg-accent text-white">{totalUnreadMsgs}</span>
@@ -823,7 +823,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
 const BusinessDashboard: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
-  const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','services','preview','settings'];
+  const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','services','edit','settings'];
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
   const [previewKey, setPreviewKey] = useState(() => Date.now());
@@ -842,8 +842,9 @@ const BusinessDashboard: NextPage = () => {
   // Read tab from URL hash on mount and on hash change
   useEffect(() => {
     function readHash() {
-      const hash = window.location.hash.replace('#', '') as TabId;
-      if (VALID_TABS.includes(hash)) setTab(hash);
+      const rawHash = window.location.hash.replace('#', '');
+      const hash = rawHash === 'preview' ? 'edit' : rawHash;
+      if (VALID_TABS.includes(hash as TabId)) setTab(hash as TabId);
     }
     readHash();
     window.addEventListener('hashchange', readHash);
@@ -1889,12 +1890,26 @@ const BusinessDashboard: NextPage = () => {
     setPublicShowPhotos(nextShowPhotos);
     setCampusShowName(nextCampusShowName);
     setVisibilitySaving(true);
-    const { error } = await getSupabase().from('businesses').update({
-      public_visibility: nextVisibility,
-      public_show_name: nextShowName,
-      public_show_photos: nextShowPhotos,
-      campus_show_name: nextCampusShowName,
-    }).eq('id', business.id);
+    let error: any = null;
+    try {
+      const res = await fetch('/api/provider-visibility', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({
+          business_id: business.id,
+          public_visibility: nextVisibility,
+          public_show_name: nextShowName,
+          public_show_photos: nextShowPhotos,
+          campus_show_name: nextCampusShowName,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        error = new Error(data.error || 'Failed to save visibility settings');
+      }
+    } catch (err) {
+      error = err;
+    }
     setVisibilitySaving(false);
     if (error) {
       setPublicVisibility(prev.publicVisibility);
@@ -2170,7 +2185,7 @@ const BusinessDashboard: NextPage = () => {
           <div className="px-4 py-4 border-b border-neutral-100">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-sm font-black shrink-0"
-                style={{ background: 'linear-gradient(135deg, #007e6d 0%, #0055CC 100%)' }}>{initials}</div>
+                style={{ background: 'linear-gradient(135deg, #0f766e 0%, #16a394 100%)' }}>{initials}</div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-neutral-900 truncate">{business?.name}</p>
                 <p className="text-[10px] text-neutral-400 truncate">{business?.owner_email}</p>
@@ -2178,9 +2193,13 @@ const BusinessDashboard: NextPage = () => {
             </div>
             {business?.edu_verified && (
               <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg"
-                style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)' }}>
-                <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-                <p className="text-[11px] font-semibold text-violet-700 truncate">Campus verified · {business.school_domain}</p>
+                style={{ background: 'rgba(0,126,109,0.10)', border: '1px solid rgba(0,126,109,0.18)' }}>
+                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="#007e6d" strokeWidth="1.8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 8.25L12 4.5l8.25 3.75L12 12 3.75 8.25z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 10.5V14c0 1.5 2.015 3 4.5 3s4.5-1.5 4.5-3v-3.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 9.75v4.5" />
+                </svg>
+                <p className="text-[11px] font-semibold text-[#0f766e] truncate">Campus verified · {campusLabel || formatCampusLabel(business.school_domain)}</p>
               </div>
             )}
           </div>
@@ -2198,7 +2217,7 @@ const BusinessDashboard: NextPage = () => {
                 </svg>
                 {item.label}
                 {item.id === 'bookings' && pendingCount > 0 && (
-                  <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700'}`}>{pendingCount}</span>
+                  <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-accent/10 text-accent'}`}>{pendingCount}</span>
                 )}
                 {item.id === 'messages' && totalUnreadMsgs > 0 && (
                   <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === item.id ? 'bg-white/25 text-white' : 'bg-accent/10 text-accent'}`}>{totalUnreadMsgs}</span>
@@ -2393,7 +2412,7 @@ const BusinessDashboard: NextPage = () => {
                       value: fmt(awaitingReleaseAmount),
                       sub: 'paid bookings pending release',
                       icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-                      color: '#f59e0b',
+                      color: '#0f766e',
                     },
                     {
                       label: 'Clients',
@@ -2427,13 +2446,16 @@ const BusinessDashboard: NextPage = () => {
                                   className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold"
                                   style={{ background: 'rgba(0,126,109,0.10)', borderColor: 'rgba(0,126,109,0.22)', color: '#007e6d' }}
                                 >
-                                  <span className="h-2 w-2 rounded-full" style={{ background: '#007e6d' }} />
+                                  <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 8.25L12 4.5l8.25 3.75L12 12 3.75 8.25z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 10.5V14c0 1.5 2.015 3 4.5 3s4.5-1.5 4.5-3v-3.5" />
+                                  </svg>
                                   EDU verified provider: {campusLabel}
                                 </span>
                               )}
                               {pendingCount > 0 && (
-                                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: 'rgba(0,126,109,0.18)', background: '#f5fbf8', color: '#0f766e' }}>
+                                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
                                   {pendingCount} booking{pendingCount !== 1 ? 's' : ''} need attention
                                 </span>
                               )}
@@ -2448,7 +2470,7 @@ const BusinessDashboard: NextPage = () => {
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => setTab('preview')}
+                              onClick={() => setTab('edit')}
                               className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
                             >
                               Edit Listing
@@ -2673,12 +2695,12 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>{b.scheduled_exact ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
                           </div>
                           {isCustom && b.customer_proposed_price_cents != null && (
-                            <div className="mb-2 text-xs font-semibold" style={{ color: '#f59e0b' }}>
+                            <div className="mb-2 text-xs font-semibold" style={{ color: '#0f766e' }}>
                               Customer proposed: {fmt(b.customer_proposed_price_cents)}
                             </div>
                           )}
                           {isPricingDisputedFlow && inferredProviderProposedCents != null && (
-                            <div className="mb-2 text-xs font-semibold" style={{ color: '#10b981' }}>
+                            <div className="mb-2 text-xs font-semibold" style={{ color: '#0f766e' }}>
                               Your disputed price: {fmt(inferredProviderProposedCents)}
                             </div>
                           )}
@@ -2688,8 +2710,8 @@ const BusinessDashboard: NextPage = () => {
                               Your set price {fmt(b.amount_cents)}
                             </div>
                           )}
-                              {isPricingDisputedFlow && waitingOnCustomerPriceDecision && (
-                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
+                          {isPricingDisputedFlow && waitingOnCustomerPriceDecision && (
+                            <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#cfe7de', background: '#f5fbf8', color: '#0f766e' }}>
                               <p className="mb-2">Waiting for customer response to your price {fmt(inferredProviderProposedCents ?? 0)}.</p>
                               {b.customer_proposed_price_cents != null && (
                                 <button
@@ -2710,7 +2732,7 @@ const BusinessDashboard: NextPage = () => {
                                 </div>
                                 <div className="flex flex-col gap-2.5">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#fdba74', background: '#fff7ed', color: '#9a3412' }}>
+                                    <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#f3d0d0', background: '#fff7f7', color: '#b42318' }}>
                                       Customer proposed {fmt(b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
                                     </div>
                                     <button
@@ -2805,7 +2827,7 @@ const BusinessDashboard: NextPage = () => {
                                             }}
                                             disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
                                             className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 text-white disabled:opacity-40"
-                                            style={{ background: '#f59e0b' }}>
+                                            style={{ background: '#dc2626' }}>
                                             Dispute price
                                           </button>
                                         )}
@@ -2973,7 +2995,7 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {activeMsgThread.profiles?.phone && (
-                            <a href={`tel:${activeMsgThread.profiles.phone}`} className="text-xs font-semibold text-accent bg-blue-50 px-3 py-1.5 rounded-xl border border-accent/15 hover:bg-blue-100 transition-colors flex items-center gap-1.5">
+                            <a href={`tel:${activeMsgThread.profiles.phone}`} className="text-xs font-semibold text-accent bg-[#f5fbf8] px-3 py-1.5 rounded-xl border border-accent/15 hover:bg-[#edf8f4] transition-colors flex items-center gap-1.5">
                               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
                               {activeMsgThread.profiles.phone}
                             </a>
@@ -3182,7 +3204,7 @@ const BusinessDashboard: NextPage = () => {
                           {cb.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-1.5">
                               {cb.slice(0, 3).map(b => (
-                                <span key={b.id} className="text-[10px] bg-neutral-50 border border-neutral-100 text-neutral-500 px-2 py-1 rounded-lg">
+                                <span key={b.id} className="text-[10px] bg-white border px-2.5 py-1 rounded-full font-semibold" style={{ borderColor: '#bfe5db', color: '#0f766e' }}>
                                   {b.service.length > 32 ? b.service.slice(0, 32) + '…' : b.service}
                                 </span>
                               ))}
@@ -3193,7 +3215,8 @@ const BusinessDashboard: NextPage = () => {
                             <button
                               onClick={() => userId && openCustomerThread(userId)}
                               disabled={!userId}
-                              className="text-xs font-semibold px-3.5 py-2 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 transition-colors disabled:opacity-40">
+                              className="text-xs font-semibold px-3.5 py-2 rounded-xl border text-white transition-colors disabled:opacity-40"
+                              style={{ borderColor: '#007e6d', background: '#007e6d' }}>
                               Message
                             </button>
                             <button
@@ -3207,7 +3230,7 @@ const BusinessDashboard: NextPage = () => {
                                 }
                               }}
                               disabled={!userId}
-                              className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition-colors disabled:opacity-40 ${isBlocked ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'}`}>
+                              className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition-colors disabled:opacity-40 ${isBlocked ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-white text-red-600 border-red-200 hover:bg-red-50'}`}>
                               {isBlocked ? 'Unblock' : 'Block'}
                             </button>
                           </div>
@@ -3269,15 +3292,15 @@ const BusinessDashboard: NextPage = () => {
                           className={`h-11 rounded-xl text-[12px] relative transition-all duration-200 flex items-center justify-center ${
                             isSelected ? 'bg-accent text-white font-black shadow-md' :
                             isToday ? 'bg-accent/10 text-accent font-bold' :
-                            count > 0 ? 'bg-blue-50 text-blue-700 font-bold hover:bg-blue-100' :
-                            'text-neutral-400 hover:bg-neutral-50'
+                            count > 0 ? 'bg-[#f5fbf8] text-accent font-bold ring-1 ring-[#cfe7de] hover:bg-[#edf8f4]' :
+                            'text-neutral-900 hover:bg-[#fbf8f2]'
                           }`}
                         >
                           {day}
                           {count > 0 && !isSelected && (
                             <span
                               className="absolute -top-1.5 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black flex items-center justify-center"
-                              style={{ background: isToday ? '#007e6d' : '#dbeafe', color: isToday ? 'white' : '#1d4ed8' }}
+                              style={{ background: isToday ? '#007e6d' : '#e6f4ef', color: isToday ? 'white' : '#0f766e' }}
                             >
                               {count}
                             </span>
@@ -3288,7 +3311,7 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                   <div className="mt-4 pt-4 border-t border-neutral-100 flex items-center gap-4 text-[10px] text-neutral-400">
                     <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-accent" />Today</div>
-                    <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-blue-100" />Has bookings</div>
+                    <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-[#d7efe8]" />Has bookings</div>
                   </div>
                 </div>
 
@@ -3306,7 +3329,7 @@ const BusinessDashboard: NextPage = () => {
                       <button
                         onClick={() => downloadIcsBatch('scheduleme-calendar.ics', calendarEvents)}
                         disabled={calendarEvents.length === 0}
-                        className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 disabled:opacity-40">
+                        className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-[#f5fbf8] text-accent border border-[#cfe7de] disabled:opacity-40">
                         Export calendar
                       </button>
                     </div>
@@ -3368,7 +3391,7 @@ const BusinessDashboard: NextPage = () => {
                                   </button>
                                   {b.status === 'pending' && isCustomBooking && (
                                     <button onClick={() => handleUpdateBooking(b.id, 'confirmed')}
-                                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
+                                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-[#f5fbf8] text-accent border border-[#cfe7de] hover:bg-[#edf8f4] transition-colors">
                                       Confirm
                                     </button>
                                   )}
@@ -3397,17 +3420,17 @@ const BusinessDashboard: NextPage = () => {
                   <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
                   <div className="flex flex-col gap-3">
                     <div className="relative">
-                      <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                        <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-2xl px-4 py-3 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6'), boxShadow: dm ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.7)' }} />
                       <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcName.length}/60</span>
                     </div>
                     <div className="relative">
-                      <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                        <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-2xl px-4 py-3 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6'), boxShadow: dm ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.7)' }} />
                       <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcDesc.length}/300</span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
-                        <div className="flex items-center rounded-xl border px-3 py-2.5" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }}>
+                        <div className="flex items-center rounded-2xl border px-3 py-3" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6') }}>
                           <span className="text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
                           <input
                             type="text"
@@ -3422,10 +3445,10 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                       <div>
                         <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>
-                        <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                        <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-2xl px-4 py-3 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6') }} />
                       </div>
                     </div>
-                    <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
+                    <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
                       Requires exact time
                       <input type="checkbox" checked={svcRequiresTime} onChange={e => setSvcRequiresTime(e.target.checked)} />
                     </label>
@@ -3436,7 +3459,7 @@ const BusinessDashboard: NextPage = () => {
                 <div className="provider-premium-panel rounded-[30px] p-6" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                   <h3 className="font-bold text-base mb-2" style={{ color: dm ? '#f2f2f7' : '#111' }}>Custom Request Scheduling</h3>
                   <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
-                  <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
+                  <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
                     Requires exact time
                     <input type="checkbox" checked={business?.custom_requires_time !== false} onChange={e => handleCustomRequiresTime(e.target.checked)} />
                   </label>
@@ -3461,8 +3484,8 @@ const BusinessDashboard: NextPage = () => {
                         <span className="font-bold text-[15px]" style={{ color: '#007e6d' }}>{'$'}{(svc.price_cents/100).toFixed(2)}</span>
                         <button
                           onClick={() => handleUpdateService(svc.id, { requires_time: svc.requires_time === false ? true : false })}
-                          className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg border"
-                          style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}
+                          className="text-[11px] font-bold px-3 py-1.5 rounded-full border"
+                          style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}
                           title={svc.requires_time === false ? 'Enable exact time' : 'Disable exact time'}
                         >
                           {svc.requires_time === false ? 'Enable time' : 'No time'}
@@ -3476,12 +3499,12 @@ const BusinessDashboard: NextPage = () => {
               </div>
             </div>
             )}
-            {tab === 'preview' && (
+            {tab === 'edit' && (
               <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 overflow-hidden">
                 <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Edit Listing</p>
-                    <p className="text-sm font-semibold text-neutral-900 mt-1">Live Preview</p>
+                    <p className="text-sm font-semibold text-neutral-900 mt-1">Full Editor</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -3492,7 +3515,7 @@ const BusinessDashboard: NextPage = () => {
                     </button>
                     {business?.slug && (
                       <a
-                        href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&preview=1&bid=${business.id}&k=${previewKey}`}
+                        href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}&k=${previewKey}`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -3504,18 +3527,16 @@ const BusinessDashboard: NextPage = () => {
                 </div>
                 {business ? (
                   <div className="p-5" key={previewKey}>
-                    <EditablePreview
-                      business={business}
-                      services={services}
-                      mediaImages={mediaImages}
-                      mediaVideo={mediaVideo}
-                      editDesc={editDesc}
-                      setEditDesc={setEditDesc}
-                      setMediaImages={setMediaImages}
-                      setMediaVideo={setMediaVideo}
-                      setBusiness={setBusiness}
-                      dm={dm}
-                    />
+                    {business?.slug ? (
+                      <iframe
+                        title="ScheduleMe Full Editor"
+                        src={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&embedded=1&bid=${business.id}&k=${previewKey}`}
+                        className="w-full rounded-[24px] border border-neutral-100 bg-white"
+                        style={{ minHeight: '78vh' }}
+                      />
+                    ) : (
+                      <div className="p-6 text-sm text-neutral-500">Editor unavailable until your provider slug is ready.</div>
+                    )}
                   </div>
                 ) : (
                   <div className="p-6 text-sm text-neutral-500">Preview unavailable — provider data is still loading.</div>
@@ -3530,12 +3551,12 @@ const BusinessDashboard: NextPage = () => {
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
                       <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
-                        Public visibility increases discovery but may expose your identity to non-students.
+                        Provider cards appear across ScheduleMe by default. Use these controls to fine-tune how much of your identity is shown.
                       </p>
                     </div>
                     <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
                       style={{ background: publicVisibility ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: publicVisibility ? '#059669' : '#b91c1c' }}>
-                      {publicVisibility ? 'Public listing ON' : 'Public listing OFF'}
+                      {publicVisibility ? 'Visible on ScheduleMe' : 'Hidden from public browse'}
                     </div>
                   </div>
 
@@ -3551,7 +3572,7 @@ const BusinessDashboard: NextPage = () => {
                       />
                       <div>
                         <p className="font-semibold text-neutral-900">Show my personal name to students</p>
-                        <p className="text-xs text-neutral-500">If off, your personal name is hidden from students.</p>
+                        <p className="text-xs text-neutral-500">Turn this off if you want students to see only your business name.</p>
                       </div>
                     </label>
 
@@ -3568,8 +3589,8 @@ const BusinessDashboard: NextPage = () => {
                         disabled={visibilitySaving}
                       />
                       <div>
-                        <p className="font-semibold text-neutral-900">Show my provider profile publicly</p>
-                        <p className="text-xs text-neutral-500">Listed on public browse and search pages.</p>
+                        <p className="font-semibold text-neutral-900">List my provider card on ScheduleMe</p>
+                        <p className="text-xs text-neutral-500">Controls whether your card appears on home, browse, and search surfaces.</p>
                       </div>
                     </label>
 
@@ -3583,8 +3604,8 @@ const BusinessDashboard: NextPage = () => {
                         disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my personal name publicly</p>
-                        <p className="text-xs text-neutral-500">If off, your personal name is hidden on public pages.</p>
+                        <p className="font-semibold text-neutral-900">Show my personal name to non-students</p>
+                        <p className="text-xs text-neutral-500">Keep this off if you only want your personal name visible inside campus contexts.</p>
                       </div>
                     </label>
 
@@ -3598,8 +3619,8 @@ const BusinessDashboard: NextPage = () => {
                         disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my photos publicly</p>
-                        <p className="text-xs text-neutral-500">If off, your listing will use a placeholder.</p>
+                        <p className="font-semibold text-neutral-900">Show my photos on public cards</p>
+                        <p className="text-xs text-neutral-500">If this is off, ScheduleMe will use a simpler card presentation instead.</p>
                       </div>
                     </label>
                   </div>
@@ -3623,7 +3644,7 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-xs font-semibold text-neutral-500 mt-4">Want to affiliate with your campus?</p>
                     <div className="mt-4 grid grid-cols-1 gap-2">
                       <button type="button" onClick={() => setShowCampusModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                        style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
+                        style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : '#f5fbf8' }}>
                         {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
                       </button>
                       <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
@@ -4041,7 +4062,7 @@ const BusinessDashboard: NextPage = () => {
                     setConfirmSubmitting(false);
                   }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-40"
-                  style={{ background: confirmAction.action === 'confirm' || confirmAction.action === 'accept_price' ? '#10b981' : (confirmAction.action === 'dispute' ? '#f59e0b' : '#ef4444') }}>
+                  style={{ background: confirmAction.action === 'confirm' || confirmAction.action === 'accept_price' ? '#0f766e' : (confirmAction.action === 'dispute' ? '#dc2626' : '#ef4444') }}>
                   {confirmSubmitting ? 'Working…' : (confirmAction.action === 'confirm' ? 'Confirm' : (confirmAction.action === 'dispute' ? 'Dispute Price' : (confirmAction.action === 'accept_price' ? 'Accept Price' : 'Cancel Booking')))}
                 </button>
               </div>
