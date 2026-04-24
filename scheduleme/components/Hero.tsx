@@ -46,6 +46,8 @@ export default function Hero({
   const hasTyped = typedCount >= HERO_MESSAGE.length;
   const showMessageShell = messageShellVisible;
   const showMatchShell = matchState !== 'idle';
+  const messageTargetHeight =
+    typedCount >= 36 ? 56 : typedCount >= 22 ? 48 : 38;
   const matchSummaryLabel =
     matchState === 'done' ? '2 student barbers near you' : 'Matching you with student barbers...';
 
@@ -211,9 +213,11 @@ export default function Hero({
                   className="js-hero-pop rounded-2xl rounded-br-sm px-4 py-2.5 text-sm text-white max-w-[300px]"
                   style={{
                     background: '#0F766E',
-                    minHeight: 56,
+                    minHeight: 38,
+                    maxHeight: showMessageShell ? messageTargetHeight : 38,
+                    overflow: 'hidden',
                     opacity: showMessageShell ? 1 : 0,
-                    transition: 'opacity 860ms ease, transform 1120ms cubic-bezier(0.22, 1.2, 0.36, 1), box-shadow 900ms cubic-bezier(0.22, 1.2, 0.36, 1)',
+                    transition: 'opacity 860ms ease, transform 1120ms cubic-bezier(0.22, 1.2, 0.36, 1), box-shadow 900ms cubic-bezier(0.22, 1.2, 0.36, 1), max-height 360ms cubic-bezier(0.22, 1.14, 0.36, 1)',
                     transform: showMessageShell
                       ? messageState === 'sent'
                         ? 'translateY(-2px)'
