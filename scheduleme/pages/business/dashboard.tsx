@@ -1173,6 +1173,10 @@ const BusinessDashboard: NextPage = () => {
     handleStripeConnect();
   }, [business, stripeLoading, router.query, handleStripeConnect]);
 
+  useEffect(() => {
+    setCalendarDay(null);
+  }, [calendarMonthOffset]);
+
   // Load + subscribe to thread list when on messages tab
   useEffect(() => {
     if (tab !== 'messages' || !business) return;
@@ -2036,9 +2040,6 @@ const BusinessDashboard: NextPage = () => {
   ];
   const tour = TOUR_STEPS[tourStep];
 
-  useEffect(() => {
-    setCalendarDay(null);
-  }, [calendarMonthOffset]);
   function finishTour() {
     if (typeof window !== 'undefined') {
       try {
