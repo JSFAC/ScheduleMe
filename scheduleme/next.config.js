@@ -39,10 +39,7 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      { source: '/provider/:path*', destination: '/business/:path*' },
-      { source: '/provider', destination: '/business' },
-    ];
+    return [];
   },
   async headers() {
     return [

@@ -62,7 +62,10 @@ export default function App({ Component, pageProps }: AppProps) {
 
   // Fade in on first mount + set theme-color from localStorage immediately
   useEffect(() => {
-    const isDark = localStorage.getItem('sm_dark_mode') === 'true';
+    let isDark = false;
+    try {
+      isDark = localStorage.getItem('sm_dark_mode') === 'true';
+    } catch {}
     const meta = document.getElementById('theme-color-meta') as HTMLMetaElement | null;
     if (meta) meta.content = isDark ? '#0a0a0a' : '#F9F7F2';
     // Start visible immediately — no fade-in on mount

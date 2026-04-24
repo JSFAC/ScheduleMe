@@ -812,7 +812,9 @@ const BusinessDashboard: NextPage = () => {
   // Sync tab changes to URL hash so refresh restores position
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash.replace('#','') !== tab) {
-      history.replaceState(null, '', '#' + tab);
+      try {
+        window.history.replaceState(null, '', '#' + tab);
+      } catch {}
     }
   }, [tab]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -1117,7 +1119,9 @@ const BusinessDashboard: NextPage = () => {
     if (!business?.id) return;
     if (typeof window === 'undefined') return;
     const key = 'sm_biz_tour_seen';
-    if (localStorage.getItem(key) === '1') return;
+    try {
+      if (localStorage.getItem(key) === '1') return;
+    } catch {}
     setShowTour(true);
   }, [business?.id]);
 
@@ -1143,10 +1147,12 @@ const BusinessDashboard: NextPage = () => {
       setStripePolling(false);
       if (business?.stripe_account_id && typeof window !== 'undefined') {
         const autoKey = `sm_stripe_autocontinue_${business.id}`;
-        if (!localStorage.getItem(autoKey)) {
-          localStorage.setItem(autoKey, '1');
-          setTimeout(() => handleStripeConnect('update'), 1200);
-        }
+        try {
+          if (!localStorage.getItem(autoKey)) {
+            localStorage.setItem(autoKey, '1');
+            setTimeout(() => handleStripeConnect('update'), 1200);
+          }
+        } catch {}
       }
     };
     poll();
@@ -1159,8 +1165,12 @@ const BusinessDashboard: NextPage = () => {
     if (router.query.stripe) return;
     if (router.query.onboard !== 'stripe') return;
     const key = `sm_stripe_autostart_${business.id}`;
-    if (typeof window !== 'undefined' && localStorage.getItem(key) === '1') return;
-    if (typeof window !== 'undefined') localStorage.setItem(key, '1');
+    if (typeof window !== 'undefined') {
+      try {
+        if (localStorage.getItem(key) === '1') return;
+        localStorage.setItem(key, '1');
+      } catch {}
+    }
     handleStripeConnect();
   }, [business, stripeLoading, router.query, handleStripeConnect]);
 
@@ -1897,7 +1907,6 @@ const BusinessDashboard: NextPage = () => {
           <div className="mt-8 flex justify-center">
             <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
           </div>
-          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>Loading provider dashboard...</p>
         </div>
       </div>
     );
@@ -2032,7 +2041,11 @@ const BusinessDashboard: NextPage = () => {
     setCalendarDay(null);
   }, [calendarMonthOffset]);
   function finishTour() {
-    if (typeof window !== 'undefined') localStorage.setItem('sm_biz_tour_seen', '1');
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('sm_biz_tour_seen', '1');
+      } catch {}
+    }
     setShowTour(false);
   }
 
@@ -2118,7 +2131,12 @@ const BusinessDashboard: NextPage = () => {
           </div>
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {NAV.map(item => (
-              <button key={item.id} onClick={() => { setTab(item.id); history.replaceState(null, '', '#' + item.id); }}
+              <button key={item.id} onClick={() => {
+                setTab(item.id);
+                try {
+                  window.history.replaceState(null, '', '#' + item.id);
+                } catch {}
+              }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left ${tab === item.id ? 'bg-accent text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={tab === item.id ? 2.5 : 1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.d} />
@@ -2157,7 +2175,12 @@ const BusinessDashboard: NextPage = () => {
           {/* Mobile FAB — floating draggable nav button */}
           <MobileFAB
             tab={tab}
-            setTab={(t) => { setTab(t); history.replaceState(null, '', '#' + t); }}
+            setTab={(t) => {
+              setTab(t);
+              try {
+                window.history.replaceState(null, '', '#' + t);
+              } catch {}
+            }}
             pendingCount={pendingCount}
             totalUnreadMsgs={totalUnreadMsgs}
             dm={dm}
