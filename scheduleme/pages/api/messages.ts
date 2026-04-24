@@ -15,11 +15,12 @@ function getSupabase() {
 
 function isBusinessOwnerForUser(business: any, user: { id: string; email: string }): boolean {
   const ownerID = typeof business?.owner_id === 'string' ? business.owner_id : null;
-  if (ownerID) return ownerID === user.id;
-
-  // Legacy fallback only when owner_id is missing.
   const ownerEmail = typeof business?.owner_email === 'string' ? business.owner_email.toLowerCase().trim() : '';
   const userEmail = (user.email || '').toLowerCase().trim();
+  if (ownerID === user.id) return true;
+
+  // Legacy/migration fallback: some businesses still have stale owner_id values
+  // while owner_email remains the reliable link for the dashboard account.
   return !!ownerEmail && !!userEmail && ownerEmail === userEmail;
 }
 

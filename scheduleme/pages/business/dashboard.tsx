@@ -1910,7 +1910,7 @@ const BusinessDashboard: NextPage = () => {
           <div className="mt-8 flex justify-center">
             <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
           </div>
-          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.68)' }}>Loading provider dashboard…</p>
+          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>Loading provider dashboard...</p>
         </div>
       </div>
     );
@@ -3410,22 +3410,6 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                     </label>
                   </div>
-                </div>
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-                  <h2 className="text-sm font-bold text-neutral-900 mb-2">Listing Details Moved</h2>
-                  <p className="text-sm text-neutral-500 mb-4">
-                    Provider profile content now lives in <strong>Edit</strong> so Settings stays focused on visibility, payments, and account actions.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined') window.location.hash = 'preview';
-                      setTab('preview');
-                    }}
-                    className="btn-primary text-sm px-4 py-2.5"
-                  >
-                    Open Edit Listing
-                  </button>
                 </div>
                 <div className="space-y-5">
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">

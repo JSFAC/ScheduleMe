@@ -403,7 +403,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ownerID = (booking.businesses as any)?.owner_id;
     const ownerEmail = ((booking.businesses as any)?.owner_email || '').toLowerCase().trim();
     const userEmail = (user.email || '').toLowerCase().trim();
-    const isBusinessOwner = ownerID === user.id || (!ownerID && !!ownerEmail && !!userEmail && ownerEmail === userEmail);
+    const isBusinessOwner = ownerID === user.id || (!!ownerEmail && !!userEmail && ownerEmail === userEmail);
     const isCustomer = booking.user_id === user.id;
     const consumer = booking.profiles as any;
     const businessName = (booking.businesses as any)?.name || 'Your provider';
@@ -747,7 +747,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const ownerId = typeof (biz as any).owner_id === 'string' ? (biz as any).owner_id : null;
       const ownerEmail = typeof (biz as any).owner_email === 'string' ? (biz as any).owner_email.toLowerCase().trim() : '';
       const userEmail = (user.email || '').toLowerCase().trim();
-      const isOwner = ownerId === user.id || (!ownerId && !!ownerEmail && !!userEmail && ownerEmail === userEmail);
+      const isOwner = ownerId === user.id || (!!ownerEmail && !!userEmail && ownerEmail === userEmail);
       if (!isOwner) return res.status(403).json({ error: 'Access denied' });
 
       try {
