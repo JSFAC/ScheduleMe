@@ -2320,73 +2320,202 @@ const BusinessDashboard: NextPage = () => {
               <div className="space-y-5">
                 {(() => {
                   const platformFeeLabel = business?.founder50 ? 'after 6% platform fee (Founder50)' : 'after 12% platform fee';
+                  const availabilityLabel = business?.availability_status === 'busy'
+                    ? 'Busy'
+                    : business?.availability_status === 'closed'
+                      ? 'Closed'
+                      : 'Open';
+                  const availabilityTone = business?.availability_status === 'busy'
+                    ? { bg: '#fff7ed', border: '#fdba74', text: '#c2410c', dot: '#f59e0b' }
+                    : business?.availability_status === 'closed'
+                      ? { bg: '#fff1f2', border: '#fda4af', text: '#be123c', dot: '#fb7185' }
+                      : { bg: '#f0fdf4', border: '#a7f3d0', text: '#0f766e', dot: '#14b8a6' };
+                  const overviewMetrics = [
+                    {
+                      label: 'Total Payout',
+                      value: fmt(totalEarned),
+                      sub: platformFeeLabel,
+                      icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+                      color: '#14b8a6',
+                    },
+                    {
+                      label: 'This Month',
+                      value: fmt(thisMonthEarned),
+                      sub: 'current month payout',
+                      icon: 'M3 3v18h18M7.5 14.25l3-3 2.25 2.25L16.5 9',
+                      color: '#0ea5a4',
+                    },
+                    {
+                      label: 'Awaiting Payout',
+                      value: fmt(awaitingReleaseAmount),
+                      sub: 'paid bookings pending release',
+                      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                      color: '#f59e0b',
+                    },
+                    {
+                      label: 'Clients',
+                      value: String(uniqueClients),
+                      sub: `${completedCount} jobs completed`,
+                      icon: 'M17 20h5v-1a4 4 0 00-5-3.87M9 20H4v-1a4 4 0 015-3.87m8-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 2a3 3 0 11-6 0 3 3 0 016 0zM6 10a3 3 0 11-6 0 3 3 0 016 0z',
+                      color: '#2cb39b',
+                    },
+                  ];
                   return (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Total Payout', value: fmt(totalEarned), sub: `${platformFeeLabel} · completed only`, icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: '#10b981' },
-                    { label: 'Open Bookings', value: String(pendingCount), sub: 'needs response or completion', icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', color: '#f59e0b' },
-                    { label: 'Unread Messages', value: String(totalUnreadMsgs), sub: `${uniqueClients} clients · ${completedCount} jobs completed`, icon: 'M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m0 0h3.375m-3.375 0v3.75m0-8.25a9 9 0 100 18 9 9 0 000-18z', color: '#8b5cf6' },
-                  ].map(s => (
-                    <div key={s.label} className="rounded-2xl border p-5" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#f0f0f0' }}>
-                      <div className="h-9 w-9 rounded-xl flex items-center justify-center mb-3" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f8fafc' }}>
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
+                    <div className="space-y-5">
+                      <div className="rounded-[28px] border bg-white p-6 shadow-[0_10px_30px_rgba(32,136,122,0.05)]">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0">
+                            <h2 className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>
+                              {business?.name || 'Your business'}
+                            </h2>
+                            <p className="mt-2 max-w-xl text-sm text-neutral-500">
+                              Run your bookings, messages, services, and payouts from one place.
+                            </p>
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                              <span
+                                className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold"
+                                style={{ background: availabilityTone.bg, borderColor: availabilityTone.border, color: availabilityTone.text }}
+                              >
+                                <span className="h-2 w-2 rounded-full" style={{ background: availabilityTone.dot }} />
+                                Status: {availabilityLabel}
+                              </span>
+                              {pendingCount > 0 && (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                  {pendingCount} booking{pendingCount !== 1 ? 's' : ''} need attention
+                                </span>
+                              )}
+                              {totalUnreadMsgs > 0 && (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: '#d9d6fe', background: '#f5f3ff', color: '#6d28d9' }}>
+                                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#8b5cf6' }} />
+                                  {totalUnreadMsgs} unread message{totalUnreadMsgs !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setTab('preview')}
+                              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+                            >
+                              Edit Listing
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTab('bookings')}
+                              className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              Open Bookings
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-2xl font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{s.value}</p>
-                      <p className="text-xs text-neutral-500 mt-0.5">{s.label}</p>
-                      <p className="text-[10px] text-neutral-300 mt-0.5">{s.sub}</p>
+
+                      {business?.edu_verified && (
+                        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4">
+                          <p className="text-sm font-bold text-neutral-900">EDU Verified Provider</p>
+                          <p className="mt-1 text-sm text-emerald-700">Verified provider for your campus.</p>
+                          <p className="mt-1 text-xs text-neutral-500">
+                            Linked to your customer EDU verification. No separate provider EDU flow.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        {overviewMetrics.map((s) => (
+                          <div key={s.label} className="rounded-[24px] border bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
+                            <div className="h-10 w-10 rounded-2xl flex items-center justify-center mb-4" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f3f8f6' }}>
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
+                              </svg>
+                            </div>
+                            <p className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>{s.value}</p>
+                            <p className="mt-2 text-sm font-semibold text-neutral-900">{s.label}</p>
+                            <p className="mt-1 text-xs text-neutral-500">{s.sub}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.95fr]">
+                        <div className="rounded-[28px] border bg-white p-5">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <h2 className="text-base font-bold text-neutral-900">Revenue</h2>
+                              <p className="mt-1 text-xs text-neutral-500">Top 8 weeks in your provider dashboard.</p>
+                            </div>
+                            <span className="rounded-full bg-neutral-50 px-3 py-1 text-[11px] font-semibold text-neutral-500">
+                              Today pay-in: {fmt(bookings
+                                .filter((b) => (b.status === 'paid' || b.status === 'completed') && b.amount_cents)
+                                .filter((b) => {
+                                  const now = new Date();
+                                  const created = new Date(b.created_at);
+                                  return created.toDateString() === now.toDateString();
+                                })
+                                .reduce((sum, b) => sum + toProviderNet(b.amount_cents || 0), 0))}
+                            </span>
+                          </div>
+                          <div className="mt-5">
+                            <RevenueChart bookings={bookings} />
+                          </div>
+                        </div>
+
+                        <div className="rounded-[28px] border bg-white p-5">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <h2 className="text-base font-bold text-neutral-900">Publish Checklist</h2>
+                              <p className="mt-1 text-xs text-neutral-500">
+                                Draft profiles stay private until all requirements are complete.
+                              </p>
+                            </div>
+                            <span
+                              className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                              style={{ background: publishReady ? '#ecfdf5' : '#fff7ed', color: publishReady ? '#047857' : '#9a3412' }}
+                            >
+                              {publishReady ? 'Ready' : 'Draft'}
+                            </span>
+                          </div>
+                          <div className="mt-4 grid grid-cols-1 gap-2 text-xs">
+                            {[
+                              { key: 'coreProfile', label: 'Core profile fields' },
+                              { key: 'services', label: 'At least one service' },
+                              { key: 'media', label: 'Photo or media uploaded' },
+                              { key: 'stripe', label: 'Stripe connected' },
+                            ].map((item) => {
+                              const ok = !!publishChecklist?.[item.key];
+                              return (
+                                <div
+                                  key={item.key}
+                                  className="rounded-2xl border px-3 py-2.5 flex items-center justify-between"
+                                  style={{ borderColor: ok ? '#bbf7d0' : '#fed7aa', background: ok ? '#f0fdf4' : '#fff7ed' }}
+                                >
+                                  <span style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</span>
+                                  <span style={{ color: ok ? '#166534' : '#9a3412', fontWeight: 700 }}>{ok ? 'Done' : 'Needed'}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="mt-4 flex gap-2">
+                            <button
+                              onClick={() => handlePublish('publish')}
+                              disabled={publishLoading || !publishReady}
+                              className="btn-primary rounded-full px-4 py-2 text-sm disabled:opacity-50"
+                            >
+                              {publishLoading ? 'Updating…' : 'Publish Profile'}
+                            </button>
+                            <button
+                              onClick={() => handlePublish('unpublish')}
+                              disabled={publishLoading || !business?.public_visibility}
+                              className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 disabled:opacity-50"
+                            >
+                              Unpublish
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
                   );
                 })()}
-
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-neutral-900">Publish Checklist</h2>
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        Draft profiles stay private until all requirements are complete.
-                      </p>
-                    </div>
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                      style={{ background: publishReady ? '#ecfdf5' : '#fff7ed', color: publishReady ? '#047857' : '#9a3412' }}>
-                      {publishReady ? 'Ready to publish' : 'Draft'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
-                    {[
-                      { key: 'coreProfile', label: 'Core profile fields' },
-                      { key: 'services', label: 'At least one service' },
-                      { key: 'media', label: 'Photo or media uploaded' },
-                      { key: 'stripe', label: 'Stripe connected' },
-                    ].map((item) => {
-                      const ok = !!publishChecklist?.[item.key];
-                      return (
-                        <div key={item.key} className="rounded-xl border px-3 py-2 flex items-center justify-between"
-                          style={{ borderColor: ok ? '#bbf7d0' : '#fed7aa', background: ok ? '#f0fdf4' : '#fff7ed' }}>
-                          <span style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</span>
-                          <span style={{ color: ok ? '#166534' : '#9a3412', fontWeight: 700 }}>{ok ? 'Done' : 'Needed'}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handlePublish('publish')}
-                      disabled={publishLoading || !publishReady}
-                      className="btn-primary text-sm px-4 py-2 disabled:opacity-50"
-                    >
-                      {publishLoading ? 'Updating…' : 'Publish Profile'}
-                    </button>
-                    <button
-                      onClick={() => handlePublish('unpublish')}
-                      disabled={publishLoading || !business?.public_visibility}
-                      className="text-sm font-semibold px-4 py-2 rounded-xl border border-neutral-300 text-neutral-700 disabled:opacity-50"
-                    >
-                      Unpublish
-                    </button>
-                  </div>
-                </div>
 
                 <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
                   <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
