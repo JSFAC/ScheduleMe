@@ -12,36 +12,43 @@ struct RootView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var dataStore: ScheduleMeDataStore
     @EnvironmentObject private var locationManager: LocationManager
+    @EnvironmentObject private var tabRouter: TabRouter
+    @AppStorage("scheduleme_guest_browsing_enabled") private var guestBrowsingEnabled = false
     @State private var didBootstrap = false
     @State private var didRunStartupPrefetch = false
-    @State private var startupPrefetchCompleted = false
+    @State private var startupCoreFeedsReady = false
     @State private var loadingVisibleUntil = Date.distantPast
     @State private var loadingHoldRefresh = false
     @State private var loadingBarCompleted = false
     @State private var loadingProgress: CGFloat = 0.08
     @State private var loadingProgressTask: Task<Void, Never>?
 
-    // Keep startup loading visible long enough for the progress animation to feel intentional.
-    private let minimumLoadingVisibility: TimeInterval = 1.15
+    // Keep startup loading intentional, but still fast.
+    private let minimumLoadingVisibility: TimeInterval = 0.8
 
     var body: some View {
         ScheduleMePage {
             Group {
                 // App entry routing order:
-                // 1) auth loading state, 2) main tabs if authenticated, 3) auth screens.
+                // 1) loading state, 2) main tabs when signed in or guest-enabled, 3) auth screens.
                 if shouldShowLoadingScreen {
                     ConsumerLoadingScreen(
                         context: appState.loadingContext,
-                        finishSignal: loadingReadyForDismiss,
+                        finishSignal: loadingFinishSignal,
                         progressValue: loadingProgress
                     ) {
                         loadingBarCompleted = true
                         loadingHoldRefresh.toggle()
                     }
-                } else if appState.isAuthenticated {
+                } else if appState.isAuthenticated || guestBrowsingEnabled {
                     MainTabView()
                 } else {
-                    AuthView()
+                    AuthView(
+                        onContinueAsGuest: {
+                            guestBrowsingEnabled = true
+                            tabRouter.selected = .home
+                        }
+                    )
                 }
             }
         }
@@ -57,6 +64,7 @@ struct RootView: View {
                 loadingVisibleUntil = Date().addingTimeInterval(minimumLoadingVisibility)
                 loadingBarCompleted = false
                 loadingProgress = 0.08
+                startupCoreFeedsReady = false
             }
             startLoadingProgressTickerIfNeeded()
             await appState.bootstrap()
@@ -65,13 +73,23 @@ struct RootView: View {
         }
         .onChange(of: appState.isLoading) { _, isLoadingNow in
             if isLoadingNow {
+                let wasShowingLoading = shouldShowLoadingScreen
                 loadingVisibleUntil = Date().addingTimeInterval(minimumLoadingVisibility)
                 loadingBarCompleted = false
-                loadingProgress = 0.08
+                startupCoreFeedsReady = false
+                // Avoid auth-loader progress snap-back if a second loading pulse starts
+                // while the overlay is already visible.
+                if appState.loadingContext == .startup || !wasShowingLoading {
+                    loadingProgress = 0.08
+                }
                 startLoadingProgressTickerIfNeeded()
                 return
             }
-            if !appState.isAuthenticated {
+            if appState.loadingContext == .startup {
+                // Keep startup splash visible until core entry feeds (Home/Campus) are ready.
+                advanceLoadingProgress(to: startupCoreFeedsReady ? 1.0 : 0.92)
+            } else {
+                // Auth transition loaders should always finish when auth bootstrap completes.
                 advanceLoadingProgress(to: 1.0)
             }
             let remaining = loadingVisibleUntil.timeIntervalSinceNow
@@ -83,14 +101,30 @@ struct RootView: View {
         .onChange(of: appState.isAuthenticated) { _, isAuthenticated in
             if !isAuthenticated {
                 didRunStartupPrefetch = false
-                startupPrefetchCompleted = false
+                startupCoreFeedsReady = false
                 loadingBarCompleted = false
                 loadingProgress = 0.08
                 stopLoadingProgressTicker()
+                Task {
+                    await runStartupPrefetchIfNeeded()
+                }
                 return
             }
 
+            guestBrowsingEnabled = false
+            // Re-run startup prefetch for the newly authenticated state.
+            // Without resetting this gate, signing-in can wait forever on stale prefetch state.
+            didRunStartupPrefetch = false
+            startupCoreFeedsReady = false
             startLoadingProgressTickerIfNeeded()
+            Task {
+                await runStartupPrefetchIfNeeded()
+            }
+        }
+        .onChange(of: guestBrowsingEnabled) { _, enabled in
+            guard enabled else { return }
+            didRunStartupPrefetch = false
+            startupCoreFeedsReady = false
             Task {
                 await runStartupPrefetchIfNeeded()
             }
@@ -108,9 +142,15 @@ struct RootView: View {
     }
 
     private var shouldShowLoadingScreen: Bool {
+        // Sign-in/sign-out loading screens should render whenever auth bootstrap is in progress.
+        if appState.loadingContext != .startup {
+            return appState.isLoading || Date() < loadingVisibleUntil
+        }
+        // Startup loader is only for authenticated/guest app entry.
+        guard appState.isAuthenticated || guestBrowsingEnabled else { return false }
         _ = loadingHoldRefresh
         if appState.isLoading { return true }
-        if appState.isAuthenticated && !startupPrefetchCompleted { return true }
+        if requiresCoreStartupFeeds && !startupCoreFeedsReady { return true }
         if !loadingBarCompleted { return true }
         return !loadingReadyForDismiss
     }
@@ -118,26 +158,46 @@ struct RootView: View {
     private var loadingReadyForDismiss: Bool {
         let minimumVisibleElapsed = Date() >= loadingVisibleUntil
         let sessionReady = !appState.isLoading
-        let dataReady = (!appState.isAuthenticated) || startupPrefetchCompleted
+        let dataReady = (!requiresCoreStartupFeeds) || startupCoreFeedsReady
         return minimumVisibleElapsed && sessionReady && dataReady
     }
 
+    private var loadingFinishSignal: Bool {
+        if appState.loadingContext != .startup {
+            return !appState.isLoading
+        }
+        return loadingReadyForDismiss
+    }
+
     private func runStartupPrefetchIfNeeded() async {
-        guard appState.isAuthenticated else { return }
         guard !didRunStartupPrefetch else { return }
         didRunStartupPrefetch = true
-        startupPrefetchCompleted = false
+        startupCoreFeedsReady = false
+
+        // If we're heading to auth, don't hold splash on data prefetch.
+        guard requiresCoreStartupFeeds else {
+            startupCoreFeedsReady = true
+            advanceLoadingProgress(to: 1.0)
+            return
+        }
+
+        // Guest mode: preload nearby Home feed before entering tabs.
+        if guestBrowsingEnabled && !appState.isAuthenticated {
+            locationManager.requestIfNeeded()
+            let coordinate = locationManager.coordinate ?? LocationManager.simulatorFallbackCoordinate
+            if !dataStore.hasLoadedBusinesses {
+                await dataStore.loadNearbyBusinesses(coordinate: coordinate)
+            }
+            startupCoreFeedsReady = true
+            advanceLoadingProgress(to: 1.0)
+            return
+        }
 
         let baseline: CGFloat = 0.34
         let upperBound: CGFloat = 0.96
         advanceLoadingProgress(to: baseline)
 
         var plannedSteps = 1 // final completion checkpoint
-        if appState.userID != nil {
-            plannedSteps += 1 // favorites
-            if !dataStore.hasLoadedThreads { plannedSteps += 1 }
-        }
-        if !dataStore.hasLoadedBookings { plannedSteps += 1 }
         if !dataStore.hasLoadedBusinesses { plannedSteps += 1 }
         if appState.eduVerified == true && !dataStore.hasLoadedCampusBusinesses { plannedSteps += 1 }
 
@@ -152,37 +212,55 @@ struct RootView: View {
         locationManager.requestIfNeeded()
         let coordinate = locationManager.coordinate ?? LocationManager.simulatorFallbackCoordinate
 
-        if let uid = appState.userID {
-            await dataStore.loadFavorites(userID: uid)
+        // Critical path before splash dismissal: Home and, when applicable, Campus feed.
+        let needsBusinesses = !dataStore.hasLoadedBusinesses
+        let needsCampus = appState.eduVerified == true && !dataStore.hasLoadedCampusBusinesses
+        let campusDomain = appState.resolvedSchoolDomain
+        let campusTag = campusDomain?.split(separator: ".").first.map { String($0).uppercased() }
+
+        if needsBusinesses && needsCampus {
+            async let nearbyTask: Void = dataStore.loadNearbyBusinesses(coordinate: coordinate)
+            async let campusTask: Void = dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
+            await nearbyTask
+            markStepComplete()
+            await campusTask
             markStepComplete()
         } else {
-            markStepComplete()
-        }
-        if !dataStore.hasLoadedThreads, let uid = appState.userID {
-            await dataStore.loadThreads(for: uid)
-            markStepComplete()
-        }
-        if !dataStore.hasLoadedBookings {
-            await dataStore.loadBookings()
-            markStepComplete()
-        }
-        if !dataStore.hasLoadedBusinesses {
-            await dataStore.loadNearbyBusinesses(coordinate: coordinate)
-            markStepComplete()
-        }
-        if appState.eduVerified == true && !dataStore.hasLoadedCampusBusinesses {
-            let campusDomain = appState.resolvedSchoolDomain
-            let campusTag = campusDomain?.split(separator: ".").first.map { String($0).uppercased() }
-            await dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
-            markStepComplete()
+            if needsBusinesses {
+                await dataStore.loadNearbyBusinesses(coordinate: coordinate)
+                markStepComplete()
+            }
+            if needsCampus {
+                await dataStore.loadCampusBusinesses(schoolDomain: campusDomain, campusTag: campusTag)
+                markStepComplete()
+            }
         }
 
-        startupPrefetchCompleted = true
+        startupCoreFeedsReady = true
         markStepComplete()
         advanceLoadingProgress(to: 1.0)
-        if appState.loadingContext == .signingIn {
-            appState.loadingContext = .startup
+
+        // Non-critical prefetches continue in background after app entry.
+        if let uid = appState.userID {
+            Task {
+                await dataStore.loadFavorites(userID: uid)
+            }
+            if !dataStore.hasLoadedThreads {
+                Task {
+                    await dataStore.loadThreads(for: uid)
+                }
+            }
         }
+        if !dataStore.hasLoadedBookings {
+            Task {
+                await dataStore.loadBookings()
+            }
+        }
+
+    }
+
+    private var requiresCoreStartupFeeds: Bool {
+        appState.isAuthenticated || guestBrowsingEnabled
     }
 
     private func advanceLoadingProgress(to value: CGFloat) {
@@ -291,18 +369,36 @@ private struct ConsumerLoadingScreen: View {
         }
     }
 
+    private var loadingTint: Color {
+        switch context {
+        case .startup, .signingIn:
+            return ScheduleMeTheme.accent
+        case .signingOut:
+            return Color(hex: "ef4444")
+        }
+    }
+
+    private var iconCircleBackground: Color {
+        switch context {
+        case .startup, .signingIn:
+            return ScheduleMeTheme.accentSoft
+        case .signingOut:
+            return Color(hex: "ef4444").opacity(0.18)
+        }
+    }
+
     var body: some View {
         VStack {
             Spacer()
 
             VStack(spacing: 16) {
                 Circle()
-                    .fill(ScheduleMeTheme.accentSoft)
+                    .fill(iconCircleBackground)
                     .frame(width: 72, height: 72)
                     .overlay(
                         Image(systemName: icon)
                             .font(.system(size: 28, weight: .semibold))
-                            .foregroundColor(ScheduleMeTheme.accent)
+                            .foregroundColor(loadingTint)
                     )
 
                 if context == .startup {
@@ -329,10 +425,11 @@ private struct ConsumerLoadingScreen: View {
                 ScheduleMeLoadingBar(
                     width: 120,
                     height: 8,
-                    tint: ScheduleMeTheme.accent,
+                    tint: loadingTint,
                     completesOnFirstRun: true,
                     finishSignal: finishSignal,
                     progressOverride: progressValue,
+                    shimmerOpacity: context == .signingOut ? 0.12 : 0.22,
                     onCompleted: onBarCompleted
                 )
                     .padding(.top, 6)

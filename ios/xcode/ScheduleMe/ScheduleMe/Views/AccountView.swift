@@ -36,94 +36,171 @@ struct AccountView: View {
     @State private var supportFallbackMessage = ""
     @State private var profileSaveSuccess = false
     @State private var isLoadingProfile = true
+    @State private var showingAuth = false
+    @State private var authInitialStep: AuthView.AuthStep = .login
     @State private var showingEduVerification = false
     @State private var showingEduStatus = false
     private let openEduOnAppear: Bool
+    private let openProviderOnAppear: Bool
     @State private var addresses: [SavedAddress] = []
     @State private var showingAddAddress = false
     @State private var editingAddress: SavedAddress?
+    @State private var providerBusiness: ProviderOwnedBusiness?
+    @State private var providerChecklist: ProviderPublishChecklist?
+    @State private var providerIsLive = false
+    @State private var providerPublishedAt: Date?
+    @State private var providerTrustStatus = "clear"
+    @State private var providerServicesCount = 0
+    @State private var isLoadingProvider = false
+    @State private var providerActionInFlight = false
+    @State private var providerErrorText: String?
+    @State private var providerInfoText: String?
+    @State private var showingProviderOnboarding = false
     private let addressesStorageKey = "scheduleme_saved_addresses_secure"
     private let legacyAddressesStorageKey = "scheduleme_saved_addresses"
 
-    init(openEduOnAppear: Bool = false) {
+    init(openEduOnAppear: Bool = false, openProviderOnAppear: Bool = false) {
         self.openEduOnAppear = openEduOnAppear
+        self.openProviderOnAppear = openProviderOnAppear
     }
 
     var body: some View {
         NavigationStack {
             ScheduleMeScreen(showsTopBar: false, respectsTabBarInset: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    ScheduleMeCard {
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack(spacing: 14) {
-                                PhotosPicker(selection: $avatarItem, matching: .images) {
-                                    ZStack {
-                                        avatarView
-                                        if isUploadingAvatar {
-                                            ScheduleMeLoadingBar(
-                                                width: 36,
-                                                height: 5,
-                                                tint: .white,
-                                                track: Color.white.opacity(0.28),
-                                                minimumFill: 0.18
-                                            )
+                    if !appState.isAuthenticated {
+                        ScheduleMeCard {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Browsing as guest")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.titleText)
+                                Text("Sign in to book services, message providers, and manage your account.")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+
+                                HStack(spacing: 10) {
+                                    Button("Log in") {
+                                        authInitialStep = .login
+                                        showingAuth = true
+                                    }
+                                    .buttonStyle(ScheduleMeSecondaryButtonStyle())
+
+                                    Button("Sign up") {
+                                        authInitialStep = .signup
+                                        showingAuth = true
+                                    }
+                                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                }
+
+                                Button("Become a provider") {
+                                    showingProviderOnboarding = true
+                                }
+                                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Legal")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                    Button("Terms of Service") {
+                                        if let url = URL(string: "https://www.usescheduleme.com/terms") {
+                                            openURL(url)
                                         }
                                     }
-                                }
-                                .buttonStyle(.plain)
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.accent)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(fullName.isEmpty ? "ScheduleMe user" : fullName)
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
-                                        .foregroundColor(ScheduleMeTheme.titleText)
-                                    Text(emailAddress.isEmpty ? (appState.userEmail ?? "") : emailAddress)
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                                        .foregroundColor(ScheduleMeTheme.mutedText)
-                                }
-                                Spacer()
-                            }
-                            if let avatarError {
-                                Text(avatarError)
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                                    .foregroundColor(.red)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 20)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(AccountTab.allCases) { tab in
-                                AccountTabButton(
-                                    title: tab.title,
-                                    systemImage: tab.systemImage,
-                                    isSelected: tab == selectedTab
-                                ) {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        selectedTab = tab
+                                    Button("Privacy Policy") {
+                                        if let url = URL(string: "https://www.usescheduleme.com/privacy") {
+                                            openURL(url)
+                                        }
                                     }
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.accent)
+
+                                    Button("Contact Support") {
+                                        contactSupport()
+                                    }
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.accent)
                                 }
                             }
                         }
                         .padding(.horizontal, 20)
-                    }
+                    } else {
+                        ScheduleMeCard {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack(spacing: 14) {
+                                    PhotosPicker(selection: $avatarItem, matching: .images) {
+                                        ZStack {
+                                            avatarView
+                                            if isUploadingAvatar {
+                                                ScheduleMeLoadingBar(
+                                                    width: 36,
+                                                    height: 5,
+                                                    tint: .white,
+                                                    track: Color.white.opacity(0.28),
+                                                    minimumFill: 0.18
+                                                )
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
 
-                    Group {
-                        switch selectedTab {
-                        case .profile:
-                            accountProfileSection
-                        case .payments:
-                            PaymentSettingsView()
-                        case .addresses:
-                            addressesSection
-                        case .notifications:
-                            notificationsSection
-                        case .security:
-                            securitySection
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(fullName.isEmpty ? "ScheduleMe user" : fullName)
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
+                                            .foregroundColor(ScheduleMeTheme.titleText)
+                                        Text(accountEmailDisplay)
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                            .foregroundColor(ScheduleMeTheme.mutedText)
+                                    }
+                                    Spacer()
+                                }
+                                if let avatarError {
+                                    Text(avatarError)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                        .foregroundColor(.red)
+                                }
+                            }
                         }
+                        .padding(.horizontal, 20)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(AccountTab.allCases) { tab in
+                                    AccountTabButton(
+                                        title: tab.title,
+                                        systemImage: tab.systemImage,
+                                        isSelected: tab == selectedTab
+                                    ) {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedTab = tab
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+
+                        Group {
+                            switch selectedTab {
+                            case .profile:
+                                accountProfileSection
+                            case .provider:
+                                providerSection
+                            case .payments:
+                                PaymentSettingsView()
+                            case .addresses:
+                                addressesSection
+                            case .notifications:
+                                notificationsSection
+                            case .security:
+                                securitySection
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 30)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 30)
                 }
                 .padding(.top, 12)
             }
@@ -182,7 +259,10 @@ struct AccountView: View {
                 fullName = storedDisplayName.isEmpty ? displayNameFromEmail : storedDisplayName
             }
             if emailAddress.isEmpty {
-                emailAddress = appState.userEmail ?? ""
+                emailAddress = usingApplePrivateRelay ? "Apple ID" : (appState.userEmail ?? "")
+            }
+            if openProviderOnAppear {
+                selectedTab = .provider
             }
             if openEduOnAppear {
                 withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
@@ -200,6 +280,20 @@ struct AccountView: View {
             AddressEditorSheet(address: editingAddress) { updated in
                 upsertAddress(updated)
             }
+        }
+        .sheet(isPresented: $showingProviderOnboarding) {
+            ProviderOnboardingSheet { _ in
+                selectedTab = .provider
+                Task { await loadProviderHub() }
+            }
+        }
+        .fullScreenCover(isPresented: $showingAuth) {
+            AuthView(
+                initialStep: authInitialStep,
+                onContinueAsGuest: {
+                    showingAuth = false
+                }
+            )
         }
         .overlay {
             if showingEduVerification {
@@ -265,6 +359,10 @@ struct AccountView: View {
         .onChange(of: darkModeEnabled) { _, _ in
             applyInterfaceStyleImmediately()
         }
+        .onChange(of: selectedTab) { _, tab in
+            guard tab == .provider else { return }
+            Task { await loadProviderHub() }
+        }
     }
 
     // MARK: - Derived Display State
@@ -273,6 +371,32 @@ struct AccountView: View {
         if !fullName.isEmpty { return fullName }
         if !storedDisplayName.isEmpty { return storedDisplayName }
         return displayNameFromEmail
+    }
+
+    private var usingApplePrivateRelay: Bool {
+        let auth = appState.authMethodDisplay.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let email = appState.userEmail?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        return auth == "apple" && email.contains("privaterelay.appleid.com")
+    }
+
+    private var accountEmailDisplay: String {
+        if usingApplePrivateRelay { return "Apple ID" }
+        if !emailAddress.isEmpty { return emailAddress }
+        return appState.userEmail ?? ""
+    }
+
+    private var managedByLabel: String {
+        let auth = appState.authMethodDisplay.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch auth {
+        case "apple":
+            return usingApplePrivateRelay ? "Managed by Apple (Private Relay)." : "Managed by Apple."
+        case "google":
+            return "Managed by Google."
+        case "email/password":
+            return "Managed by email/password sign-in."
+        default:
+            return "Managed by your sign-in provider."
+        }
     }
 
     /// Applies the currently selected theme instantly to every active window,
@@ -339,7 +463,9 @@ struct AccountView: View {
                             .textInputAutocapitalization(.never)
                             .keyboardType(.emailAddress)
                             .scheduleMeFieldStyle()
-                        Text("Managed by Google.")
+                            .disabled(usingApplePrivateRelay)
+                            .opacity(usingApplePrivateRelay ? 0.75 : 1.0)
+                        Text(managedByLabel)
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                             .foregroundColor(ScheduleMeTheme.mutedText)
                     }
@@ -512,6 +638,121 @@ struct AccountView: View {
         }
     }
 
+    private var providerSection: some View {
+        VStack(spacing: 16) {
+            ScheduleMeCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("PROVIDER HUB")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                        .tracking(1.2)
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+
+                    Text(providerBusiness?.name ?? "Create provider profile")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
+                        .foregroundColor(ScheduleMeTheme.titleText)
+
+                    if providerBusiness != nil {
+                        Text(providerIsLive ? "Live and bookable" : "Draft mode (not public yet)")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(providerIsLive ? Color(hex: "16a34a") : Color(hex: "ca8a04"))
+                    } else {
+                        Text("Create a draft profile first, then complete setup and publish when ready.")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                    }
+
+                    if let providerErrorText {
+                        Text(providerErrorText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                            .foregroundColor(.red)
+                    }
+                    if let providerInfoText {
+                        Text(providerInfoText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.accent)
+                    }
+
+                    if isLoadingProvider {
+                        ScheduleMeLoadingBar(width: 120, height: 8, tint: ScheduleMeTheme.accent)
+                    }
+
+                    if providerBusiness == nil {
+                        Button("Create Provider Draft") {
+                            showingProviderOnboarding = true
+                        }
+                        .buttonStyle(ScheduleMePrimaryButtonStyle())
+                    } else {
+                        HStack(spacing: 10) {
+                            Button("Refresh") {
+                                Task { await loadProviderHub() }
+                            }
+                            .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                            .disabled(isLoadingProvider || providerActionInFlight)
+
+                            Button(providerIsLive ? "Unpublish" : "Publish") {
+                                Task { await setPublishState(makeLive: !providerIsLive) }
+                            }
+                            .buttonStyle(ScheduleMePrimaryButtonStyle())
+                            .disabled(isLoadingProvider || providerActionInFlight)
+                        }
+                    }
+                }
+            }
+
+            if let checklist = providerChecklist, providerBusiness != nil {
+                ScheduleMeCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("PUBLISH CHECKLIST")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                            .tracking(1.2)
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+
+                        checklistRow("Core profile", done: checklist.coreProfile)
+                        checklistRow("Services", done: checklist.services, trailing: providerServicesCount > 0 ? "\(providerServicesCount)" : nil)
+                        checklistRow("Media", done: checklist.media)
+                        checklistRow("Stripe connected", done: checklist.stripe)
+                        checklistRow("Trust clear", done: checklist.trustClear, trailing: providerTrustStatus.replacingOccurrences(of: "_", with: " ").capitalized)
+
+                        if let providerBusiness {
+                            HStack(spacing: 10) {
+                                Button("Manage Stripe") {
+                                    Task { await openStripeConnect(for: providerBusiness.id) }
+                                }
+                                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                                .disabled(providerActionInFlight)
+
+                                Button("Open setup dashboard") {
+                                    if let url = URL(string: "https://usescheduleme.com/business/dashboard?id=\(providerBusiness.id)") {
+                                        openURL(url)
+                                    }
+                                }
+                                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func checklistRow(_ title: String, done: Bool, trailing: String? = nil) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(done ? Color(hex: "16a34a") : ScheduleMeTheme.mutedText)
+            Text(title)
+                .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                .foregroundColor(ScheduleMeTheme.titleText)
+            Spacer()
+            if let trailing, !trailing.isEmpty {
+                Text(trailing)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+            }
+        }
+    }
+
     private var securitySection: some View {
         VStack(spacing: 16) {
             ScheduleMeCard {
@@ -524,7 +765,11 @@ struct AccountView: View {
                         .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.semibold))
                         .foregroundColor(ScheduleMeTheme.titleText)
 
-                    SecurityInfoRow(systemImage: "envelope.badge.shield.half.filled", label: "Email verified", value: appState.userEmail ?? "—")
+                    SecurityInfoRow(
+                        systemImage: "envelope.badge.shield.half.filled",
+                        label: "Email verified",
+                        value: usingApplePrivateRelay ? "Apple ID" : (appState.userEmail ?? "—")
+                    )
                     SecurityInfoRow(systemImage: appState.authMethodSymbol, label: "Auth method", value: appState.authMethodDisplay)
                     SecurityInfoRow(systemImage: "lock.shield", label: "Session", value: "Active")
 
@@ -669,6 +914,97 @@ struct AccountView: View {
         }
     }
 
+    private struct ProviderOwnedBusiness: Decodable {
+        let id: String
+        let name: String?
+        let description: String?
+        let address: String?
+        let city: String?
+        let zip: String?
+        let phone: String?
+        let website: String?
+        let instagram: String?
+        let serviceTags: [String]?
+        let coverURL: String?
+        let mediaURLs: [String]?
+        let stripeOnboarded: Bool?
+        let stripeAccountID: String?
+        let publicVisibility: Bool?
+        let isOnboarded: Bool?
+        let trustStatus: String?
+        let trustFlagged: Bool?
+        let publishedAt: Date?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case description
+            case address
+            case city
+            case zip
+            case phone
+            case website
+            case instagram
+            case serviceTags = "service_tags"
+            case coverURL = "cover_url"
+            case mediaURLs = "media_urls"
+            case stripeOnboarded = "stripe_onboarded"
+            case stripeAccountID = "stripe_account_id"
+            case publicVisibility = "public_visibility"
+            case isOnboarded = "is_onboarded"
+            case trustStatus = "trust_status"
+            case trustFlagged = "trust_flagged"
+            case publishedAt = "published_at"
+        }
+    }
+
+    private struct ProviderPublishChecklist: Decodable {
+        let coreProfile: Bool
+        let services: Bool
+        let media: Bool
+        let stripe: Bool
+        let trustClear: Bool
+        let readyToPublish: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case coreProfile = "coreProfile"
+            case services
+            case media
+            case stripe
+            case trustClear = "trustClear"
+            case readyToPublish = "readyToPublish"
+        }
+    }
+
+    private struct ProviderPublishStatusResponse: Decodable {
+        let checklist: ProviderPublishChecklist?
+        let isLive: Bool?
+        let trustStatus: String?
+        let publishedAt: Date?
+
+        enum CodingKeys: String, CodingKey {
+            case checklist
+            case isLive = "is_live"
+            case trustStatus = "trust_status"
+            case publishedAt = "published_at"
+        }
+    }
+
+    private struct ProviderPublishMutationResponse: Decodable {
+        let success: Bool?
+        let action: String?
+        let checklist: ProviderPublishChecklist?
+        let error: String?
+    }
+
+    private struct ServicesResponse: Decodable {
+        let services: [ServiceItem]
+    }
+
+    private struct ServiceItem: Decodable, Identifiable {
+        let id: String
+    }
+
     // MARK: - Profile IO
 
     /// Loads profile fields from Supabase `profiles` table into local form state.
@@ -729,6 +1065,147 @@ struct AccountView: View {
             profileSaveSuccess = false
         } catch {
             // Ignore for now
+        }
+    }
+
+    private func loadProviderHub() async {
+        guard appState.isAuthenticated else { return }
+        isLoadingProvider = true
+        providerErrorText = nil
+        providerInfoText = nil
+        defer { isLoadingProvider = false }
+
+        do {
+            providerBusiness = try await fetchOwnedBusiness()
+        } catch {
+            providerBusiness = nil
+        }
+
+        guard let business = providerBusiness else {
+            providerChecklist = nil
+            providerIsLive = false
+            providerPublishedAt = nil
+            providerTrustStatus = "clear"
+            providerServicesCount = 0
+            return
+        }
+
+        do {
+            let status: ProviderPublishStatusResponse = try await APIClient.shared.get(
+                path: "/api/provider-publish",
+                requiresAuth: true
+            )
+            providerChecklist = status.checklist
+            providerIsLive = status.isLive ?? (business.publicVisibility == true)
+            providerPublishedAt = status.publishedAt ?? business.publishedAt
+            providerTrustStatus = status.trustStatus ?? business.trustStatus ?? "clear"
+        } catch {
+            providerChecklist = nil
+            providerIsLive = business.publicVisibility == true
+            providerPublishedAt = business.publishedAt
+            providerTrustStatus = business.trustStatus ?? "clear"
+            providerErrorText = error.localizedDescription
+        }
+
+        do {
+            let response: ServicesResponse = try await APIClient.shared.get(
+                path: "/api/services",
+                queryItems: [.init(name: "business_id", value: business.id)],
+                requiresAuth: false
+            )
+            providerServicesCount = response.services.count
+        } catch {
+            providerServicesCount = 0
+        }
+    }
+
+    private func fetchOwnedBusiness() async throws -> ProviderOwnedBusiness? {
+        guard let userID = appState.userID else { return nil }
+        let selectClause = "id,name,description,address,city,zip,phone,website,instagram,service_tags,cover_url,media_urls,stripe_onboarded,stripe_account_id,public_visibility,is_onboarded,trust_status,trust_flagged,published_at"
+
+        if let ownerResult: PostgrestResponse<[ProviderOwnedBusiness]> = try? await SupabaseManager.shared.client
+            .from("businesses")
+            .select(selectClause)
+            .eq("owner_id", value: userID)
+            .limit(1)
+            .execute() {
+            if let first = ownerResult.value.first {
+                return first
+            }
+        }
+
+        if let email = appState.userEmail?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           !email.isEmpty,
+           let emailResult: PostgrestResponse<[ProviderOwnedBusiness]> = try? await SupabaseManager.shared.client
+            .from("businesses")
+            .select(selectClause)
+            .eq("owner_email", value: email)
+            .limit(1)
+            .execute() {
+            if let first = emailResult.value.first {
+                return first
+            }
+        }
+
+        return nil
+    }
+
+    private func setPublishState(makeLive: Bool) async {
+        guard appState.isAuthenticated else { return }
+        providerActionInFlight = true
+        providerErrorText = nil
+        providerInfoText = nil
+        defer { providerActionInFlight = false }
+
+        struct Request: Encodable { let action: String }
+        let payload = Request(action: makeLive ? "publish" : "unpublish")
+        do {
+            let response: ProviderPublishMutationResponse = try await APIClient.shared.send(
+                path: "/api/provider-publish",
+                method: "POST",
+                body: payload,
+                requiresAuth: true
+            )
+            if response.success == true {
+                providerInfoText = makeLive ? "Profile is now live." : "Profile unpublished."
+                if let checklist = response.checklist {
+                    providerChecklist = checklist
+                }
+                await loadProviderHub()
+            } else {
+                providerErrorText = response.error ?? "Could not update publish state."
+            }
+        } catch {
+            providerErrorText = error.localizedDescription
+        }
+    }
+
+    private func openStripeConnect(for businessId: String) async {
+        providerActionInFlight = true
+        providerErrorText = nil
+        providerInfoText = nil
+        defer { providerActionInFlight = false }
+
+        struct Request: Encodable { let businessId: String }
+        struct Response: Decodable { let url: String?; let error: String? }
+
+        do {
+            let response: Response = try await APIClient.shared.send(
+                path: "/api/stripe-connect",
+                method: "POST",
+                body: Request(businessId: businessId),
+                requiresAuth: true
+            )
+            if let urlString = response.url, let url = URL(string: urlString) {
+                await MainActor.run {
+                    UIApplication.shared.open(url)
+                }
+                providerInfoText = "Opening Stripe setup…"
+            } else {
+                providerErrorText = response.error ?? "Could not open Stripe."
+            }
+        } catch {
+            providerErrorText = error.localizedDescription
         }
     }
 
@@ -871,6 +1348,7 @@ struct AccountView: View {
 
 private enum AccountTab: CaseIterable, Identifiable {
     case profile
+    case provider
     case payments
     case addresses
     case notifications
@@ -881,6 +1359,7 @@ private enum AccountTab: CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .profile: return "Profile"
+        case .provider: return "Provider"
         case .payments: return "Payments"
         case .addresses: return "Addresses"
         case .notifications: return "Notifications"
@@ -891,6 +1370,7 @@ private enum AccountTab: CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .profile: return "person"
+        case .provider: return "briefcase"
         case .payments: return "creditcard"
         case .addresses: return "mappin.and.ellipse"
         case .notifications: return "bell"

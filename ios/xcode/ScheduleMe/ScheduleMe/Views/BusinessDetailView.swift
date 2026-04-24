@@ -39,6 +39,9 @@ struct BusinessDetailView: View {
     @State private var customServicePriceText = ""
     @State private var customServicePriceDigits = ""
     @State private var bookingValidationMessage: String?
+    @State private var showingAuthGate = false
+    @State private var showingEduGate = false
+    @State private var eduGateMessage: String?
     @State private var requiresExactTime = true
     @State private var showingTimePicker = false
     @State private var tempTime = Date()
@@ -49,6 +52,11 @@ struct BusinessDetailView: View {
     private enum FocusedField {
         case customServiceName
         case bookingNote
+    }
+
+    private enum StudentActionEligibility {
+        case allowed
+        case needsEduVerification(message: String)
     }
 
     private struct StripeReadinessRow: Decodable {
@@ -613,6 +621,17 @@ struct BusinessDetailView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: $showingAuthGate) {
+            AuthView(
+                initialStep: .login,
+                onContinueAsGuest: {
+                    showingAuthGate = false
+                }
+            )
+        }
+        .sheet(isPresented: $showingEduGate) {
+            AccountView(openEduOnAppear: true)
+        }
         .fullScreenCover(isPresented: $showingBooking) {
             BookingCreationView(
                 business: business,
@@ -628,6 +647,20 @@ struct BusinessDetailView: View {
         }
         .fullScreenCover(item: $selectedPhoto) { photo in
             FullscreenBusinessImageView(url: photo.url)
+        }
+        .alert("Student Verification Needed", isPresented: Binding(
+            get: { eduGateMessage != nil },
+            set: { if !$0 { eduGateMessage = nil } }
+        )) {
+            Button("Verify .edu") {
+                showingEduGate = true
+                eduGateMessage = nil
+            }
+            Button("Not now", role: .cancel) {
+                eduGateMessage = nil
+            }
+        } message: {
+            Text(eduGateMessage ?? "Verify your .edu email to continue.")
         }
         .task {
             await loadStripeReadiness()
@@ -1015,6 +1048,19 @@ struct BusinessDetailView: View {
 
     /// Validates service/time/custom inputs before presenting final booking review sheet.
     private func attemptBooking() {
+        guard appState.isAuthenticated else {
+            bookingValidationMessage = "Sign in is required to book and communicate with this provider."
+            showingAuthGate = true
+            return
+        }
+        switch studentActionEligibility {
+        case .allowed:
+            break
+        case .needsEduVerification(let message):
+            bookingValidationMessage = message
+            eduGateMessage = message
+            return
+        }
         if !providerCanAcceptBookingsByStatus {
             bookingValidationMessage = "This provider is currently \(providerAvailabilityLabel.lowercased()) and not accepting bookings right now."
             return
@@ -1066,6 +1112,43 @@ struct BusinessDetailView: View {
         focusedField = nil
         bookingValidationMessage = nil
         showingBooking = true
+    }
+
+    private var studentActionEligibility: StudentActionEligibility {
+        let isStudentProvider = business.campusProvider == true && business.isEduVerifiedProvider
+        guard isStudentProvider else { return .allowed }
+        guard appState.eduVerified == true else {
+            return .needsEduVerification(
+                message: "This student provider requires .edu verification before booking or messaging."
+            )
+        }
+        guard
+            let userDomain = appState.resolvedSchoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            let providerDomain = business.schoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            !userDomain.isEmpty,
+            !providerDomain.isEmpty
+        else {
+            return .needsEduVerification(
+                message: "Campus verification is incomplete. Please verify your .edu email again."
+            )
+        }
+
+        let normalizedUser = userDomain.replacingOccurrences(of: "@", with: "")
+        let normalizedProvider = providerDomain.replacingOccurrences(of: "@", with: "")
+        let userAlt = normalizedUser.replacingOccurrences(of: ".edu", with: "")
+        let providerAlt = normalizedProvider.replacingOccurrences(of: ".edu", with: "")
+        let sameCampus =
+            normalizedUser == normalizedProvider
+            || normalizedUser == providerAlt
+            || userAlt == normalizedProvider
+            || userAlt == providerAlt
+
+        if !sameCampus {
+            return .needsEduVerification(
+                message: "This student provider is limited to verified users at the same school."
+            )
+        }
+        return .allowed
     }
 
     private func requestBookingFormScroll() {
@@ -1168,6 +1251,9 @@ struct BusinessDetailView: View {
     }
 
     private var bookingDisabledMessage: String? {
+        if !appState.isAuthenticated {
+            return "Sign in is required to book and message this provider about your request."
+        }
         guard !providerCanAcceptBookingsByStatus else { return nil }
         return "This provider is currently \(providerAvailabilityLabel.lowercased()) and not accepting bookings right now."
     }

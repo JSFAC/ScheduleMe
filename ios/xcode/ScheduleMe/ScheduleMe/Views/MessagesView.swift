@@ -29,6 +29,8 @@ struct MessagesView: View {
     @State private var didInitialScroll = false
     @State private var showingSupportFallbackAlert = false
     @State private var supportFallbackMessage = ""
+    @State private var showingEduGate = false
+    @State private var eduGateMessage: String?
     private let bottomAnchor = "bottom"
 
     var body: some View {
@@ -94,6 +96,23 @@ struct MessagesView: View {
         }
         .fullScreenCover(item: $selectedMediaGroup) { group in
             FullscreenMediaGalleryView(group: group)
+        }
+        .sheet(isPresented: $showingEduGate) {
+            AccountView(openEduOnAppear: true)
+        }
+        .alert("Student Verification Needed", isPresented: Binding(
+            get: { eduGateMessage != nil },
+            set: { if !$0 { eduGateMessage = nil } }
+        )) {
+            Button("Verify .edu") {
+                showingEduGate = true
+                eduGateMessage = nil
+            }
+            Button("Not now", role: .cancel) {
+                eduGateMessage = nil
+            }
+        } message: {
+            Text(eduGateMessage ?? "Verify your .edu email to continue messaging this provider.")
         }
     }
 
@@ -761,6 +780,10 @@ struct MessagesView: View {
         draft = ""
         composerError = nil
         await dataStore.sendMessage(message)
+        if let gateMessage = eduGateMessageFromError(dataStore.messagesError) {
+            composerError = gateMessage
+            eduGateMessage = gateMessage
+        }
     }
 
     private func preparePickedAttachments(_ items: [PhotosPickerItem]) async {
@@ -851,8 +874,24 @@ struct MessagesView: View {
             attachmentItems = []
             composerError = nil
         } catch {
-            composerError = error.localizedDescription
+            let message = error.localizedDescription
+            composerError = message
+            if let gateMessage = eduGateMessageFromError(message) {
+                eduGateMessage = gateMessage
+            }
         }
+    }
+
+    private func eduGateMessageFromError(_ raw: String?) -> String? {
+        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let normalized = raw.lowercased()
+        if normalized.contains("requires .edu")
+            || normalized.contains("edu verification")
+            || normalized.contains("same school")
+            || normalized.contains("campus verification") {
+            return raw
+        }
+        return nil
     }
 
 }

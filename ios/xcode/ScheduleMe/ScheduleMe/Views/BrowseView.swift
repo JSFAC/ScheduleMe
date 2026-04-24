@@ -25,6 +25,10 @@ struct BrowseView: View {
     @State private var selectedNavigationBusiness: BusinessSummary?
     @State private var browsePage = 0
     @State private var didRefreshProfileOnAppear = false
+    @State private var showingAuthGate = false
+    @State private var authInitialStep: AuthView.AuthStep = .login
+    @State private var showingProviderHub = false
+    @State private var showingProviderOnboarding = false
     @State private var mapPosition: MapCameraPosition = {
         let fallback = LocationManager.simulatorFallbackCoordinate ?? CLLocationCoordinate2D(latitude: 36.9916, longitude: -122.0583)
         return .region(
@@ -62,17 +66,13 @@ struct BrowseView: View {
         return ["All", "Pinned", "New"] + Array(Set(values)).sorted()
     }
 
-    private var viewerSchoolDomain: String? {
-        appState.resolvedSchoolDomain?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-    }
-
-    private func shouldMask(_ business: BusinessSummary) -> Bool {
-        business.shouldMaskForViewer(
-            userEduVerified: appState.eduVerified == true,
-            userSchoolDomain: viewerSchoolDomain
-        )
+    private func coarseLocationSummary(for business: BusinessSummary) -> String {
+        guard !appState.isAuthenticated else { return business.distanceLabel }
+        guard let miles = business.distanceMiles else { return "Nearby area" }
+        if miles < 1 { return "Very close" }
+        if miles < 5 { return "Nearby" }
+        if miles < 15 { return "In your area" }
+        return "Around your area"
     }
 
     /// Search/category/distance filtering for list/grid/map modes.
@@ -345,15 +345,27 @@ struct BrowseView: View {
                 browsePage = min(max(browsePage, 0), totalBrowsePages - 1)
             }
         }
+        .fullScreenCover(isPresented: $showingAuthGate) {
+            AuthView(
+                initialStep: authInitialStep,
+                onContinueAsGuest: {
+                    showingAuthGate = false
+                }
+            )
+        }
+        .fullScreenCover(isPresented: $showingProviderHub) {
+            AccountView(openProviderOnAppear: true)
+        }
+        .sheet(isPresented: $showingProviderOnboarding) {
+            ProviderOnboardingSheet()
+        }
     }
 
     private func openProviderApp() {
-        guard let deepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
-        openURL(deepLink) { accepted in
-            guard accepted == false else { return }
-            if let fallback = URL(string: "https://usescheduleme.com/business") {
-                openURL(fallback)
-            }
+        if appState.isAuthenticated {
+            showingProviderHub = true
+        } else {
+            showingProviderOnboarding = true
         }
     }
 
@@ -378,25 +390,16 @@ struct BrowseView: View {
             case .list:
                 VStack(spacing: 12) {
                     ForEach(pagedBrowseBusinesses) { business in
-                        if shouldMask(business) {
+                        NavigationLink(destination: BusinessDetailView(business: business)) {
                             BusinessListRow(
                                 business: business,
                                 imageHeight: 122,
-                                shouldMask: true,
+                                locationSummary: coarseLocationSummary(for: business),
                                 preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
                             )
-                            .padding(.horizontal, 20)
-                        } else {
-                            NavigationLink(destination: BusinessDetailView(business: business)) {
-                                BusinessListRow(
-                                    business: business,
-                                    imageHeight: 122,
-                                    preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 20)
                         }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 20)
                     }
                     BrowsePaginationControls(
                         currentPage: $browsePage,
@@ -408,21 +411,14 @@ struct BrowseView: View {
                 VStack(spacing: 12) {
                     LazyVGrid(columns: gridColumns, spacing: 14) {
                         ForEach(pagedBrowseBusinesses) { business in
-                            if shouldMask(business) {
+                            NavigationLink(destination: BusinessDetailView(business: business)) {
                                 BusinessGridCard(
                                     business: business,
-                                    shouldMask: true,
+                                    locationSummary: coarseLocationSummary(for: business),
                                     preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
                                 )
-                            } else {
-                                NavigationLink(destination: BusinessDetailView(business: business)) {
-                                    BusinessGridCard(
-                                        business: business,
-                                        preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText)
-                                    )
-                                }
-                                .buttonStyle(.plain)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -433,15 +429,29 @@ struct BrowseView: View {
                     )
                 }
             case .map:
-                BrowseMapCompositeView(
-                    position: $mapPosition,
-                    businesses: mapBusinesses,
-                    selectedBusiness: $selectedMapBusiness,
-                    navigationBusiness: $selectedNavigationBusiness,
-                    selectedCategory: selectedCategory,
-                    searchText: searchText
-                )
-                .padding(.horizontal, 12)
+                if appState.isAuthenticated {
+                    BrowseMapCompositeView(
+                        position: $mapPosition,
+                        businesses: mapBusinesses,
+                        selectedBusiness: $selectedMapBusiness,
+                        navigationBusiness: $selectedNavigationBusiness,
+                        selectedCategory: selectedCategory,
+                        searchText: searchText
+                    )
+                    .padding(.horizontal, 12)
+                } else {
+                    BrowseMapLockedCard(
+                        onSignIn: {
+                            authInitialStep = .login
+                            showingAuthGate = true
+                        },
+                        onSignUp: {
+                            authInitialStep = .signup
+                            showingAuthGate = true
+                        }
+                    )
+                    .padding(.horizontal, 20)
+                }
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: selectedViewMode)
@@ -642,6 +652,7 @@ struct LocationPromptCard: View {
 struct BusinessListRow: View {
     let business: BusinessSummary
     var imageHeight: CGFloat = 92
+    var locationSummary: String? = nil
     var shouldMask: Bool = false
     var preferredCategory: String? = nil
     var onSelect: (() -> Void)? = nil
@@ -664,6 +675,10 @@ struct BusinessListRow: View {
     }
     private var displayCategory: String {
         preferredCategory ?? business.primaryCategory
+    }
+    private var resolvedLocationLabel: String {
+        let candidate = locationSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return candidate.isEmpty ? business.distanceLabel : candidate
     }
 
     var body: some View {
@@ -794,7 +809,7 @@ struct BusinessListRow: View {
                         status: business.normalizedAvailabilityStatus
                     )
                     Text("•").foregroundColor(ScheduleMeTheme.mutedText.opacity(0.4))
-                    Text("\(business.distanceLabel) • \(business.ratingLabel)★")
+                    Text("\(resolvedLocationLabel) • \(business.ratingLabel)★")
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                         .foregroundStyle(ScheduleMeTheme.mutedText)
                 }
@@ -811,10 +826,12 @@ struct BusinessListRow: View {
 /// 2-column grid card
 struct BusinessGridCard: View {
     let business: BusinessSummary
+    var locationSummary: String? = nil
     var shouldMask: Bool = false
     var preferredCategory: String? = nil
     var imageHeight: CGFloat = 72
     var contentSpacing: CGFloat = 6
+    var footerMetaText: String? = nil
     var onSelect: (() -> Void)? = nil
     private var displayName: String {
         shouldMask ? "Student provider" : business.name
@@ -833,6 +850,26 @@ struct BusinessGridCard: View {
     }
     private var displayCategory: String {
         preferredCategory ?? business.primaryCategory
+    }
+    private var hasRatingValue: Bool {
+        (business.rating ?? 0) > 0
+    }
+    private var ratingTextColor: Color {
+        let rating = business.rating ?? 0
+        if rating >= 4.0 { return Color(hex: "fbbf24") }
+        if rating >= 3.0 { return Color(hex: "fbbf24").opacity(0.7) }
+        return ScheduleMeTheme.mutedText
+    }
+    private var ratingText: String {
+        hasRatingValue ? "\(business.ratingLabel)★" : "No reviews"
+    }
+    private var resolvedFooterMetaText: String {
+        let trimmed = footerMetaText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed
+    }
+    private var resolvedLocationLabel: String {
+        let candidate = locationSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return candidate.isEmpty ? business.distanceLabel : candidate
     }
 
     var body: some View {
@@ -909,9 +946,27 @@ struct BusinessGridCard: View {
                     )
                 }
 
-                Text(business.distanceLabel)
-                    .font(.custom(ScheduleMeTheme.fontName, size: 8.5).weight(.medium))
-                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                if resolvedFooterMetaText.isEmpty {
+                    HStack(spacing: 0) {
+                        Text(resolvedLocationLabel)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 8.5).weight(.medium))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 18)
+                        Text(ratingText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 8.5).weight(.semibold))
+                            .foregroundStyle(ratingTextColor)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                } else {
+                    Text(resolvedFooterMetaText)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 8.5).weight(.semibold))
+                        .foregroundStyle(hasRatingValue ? ratingTextColor : ScheduleMeTheme.mutedText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -1026,6 +1081,39 @@ struct PinButton: View {
                 .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct BrowseMapLockedCard: View {
+    let onSignIn: () -> Void
+    let onSignUp: () -> Void
+
+    var body: some View {
+        ScheduleMeCard {
+            VStack(spacing: 12) {
+                Image(systemName: "lock.circle")
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(ScheduleMeTheme.accent)
+                Text("Map is locked")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+                Text("This view is available when you are logged in.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 10) {
+                    Button("Log in") {
+                        onSignIn()
+                    }
+                    .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                    Button("Sign up") {
+                        onSignUp()
+                    }
+                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
 }
 
@@ -1193,17 +1281,13 @@ private struct BrowseMapCompositeView: View {
         }
     }
 
-    private var viewerSchoolDomain: String? {
-        appState.resolvedSchoolDomain?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-    }
-
-    private func shouldMask(_ business: BusinessSummary) -> Bool {
-        business.shouldMaskForViewer(
-            userEduVerified: appState.eduVerified == true,
-            userSchoolDomain: viewerSchoolDomain
-        )
+    private func coarseLocationSummary(for business: BusinessSummary) -> String {
+        guard !appState.isAuthenticated else { return business.distanceLabel }
+        guard let miles = business.distanceMiles else { return "Nearby area" }
+        if miles < 1 { return "Very close" }
+        if miles < 5 { return "Nearby" }
+        if miles < 15 { return "In your area" }
+        return "Around your area"
     }
 
     var body: some View {
@@ -1262,15 +1346,13 @@ private struct BrowseMapCompositeView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
                             ForEach(pagedBusinesses) { item in
-                                let isMasked = shouldMask(item.business)
                                 VStack(alignment: .leading, spacing: 8) {
                                     BusinessListRow(
                                         business: item.business,
-                                        imageHeight: isMasked ? 122 : 92,
-                                        shouldMask: isMasked,
+                                        imageHeight: 92,
+                                        locationSummary: coarseLocationSummary(for: item.business),
                                         preferredCategory: item.business.preferredCategory(for: selectedCategory, searchText: searchText),
                                         onSelect: {
-                                            if isMasked { return }
                                             if selectedBusiness?.id == item.business.id {
                                                 openBusiness(item.business)
                                             } else {
@@ -1283,7 +1365,7 @@ private struct BrowseMapCompositeView: View {
                                                 )
                                             }
                                         },
-                                        openDestinationBusiness: isMasked ? nil : item.business
+                                        openDestinationBusiness: item.business
                                     )
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 14, style: .continuous)

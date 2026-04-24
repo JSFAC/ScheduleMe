@@ -19,6 +19,10 @@ struct HomeView: View {
     @State private var quickRequest = ""
     @FocusState private var isQuickRequestFocused: Bool
     @State private var showingFeedback = false
+    @State private var showingAuth = false
+    @State private var authInitialStep: AuthView.AuthStep = .login
+    @State private var showingProviderHub = false
+    @State private var showingProviderOnboarding = false
     @State private var showFeedbackToast: Bool = false
     @State private var feedbackToastMessage: String = ""
     @State private var selectedHomeCategory = "All"
@@ -304,6 +308,11 @@ struct HomeView: View {
                     } else if dismissedStudentBanner == false {
                         StudentVerifyBanner(
                             onVerify: { openEduFlow() },
+                            onSignup: {
+                                authInitialStep = .signup
+                                showingAuth = true
+                            },
+                            showsGuestAuthActions: !appState.isAuthenticated,
                             onDismiss: { dismissedStudentBanner = true }
                         )
                         .padding(.horizontal, 20)
@@ -468,6 +477,20 @@ struct HomeView: View {
                     self.showFeedbackSubmittedToast("Thanks! Feedback submitted.")
                 }
             }
+            .fullScreenCover(isPresented: $showingAuth) {
+                AuthView(
+                    initialStep: authInitialStep,
+                    onContinueAsGuest: {
+                        showingAuth = false
+                    }
+                )
+            }
+            .fullScreenCover(isPresented: $showingProviderHub) {
+                AccountView(openProviderOnAppear: true)
+            }
+            .sheet(isPresented: $showingProviderOnboarding) {
+                ProviderOnboardingSheet()
+            }
             .overlay(alignment: .bottom) {
                 if self.showFeedbackToast {
                     HomeToastView(message: self.feedbackToastMessage)
@@ -585,25 +608,12 @@ struct HomeView: View {
         return ["All", "Non-students", "Quick response"] + categories
     }
 
-    private var viewerSchoolDomain: String? {
-        appState.resolvedSchoolDomain?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-    }
-
-    private func shouldMask(_ business: BusinessSummary) -> Bool {
-        business.shouldMaskForViewer(
-            userEduVerified: appState.eduVerified == true,
-            userSchoolDomain: viewerSchoolDomain
-        )
-    }
-
     private var homeFilteredBusinesses: [BusinessSummary] {
         switch selectedHomeCategory {
         case "All":
             return dataStore.businesses
         case "Non-students":
-            return dataStore.businesses.filter { $0.campusProvider != true }
+            return dataStore.businesses.filter { !isStudentProvider($0) }
         case "Quick response":
             return dataStore.businesses.sorted { quickResponseRank($0) > quickResponseRank($1) }
         default:
@@ -613,17 +623,28 @@ struct HomeView: View {
 
     private var homeSectionBusinesses: (topRated: [BusinessSummary], nonStudents: [BusinessSummary], quickResponse: [BusinessSummary]) {
         let pool = homeFilteredBusinesses
-        let sortedByRating = pool.sorted {
-            (($0.rating ?? 0), ($0.reviewCount ?? 0)) > (($1.rating ?? 0), ($1.reviewCount ?? 0))
+        let ratedOnly = pool.filter { ($0.rating ?? 0) > 0 }
+        let sortedByRating = ratedOnly.sorted {
+            let lhs = ($0.rating ?? 0, -($0.distanceMiles ?? 999), $0.name.lowercased())
+            let rhs = ($1.rating ?? 0, -($1.distanceMiles ?? 999), $1.name.lowercased())
+            if lhs.0 != rhs.0 { return lhs.0 > rhs.0 }  // higher rating first
+            if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }  // closer wins tie
+            return lhs.2 < rhs.2                          // deterministic fallback
         }
         let nonStudents = pool
-            .filter { $0.campusProvider != true }
+            .filter { !isStudentProvider($0) }
             .sorted { quickResponseRank($0) > quickResponseRank($1) }
         let quickResponse = pool.sorted { quickResponseRank($0) > quickResponseRank($1) }
         let topRated = Array(sortedByRating.prefix(6))
-        let nonStudentRow = Array((nonStudents.isEmpty ? sortedByRating : nonStudents).prefix(6))
+        let nonStudentRow = Array(nonStudents.prefix(6))
         let quickRow = Array(quickResponse.prefix(6))
         return (topRated, nonStudentRow, quickRow)
+    }
+
+    private func isStudentProvider(_ business: BusinessSummary) -> Bool {
+        // Home grouping requirement:
+        // "student provider" means explicitly EDU-verified provider.
+        business.eduVerified == true
     }
 
     private func quickResponseRank(_ business: BusinessSummary) -> (Int, Int, Double, Double) {
@@ -685,12 +706,10 @@ struct HomeView: View {
     }
 
     private func openProviderApp() {
-        guard let deepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
-        openURL(deepLink) { accepted in
-            guard accepted == false else { return }
-            if let fallback = URL(string: "https://usescheduleme.com/business") {
-                openURL(fallback)
-            }
+        if appState.isAuthenticated {
+            showingProviderHub = true
+        } else {
+            showingProviderOnboarding = true
         }
     }
 
@@ -756,30 +775,19 @@ private struct HomeBusinessCarouselSection: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(businesses.prefix(6)) { business in
-                            let masked = shouldMask(business)
-                            if masked {
+                            NavigationLink(destination: BusinessDetailView(business: business)) {
                                 HomeBusinessCard(
                                     business: business,
                                     cardWidth: cardWidth,
                                     imageHeight: imageHeight,
-                                    shouldMask: true,
+                                    locationSummary: coarseLocationSummary(for: business),
                                     preferredCategory: business.preferredCategory(for: selectedCategory)
                                 )
                                 .frame(width: cardWidth, alignment: .leading)
-                            } else {
-                                NavigationLink(destination: BusinessDetailView(business: business)) {
-                                    HomeBusinessCard(
-                                        business: business,
-                                        cardWidth: cardWidth,
-                                        imageHeight: imageHeight,
-                                        preferredCategory: business.preferredCategory(for: selectedCategory)
-                                    )
-                                    .frame(width: cardWidth, alignment: .leading)
-                                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                }
-                                .frame(width: cardWidth, alignment: .leading)
-                                .buttonStyle(.plain)
                             }
+                            .frame(width: cardWidth, alignment: .leading)
+                            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .buttonStyle(.plain)
                         }
                         if let onSeeAll {
                             Button(action: onSeeAll) {
@@ -809,17 +817,13 @@ private struct HomeBusinessCarouselSection: View {
         }
     }
 
-    private var viewerSchoolDomain: String? {
-        appState.resolvedSchoolDomain?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-    }
-
-    private func shouldMask(_ business: BusinessSummary) -> Bool {
-        business.shouldMaskForViewer(
-            userEduVerified: appState.eduVerified == true,
-            userSchoolDomain: viewerSchoolDomain
-        )
+    private func coarseLocationSummary(for business: BusinessSummary) -> String {
+        guard !appState.isAuthenticated else { return business.distanceLabel }
+        guard let miles = business.distanceMiles else { return "Nearby area" }
+        if miles < 1 { return "Very close" }
+        if miles < 5 { return "Nearby" }
+        if miles < 15 { return "In your area" }
+        return "Around your area"
     }
 
 }
@@ -997,6 +1001,8 @@ private struct HomeToastView: View {
 
 private struct StudentVerifyBanner: View {
     let onVerify: () -> Void
+    let onSignup: () -> Void
+    let showsGuestAuthActions: Bool
     let onDismiss: () -> Void
 
     var body: some View {
@@ -1012,13 +1018,23 @@ private struct StudentVerifyBanner: View {
                     .foregroundColor(ScheduleMeTheme.mutedText)
             }
             Spacer()
-            Button("Verify Now →", action: onVerify)
-                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .foregroundColor(.white)
-                .background(ScheduleMeTheme.accent)
-                .clipShape(Capsule())
+            if showsGuestAuthActions {
+                Button("Sign up", action: onSignup)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .foregroundColor(.white)
+                    .background(ScheduleMeTheme.accent)
+                    .clipShape(Capsule())
+            } else {
+                Button("Verify Now →", action: onVerify)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .foregroundColor(.white)
+                    .background(ScheduleMeTheme.accent)
+                    .clipShape(Capsule())
+            }
 
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
@@ -1372,6 +1388,7 @@ private struct HomeBusinessCard: View {
     let business: BusinessSummary
     let cardWidth: CGFloat
     let imageHeight: CGFloat
+    var locationSummary: String? = nil
     var shouldMask: Bool = false
     var preferredCategory: String? = nil
     private var displayName: String { shouldMask ? "Student provider" : business.name }
@@ -1392,6 +1409,10 @@ private struct HomeBusinessCard: View {
     }
     private var displayCategory: String {
         preferredCategory ?? business.primaryCategory
+    }
+    private var resolvedLocationLabel: String {
+        let candidate = locationSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return candidate.isEmpty ? business.distanceLabel : candidate
     }
 
     var body: some View {
@@ -1458,17 +1479,22 @@ private struct HomeBusinessCard: View {
                 HStack(spacing: 6) {
                     if let priceLabel = business.priceLabel { ScheduleMeTag(text: priceLabel) }
                     if business.isNew { NewBadge() }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                HStack(spacing: 6) {
                     OpenStatusDot(
                         isOpen: business.isOpen,
                         label: business.openStatusLabel,
                         status: business.normalizedAvailabilityStatus
                     )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 6) {
+                    Text(ratingSummary)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundColor(ratingTextColor)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer(minLength: 6)
-                    Text(business.distanceLabel)
+                    Text(resolvedLocationLabel)
                         .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                         .foregroundColor(ScheduleMeTheme.mutedText)
                         .lineLimit(1)
@@ -1478,6 +1504,18 @@ private struct HomeBusinessCard: View {
         }
         .frame(width: cardWidth)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var ratingSummary: String {
+        let hasRating = (business.rating ?? 0) > 0
+        return hasRating ? "\(business.ratingLabel)★" : "No reviews"
+    }
+
+    private var ratingTextColor: Color {
+        let rating = business.rating ?? 0
+        if rating >= 4.0 { return Color(hex: "fbbf24") }
+        if rating >= 3.0 { return Color(hex: "fbbf24").opacity(0.7) }
+        return ScheduleMeTheme.mutedText
     }
 }
 

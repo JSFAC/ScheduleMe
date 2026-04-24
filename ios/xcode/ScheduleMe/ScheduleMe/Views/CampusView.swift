@@ -16,6 +16,8 @@ struct CampusView: View {
     @State private var selectedCategory = "All"
     @State private var sortMode = "recommended"
     @State private var featuredIndex = 0
+    @State private var showingProviderHub = false
+    @State private var showingProviderOnboarding = false
 
     // MARK: - Derived Data
 
@@ -180,6 +182,12 @@ struct CampusView: View {
             }
             featuredIndex = min(max(featuredIndex, 0), count - 1)
         }
+        .fullScreenCover(isPresented: $showingProviderHub) {
+            AccountView(openProviderOnAppear: true)
+        }
+        .sheet(isPresented: $showingProviderOnboarding) {
+            ProviderOnboardingSheet()
+        }
     }
 
     @ViewBuilder
@@ -343,12 +351,10 @@ struct CampusView: View {
 
     /// Deep-links user to provider signup page when campus feed is empty.
     private func openBusinessSignup() {
-        guard let providerDeepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
-        UIApplication.shared.open(providerDeepLink, options: [:]) { accepted in
-            guard !accepted else { return }
-            if let fallback = URL(string: "https://usescheduleme.com/business") {
-                openURL(fallback)
-            }
+        if appState.isAuthenticated {
+            showingProviderHub = true
+        } else {
+            showingProviderOnboarding = true
         }
     }
 }
@@ -457,12 +463,18 @@ private struct CampusGridSection: View {
                         business: business,
                         preferredCategory: business.preferredCategory(for: selectedCategory, searchText: searchText),
                         imageHeight: 84,
-                        contentSpacing: 4
+                        contentSpacing: 4,
+                        footerMetaText: campusFooterMetaText(for: business)
                     )
                 }
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func campusFooterMetaText(for business: BusinessSummary) -> String {
+        let hasRating = (business.rating ?? 0) > 0
+        return hasRating ? "\(business.ratingLabel)★" : "No reviews"
     }
 }
 
@@ -538,9 +550,13 @@ private struct FeaturedCampusCard: View {
                             status: business.normalizedAvailabilityStatus
                         )
                         Text("•").foregroundColor(ScheduleMeTheme.mutedText.opacity(0.4))
-                        Text(reviewSummary)
+                        Text(distanceSummary)
                             .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.medium))
                             .foregroundColor(ScheduleMeTheme.mutedText)
+                        Text("•").foregroundColor(ScheduleMeTheme.mutedText.opacity(0.4))
+                        Text(ratingSummary)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                            .foregroundColor(ratingTextColor)
                     }
                 }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -550,12 +566,20 @@ private struct FeaturedCampusCard: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var reviewSummary: String {
-        let hasReviews = (business.reviewCount ?? 0) > 0
-        if hasReviews {
-            return "\(business.distanceLabel) • \(business.ratingLabel)★"
-        }
-        return "\(business.distanceLabel) • No reviews"
+    private var distanceSummary: String {
+        business.distanceLabel
+    }
+
+    private var ratingSummary: String {
+        let hasRating = (business.rating ?? 0) > 0
+        return hasRating ? "\(business.ratingLabel)★" : "No reviews"
+    }
+
+    private var ratingTextColor: Color {
+        let rating = business.rating ?? 0
+        if rating >= 4.0 { return Color(hex: "fbbf24") }
+        if rating >= 3.0 { return Color(hex: "fbbf24").opacity(0.7) }
+        return ScheduleMeTheme.mutedText
     }
 }
 

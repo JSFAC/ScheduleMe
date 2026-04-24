@@ -24,8 +24,9 @@ private enum ConsumerAuthTheme {
 struct AuthView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.webAuthenticationSession) var webAuthenticationSession
+    var onContinueAsGuest: (() -> Void)? = nil
 
-    @State private var step: AuthStep = .welcome
+    @State private var step: AuthStep
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
@@ -33,6 +34,11 @@ struct AuthView: View {
     @State private var infoText: String?
 
     enum AuthStep: Hashable { case welcome, login, signup }
+
+    init(initialStep: AuthStep = .welcome, onContinueAsGuest: (() -> Void)? = nil) {
+        self.onContinueAsGuest = onContinueAsGuest
+        _step = State(initialValue: initialStep)
+    }
 
     var body: some View {
         ZStack {
@@ -43,7 +49,10 @@ struct AuthView: View {
 
             switch step {
             case .welcome:
-                ConsumerWelcomeFlow(step: $step)
+                ConsumerWelcomeFlow(
+                    step: $step,
+                    onContinueAsGuest: onContinueAsGuest
+                )
                     .transition(.opacity)
             case .login, .signup:
                 ConsumerAuthForm(
@@ -207,11 +216,22 @@ struct AuthView: View {
     }
 
     private func userFacingAuthError(_ error: Error) -> String {
-        let raw = (error as NSError).localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nsError = error as NSError
+        let raw = nsError.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalized = raw.lowercased()
+        let normalizedDomain = nsError.domain.lowercased()
 
         if normalized.contains("captcha") {
             return "Email login is blocked by a security challenge. Use Apple/Google for now or try again shortly."
+        }
+        if normalizedDomain.contains("authenticationservices.webauthenticationsession")
+            || normalized.contains("webauthenticationsession error 1")
+            || normalized.contains("com.apple.authenticationservices.webauthenticationsession")
+            || normalized.contains("aswebauthenticationsession") {
+            if nsError.code == 1 {
+                return "Sign in was interrupted before completion. Please try sign in again."
+            }
+            return "Sign in was interrupted. Please try sign in again."
         }
         if normalized.contains("invalid login credentials")
             || normalized.contains("invalid credentials")
@@ -261,6 +281,8 @@ private struct ConsumerWelcomePage: Hashable {
 
 private struct ConsumerWelcomeFlow: View {
     @Binding var step: AuthView.AuthStep
+    let onContinueAsGuest: (() -> Void)?
+    @State private var showingProviderOnboarding = false
     @State private var page = 0
     @State private var hasUnlockedAuthButtons = false
 
@@ -312,9 +334,18 @@ private struct ConsumerWelcomeFlow: View {
                     .padding(.top, isCompactHeight ? 12 : 18)
 
                     if hasUnlockedAuthButtons {
-                        HStack(spacing: 10) {
-                            AuthActionButton(label: "Log in", style: .outline) { step = .login }
-                            AuthActionButton(label: "Create account", style: .filled) { step = .signup }
+                        VStack(spacing: 8) {
+                            HStack(spacing: 10) {
+                                AuthActionButton(label: "Log in", style: .outline) { step = .login }
+                                AuthActionButton(label: "Create account", style: .filled) { step = .signup }
+                            }
+                            if let onContinueAsGuest {
+                                Button("Continue as guest") {
+                                    onContinueAsGuest()
+                                }
+                                .font(.custom(ConsumerAuthTheme.fontName, size: 13).weight(.medium))
+                                .foregroundColor(ConsumerAuthTheme.textSub)
+                            }
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, isCompactHeight ? 20 : 26)
@@ -336,8 +367,8 @@ private struct ConsumerWelcomeFlow: View {
                     }
                     .padding(.top, 16)
 
-                    Button("Are you a provider? Log in here →") {
-                        openProviderApp()
+                    Button("Want to offer services? Create provider draft →") {
+                        showingProviderOnboarding = true
                     }
                     .font(.custom(ConsumerAuthTheme.fontName, size: 12).weight(.semibold))
                     .foregroundColor(ConsumerAuthTheme.accent)
@@ -358,16 +389,8 @@ private struct ConsumerWelcomeFlow: View {
                 hasUnlockedAuthButtons = true
             }
         }
-    }
-
-    /// Opens the provider app via deep-link and falls back to provider web signup/login.
-    private func openProviderApp() {
-        guard let providerDeepLink = URL(string: "schedulemeprovider://auth/callback") else { return }
-        UIApplication.shared.open(providerDeepLink, options: [:]) { accepted in
-            guard !accepted else { return }
-            if let fallback = URL(string: "https://usescheduleme.com/business") {
-                UIApplication.shared.open(fallback)
-            }
+        .sheet(isPresented: $showingProviderOnboarding) {
+            ProviderOnboardingSheet()
         }
     }
 }

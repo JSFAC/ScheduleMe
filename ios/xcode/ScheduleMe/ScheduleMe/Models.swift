@@ -277,6 +277,7 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
     let founder50: Bool?
     let availabilityStatus: String?
     let campusProvider: Bool?
+    let eduVerified: Bool?
     let publicVisibility: Bool?
     let publicShowName: Bool?
     let publicShowMedia: Bool?
@@ -306,6 +307,7 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         case founder50
         case availabilityStatus = "availability_status"
         case campusProvider = "campus_provider"
+        case eduVerified = "edu_verified"
         case publicVisibility = "public_visibility"
         case publicShowName = "public_show_name"
         case publicShowMedia = "public_show_media"
@@ -340,6 +342,7 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         founder50: Bool?,
         availabilityStatus: String?,
         campusProvider: Bool?,
+        eduVerified: Bool? = nil,
         publicVisibility: Bool?,
         publicShowName: Bool?,
         publicShowMedia: Bool?,
@@ -368,6 +371,7 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         self.founder50 = founder50
         self.availabilityStatus = availabilityStatus
         self.campusProvider = campusProvider
+        self.eduVerified = eduVerified
         self.publicVisibility = publicVisibility
         self.publicShowName = publicShowName
         self.publicShowMedia = publicShowMedia
@@ -412,6 +416,7 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
         founder50 = try? container.decodeIfPresent(Bool.self, forKey: .founder50)
         availabilityStatus = try? container.decodeIfPresent(String.self, forKey: .availabilityStatus)
         campusProvider = try? container.decodeIfPresent(Bool.self, forKey: .campusProvider)
+        eduVerified = try? container.decodeIfPresent(Bool.self, forKey: .eduVerified)
         publicVisibility = try? container.decodeIfPresent(Bool.self, forKey: .publicVisibility)
         publicShowName = try? container.decodeIfPresent(Bool.self, forKey: .publicShowName)
         publicShowMedia =
@@ -533,6 +538,17 @@ struct BusinessSummary: Decodable, Identifiable, Hashable {
     }
 
     var isNew: Bool { (reviewCount ?? 0) == 0 }
+
+    /// Provider-level EDU verification, independent of whether they serve campus clients.
+    var isEduVerifiedProvider: Bool {
+        if eduVerified == true {
+            return true
+        }
+        let normalizedSchoolDomain = schoolDomain?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return normalizedSchoolDomain?.hasSuffix(".edu") == true
+    }
 
     var normalizedAvailabilityStatus: String {
         availabilityStatus?

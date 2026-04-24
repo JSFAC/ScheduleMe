@@ -132,6 +132,7 @@ struct ScheduleMeLoadingBar: View {
     var completesOnFirstRun: Bool = false
     var finishSignal: Bool = false
     var progressOverride: CGFloat? = nil
+    var shimmerOpacity: CGFloat = 0.22
     var onCompleted: (() -> Void)? = nil
 
     @State private var progress: CGFloat = 0.06
@@ -160,7 +161,7 @@ struct ScheduleMeLoadingBar: View {
                         Rectangle()
                             .fill(
                                 LinearGradient(
-                                    colors: [.clear, .white.opacity(0.34), .clear],
+                                    colors: [.clear, .white.opacity(shimmerOpacity), .clear],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
@@ -462,6 +463,17 @@ struct ScheduleMeTopBar: View {
 
     @ViewBuilder
     private var avatarView: some View {
+        if !appState.isAuthenticated {
+            Circle()
+                .fill(ScheduleMeTheme.surface)
+                .frame(width: 30, height: 30)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                )
+                .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+        } else
         if let avatarURL = appState.avatarURL, let url = URL(string: avatarURL) {
             AsyncImage(url: url) { phase in
                 switch phase {
@@ -770,5 +782,219 @@ extension Color {
         Color(UIColor { traits in
             traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
         })
+    }
+}
+
+// MARK: - Provider Onboarding
+
+struct ProviderOnboardingSheet: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    let onCreated: ((String?) -> Void)?
+
+    @State private var businessName = ""
+    @State private var ownerName = ""
+    @State private var email = ""
+    @State private var phone = ""
+    @State private var agreedToProviderTerms = false
+    @State private var isSubmitting = false
+    @State private var errorText: String?
+    @State private var successText: String?
+
+    init(onCreated: ((String?) -> Void)? = nil) {
+        self.onCreated = onCreated
+    }
+
+    private var canSubmit: Bool {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasRequired = !businessName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !ownerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !trimmedEmail.isEmpty
+            && trimmedEmail.contains("@")
+        return hasRequired && agreedToProviderTerms
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScheduleMePage {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Create your provider account")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 34).weight(.bold))
+                            .foregroundColor(ScheduleMeTheme.titleText)
+
+                        Text("Sign up with your email and agree to provider terms. We'll create your provider draft so you can finish setup in Provider Hub.")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+
+                        ScheduleMeCard {
+                            field("Business / provider name", text: $businessName, placeholder: "e.g. Mike R. Plumbing")
+                            field("Full name", text: $ownerName, placeholder: "Jamie Rivera")
+                            field("Email", text: $email, placeholder: "you@example.com", keyboard: .emailAddress, noCap: true)
+                            field("Phone (optional)", text: $phone, placeholder: "(555)-555-5555", keyboard: .phonePad)
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: agreedToProviderTerms ? "checkmark.square.fill" : "square")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(agreedToProviderTerms ? ScheduleMeTheme.accent : ScheduleMeTheme.mutedText)
+                                        .padding(.top, 1)
+                                    Text("I agree to the Terms of Service, Privacy Policy, and the 12% commission structure on completed jobs.")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                                        .foregroundColor(ScheduleMeTheme.titleText)
+                                        .multilineTextAlignment(.leading)
+                                    Spacer(minLength: 0)
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture { agreedToProviderTerms.toggle() }
+
+                                HStack(spacing: 10) {
+                                    Button("Terms of Service") {
+                                        if let url = URL(string: "https://www.usescheduleme.com/terms") {
+                                            openURL(url)
+                                        }
+                                    }
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.accent)
+
+                                    Button("Privacy Policy") {
+                                        if let url = URL(string: "https://www.usescheduleme.com/privacy") {
+                                            openURL(url)
+                                        }
+                                    }
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.accent)
+                                }
+
+                                Text("Founder50 note: standard platform fee is 12%; Founder50 members are locked into 6%.")
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                            }
+
+                            if let errorText {
+                                Text(errorText)
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                    .foregroundColor(.red)
+                            }
+                            if let successText {
+                                Text(successText)
+                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                    .foregroundColor(ScheduleMeTheme.accent)
+                            }
+
+                            Button(isSubmitting ? "Creating account..." : "Create provider account") {
+                                Task { await submit() }
+                            }
+                            .buttonStyle(ScheduleMePrimaryButtonStyle())
+                            .disabled(isSubmitting || !canSubmit)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .padding(.bottom, 28)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+            .onAppear {
+                let defaultName = appState.userFirstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if ownerName.isEmpty, !defaultName.isEmpty {
+                    ownerName = defaultName
+                }
+                let defaultEmail = appState.userEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if email.isEmpty, !defaultEmail.isEmpty {
+                    email = defaultEmail
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func field(
+        _ label: String,
+        text: Binding<String>,
+        placeholder: String,
+        keyboard: UIKeyboardType = .default,
+        noCap: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label.uppercased())
+                .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                .tracking(1.2)
+                .foregroundColor(ScheduleMeTheme.mutedText)
+            TextField(placeholder, text: text)
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(noCap ? .never : .words)
+                .autocorrectionDisabled(noCap)
+                .scheduleMeFieldStyle()
+        }
+    }
+
+    private func submit() async {
+        errorText = nil
+        successText = nil
+        isSubmitting = true
+        defer { isSubmitting = false }
+
+        struct Request: Encodable {
+            let businessName: String
+            let ownerName: String
+            let email: String
+            let phone: String?
+            let serviceCategory: String
+            let otherCategory: String?
+            let city: String
+            let website: String?
+            let instagram: String?
+            let campusProvider: Bool
+            let schoolName: String?
+        }
+        struct Response: Decodable {
+            let success: Bool?
+            let businessId: String?
+            let status: String?
+            let error: String?
+        }
+
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let trimmedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let payload = Request(
+            businessName: businessName.trimmingCharacters(in: .whitespacesAndNewlines),
+            ownerName: ownerName.trimmingCharacters(in: .whitespacesAndNewlines),
+            email: trimmedEmail,
+            phone: trimmedPhone.isEmpty ? nil : trimmedPhone,
+            serviceCategory: "other",
+            otherCategory: nil,
+            city: "Not set",
+            website: nil,
+            instagram: nil,
+            campusProvider: false,
+            schoolName: nil
+        )
+
+        do {
+            let response: Response = try await APIClient.shared.send(
+                path: "/api/mobile-business-signup",
+                method: "POST",
+                body: payload,
+                requiresAuth: false
+            )
+            if response.success == true {
+                successText = "Provider account created. Finish setup and publish from Provider Hub."
+                onCreated?(response.businessId)
+                try? await Task.sleep(for: .seconds(0.5))
+                dismiss()
+                return
+            }
+            errorText = response.error ?? "Could not create draft profile."
+        } catch {
+            errorText = error.localizedDescription
+        }
     }
 }

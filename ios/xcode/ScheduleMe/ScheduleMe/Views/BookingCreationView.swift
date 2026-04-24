@@ -59,6 +59,8 @@ struct BookingCreationView: View {
     @State private var showingHostedCheckout = false
     @State private var hostedCheckoutPurpose: HostedCheckoutPurpose = .bookingFallback
     @State private var showingBookingConfirmation = false
+    @State private var showingEduGate = false
+    @State private var eduGateMessage: String?
     @State private var isLaunchingApplePayCheckout = false
     @State private var isNativeApplePayFlow = false
 #if canImport(StripePaymentSheet)
@@ -208,6 +210,23 @@ struct BookingCreationView: View {
                 hostedCheckoutPurpose = .bookingFallback
                 showingHostedCheckout = true
             }
+        }
+        .sheet(isPresented: $showingEduGate) {
+            AccountView(openEduOnAppear: true)
+        }
+        .alert("Student Verification Needed", isPresented: Binding(
+            get: { eduGateMessage != nil },
+            set: { if !$0 { eduGateMessage = nil } }
+        )) {
+            Button("Verify .edu") {
+                showingEduGate = true
+                eduGateMessage = nil
+            }
+            Button("Not now", role: .cancel) {
+                eduGateMessage = nil
+            }
+        } message: {
+            Text(eduGateMessage ?? "Verify your .edu email to continue.")
         }
     }
 
@@ -667,8 +686,24 @@ struct BookingCreationView: View {
             Task { await dataStore.loadBookings() }
             showingBookingConfirmation = true
         } catch {
-            self.error = error.localizedDescription
+            let message = error.localizedDescription
+            self.error = message
+            if let gateMessage = eduGateMessageFromError(message) {
+                eduGateMessage = gateMessage
+            }
         }
+    }
+
+    private func eduGateMessageFromError(_ raw: String?) -> String? {
+        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let normalized = raw.lowercased()
+        if normalized.contains("requires .edu")
+            || normalized.contains("edu verification")
+            || normalized.contains("same school")
+            || normalized.contains("campus verification") {
+            return raw
+        }
+        return nil
     }
 
     /// Starts native in-app Apple Pay via Stripe PaymentSheet using a backend-created PaymentIntent.

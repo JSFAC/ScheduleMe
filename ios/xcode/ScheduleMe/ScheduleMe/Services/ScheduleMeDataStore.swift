@@ -74,6 +74,7 @@ final class ScheduleMeDataStore: ObservableObject {
         let founder50: Bool?
         let availabilityStatus: String?
         let campusProvider: Bool?
+        let eduVerified: Bool?
         let publicVisibility: Bool?
         let publicShowName: Bool?
         let publicShowMedia: Bool?
@@ -100,6 +101,7 @@ final class ScheduleMeDataStore: ObservableObject {
             case founder50
             case availabilityStatus = "availability_status"
             case campusProvider = "campus_provider"
+            case eduVerified = "edu_verified"
             case publicVisibility = "public_visibility"
             case publicShowName = "public_show_name"
             case publicShowMedia = "public_show_media"
@@ -307,14 +309,41 @@ final class ScheduleMeDataStore: ObservableObject {
             hasLoadedBusinesses = true
         }
 
-        let primaryNearbyAuth = await loadNearbyBusinessesPrimary(coordinate: coordinate, requiresAuth: true)
-        let primaryNearbyPublic = await loadNearbyBusinessesPrimary(coordinate: coordinate, requiresAuth: false)
-        let supabaseFallback = await loadNearbyBusinessesFallbackFromSupabase(coordinate: coordinate)
-        let searchFallback = await loadNearbyBusinessesFallbackFromSearch(coordinate: coordinate)
+        async let supabaseFallbackTask = loadNearbyBusinessesFallbackFromSupabase(coordinate: coordinate)
+        async let searchFallbackTask = loadNearbyBusinessesFallbackFromSearch(coordinate: coordinate)
+        let primary = await withTaskGroup(of: [BusinessSummary]?.self, returning: [BusinessSummary]?.self) { group in
+            group.addTask {
+                await self.loadNearbyBusinessesPrimary(coordinate: coordinate, requiresAuth: true)
+            }
+            group.addTask {
+                await self.loadNearbyBusinessesPrimary(coordinate: coordinate, requiresAuth: false)
+            }
+            var firstNonNil: [BusinessSummary]? = nil
+            for await candidate in group {
+                if firstNonNil == nil, let candidate {
+                    firstNonNil = candidate
+                }
+                if let candidate, !candidate.isEmpty {
+                    group.cancelAll()
+                    return candidate
+                }
+            }
+            return firstNonNil
+        }
 
-        if let primary = primaryNearbyAuth ?? primaryNearbyPublic, !primary.isEmpty {
-            let merged = mergeNearbyBusinesses(primary: primary, supplement: supabaseFallback ?? [])
-            businesses = await enrichNearbyBusinessesWithProfileMedia(merged)
+        if let primary, !primary.isEmpty {
+            // Nearby API can occasionally omit campus/privacy metadata depending on deploy/schema.
+            // Merge with Supabase fallback rows (started in parallel above) so Home/Browse grouping
+            // stays consistent with web behavior for student vs non-student sections.
+            let supabaseFallback = await supabaseFallbackTask
+            let mergedPrimary: [BusinessSummary]
+            if let supabaseFallback, !supabaseFallback.isEmpty {
+                mergedPrimary = mergeNearbyBusinesses(primary: primary, supplement: supabaseFallback)
+            } else {
+                mergedPrimary = primary
+            }
+
+            businesses = await enrichNearbyBusinessesWithProfileMedia(mergedPrimary)
             prefetchBusinessImages(businesses, limit: 60)
             businessError = nil
             lastBusinessesFetchAt = Date()
@@ -322,6 +351,7 @@ final class ScheduleMeDataStore: ObservableObject {
             return
         }
 
+        let supabaseFallback = await supabaseFallbackTask
         if let supabaseFallback, !supabaseFallback.isEmpty {
             businesses = await enrichNearbyBusinessesWithProfileMedia(supabaseFallback)
             prefetchBusinessImages(businesses, limit: 60)
@@ -331,6 +361,7 @@ final class ScheduleMeDataStore: ObservableObject {
             return
         }
 
+        let searchFallback = await searchFallbackTask
         if let searchFallback, !searchFallback.isEmpty {
             businesses = await enrichNearbyBusinessesWithProfileMedia(searchFallback)
             prefetchBusinessImages(businesses, limit: 60)
@@ -341,7 +372,7 @@ final class ScheduleMeDataStore: ObservableObject {
         }
 
         if businesses.isEmpty {
-            let nearbyCount = (primaryNearbyAuth ?? primaryNearbyPublic)?.count ?? 0
+            let nearbyCount = primary?.count ?? 0
             let supabaseCount = supabaseFallback?.count ?? 0
             let searchCount = searchFallback?.count ?? 0
             businessError = "Nearby providers are currently unavailable. Sources returned: nearby=\(nearbyCount), supabase=\(supabaseCount), search=\(searchCount). Pull to refresh and try again."
@@ -597,7 +628,7 @@ final class ScheduleMeDataStore: ObservableObject {
                 // Preferred query path on current schema.
                 response = try await SupabaseManager.shared.client
                     .from("businesses")
-                    .select("id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,public_visibility,public_show_name,school_domain,campus_school_name,is_onboarded")
+                    .select("id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,edu_verified,public_visibility,public_show_name,school_domain,campus_school_name,is_onboarded")
                     .eq("is_onboarded", value: true)
                     .limit(300)
                     .execute()
@@ -605,7 +636,7 @@ final class ScheduleMeDataStore: ObservableObject {
                 // Back-compat fallback for deployments where `is_onboarded` is absent.
                 response = try await SupabaseManager.shared.client
                     .from("businesses")
-                    .select("id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,public_visibility,public_show_name,school_domain,campus_school_name")
+                    .select("id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,edu_verified,public_visibility,public_show_name,school_domain,campus_school_name")
                     .limit(300)
                     .execute()
             }
@@ -651,6 +682,7 @@ final class ScheduleMeDataStore: ObservableObject {
                         founder50: row.founder50,
                         availabilityStatus: row.availabilityStatus,
                         campusProvider: row.campusProvider,
+                        eduVerified: row.eduVerified,
                         publicVisibility: row.publicVisibility,
                         publicShowName: row.publicShowName,
                         publicShowMedia: row.publicShowMedia,
@@ -719,6 +751,7 @@ final class ScheduleMeDataStore: ObservableObject {
                     founder50: business.founder50 ?? fallback.founder50,
                     availabilityStatus: business.availabilityStatus ?? fallback.availabilityStatus,
                     campusProvider: business.campusProvider ?? fallback.campusProvider,
+                    eduVerified: business.eduVerified ?? fallback.eduVerified,
                     publicVisibility: business.publicVisibility ?? fallback.publicVisibility,
                     publicShowName: business.publicShowName ?? fallback.publicShowName,
                     publicShowMedia: business.publicShowMedia ?? fallback.publicShowMedia,
@@ -735,21 +768,23 @@ final class ScheduleMeDataStore: ObservableObject {
         }
     }
 
-    /// Nearby endpoint may intentionally redact media for some rows.
-    /// Fill missing card images from `business-profile` so Home/Browse cards
-    /// can still render the provider's selected cover when available.
+    /// Nearby endpoint may intentionally redact media and names for some rows.
+    /// Fill missing card images and placeholder names from `business-profile`
+    /// so Home/Browse can match Campus visibility for authorized viewers.
     private func enrichNearbyBusinessesWithProfileMedia(_ input: [BusinessSummary]) async -> [BusinessSummary] {
-        let missingImageIDs = Array(
+        let needsProfileIDs = Array(
             Set(
                 input
-                    .filter { $0.heroImageURL == nil }
+                    .filter { business in
+                        business.heroImageURL == nil || isPlaceholderBusinessName(business.name)
+                    }
                     .map(\.id)
             )
         )
-        guard missingImageIDs.isEmpty == false else { return input }
+        guard needsProfileIDs.isEmpty == false else { return input }
 
         var profileByBusinessID: [String: BusinessProfile] = [:]
-        for businessID in missingImageIDs.prefix(12) {
+        for businessID in needsProfileIDs.prefix(20) {
             do {
                 let response: BusinessProfileResponse = try await APIClient.shared.get(
                     path: "/api/business-profile",
@@ -781,17 +816,22 @@ final class ScheduleMeDataStore: ObservableObject {
         guard profileByBusinessID.isEmpty == false else { return input }
 
         return input.map { business in
-            guard business.heroImageURL == nil, let profile = profileByBusinessID[business.id] else {
+            guard let profile = profileByBusinessID[business.id] else {
                 return business
             }
 
             let profileMedia = profile.mediaURLs ?? []
             let resolvedCover = business.coverURL ?? profile.coverURL ?? profileMedia.first
             let resolvedMedia = business.mediaURLs.isEmpty ? profileMedia : business.mediaURLs
+            let resolvedName: String = {
+                guard isPlaceholderBusinessName(business.name) else { return business.name }
+                let candidate = profile.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                return candidate.isEmpty ? business.name : candidate
+            }()
 
             return BusinessSummary(
                 id: business.id,
-                name: business.name,
+                name: resolvedName,
                 slug: business.slug,
                 description: business.description,
                 address: business.address,
@@ -810,6 +850,7 @@ final class ScheduleMeDataStore: ObservableObject {
                 founder50: business.founder50,
                 availabilityStatus: business.availabilityStatus,
                 campusProvider: business.campusProvider,
+                eduVerified: business.eduVerified,
                 publicVisibility: business.publicVisibility,
                 publicShowName: business.publicShowName,
                 publicShowMedia: business.publicShowMedia,
@@ -819,6 +860,11 @@ final class ScheduleMeDataStore: ObservableObject {
                 stripeAccountID: business.stripeAccountID
             )
         }
+    }
+
+    private func isPlaceholderBusinessName(_ name: String) -> Bool {
+        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "student provider" || normalized == "local provider"
     }
 
     /// Loads bookings for the signed-in account.
@@ -845,6 +891,10 @@ final class ScheduleMeDataStore: ObservableObject {
             bookingsError = nil
             lastBookingsFetchAt = Date()
         } catch {
+            if isCancellationLikeError(error) {
+                bookingsError = nil
+                return
+            }
             do {
                 let userID = try await currentUserID()
                 let fallback = try await fetchBookingsFromSupabase(userID: userID)
@@ -852,10 +902,23 @@ final class ScheduleMeDataStore: ObservableObject {
                 bookingsError = nil
                 lastBookingsFetchAt = Date()
             } catch {
+                if isCancellationLikeError(error) {
+                    bookingsError = nil
+                    return
+                }
                 bookings = []
                 bookingsError = error.localizedDescription
             }
         }
+    }
+
+    private func isCancellationLikeError(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+            return true
+        }
+        return nsError.localizedDescription.lowercased().contains("cancellationerror")
     }
 
     /// Loads user notifications from API, with booking-derived fallback if endpoint fails.
@@ -2314,6 +2377,7 @@ final class ScheduleMeDataStore: ObservableObject {
             founder50: row.founder50,
             availabilityStatus: row.availabilityStatus,
             campusProvider: row.campusProvider,
+            eduVerified: row.eduVerified,
             publicVisibility: row.publicVisibility,
             publicShowName: row.publicShowName,
             publicShowMedia: row.publicShowMedia,

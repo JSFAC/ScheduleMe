@@ -609,7 +609,7 @@ final class AppState: ObservableObject {
                 try? await SupabaseManager.shared.client.auth.session
             }
             group.addTask {
-                try? await Task.sleep(for: .seconds(1.8))
+                try? await Task.sleep(for: .seconds(0.9))
                 return nil
             }
             let first = await group.next() ?? nil
@@ -631,7 +631,7 @@ final class AppState: ObservableObject {
                 }
             }
             group.addTask {
-                try? await Task.sleep(for: .seconds(1.2))
+                try? await Task.sleep(for: .seconds(0.7))
                 return false
             }
             let first = await group.next() ?? false
