@@ -913,7 +913,6 @@ const BusinessDashboard: NextPage = () => {
   const msgBottomRef = useRef<HTMLDivElement>(null);
   const msgInputRef = useRef<HTMLTextAreaElement>(null);
   const msgFileInputRef = useRef<HTMLInputElement>(null);
-  const supabaseRef = useRef(getSupabase());
   const msgPollRef2 = useRef<NodeJS.Timeout | null>(null);
 
   const [editName, setEditName] = useState('');

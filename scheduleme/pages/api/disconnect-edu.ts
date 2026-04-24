@@ -30,6 +30,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       edu_code_expires_at: null,
     }).eq('id', user.id);
 
+    // Keep legacy business fields in sync with the profile source-of-truth.
+    await supabase.from('businesses').update({
+      edu_verified: false,
+      school_email: null,
+      school_domain: null,
+      edu_code: null,
+      edu_code_expires_at: null,
+    }).eq('owner_id', user.id);
+
     await logAuditEvent(req, 'edu_disconnect_consumer', {
       entity_type: 'profile',
       entity_id: user.id,

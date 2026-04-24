@@ -27,19 +27,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('id', user.id)
       .maybeSingle();
 
-    const { data: businessData } = await supabase
-      .from('businesses')
-      .select('edu_verified, school_domain, school_email')
-      .eq('owner_id', user.id)
-      .limit(1)
-      .maybeSingle();
-
-    const verified = !!(businessData?.edu_verified ?? profileData?.edu_verified);
+    // Single source of truth: profile EDU state is authoritative for both
+    // consumer and provider in the unified app.
+    const verified = profileData?.edu_verified === true;
     return res.status(200).json({
       verified,
       edu_verified: verified,
-      school_domain: businessData?.school_domain ?? profileData?.school_domain ?? null,
-      school_email: businessData?.school_email ?? profileData?.school_email ?? null,
+      school_domain: profileData?.school_domain ?? null,
+      school_email: profileData?.school_email ?? null,
       campus_key: profileData?.campus_key ?? null,
     });
   } catch (err) {
