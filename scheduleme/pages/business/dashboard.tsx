@@ -3653,7 +3653,7 @@ const BusinessDashboard: NextPage = () => {
                 <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Edit Listing</p>
-                    <p className="text-sm font-semibold text-neutral-900 mt-1">Embedded Full Editor</p>
+                    <p className="text-sm font-semibold text-neutral-900 mt-1">Live Preview</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -3662,22 +3662,12 @@ const BusinessDashboard: NextPage = () => {
                     >
                       Refresh
                     </button>
-                    {business?.slug && (
-                      <a
-                        href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#f5fbf8] text-accent border border-[#cfe7de]"
-                      >
-                        Open full-page editor
-                      </a>
-                    )}
                   </div>
                 </div>
                 <div className="p-5" key={previewKey}>
                   {business?.slug ? (
                     <iframe
-                      title="ScheduleMe Full Editor"
+                      title="ScheduleMe Live Preview"
                       src={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}&embedded=1&k=${previewKey}`}
                       className="w-full rounded-[24px] border border-neutral-100 bg-white"
                       style={{ minHeight: '82vh' }}

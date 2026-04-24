@@ -258,6 +258,8 @@ export default function BizPage() {
   const fromParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('from') : null;
   const previewQuery = router.query?.preview;
   const previewParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('preview') : null;
+  const embeddedQuery = router.query?.embedded;
+  const embeddedParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('embedded') : null;
   const allowEditInBiz =
     fromQuery === 'dashboard' ||
     (Array.isArray(fromQuery) && fromQuery.includes('dashboard')) ||
@@ -267,6 +269,10 @@ export default function BizPage() {
     previewQuery === '1' ||
     (Array.isArray(previewQuery) && previewQuery.includes('1')) ||
     previewParam === '1';
+  const isEmbedded =
+    embeddedQuery === '1' ||
+    (Array.isArray(embeddedQuery) && embeddedQuery.includes('1')) ||
+    embeddedParam === '1';
   const hideNav = isPreview;
   const [biz, setBiz] = useState(null);
   const [services, setServices] = useState([]);
@@ -1003,7 +1009,7 @@ export default function BizPage() {
   return (
     <>
       <Head><title>{titleName} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
-      <div style={{background:bg,minHeight:'100vh',paddingBottom: hideNav ? 100 : 136}}>
+      <div style={{background:bg,minHeight:'100vh',paddingBottom: hideNav ? (isEmbedded ? 40 : 100) : 136}}>
         {!hideNav && <Nav />}
         {shareOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={() => setShareOpen(false)}>
@@ -1098,76 +1104,114 @@ export default function BizPage() {
             )}
           </div>
         )}
-        <div className="relative" style={{ height: 450, background: bg }}>
-          <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 6 }}>
-            <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 800 }}>
-              {imgs[galleryIdx] && (
-                <img
-                  src={imgs[galleryIdx]}
-                  alt={biz?.name || 'Provider'}
-                  className="object-contain rounded-2xl"
-                  style={{ maxHeight: 320, maxWidth: '100%' }}
-                  onClick={() => imgs.length > 0 && setGalleryOpen(true)}
-                  onTouchStart={(e) => {
-                    const t = e.touches[0];
-                    galleryTouchStart.current = { x: t.clientX, y: t.clientY };
-                  }}
-                  onTouchEnd={(e) => {
-                    if (!galleryTouchStart.current || imgs.length <= 1) return;
-                    const t = e.changedTouches[0];
-                    const dx = t.clientX - galleryTouchStart.current.x;
-                    const dy = t.clientY - galleryTouchStart.current.y;
-                    galleryTouchStart.current = null;
-                    if (Math.abs(dx) < 30 || Math.abs(dx) <= Math.abs(dy)) return;
-                    if (dx < 0) goNextImage();
-                    else goPrevImage();
-                  }}
-                />
-              )}
-              {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
-                <div
-                  className="absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-                  style={{
-                    background: 'rgba(0,0,0,0.55)',
-                    color: 'white',
-                    border: '1px solid rgba(255,255,255,0.18)',
-                    backdropFilter: 'blur(6px)',
-                  }}
-                >
-                  Founder50
-                </div>
-              )}
-              {imgs.length > 1 && (
-                <>
-                  <button
-                    onClick={goPrevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white leading-none"
-                    style={{ background: 'rgba(0,0,0,0.35)' }}
+        {!isEmbedded && (
+          <div className="relative" style={{ height: 450, background: bg }}>
+            <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 6 }}>
+              <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 800 }}>
+                {imgs[galleryIdx] && (
+                  <img
+                    src={imgs[galleryIdx]}
+                    alt={biz?.name || 'Provider'}
+                    className="object-contain rounded-2xl"
+                    style={{ maxHeight: 320, maxWidth: '100%' }}
+                    onClick={() => imgs.length > 0 && setGalleryOpen(true)}
+                    onTouchStart={(e) => {
+                      const t = e.touches[0];
+                      galleryTouchStart.current = { x: t.clientX, y: t.clientY };
+                    }}
+                    onTouchEnd={(e) => {
+                      if (!galleryTouchStart.current || imgs.length <= 1) return;
+                      const t = e.changedTouches[0];
+                      const dx = t.clientX - galleryTouchStart.current.x;
+                      const dy = t.clientY - galleryTouchStart.current.y;
+                      galleryTouchStart.current = null;
+                      if (Math.abs(dx) < 30 || Math.abs(dx) <= Math.abs(dy)) return;
+                      if (dx < 0) goNextImage();
+                      else goPrevImage();
+                    }}
+                  />
+                )}
+                {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
+                  <div
+                    className="absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    style={{
+                      background: 'rgba(0,0,0,0.55)',
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      backdropFilter: 'blur(6px)',
+                    }}
                   >
-                    <svg className="h-8 w-8 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={goNextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white leading-none"
-                    style={{ background: 'rgba(0,0,0,0.35)' }}
-                  >
-                    <svg className="h-8 w-8 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </button>
-                </>
-              )}
+                    Founder50
+                  </div>
+                )}
+                {imgs.length > 1 && (
+                  <>
+                    <button
+                      onClick={goPrevImage}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white leading-none"
+                      style={{ background: 'rgba(0,0,0,0.35)' }}
+                    >
+                      <svg className="h-8 w-8 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 18l-6-6 6-6" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={goNextImage}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full flex items-center justify-center text-white leading-none"
+                      style={{ background: 'rgba(0,0,0,0.35)' }}
+                    >
+                      <svg className="h-8 w-8 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
+            {!isPreview && (
+              <button onClick={()=>router.back()} className="absolute top-4 left-4 flex items-center justify-center rounded-full" style={{width:36,height:36,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(8px)'}}>
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
+              </button>
+            )}
           </div>
-          {!isPreview && (
-            <button onClick={()=>router.back()} className="absolute top-4 left-4 flex items-center justify-center rounded-full" style={{width:36,height:36,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(8px)'}}>
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
-            </button>
+        )}
+        <div className="mx-auto max-w-2xl px-4" style={{ paddingTop: isEmbedded ? 20 : 0 }}>
+          {isEmbedded && (
+            <div className="rounded-2xl p-4 shadow-lg mb-4" style={{ background: card, border: '1px solid ' + bdr }}>
+              <div className="flex items-start gap-4">
+                <div className="h-24 w-24 rounded-2xl overflow-hidden shrink-0" style={{ background: dm ? '#111' : '#f3f4f6', border: '1px solid ' + bdr }}>
+                  {imgs[galleryIdx] ? (
+                    <img src={imgs[galleryIdx]} alt={biz?.name || 'Provider'} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-xs font-semibold" style={{ color: mu }}>No photo</div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-1" style={{ color: mu }}>Live Preview</p>
+                  <h1 className="text-xl font-bold" style={{ color: tx }}>{biz.name}</h1>
+                  {ownerDisplayName ? (
+                    <p className="text-sm mt-1" style={{ color: mu }}>{ownerDisplayName}</p>
+                  ) : null}
+                  <div className="flex gap-2 flex-wrap mt-3">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>{cat}</span>
+                    {(computedPriceTier ?? biz.price_tier) ? (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>
+                        {'$'.repeat(computedPriceTier ?? biz.price_tier)}
+                      </span>
+                    ) : null}
+                    {(biz.review_count ?? 0) > 0 && biz.rating && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: mu }}>
+                        <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.19 3.66a1 1 0 00.95.69h3.848c.969 0 1.371 1.24.588 1.81l-3.113 2.262a1 1 0 00-.364 1.118l1.19 3.66c.3.922-.755 1.688-1.539 1.118L10 14.347l-3.111 2.26c-.784.57-1.838-.196-1.539-1.118l1.19-3.66a1 1 0 00-.364-1.118L3.063 9.087c-.783-.57-.38-1.81.588-1.81h3.848a1 1 0 00.95-.69l1.19-3.66z" />
+                        </svg>
+                        {parseFloat(biz.rating).toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
-        </div>
-        <div className="mx-auto max-w-2xl px-4">
           {!editMode && imgs.length > 1 && (
             <div className="flex gap-2 overflow-x-auto py-2 relative z-20" style={{ marginTop: 16, marginBottom: 18 }}>
               {imgs.map((url, i) => (
@@ -1491,6 +1535,8 @@ export default function BizPage() {
               </div>
             )}
           </div>
+          {!isEmbedded && (
+          <>
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Reviews</h2>
           <div className="flex flex-col gap-3 mb-5">
             {reviewsLoading && (
@@ -1622,9 +1668,11 @@ export default function BizPage() {
             {err && <p className="text-red-500 text-sm">{err}</p>}
           </div>
         </div>
+        </>
+        )}
 
         </div>
-        <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)' }}>
+        {!isEmbedded && <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)' }}>
           <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
@@ -1645,8 +1693,8 @@ export default function BizPage() {
               You can&apos;t book your own business.
             </p>
           )}
-        </div>
-        <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-4 pt-2 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)'}}>
+        </div>}
+        {!isEmbedded && <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-4 pt-2 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)'}}>
           <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
@@ -1667,7 +1715,7 @@ export default function BizPage() {
               You can&apos;t book your own business.
             </p>
           )}
-        </div>
+        </div>}
         {showConfirm && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
             <div className="w-full max-w-xl mx-4 rounded-3xl p-6 relative" style={{ background: dm ? '#0f0f10' : 'white', border: '1px solid ' + (dm ? '#1f2937' : '#e5e7eb') }}>
