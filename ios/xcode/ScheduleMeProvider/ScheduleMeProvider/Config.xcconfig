@@ -7,6 +7,5 @@ SUPABASE_ANON_KEY =
 SUPABASE_REDIRECT_URL = $(APP_URL_SCHEME)\://auth/callback
 API_BASE_URL = https://www.usescheduleme.com
 STRIPE_PUBLISHABLE_KEY =
-APPLE_PAY_MERCHANT_ID = merchant.com.usescheduleme.app
 
 #include? "Config.local.xcconfig"

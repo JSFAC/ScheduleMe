@@ -341,7 +341,7 @@ struct BookingCreationView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "plus")
-                            Text("Add Card / Apple Pay")
+                            Text("Add Card")
                         }
                     }
                     .buttonStyle(ScheduleMeSecondaryButtonStyle())
@@ -639,7 +639,6 @@ struct BookingCreationView: View {
             let resolvedScheme = (scheme?.isEmpty == false) ? (scheme ?? "scheduleme") : "scheduleme"
             config.returnURL = "\(resolvedScheme)://stripe-redirect"
             config.customer = .init(id: customerId, ephemeralKeySecret: ephemeralKey)
-            applyApplePayIfAvailable(config: &config)
 
             paymentSheet = PaymentSheet(setupIntentClientSecret: clientSecret, configuration: config)
             await MainActor.run {
@@ -652,23 +651,6 @@ struct BookingCreationView: View {
         showingCardEntry = true
 #endif
     }
-
-    #if canImport(StripePaymentSheet)
-    /// Enables Apple Pay inside PaymentSheet when device + merchant config are available.
-    private func applyApplePayIfAvailable(config: inout PaymentSheet.Configuration) {
-        guard StripeAPI.deviceSupportsApplePay() else { return }
-        guard let rawMerchantId = Bundle.main.object(forInfoDictionaryKey: "APPLE_PAY_MERCHANT_ID") as? String else { return }
-        let merchantId = rawMerchantId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !merchantId.isEmpty else { return }
-        let countryCode: String
-        if #available(iOS 16.0, *) {
-            countryCode = Locale.current.region?.identifier ?? "US"
-        } else {
-            countryCode = Locale.current.regionCode ?? "US"
-        }
-        config.applePay = .init(merchantId: merchantId, merchantCountryCode: countryCode)
-    }
-    #endif
 
     /// Presents PaymentSheet from the top-most visible UIKit controller.
     private func presentPaymentSheet() {

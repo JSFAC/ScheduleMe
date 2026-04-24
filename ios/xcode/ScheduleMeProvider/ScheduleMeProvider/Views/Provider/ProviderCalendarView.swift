@@ -1,7 +1,12 @@
 import SwiftUI
+import EventKit
+import Combine
+import UIKit
 
 struct ProviderCalendarView: View {
     @EnvironmentObject private var providerStore: ProviderDataStore
+    @Environment(\.openURL) private var openURL
+    @StateObject private var calendarSync = ProviderCalendarSyncManager()
     @State private var month: Date = Date()
     @State private var selectedDay: Date = Date()
     @State private var isHydrating = false
@@ -9,6 +14,11 @@ struct ProviderCalendarView: View {
     @State private var expandedBookingIDs: Set<String> = []
     @State private var showingMonthYearPicker = false
     @State private var monthPickerResetToken = UUID()
+    @State private var availableCalendars: [EKCalendar] = []
+    @State private var showingCalendarPicker = false
+    @State private var isLoadingCalendars = false
+    @State private var calendarSyncMessage: String?
+    @State private var calendarSyncError: String?
     private let dayPageSize = 6
 
     private var days: [Date] {
@@ -59,6 +69,17 @@ struct ProviderCalendarView: View {
         return Array(filteredBookings[start..<end])
     }
 
+    private var bookingsSyncSignature: String {
+        providerStore.bookings
+            .sorted { $0.id < $1.id }
+            .map { booking in
+                let start = (booking.scheduledStart ?? booking.createdAt).timeIntervalSince1970
+                let end = (booking.scheduledEnd ?? booking.createdAt).timeIntervalSince1970
+                return "\(booking.id)|\(booking.status.lowercased())|\(Int(start))|\(Int(end))|\(booking.amountCents ?? 0)"
+            }
+            .joined(separator: "||")
+    }
+
     var body: some View {
         ZStack {
             ScheduleMeBackground()
@@ -66,6 +87,8 @@ struct ProviderCalendarView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 14) {
+                    calendarSyncCard
+
                     if isHydrating && providerStore.bookings.isEmpty {
                         calendarSkeleton
                     } else {
@@ -74,6 +97,10 @@ struct ProviderCalendarView: View {
                     }
                 }
                 .padding(16)
+            }
+
+            if showingCalendarPicker {
+                calendarPickerOverlay
             }
         }
         .navigationTitle("Calendar")
@@ -127,6 +154,9 @@ struct ProviderCalendarView: View {
             isHydrating = true
             await providerStore.refreshAll(force: true, prioritizeFastLoad: true)
             isHydrating = false
+            if calendarSync.isConnected {
+                await syncBookingsToConnectedCalendar(showMessage: false)
+            }
         }
         .task {
             if providerStore.bookings.isEmpty {
@@ -134,6 +164,15 @@ struct ProviderCalendarView: View {
             }
             await providerStore.refreshAll(force: false)
             isHydrating = false
+            if calendarSync.isConnected {
+                await syncBookingsToConnectedCalendar(showMessage: false)
+            }
+        }
+        .onChange(of: bookingsSyncSignature) { _, _ in
+            guard calendarSync.isConnected else { return }
+            Task {
+                await syncBookingsToConnectedCalendar(showMessage: false)
+            }
         }
         .onChange(of: month) { _, newMonth in
             dayPageIndex = 0
@@ -151,6 +190,215 @@ struct ProviderCalendarView: View {
                 }
             )
         }
+        .alert(
+            "Calendar Sync",
+            isPresented: Binding(
+                get: { calendarSyncError != nil },
+                set: { if !$0 { calendarSyncError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(calendarSyncError ?? "")
+        }
+    }
+
+    private var calendarSyncCard: some View {
+        ScheduleMeCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Calendar")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+
+                Text(
+                    calendarSync.isConnected
+                    ? "Connected. Existing bookings are synced and new bookings are added automatically."
+                    : "Connect once to sync all past bookings and automatically add future bookings in your selected calendar."
+                )
+                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                .foregroundStyle(ScheduleMeTheme.mutedText)
+
+                if let connectedCalendarName = calendarSync.connectedCalendarDisplayName {
+                    Text("Connected to: \(connectedCalendarName)")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
+                }
+
+                if let calendarSyncMessage {
+                    Text(calendarSyncMessage)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundStyle(ScheduleMeTheme.accent)
+                }
+
+                if calendarSync.isConnected {
+                    HStack(spacing: 8) {
+                        Button {
+                            Task { await syncBookingsToConnectedCalendar(showMessage: true) }
+                        } label: {
+                            Label(calendarSync.isSyncing ? "Syncing..." : "Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(ScheduleMeTheme.accent)
+                        .disabled(calendarSync.isSyncing)
+
+                        Button("Change Calendar") {
+                            Task { await connectCalendarTapped() }
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(ScheduleMeTheme.accent)
+
+                        Button("Disconnect") {
+                            calendarSync.disconnect()
+                            calendarSyncMessage = "Calendar sync disconnected."
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(Color.red)
+                    }
+                } else {
+                    Button {
+                        Task { await connectCalendarTapped() }
+                    } label: {
+                        Label("Connect Calendar", systemImage: "calendar.badge.plus")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(ScheduleMeTheme.accent)
+                }
+            }
+        }
+    }
+
+    private var calendarPickerOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.45)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    showingCalendarPicker = false
+                }
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Choose Calendar")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 20).weight(.bold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                    Spacer()
+                    Button {
+                        showingCalendarPicker = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                            .frame(width: 28, height: 28)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if isLoadingCalendars {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                            .tint(ScheduleMeTheme.accent)
+                        Text("Loading calendars...")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 18)
+                } else if availableCalendars.isEmpty {
+                    VStack(spacing: 10) {
+                        Text("No writable calendars available")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
+                            .foregroundStyle(ScheduleMeTheme.titleText)
+                        Text("We couldn't find an editable calendar yet. Make sure at least one calendar account has write access, then try again.")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                            .multilineTextAlignment(.center)
+
+                        HStack(spacing: 8) {
+                            Button("Open Settings") {
+                                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                                openURL(url)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(ScheduleMeTheme.accent)
+
+                            Button("Retry") {
+                                Task { await connectCalendarTapped() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(ScheduleMeTheme.accent)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 8) {
+                            ForEach(Array(availableCalendars.enumerated()), id: \.offset) { _, calendar in
+                                Button {
+                                    guard calendar.allowsContentModifications else {
+                                        calendarSyncError = "This calendar is read-only. Choose a calendar that allows edits."
+                                        return
+                                    }
+                                    showingCalendarPicker = false
+                                    Task {
+                                        calendarSync.connect(to: calendar)
+                                        await syncBookingsToConnectedCalendar(showMessage: true)
+                                    }
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(calendar.title.isEmpty ? "Untitled Calendar" : calendar.title)
+                                                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                                                .foregroundStyle(ScheduleMeTheme.titleText)
+                                            Text(calendar.source.title.isEmpty ? "Calendar Account" : calendar.source.title)
+                                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                                        }
+                                        Spacer()
+                                        if !calendar.allowsContentModifications {
+                                            Text("Read-only")
+                                                .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.bold))
+                                                .foregroundStyle(.orange)
+                                        } else {
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundStyle(ScheduleMeTheme.mutedText)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(ScheduleMeTheme.surface)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(ScheduleMeTheme.cardBorder)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(!calendar.allowsContentModifications)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 300)
+                }
+            }
+            .padding(16)
+            .background(ScheduleMeTheme.pageBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(ScheduleMeTheme.cardBorder)
+            )
+            .padding(.horizontal, 18)
+            .shadow(color: .black.opacity(0.22), radius: 16, y: 8)
+        }
+        .transition(.opacity)
     }
 
     private var monthGrid: some View {
@@ -380,6 +628,39 @@ struct ProviderCalendarView: View {
         .buttonStyle(.plain)
         .disabled(!isEnabled)
     }
+
+    private func connectCalendarTapped() async {
+        isLoadingCalendars = true
+        defer { isLoadingCalendars = false }
+        do {
+            let calendars = try await calendarSync.fetchWritableCalendars()
+            if calendars.isEmpty {
+                availableCalendars = []
+                showingCalendarPicker = true
+                return
+            }
+            if calendars.count == 1, let first = calendars.first {
+                calendarSync.connect(to: first)
+                await syncBookingsToConnectedCalendar(showMessage: true)
+            } else {
+                availableCalendars = calendars
+                showingCalendarPicker = true
+            }
+        } catch {
+            calendarSyncError = error.localizedDescription
+        }
+    }
+
+    private func syncBookingsToConnectedCalendar(showMessage: Bool) async {
+        do {
+            let result = try await calendarSync.sync(bookings: providerStore.bookings)
+            if showMessage {
+                calendarSyncMessage = "Synced \(result.syncedCount) bookings to Calendar."
+            }
+        } catch {
+            calendarSyncError = error.localizedDescription
+        }
+    }
 }
 
 private struct ProviderMonthYearPickerOverlay: View {
@@ -547,5 +828,208 @@ private struct ProviderMonthYearPickerSheet: View {
             resetToCurrentDate()
         }
         .onChange(of: resetToken) { _, _ in resetToCurrentDate() }
+    }
+}
+
+@MainActor
+private final class ProviderCalendarSyncManager: ObservableObject {
+    struct SyncResult {
+        let syncedCount: Int
+    }
+
+    @Published private(set) var isSyncing = false
+
+    private let eventStore = EKEventStore()
+    private let selectedCalendarKey = "provider_calendar_identifier"
+    private let autoSyncEnabledKey = "provider_calendar_auto_sync_enabled"
+    private let bookingEventMapKey = "provider_calendar_booking_event_map"
+    private let bookingMarkerPrefix = "scheduleme_provider_booking_id:"
+
+    var selectedCalendarIdentifier: String? {
+        get { UserDefaults.standard.string(forKey: selectedCalendarKey) }
+        set { UserDefaults.standard.setValue(newValue, forKey: selectedCalendarKey) }
+    }
+
+    var isAutoSyncEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: autoSyncEnabledKey) }
+        set { UserDefaults.standard.setValue(newValue, forKey: autoSyncEnabledKey) }
+    }
+
+    var isConnected: Bool {
+        guard let identifier = selectedCalendarIdentifier, !identifier.isEmpty else { return false }
+        return eventStore.calendar(withIdentifier: identifier) != nil && isAutoSyncEnabled
+    }
+
+    var connectedCalendarDisplayName: String? {
+        guard let identifier = selectedCalendarIdentifier,
+              let calendar = eventStore.calendar(withIdentifier: identifier) else {
+            return nil
+        }
+        let title = calendar.title.isEmpty ? "Untitled Calendar" : calendar.title
+        let source = calendar.source.title.isEmpty ? nil : calendar.source.title
+        if let source {
+            return "\(title) (\(source))"
+        }
+        return title
+    }
+
+    func ensureAccess() async throws {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        if #available(iOS 17.0, *) {
+            if status == .fullAccess || status == .writeOnly {
+                return
+            }
+            if status == .notDetermined {
+                let granted = try await eventStore.requestFullAccessToEvents()
+                if granted { return }
+            }
+            throw CalendarSyncError.permissionDenied
+        } else {
+            if status == .authorized {
+                return
+            }
+            if status == .notDetermined {
+                let granted = try await eventStore.requestAccess(to: .event)
+                if granted { return }
+            }
+            throw CalendarSyncError.permissionDenied
+        }
+    }
+
+    func fetchWritableCalendars() async throws -> [EKCalendar] {
+        try await ensureAccess()
+        var writable = eventStore.calendars(for: .event)
+            .filter { $0.allowsContentModifications }
+            .sorted { lhs, rhs in
+                let left = "\(lhs.source.title)|\(lhs.title)"
+                let right = "\(rhs.source.title)|\(rhs.title)"
+                return left.localizedCaseInsensitiveCompare(right) == .orderedAscending
+            }
+
+        if let fallback = eventStore.defaultCalendarForNewEvents,
+           fallback.allowsContentModifications,
+           !writable.contains(where: { $0.calendarIdentifier == fallback.calendarIdentifier }) {
+            writable.insert(fallback, at: 0)
+        }
+
+        return writable
+    }
+
+    func connect(to calendar: EKCalendar) {
+        selectedCalendarIdentifier = calendar.calendarIdentifier
+        isAutoSyncEnabled = true
+    }
+
+    func disconnect() {
+        selectedCalendarIdentifier = nil
+        isAutoSyncEnabled = false
+        UserDefaults.standard.removeObject(forKey: bookingEventMapKey)
+    }
+
+    func sync(bookings: [ProviderBookingSummary]) async throws -> SyncResult {
+        guard isAutoSyncEnabled, let calendarID = selectedCalendarIdentifier, !calendarID.isEmpty else {
+            throw CalendarSyncError.notConnected
+        }
+        guard let calendar = eventStore.calendar(withIdentifier: calendarID), calendar.allowsContentModifications else {
+            throw CalendarSyncError.calendarNotFound
+        }
+
+        isSyncing = true
+        defer { isSyncing = false }
+
+        var updatedMap = bookingEventMap()
+        var syncedCount = 0
+
+        for booking in bookings {
+            let event = findOrCreateEvent(for: booking, in: calendar, eventMap: updatedMap)
+            apply(booking: booking, to: event, in: calendar)
+            do {
+                try eventStore.save(event, span: .thisEvent, commit: false)
+                updatedMap[booking.id] = event.eventIdentifier
+                syncedCount += 1
+            } catch {
+                continue
+            }
+        }
+
+        try eventStore.commit()
+        saveBookingEventMap(updatedMap)
+        return SyncResult(syncedCount: syncedCount)
+    }
+
+    private func findOrCreateEvent(
+        for booking: ProviderBookingSummary,
+        in calendar: EKCalendar,
+        eventMap: [String: String]
+    ) -> EKEvent {
+        if let mappedIdentifier = eventMap[booking.id],
+           let mappedEvent = eventStore.event(withIdentifier: mappedIdentifier),
+           mappedEvent.calendar.calendarIdentifier == calendar.calendarIdentifier {
+            return mappedEvent
+        }
+
+        let marker = "\(bookingMarkerPrefix)\(booking.id)"
+        let windowStart = Calendar.current.date(byAdding: .year, value: -2, to: Date()) ?? Date.distantPast
+        let windowEnd = Calendar.current.date(byAdding: .year, value: 2, to: Date()) ?? Date.distantFuture
+        let predicate = eventStore.predicateForEvents(withStart: windowStart, end: windowEnd, calendars: [calendar])
+        if let existing = eventStore.events(matching: predicate).first(where: { event in
+            (event.notes ?? "").contains(marker)
+        }) {
+            return existing
+        }
+
+        return EKEvent(eventStore: eventStore)
+    }
+
+    private func apply(booking: ProviderBookingSummary, to event: EKEvent, in calendar: EKCalendar) {
+        let marker = "\(bookingMarkerPrefix)\(booking.id)"
+        let start = booking.scheduledStart ?? booking.createdAt
+        let fallbackEnd = Calendar.current.date(byAdding: .minute, value: 60, to: start) ?? start.addingTimeInterval(3600)
+        let end = booking.scheduledEnd ?? fallbackEnd
+
+        event.calendar = calendar
+        event.title = "\(booking.service) • \(booking.customerDisplayName)"
+        event.startDate = start
+        event.endDate = max(end, start.addingTimeInterval(60))
+        event.timeZone = .current
+
+        var notes: [String] = []
+        notes.append("Booking ID: \(booking.id)")
+        notes.append("Status: \(booking.statusLabel)")
+        notes.append("Customer: \(booking.customerDisplayName)")
+        notes.append("Amount: \(booking.amountLabel)")
+        if let bookingNotes = booking.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !bookingNotes.isEmpty {
+            notes.append("Notes: \(bookingNotes)")
+        }
+        notes.append(marker)
+        event.notes = notes.joined(separator: "\n")
+    }
+
+    private func bookingEventMap() -> [String: String] {
+        guard let raw = UserDefaults.standard.dictionary(forKey: bookingEventMapKey) as? [String: String] else {
+            return [:]
+        }
+        return raw
+    }
+
+    private func saveBookingEventMap(_ map: [String: String]) {
+        UserDefaults.standard.setValue(map, forKey: bookingEventMapKey)
+    }
+
+    enum CalendarSyncError: LocalizedError {
+        case permissionDenied
+        case calendarNotFound
+        case notConnected
+
+        var errorDescription: String? {
+            switch self {
+            case .permissionDenied:
+                return "Calendar access is required to sync bookings."
+            case .calendarNotFound:
+                return "The selected calendar is no longer available."
+            case .notConnected:
+                return "Connect a calendar first."
+            }
+        }
     }
 }

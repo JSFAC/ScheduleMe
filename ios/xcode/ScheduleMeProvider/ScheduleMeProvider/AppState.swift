@@ -21,6 +21,7 @@ final class AppState: ObservableObject {
     @Published var userEmail: String? = nil
     @Published var userID: String? = nil
     @Published var schoolDomain: String? = nil
+    @Published var schoolEmail: String? = nil
     @Published var avatarURL: String? = nil
     @Published var pendingBusinessLookupKey: String? = nil
     @Published var isSigningOut: Bool = false
@@ -75,8 +76,8 @@ final class AppState: ObservableObject {
     }
 
     func signOut() async {
+        let startedAt = Date()
         isSigningOut = true
-        defer { isSigningOut = false }
         await PushNotificationManager.shared.unregisterCurrentTokenIfPossible()
         do {
             try await SupabaseManager.shared.client.auth.signOut()
@@ -85,11 +86,21 @@ final class AppState: ObservableObject {
         }
         eduVerified = nil
         schoolDomain = nil
+        schoolEmail = nil
         userEmail = nil
         userID = nil
         avatarURL = nil
         pendingBusinessLookupKey = nil
         clearLocalAppData()
+
+        // Keep the sign-out transition visible long enough to avoid a flash/flicker.
+        let minimumVisible: TimeInterval = 2.1
+        let elapsed = Date().timeIntervalSince(startedAt)
+        if elapsed < minimumVisible {
+            let remaining = minimumVisible - elapsed
+            try? await Task.sleep(for: .milliseconds(Int(remaining * 1000)))
+        }
+        isSigningOut = false
     }
 
     func handleIncomingURL(_ url: URL) {
@@ -127,6 +138,7 @@ final class AppState: ObservableObject {
         if session != nil {
             eduVerified = nil
             schoolDomain = nil
+            schoolEmail = nil
             avatarURL = nil
             Task {
                 await PushNotificationManager.shared.requestAuthorizationIfNeeded()
@@ -137,6 +149,7 @@ final class AppState: ObservableObject {
         } else {
             eduVerified = nil
             schoolDomain = nil
+            schoolEmail = nil
             avatarURL = nil
         }
     }
@@ -193,6 +206,7 @@ final class AppState: ObservableObject {
         guard let userID else {
             eduVerified = nil
             schoolDomain = nil
+            schoolEmail = nil
             return
         }
 
@@ -206,9 +220,28 @@ final class AppState: ObservableObject {
             }
         }
 
+        struct BusinessEduStatus: Decodable {
+            let eduVerified: Bool?
+            let schoolDomain: String?
+            let schoolEmail: String?
+
+            enum CodingKeys: String, CodingKey {
+                case eduVerified = "edu_verified"
+                case schoolDomain = "school_domain"
+                case schoolEmail = "school_email"
+            }
+        }
+
         struct EduStatusAPI: Decodable {
             let verified: Bool?
             let schoolDomain: String?
+            let schoolEmail: String?
+
+            enum CodingKeys: String, CodingKey {
+                case verified
+                case schoolDomain = "school_domain"
+                case schoolEmail = "school_email"
+            }
         }
 
         // Prefer API-backed verification first (authoritative), then fallback below.
@@ -223,8 +256,33 @@ final class AppState: ObservableObject {
             if let domain = response.schoolDomain, !domain.isEmpty {
                 schoolDomain = domain
             }
+            if let email = response.schoolEmail?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+                schoolEmail = email.lowercased()
+            }
         } catch {
             // fall back to profile check below
+        }
+
+        // Provider fallback: check business row directly if API sync lags/fails.
+        do {
+            let businessResponse: PostgrestResponse<BusinessEduStatus> = try await SupabaseManager.shared.client
+                .from("businesses")
+                .select("edu_verified, school_domain, school_email")
+                .eq("owner_id", value: userID)
+                .limit(1)
+                .single()
+                .execute()
+            if let businessVerified = businessResponse.value.eduVerified {
+                eduVerified = businessVerified
+            }
+            if let businessDomain = businessResponse.value.schoolDomain, !businessDomain.isEmpty {
+                schoolDomain = businessDomain
+            }
+            if let businessEmail = businessResponse.value.schoolEmail, !businessEmail.isEmpty {
+                schoolEmail = businessEmail.lowercased()
+            }
+        } catch {
+            // no-op; profile fallback remains below
         }
 
         do {
@@ -243,6 +301,9 @@ final class AppState: ObservableObject {
 
         if schoolDomain == nil {
             schoolDomain = resolvedSchoolDomain
+        }
+        if schoolEmail == nil {
+            schoolEmail = userEmail
         }
     }
 

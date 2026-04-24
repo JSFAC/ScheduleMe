@@ -28,8 +28,9 @@ struct ProviderRootView: View {
     }
 
     private var isProviderLoadingState: Bool {
-        if appState.isSigningOut || appState.isLoading { return true }
+        if appState.isSigningOut { return true }
         guard appState.isAuthenticated else { return false }
+        if appState.isLoading { return true }
         return providerStore.isBootstrapping
             || !providerStore.hasResolvedAccessDecision
             || !providerStore.hasCompletedInitialDataLoad
@@ -134,7 +135,7 @@ struct ProviderRootView: View {
                             }
                         }
                     }
-                } else if shouldShowLoading {
+                } else if appState.isSigningOut {
                     currentLoadingView
                 } else {
                     AuthView()

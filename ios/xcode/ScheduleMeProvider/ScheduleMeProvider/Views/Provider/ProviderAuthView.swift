@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import UIKit
 
 struct ProviderAuthView: View {
     @Environment(\.openURL) private var openURL
@@ -374,7 +375,6 @@ struct ProviderApplicationView: View {
     @State private var email = ""
     @State private var phone = ""
     @State private var serviceCategory = ""
-    @State private var otherCategory = ""
     @State private var city = ""
     @State private var zipCode = ""
     @State private var serviceRadiusMiles: Double = 25
@@ -387,28 +387,58 @@ struct ProviderApplicationView: View {
     @State private var isSubmitting = false
     @State private var resultMessage: String?
     @State private var submissionError: String?
+    @State private var emailInUseWarning: String?
+    @State private var emailCheckTask: Task<Void, Never>?
+    @State private var didSubmitSuccessfully = false
+    @State private var showSubmissionConfirmationModal = false
 
-    private let categories = [
-        "Plumbing", "Electrical", "HVAC", "Cleaning", "Handyman", "Home Repair / Handyman",
-        "Painting", "Landscaping", "Roofing", "Carpentry", "Moving", "Photography",
-        "Tutoring", "Hair & Beauty", "Salon / Beauty", "Auto Repair", "Automotive",
-        "Arts & Crafts", "Pest Control", "Other"
-    ]
     private var serviceRadiusLabel: String {
         "\(Int(serviceRadiusMiles.rounded())) miles"
+    }
+
+    private var trimmedEmail: String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedPhone: String {
+        phone.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var normalizedSchoolNamePreview: String? {
+        guard campusProvider else { return nil }
+        let normalized = normalizedCampusName(schoolName)
+        guard !normalized.isEmpty else { return nil }
+        return normalized
+    }
+
+    private var emailValidationMessage: String? {
+        guard !trimmedEmail.isEmpty else { return nil }
+        let pattern = #"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$"#
+        let valid = trimmedEmail.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+        return valid ? nil : "Enter a valid email address."
+    }
+
+    private var phoneValidationMessage: String? {
+        guard !trimmedPhone.isEmpty else { return nil }
+        let digits = trimmedPhone.filter(\.isNumber)
+        return (10...15).contains(digits.count) ? nil : "Enter a valid phone number (10-15 digits)."
     }
 
     private var canSubmit: Bool {
         !businessName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !ownerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !trimmedEmail.isEmpty &&
+        !trimmedPhone.isEmpty &&
+        emailValidationMessage == nil &&
+        emailInUseWarning == nil &&
+        phoneValidationMessage == nil &&
         !city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !zipCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !serviceCategory.isEmpty &&
         (!campusProvider || !schoolName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) &&
         acceptedTerms &&
-        !isSubmitting
+        !isSubmitting &&
+        !didSubmitSuccessfully
     }
 
     var body: some View {
@@ -445,13 +475,67 @@ struct ProviderApplicationView: View {
             }
             .padding(16)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .background(
+            KeyboardDismissTapCatcher {
+                dismissKeyboard()
+            }
+        )
         .background(Color(hex: "0D0D0D").ignoresSafeArea())
+        .overlay {
+            if showSubmissionConfirmationModal {
+                ZStack {
+                    Color.black.opacity(0.55)
+                        .ignoresSafeArea()
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(Color(hex: "0C9182"))
+                            Text("Application Submitted")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 22).weight(.bold))
+                                .foregroundStyle(Color.white)
+                        }
+
+                        Text("Your provider application was received. Please wait for an email from ScheduleMe with either approval or denial after review.")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
+                            .foregroundStyle(Color(hex: "C5CBD6"))
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("Typical review time: 24-48 hours.")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundStyle(Color(hex: "8FA6A1"))
+
+                        Button("I Understand") {
+                            dismiss()
+                        }
+                        .buttonStyle(ScheduleMePrimaryButtonStyle())
+                        .padding(.top, 4)
+                    }
+                    .padding(18)
+                    .background(Color(hex: "17191E"))
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color(hex: "2C323A"))
+                    )
+                    .padding(.horizontal, 22)
+                }
+            }
+        }
         .navigationTitle("Provider Application")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(Color(hex: "0D0D0D"), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .preferredColorScheme(.dark)
+        .onChange(of: email) { _, newValue in
+            scheduleEmailInUseCheck(for: newValue)
+        }
+        .onDisappear {
+            emailCheckTask?.cancel()
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
@@ -504,9 +588,10 @@ struct ProviderApplicationView: View {
             HStack(spacing: 8) {
                 appField("Owner name *", text: $ownerName)
                     .frame(maxWidth: .infinity)
-                appField("Years (optional)", text: $yearsInBusiness)
-                    .frame(width: 138)
+                appField("Years in field (optional)", text: $yearsInBusiness, fontSize: 12)
+                    .frame(width: 168)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             appField("License number (optional)", text: $licenseNumber)
         }
     }
@@ -517,35 +602,37 @@ struct ProviderApplicationView: View {
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+            if let emailValidationMessage {
+                Text(emailValidationMessage)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let emailInUseWarning {
+                Text(emailInUseWarning)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             appField("Phone *", text: $phone)
                 .keyboardType(.phonePad)
+            if let phoneValidationMessage {
+                Text(phoneValidationMessage)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
     private var sectionThree: some View {
         applicationSection(number: "3", title: "Service & Location") {
-            Menu {
-                ForEach(categories, id: \.self) { category in
-                    Button(category) { serviceCategory = category }
-                }
-            } label: {
-                HStack {
-                    Text(serviceCategory.isEmpty ? "Select category *" : serviceCategory)
-                        .foregroundStyle(serviceCategory.isEmpty ? Color(hex: "6C6C75") : Color(hex: "ECECF0"))
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .foregroundStyle(Color(hex: "6C6C75"))
-                }
-                .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(Color(hex: "121212"))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2A2A2E")))
-            }
-
-            if serviceCategory == "Other" {
-                appField("Other category", text: $otherCategory)
+            appField("Category *", text: $serviceCategory)
+            if !serviceCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Normalized as: \(ProviderCategoryNormalizer.label(for: serviceCategory))")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                    .foregroundStyle(Color(hex: "6FAEA6"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             HStack(spacing: 8) {
@@ -579,12 +666,12 @@ struct ProviderApplicationView: View {
 
     private var sectionSocials: some View {
         applicationSection(number: "4", title: "Socials") {
-            appField("Website", text: $website)
+            appField("Website (optional)", text: $website)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
-            appField("Instagram", text: $instagram)
+            appField("Instagram (optional)", text: $instagram)
         }
     }
 
@@ -597,6 +684,12 @@ struct ProviderApplicationView: View {
 
             if campusProvider {
                 appField("Campus name *", text: $schoolName)
+                if let normalizedSchoolNamePreview {
+                    Text("Normalized as: \(normalizedSchoolNamePreview)")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                        .foregroundStyle(Color(hex: "6FAEA6"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
@@ -782,10 +875,9 @@ struct ProviderApplicationView: View {
     }
 
     @ViewBuilder
-    private func appField(_ placeholder: String, text: Binding<String>) -> some View {
+    private func appField(_ placeholder: String, text: Binding<String>, fontSize: CGFloat = 14) -> some View {
         TextField("", text: text, prompt: Text(placeholder).foregroundStyle(Color(hex: "6B7280")))
-            .scheduleMePasteMenu(text)
-            .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.medium))
+            .font(.custom(ScheduleMeTheme.fontName, size: fontSize).weight(.medium))
             .foregroundStyle(Color(hex: "E7EAF0"))
             .tint(Color(hex: "0C9182"))
             .padding(.horizontal, 12)
@@ -814,25 +906,9 @@ struct ProviderApplicationView: View {
     private func submit() async {
         submissionError = nil
         resultMessage = nil
+        guard !didSubmitSuccessfully else { return }
         isSubmitting = true
         defer { isSubmitting = false }
-
-        struct ApplicationRequest: Encodable {
-            let businessName: String
-            let ownerName: String
-            let email: String
-            let phone: String?
-            let serviceCategory: String
-            let otherCategory: String?
-            let city: String
-            let zipCode: String
-            let serviceRadiusMiles: String
-            let licenseNumber: String?
-            let website: String?
-            let instagram: String?
-            let campusProvider: Bool
-            let schoolName: String?
-        }
 
         struct ApplicationResponse: Decodable {
             let success: Bool?
@@ -840,68 +916,91 @@ struct ProviderApplicationView: View {
             let error: String?
         }
 
-        let configuredBase = (Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedBase: String
-        if configuredBase.hasPrefix("http://") {
-            normalizedBase = ""
-        } else if configuredBase.hasPrefix("https://") {
-            normalizedBase = configuredBase
-        } else if configuredBase.isEmpty {
-            normalizedBase = ""
-        } else {
-            normalizedBase = "https://\(configuredBase)"
+        struct MobileApplicationRequest: Encodable {
+            let businessName: String
+            let ownerName: String
+            let email: String
+            let phone: String?
+            let serviceCategory: String
+            let otherCategory: String?
+            let city: String
+            let website: String?
+            let instagram: String?
+            let campusProvider: Bool
+            let schoolName: String?
         }
 
-        guard let baseURL = URL(string: normalizedBase),
-              baseURL.scheme?.lowercased() == "https",
-              let url = URL(string: "/api/business-signup", relativeTo: baseURL) else {
-            submissionError = "Invalid API configuration."
+        let trimmedBusinessName = businessName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let invalid = ProviderInputValidator.invalidNameMessage(trimmedBusinessName) {
+            submissionError = invalid
             return
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("ios-provider", forHTTPHeaderField: "X-Client-Platform")
-        request.setValue(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown", forHTTPHeaderField: "X-Client-Version")
+        let rawCategory = serviceCategory.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let invalid = ProviderInputValidator.invalidCategoryMessage(rawCategory) {
+            submissionError = invalid
+            return
+        }
+        let canonicalCategoryKey = ProviderCategoryNormalizer.normalizeServiceTag(rawCategory, allowFallback: true)
+        if canonicalCategoryKey.isEmpty {
+            submissionError = "Please select a valid category."
+            return
+        }
+        let canonicalCategoryLabel = ProviderCategoryNormalizer.label(for: canonicalCategoryKey)
 
-        let payload = ApplicationRequest(
-            businessName: businessName.trimmingCharacters(in: .whitespacesAndNewlines),
+        let mobilePayload = MobileApplicationRequest(
+            businessName: trimmedBusinessName,
             ownerName: ownerName.trimmingCharacters(in: .whitespacesAndNewlines),
-            email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-            phone: phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : phone.trimmingCharacters(in: .whitespacesAndNewlines),
-            serviceCategory: serviceCategory,
-            otherCategory: otherCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : otherCategory.trimmingCharacters(in: .whitespacesAndNewlines),
+            email: trimmedEmail,
+            phone: trimmedPhone.isEmpty ? nil : trimmedPhone,
+            serviceCategory: canonicalCategoryKey,
+            otherCategory: canonicalCategoryLabel.caseInsensitiveCompare(rawCategory) == .orderedSame ? nil : rawCategory,
             city: city.trimmingCharacters(in: .whitespacesAndNewlines),
-            zipCode: zipCode.trimmingCharacters(in: .whitespacesAndNewlines),
-            serviceRadiusMiles: "\(Int(serviceRadiusMiles.rounded()))",
-            licenseNumber: licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines),
             website: normalizedWebsite(website),
             instagram: instagram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : instagram.trimmingCharacters(in: .whitespacesAndNewlines),
             campusProvider: campusProvider,
-            schoolName: schoolName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : schoolName.trimmingCharacters(in: .whitespacesAndNewlines)
+            schoolName: campusProvider ? normalizedCampusName(schoolName) : nil
         )
 
         do {
-            request.httpBody = try JSONEncoder().encode(payload)
-            let (data, response) = try await APIClient.shared.performRaw(request, category: .auth)
-            guard let http = response as? HTTPURLResponse else {
-                submissionError = "Invalid server response."
+            let response: ApplicationResponse = try await APIClient.shared.send(
+                path: "/api/mobile-business-signup",
+                method: "POST",
+                body: mobilePayload,
+                requiresAuth: false
+            )
+            if response.success == true {
+                didSubmitSuccessfully = true
+                submissionError = nil
+                resultMessage = nil
+                showSubmissionConfirmationModal = true
                 return
             }
-
-            let decoded = try? JSONDecoder().decode(ApplicationResponse.self, from: data)
-
-            if (200..<300).contains(http.statusCode), decoded?.success == true {
-                resultMessage = "Application submitted successfully. We'll email you after review."
+            let backendMessage = response.error?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if backendMessage.lowercased().contains("already exists") {
+                submissionError = "This email is already linked to an existing provider application."
             } else {
-                submissionError = "Unable to submit application right now. Please try again."
+                submissionError = backendMessage.isEmpty
+                    ? "Unable to submit application right now. Please try again."
+                    : backendMessage
             }
         } catch {
-            submissionError = "Unable to submit application right now. Please try again."
+            let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = message.lowercased()
+            if lower.contains("already exists") || lower.contains("already linked to an existing provider") {
+                submissionError = "This email is already linked to an existing provider application."
+            } else if lower.contains("authentication required") || lower.contains("invalid or expired session") || lower.contains("sign in") {
+                submissionError = "Please sign in again, then submit your provider application."
+            } else {
+                submissionError = message.isEmpty
+                    ? "Unable to submit application right now. Please try again."
+                    : message
+            }
         }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     private func normalizedWebsite(_ raw: String) -> String? {
@@ -911,5 +1010,184 @@ struct ProviderApplicationView: View {
             return trimmed
         }
         return "https://\(trimmed)"
+    }
+
+    private func normalizedCampusName(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+
+        let collapsed = trimmed.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        let lower = collapsed.lowercased()
+
+        let knownAcronyms: [String: String] = [
+            "ucsc": "UCSC",
+            "ucla": "UCLA",
+            "ucsb": "UCSB",
+            "ucsd": "UCSD",
+            "ucd": "UCD",
+            "uc davis": "UC Davis",
+            "sjsu": "SJSU",
+            "sfsu": "SFSU",
+            "nyu": "NYU",
+            "usc": "USC",
+            "mit": "MIT",
+            "ucla extension": "UCLA Extension"
+        ]
+        if let mapped = knownAcronyms[lower] { return mapped }
+
+        if lower.range(of: #"^[a-z]{2,6}$"#, options: .regularExpression) != nil {
+            return lower.uppercased()
+        }
+
+        return collapsed
+            .split(separator: " ")
+            .map { token in
+                let part = String(token)
+                if part.count <= 4, part.range(of: #"^[A-Za-z]+$"#, options: .regularExpression) != nil {
+                    return part.uppercased()
+                }
+                return part.prefix(1).uppercased() + part.dropFirst().lowercased()
+            }
+            .joined(separator: " ")
+    }
+
+    private struct ProviderEmailCheckResponse: Decodable {
+        let exists: Bool
+        let status: String?
+    }
+
+    private func scheduleEmailInUseCheck(for raw: String) {
+        emailCheckTask?.cancel()
+        emailInUseWarning = nil
+
+        let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalized.isEmpty, emailValidationMessage == nil else { return }
+
+        emailCheckTask = Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            await checkEmailInUse(normalized)
+        }
+    }
+
+    private func checkEmailInUse(_ normalizedEmail: String) async {
+        do {
+            let response: ProviderEmailCheckResponse = try await APIClient.shared.get(
+                path: "/api/provider-email-check",
+                queryItems: [URLQueryItem(name: "email", value: normalizedEmail)],
+                requiresAuth: false
+            )
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                if email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != normalizedEmail {
+                    return
+                }
+                guard response.exists else {
+                    emailInUseWarning = nil
+                    return
+                }
+                let normalizedStatus = response.status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if normalizedStatus == "pending" {
+                    emailInUseWarning = "An application with this email is pending review. Please wait for the approval or denial email."
+                } else if normalizedStatus == "approved" {
+                    emailInUseWarning = "This email is already linked to an approved provider account."
+                } else {
+                    emailInUseWarning = "This email is already linked to a provider application."
+                }
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                emailInUseWarning = nil
+            }
+        }
+    }
+}
+
+private struct KeyboardDismissTapCatcher: UIViewRepresentable {
+    let onTapOutsideTextInput: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onTapOutsideTextInput: onTapOutsideTextInput)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.ensureRecognizerInstalled(from: uiView)
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        private let onTapOutsideTextInput: () -> Void
+        private weak var hostView: UIView?
+        private weak var recognizer: UITapGestureRecognizer?
+
+        init(onTapOutsideTextInput: @escaping () -> Void) {
+            self.onTapOutsideTextInput = onTapOutsideTextInput
+        }
+
+        deinit {
+            if let recognizer, let hostView {
+                hostView.removeGestureRecognizer(recognizer)
+            }
+        }
+
+        func ensureRecognizerInstalled(from anchor: UIView) {
+            DispatchQueue.main.async { [weak self, weak anchor] in
+                guard let self, let anchor else { return }
+                let targetHost = self.findScrollableHost(startingAt: anchor) ?? anchor.window
+                guard let targetHost else { return }
+
+                if self.hostView === targetHost, self.recognizer != nil { return }
+
+                if let recognizer = self.recognizer, let hostView = self.hostView {
+                    hostView.removeGestureRecognizer(recognizer)
+                }
+
+                let tap = UITapGestureRecognizer(target: self, action: #selector(Coordinator.handleTap(_:)))
+                tap.cancelsTouchesInView = false
+                tap.delegate = self
+                targetHost.addGestureRecognizer(tap)
+
+                self.hostView = targetHost
+                self.recognizer = tap
+            }
+        }
+
+        @objc
+        private func handleTap(_ gesture: UITapGestureRecognizer) {
+            onTapOutsideTextInput()
+        }
+
+        private func findScrollableHost(startingAt view: UIView) -> UIView? {
+            var current = view.superview
+            while let candidate = current {
+                if candidate is UIScrollView {
+                    return candidate
+                }
+                current = candidate.superview
+            }
+            return nil
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            var view = touch.view
+            while let current = view {
+                if current is UITextField || current is UITextView {
+                    return false
+                }
+                view = current.superview
+            }
+            return true
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
+        }
     }
 }

@@ -1020,17 +1020,21 @@ private struct ProviderConversationView: View {
                     throw DataStoreError.server("Could not read selected media.")
                 }
                 let contentType = item.supportedContentTypes.first
-                let mimeType = contentType?.preferredMIMEType ?? "image/jpeg"
                 let mediaType = (contentType?.conforms(to: .movie) == true) ? "video" : "image"
-                let ext = mediaType == "video" ? "mp4" : "jpg"
-                let fileName = "provider_msg_\(UUID().uuidString).\(ext)"
+                let baseMimeType = contentType?.preferredMIMEType ?? (mediaType == "video" ? "video/mp4" : "image/jpeg")
+                let optimized = try UploadMediaOptimizer.prepareForUpload(
+                    data: data,
+                    mimeType: baseMimeType,
+                    mediaType: mediaType
+                )
+                let fileName = "provider_msg_\(UUID().uuidString).\(optimized.fileExtension)"
                 prepared.append(
                     PendingAttachment(
-                        data: data,
-                        mimeType: mimeType,
+                        data: optimized.data,
+                        mimeType: optimized.mimeType,
                         fileName: fileName,
                         mediaType: mediaType,
-                        previewImage: mediaType == "image" ? UIImage(data: data) : nil
+                        previewImage: mediaType == "image" ? UIImage(data: optimized.data) : nil
                     )
                 )
             }
@@ -1046,17 +1050,28 @@ private struct ProviderConversationView: View {
             sendError = "Could not process captured image."
             return
         }
+        let optimized: (data: Data, mimeType: String, fileExtension: String)
+        do {
+            optimized = try UploadMediaOptimizer.prepareForUpload(
+                data: data,
+                mimeType: "image/jpeg",
+                mediaType: "image"
+            )
+        } catch {
+            sendError = humanReadableUploadError(error)
+            return
+        }
         if pendingAttachments.count >= 6 {
             sendError = "You can attach up to 6 items at once."
             return
         }
         pendingAttachments.append(
             PendingAttachment(
-                data: data,
-                mimeType: "image/jpeg",
-                fileName: "provider_camera_\(UUID().uuidString).jpg",
+                data: optimized.data,
+                mimeType: optimized.mimeType,
+                fileName: "provider_camera_\(UUID().uuidString).\(optimized.fileExtension)",
                 mediaType: "image",
-                previewImage: image
+                previewImage: UIImage(data: optimized.data) ?? image
             )
         )
         sendError = nil

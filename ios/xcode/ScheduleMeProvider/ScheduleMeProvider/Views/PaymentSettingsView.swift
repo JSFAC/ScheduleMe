@@ -1,5 +1,5 @@
 // FILE OVERVIEW:
-// Saved card management screen, Stripe setup intent, and Apple Pay card entry trigger.
+// Saved card management screen and Stripe setup intent flow.
 //
 // DEBUG NOTES:
 // Payment-method add/remove/default issues are primarily debugged here.
@@ -97,12 +97,12 @@ struct PaymentSettingsView: View {
 #else
                 showingCardEntry = true
 #endif
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                    Text("Add Card / Apple Pay")
-                }
-            }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus")
+                            Text("Add Card")
+                        }
+                    }
             .buttonStyle(ScheduleMeSecondaryButtonStyle())
         }
         .task {
@@ -199,7 +199,6 @@ struct PaymentSettingsView: View {
             let scheme = rawScheme?.trimmingCharacters(in: .whitespacesAndNewlines)
             let resolvedScheme = (scheme?.isEmpty == false) ? (scheme ?? "scheduleme") : "scheduleme"
             config.returnURL = "\(resolvedScheme)://stripe-redirect"
-            applyApplePayIfAvailable(config: &config)
             guard let customerId = response.customerId, let ephemeralKey = response.ephemeralKey else {
                 paymentError = "Stripe setup missing customer or ephemeral key."
                 return
@@ -216,23 +215,6 @@ struct PaymentSettingsView: View {
         paymentError = "Stripe is unavailable in this build."
 #endif
     }
-
-    #if canImport(StripePaymentSheet)
-    /// Enables Apple Pay in the sheet when merchant config + device capability are present.
-    private func applyApplePayIfAvailable(config: inout PaymentSheet.Configuration) {
-        guard StripeAPI.deviceSupportsApplePay() else { return }
-        guard let rawMerchantId = Bundle.main.object(forInfoDictionaryKey: "APPLE_PAY_MERCHANT_ID") as? String else { return }
-        let merchantId = rawMerchantId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !merchantId.isEmpty else { return }
-        let countryCode: String
-        if #available(iOS 16.0, *) {
-            countryCode = Locale.current.region?.identifier ?? "US"
-        } else {
-            countryCode = Locale.current.regionCode ?? "US"
-        }
-        config.applePay = .init(merchantId: merchantId, merchantCountryCode: countryCode)
-    }
-    #endif
 
     /// Presents PaymentSheet on the active top-most UIKit view controller.
     private func presentPaymentSheet() {

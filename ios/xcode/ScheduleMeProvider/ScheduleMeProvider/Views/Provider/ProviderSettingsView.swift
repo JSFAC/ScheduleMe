@@ -17,6 +17,9 @@ struct ProviderSettingsView: View {
     @State private var statusMessage: String?
     @State private var isHydrating = true
     @State private var showingDeleteAccountConfirm = false
+    @State private var showingEduSheet = false
+    @State private var showingRemoveEduConfirm = false
+    @State private var isRemovingEduVerification = false
     @State private var hydratedProfileID: String?
     
     private var destructiveTextColor: Color {
@@ -49,6 +52,7 @@ struct ProviderSettingsView: View {
                     VStack(spacing: 12) {
                         availabilityCard
                         profileCard
+                        eduVerificationCard
                         stripeCard
                         legalCard
                         signOutButton
@@ -56,6 +60,30 @@ struct ProviderSettingsView: View {
                     }
                     .padding(16)
                 }
+            }
+
+            if showingEduSheet {
+                ZStack {
+                    Color.black.opacity(0.6)
+                        .ignoresSafeArea()
+
+                    ProviderEduConnectSheet(
+                        viewOnly: appState.eduVerified == true,
+                        onClose: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                showingEduSheet = false
+                            }
+                        }
+                    ) {
+                        Task {
+                            await appState.refreshEduVerification()
+                            await providerStore.refreshAll(force: true)
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                }
+                .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .center)), removal: .opacity))
+                .zIndex(20)
             }
         }
         .navigationTitle("Settings")
@@ -254,6 +282,49 @@ struct ProviderSettingsView: View {
         }
     }
 
+    private var eduVerificationCard: some View {
+        settingsCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("EDU Verification")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                    .foregroundStyle(ScheduleMeTheme.titleText)
+
+                Text(eduStatusTitle)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                    .foregroundStyle(appState.eduVerified == true ? Color(hex: "22C55E") : ScheduleMeTheme.titleText)
+
+                Text(eduStatusSubtitle)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                    .foregroundStyle(ScheduleMeTheme.mutedText)
+
+                Button(appState.eduVerified == true ? "View EDU Status" : "Connect .edu Email") {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                        showingEduSheet = true
+                    }
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+
+                if appState.eduVerified == true || (appState.schoolDomain?.isEmpty == false) {
+                    Button(isRemovingEduVerification ? "Removing..." : "Remove EDU Verification", role: .destructive) {
+                        showingRemoveEduConfirm = true
+                    }
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                    .foregroundStyle(destructiveTextColor)
+                    .buttonStyle(.plain)
+                    .disabled(isRemovingEduVerification)
+                    .confirmationDialog("Remove EDU verification?", isPresented: $showingRemoveEduConfirm, titleVisibility: .visible) {
+                        Button("Remove EDU Verification", role: .destructive) {
+                            Task { await clearEduVerification() }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This will unlink your current EDU verification status. You can reconnect later.")
+                    }
+                }
+            }
+        }
+    }
+
     private var legalCard: some View {
         settingsCard {
             VStack(alignment: .leading, spacing: 10) {
@@ -402,6 +473,64 @@ struct ProviderSettingsView: View {
             statusMessage = error.localizedDescription
         }
     }
+
+    private var eduStatusTitle: String {
+        if appState.eduVerified == true { return "Verified" }
+        return "Not Verified"
+    }
+
+    private var eduStatusSubtitle: String {
+        if let domain = appState.schoolDomain, !domain.isEmpty {
+            if appState.eduVerified == true {
+                if let schoolEmail = appState.schoolEmail, !schoolEmail.isEmpty {
+                    return "Connected to \(schoolEmail). Campus access is enabled."
+                }
+                return "Connected to \(domain). Campus access is enabled."
+            }
+            return "School domain: \(domain). Verification is not complete."
+        }
+        return "Connect your .edu email to unlock campus features."
+    }
+
+    private struct ClearEduRequest: Encodable {
+        let action: String
+        let accountType: String
+
+        enum CodingKeys: String, CodingKey {
+            case action
+            case accountType = "account_type"
+        }
+    }
+
+    private struct VerifyEduResponse: Decodable {
+        let success: Bool?
+        let message: String?
+        let error: String?
+    }
+
+    private func clearEduVerification() async {
+        guard !isRemovingEduVerification else { return }
+        isRemovingEduVerification = true
+        defer { isRemovingEduVerification = false }
+
+        do {
+            let response: VerifyEduResponse = try await APIClient.shared.send(
+                path: "/api/verify-edu",
+                method: "POST",
+                body: ClearEduRequest(action: "clear", accountType: "business"),
+                requiresAuth: true
+            )
+            if response.success == true {
+                await appState.refreshEduVerification()
+                await providerStore.refreshAll(force: true)
+                statusMessage = response.message ?? "EDU verification removed."
+            } else {
+                statusMessage = response.error ?? "Unable to remove EDU verification."
+            }
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
 }
 
 private struct CompactSettingsFieldModifier: ViewModifier {
@@ -418,5 +547,305 @@ private struct CompactSettingsFieldModifier: ViewModifier {
                     .stroke(ScheduleMeTheme.cardBorder)
                     .allowsHitTesting(false)
             )
+    }
+}
+
+private struct ProviderEduConnectSheet: View {
+    @EnvironmentObject private var appState: AppState
+
+    let viewOnly: Bool
+    let onClose: () -> Void
+    let onVerified: () -> Void
+
+    @State private var eduEmail = ""
+    @State private var verificationCode = ""
+    @State private var codeSent = false
+    @State private var isWorking = false
+    @State private var errorText: String?
+    @State private var successText: String?
+    @State private var showVerifiedModal = false
+
+    private var requiredDomain: String? {
+        appState.schoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var resolvedEduEmail: String {
+        let fromState = appState.schoolEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !fromState.isEmpty { return fromState.lowercased() }
+        return ""
+    }
+
+    private var canSendCode: Bool {
+        let normalized = eduEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalized.hasSuffix(".edu") else { return false }
+        if let requiredDomain, !requiredDomain.isEmpty {
+            return normalized.hasSuffix(requiredDomain)
+        }
+        return true
+    }
+
+    private var canVerifyCode: Bool {
+        verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count == 6
+    }
+
+    var body: some View {
+        ZStack {
+            ScheduleMeCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("EDU Verification")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
+                            .foregroundColor(ScheduleMeTheme.titleText)
+                        Spacer()
+                        Button(action: onClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+                                .frame(width: 28, height: 28)
+                                .background(ScheduleMeTheme.surface)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Text(viewOnly
+                         ? "Your .edu verification is active for this account."
+                         : "Use your .edu email to unlock campus-only features.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+
+                    if let requiredDomain, !requiredDomain.isEmpty {
+                        Text("Approved school domain: \(requiredDomain)")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                    }
+
+                    if !viewOnly {
+                        if codeSent {
+                            Text("Verification code")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+
+                            TextField("", text: $verificationCode)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                                .keyboardType(.numberPad)
+                                .foregroundColor(ScheduleMeTheme.titleText)
+                                .modifier(CompactSettingsFieldModifier())
+                                .overlay(alignment: .leading) {
+                                    if verificationCode.isEmpty {
+                                        Text("6-digit code")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                            .foregroundColor(ScheduleMeTheme.mutedText)
+                                            .padding(.leading, 16)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+
+                            HStack(spacing: 10) {
+                                Button(isWorking ? "Verifying..." : "Verify code") {
+                                    Task { await verifyCode() }
+                                }
+                                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                .disabled(isWorking || !canVerifyCode)
+
+                                Button(isWorking ? "Sending..." : "Resend") {
+                                    Task { await sendCode() }
+                                }
+                                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                                .disabled(isWorking)
+                            }
+                        } else {
+                            Text("School email")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+
+                            TextField("", text: $eduEmail)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                                .keyboardType(.emailAddress)
+                                .foregroundColor(ScheduleMeTheme.titleText)
+                                .modifier(CompactSettingsFieldModifier())
+                                .overlay(alignment: .leading) {
+                                    if eduEmail.isEmpty {
+                                        Text("name@school.edu")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                            .foregroundColor(ScheduleMeTheme.mutedText)
+                                            .padding(.leading, 16)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+
+                            Button(isWorking ? "Sending..." : "Send verification code") {
+                                Task { await sendCode() }
+                            }
+                            .buttonStyle(ScheduleMePrimaryButtonStyle())
+                            .disabled(!canSendCode || isWorking)
+                        }
+                    } else {
+                        Text("School email")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+
+                        TextField("", text: $eduEmail)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .keyboardType(.emailAddress)
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                            .modifier(CompactSettingsFieldModifier())
+                            .disabled(true)
+                            .overlay(alignment: .leading) {
+                                if eduEmail.isEmpty {
+                                    Text("name@school.edu")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                        .padding(.leading, 16)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                    }
+
+                    if let successText {
+                        Text(successText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.accent)
+                    }
+
+                    if let errorText {
+                        Text(errorText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(.red)
+                    }
+                }
+                .padding(16)
+            }
+            .frame(maxWidth: 420)
+            .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 6)
+            .padding(.vertical, 28)
+
+            if showVerifiedModal {
+                Color.black.opacity(0.55)
+                    .ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Campus Verification Complete")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+
+                    Text("Your .edu email is confirmed. Wait for approval/denial email updates if your campus access is still pending.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
+
+                    Button("Confirm") {
+                        showVerifiedModal = false
+                        onVerified()
+                        onClose()
+                    }
+                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                }
+                .padding(16)
+                .background(ScheduleMeTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(ScheduleMeTheme.cardBorder)
+                )
+                .padding(.horizontal, 24)
+            }
+        }
+        .onAppear {
+            eduEmail = viewOnly ? resolvedEduEmail : ""
+            if viewOnly {
+                codeSent = false
+                verificationCode = ""
+            }
+        }
+    }
+
+    private struct VerifyEduRequest: Encodable {
+        let action: String?
+        let schoolEmail: String?
+        let code: String?
+        let accountType: String
+
+        enum CodingKeys: String, CodingKey {
+            case action
+            case schoolEmail = "school_email"
+            case code
+            case accountType = "account_type"
+        }
+    }
+
+    private struct VerifyEduResponse: Decodable {
+        let success: Bool?
+        let message: String?
+        let error: String?
+    }
+
+    private func sendCode() async {
+        guard canSendCode else { return }
+        await MainActor.run {
+            isWorking = true
+            errorText = nil
+            successText = nil
+        }
+        defer { Task { @MainActor in isWorking = false } }
+
+        let normalized = eduEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        do {
+            let response: VerifyEduResponse = try await APIClient.shared.send(
+                path: "/api/verify-edu",
+                method: "POST",
+                body: VerifyEduRequest(action: nil, schoolEmail: normalized, code: nil, accountType: "business"),
+                requiresAuth: true
+            )
+            await MainActor.run {
+                if response.success == true {
+                    codeSent = true
+                    successText = response.message ?? "Code sent."
+                    errorText = nil
+                } else {
+                    errorText = response.error ?? "Unable to send code."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorText = error.localizedDescription
+            }
+        }
+    }
+
+    private func verifyCode() async {
+        guard canVerifyCode else { return }
+        await MainActor.run {
+            isWorking = true
+            errorText = nil
+            successText = nil
+        }
+        defer { Task { @MainActor in isWorking = false } }
+
+        let normalizedCode = verificationCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let response: VerifyEduResponse = try await APIClient.shared.send(
+                path: "/api/verify-edu",
+                method: "POST",
+                body: VerifyEduRequest(action: "verify", schoolEmail: nil, code: normalizedCode, accountType: "business"),
+                requiresAuth: true
+            )
+            await MainActor.run {
+                if response.success == true {
+                    successText = "Campus connected."
+                    errorText = nil
+                    showVerifiedModal = true
+                } else {
+                    errorText = response.error ?? "Verification failed."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorText = error.localizedDescription
+            }
+        }
     }
 }

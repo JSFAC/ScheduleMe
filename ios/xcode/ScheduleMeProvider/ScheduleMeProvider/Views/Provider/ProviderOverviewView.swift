@@ -2,11 +2,14 @@ import SwiftUI
 import UIKit
 
 struct ProviderOverviewView: View {
+    @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var providerStore: ProviderDataStore
+    @AppStorage("provider_overview_student_banner_dismissed") private var studentBannerDismissed = false
     @State private var path: [ProviderMoreDestination] = []
     @State private var stripeActionInFlight = false
     @State private var stripeActionError: String?
     @State private var selectedRevenueBarIndex: Int?
+    @State private var showingCampusConnectSheet = false
 
     private var completedCount: Int {
         providerStore.bookings.filter {
@@ -34,6 +37,10 @@ struct ProviderOverviewView: View {
 
     private var awaitingPayoutLabel: String {
         NumberFormatter.currency.string(from: NSNumber(value: Double(providerStore.awaitingPayoutNetCents) / 100.0)) ?? "$0"
+    }
+
+    private var shouldShowStudentBanner: Bool {
+        appState.eduVerified != true && !studentBannerDismissed
     }
 
     private var revenueBars: [(label: String?, cents: Int)] {
@@ -97,6 +104,9 @@ struct ProviderOverviewView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 14) {
                         header
+                        if shouldShowStudentBanner {
+                            studentCampusBanner
+                        }
                         kpiGrid
                         revenueCard
                         quickActions
@@ -105,6 +115,27 @@ struct ProviderOverviewView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+                }
+
+                if showingCampusConnectSheet {
+                    ZStack {
+                        Color.black.opacity(0.6)
+                            .ignoresSafeArea()
+
+                        ProviderCampusConnectSheet(
+                            viewOnly: appState.eduVerified == true,
+                            onClose: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                    showingCampusConnectSheet = false
+                                }
+                            }
+                        ) {
+                            Task { await appState.refreshEduVerification() }
+                        }
+                        .padding(.horizontal, 18)
+                    }
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .center)), removal: .opacity))
+                    .zIndex(20)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -169,6 +200,43 @@ struct ProviderOverviewView: View {
             .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var studentCampusBanner: some View {
+        premiumCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Are you a student?")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 16).weight(.bold))
+                            .foregroundStyle(ScheduleMeTheme.titleText)
+                        Text("Connect your .edu email to unlock campus marketplace features.")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                    }
+                    Spacer()
+                    Button {
+                        studentBannerDismissed = true
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                            .padding(6)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button("Connect Campus") {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                        showingCampusConnectSheet = true
+                    }
+                }
+                .buttonStyle(ScheduleMePrimaryButtonStyle())
+            }
+        }
     }
 
     private var normalizedAvailabilityStatus: String {
@@ -513,6 +581,318 @@ struct ProviderOverviewView: View {
             return Color(hex: "F59E0B")
         default:
             return ScheduleMeTheme.accent
+        }
+    }
+}
+
+private struct ProviderCampusConnectSheet: View {
+    @EnvironmentObject private var appState: AppState
+
+    let viewOnly: Bool
+    let onClose: () -> Void
+    let onVerified: () -> Void
+
+    @State private var eduEmail = ""
+    @State private var verificationCode = ""
+    @State private var codeSent = false
+    @State private var isWorking = false
+    @State private var errorText: String?
+    @State private var successText: String?
+    @State private var showVerifiedModal = false
+
+    private var requiredDomain: String? {
+        appState.schoolDomain?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var resolvedEduEmail: String {
+        let fromState = appState.schoolEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !fromState.isEmpty { return fromState.lowercased() }
+        return ""
+    }
+
+    private var canSendCode: Bool {
+        let normalized = eduEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalized.hasSuffix(".edu") else { return false }
+        if let requiredDomain, !requiredDomain.isEmpty {
+            return normalized.hasSuffix(requiredDomain)
+        }
+        return true
+    }
+
+    private var canVerifyCode: Bool {
+        verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count == 6
+    }
+
+    var body: some View {
+        ZStack {
+            ScheduleMeCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text("EDU Verification")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 24).weight(.bold))
+                            .foregroundColor(ScheduleMeTheme.titleText)
+                        Spacer()
+                        Button(action: onClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+                                .frame(width: 28, height: 28)
+                                .background(ScheduleMeTheme.surface)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(ScheduleMeTheme.cardBorder))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Text(viewOnly
+                         ? "Your .edu verification is active for this account."
+                         : "Use your .edu email to unlock campus-only features.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+
+                    if let requiredDomain, !requiredDomain.isEmpty {
+                        Text("Approved school domain: \(requiredDomain)")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                    }
+
+                    if !viewOnly {
+                        if codeSent {
+                            Text("Verification code")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+
+                            TextField("", text: $verificationCode)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                                .keyboardType(.numberPad)
+                                .foregroundColor(ScheduleMeTheme.titleText)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(ScheduleMeTheme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorder))
+                                .overlay(alignment: .leading) {
+                                    if verificationCode.isEmpty {
+                                        Text("6-digit code")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                            .foregroundColor(ScheduleMeTheme.mutedText)
+                                            .padding(.leading, 16)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+
+                            HStack(spacing: 10) {
+                                Button(isWorking ? "Verifying..." : "Verify code") {
+                                    Task { await verifyCode() }
+                                }
+                                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                .disabled(isWorking || !canVerifyCode)
+
+                                Button(isWorking ? "Sending..." : "Resend") {
+                                    Task { await sendCode() }
+                                }
+                                .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                                .disabled(isWorking)
+                            }
+                        } else {
+                            Text("School email")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                .foregroundColor(ScheduleMeTheme.mutedText)
+
+                            TextField("", text: $eduEmail)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                                .keyboardType(.emailAddress)
+                                .foregroundColor(ScheduleMeTheme.titleText)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(ScheduleMeTheme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorder))
+                                .overlay(alignment: .leading) {
+                                    if eduEmail.isEmpty {
+                                        Text("name@school.edu")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                            .foregroundColor(ScheduleMeTheme.mutedText)
+                                            .padding(.leading, 16)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+
+                            Button(isWorking ? "Sending..." : "Send verification code") {
+                                Task { await sendCode() }
+                            }
+                            .buttonStyle(ScheduleMePrimaryButtonStyle())
+                            .disabled(!canSendCode || isWorking)
+                        }
+                    } else {
+                        Text("School email")
+                            .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+
+                        TextField("", text: $eduEmail)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .keyboardType(.emailAddress)
+                            .foregroundColor(ScheduleMeTheme.mutedText)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(ScheduleMeTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(ScheduleMeTheme.cardBorder))
+                            .disabled(true)
+                            .overlay(alignment: .leading) {
+                                if eduEmail.isEmpty {
+                                    Text("name@school.edu")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.medium))
+                                        .foregroundColor(ScheduleMeTheme.mutedText)
+                                        .padding(.leading, 16)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                    }
+
+                    if let successText {
+                        Text(successText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.accent)
+                    }
+
+                    if let errorText {
+                        Text(errorText)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                            .foregroundColor(.red)
+                    }
+                }
+                .padding(16)
+            }
+            .frame(maxWidth: 420)
+            .shadow(color: .black.opacity(0.35), radius: 14, x: 0, y: 6)
+            .padding(.vertical, 28)
+
+            if showVerifiedModal {
+                Color.black.opacity(0.55)
+                    .ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Campus Verification Complete")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
+                        .foregroundStyle(ScheduleMeTheme.titleText)
+
+                    Text("Your .edu email is confirmed. Wait for approval/denial email updates if your campus access is still pending.")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                        .foregroundStyle(ScheduleMeTheme.mutedText)
+
+                    Button("Confirm") {
+                        showVerifiedModal = false
+                        onVerified()
+                        onClose()
+                    }
+                    .buttonStyle(ScheduleMePrimaryButtonStyle())
+                }
+                .padding(16)
+                .background(ScheduleMeTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(ScheduleMeTheme.cardBorder)
+                )
+                .padding(.horizontal, 24)
+            }
+        }
+        .onAppear {
+            eduEmail = viewOnly ? resolvedEduEmail : ""
+            if viewOnly {
+                codeSent = false
+                verificationCode = ""
+            }
+        }
+    }
+
+    private struct VerifyEduRequest: Encodable {
+        let action: String?
+        let schoolEmail: String?
+        let code: String?
+        let accountType: String
+
+        enum CodingKeys: String, CodingKey {
+            case action
+            case schoolEmail = "school_email"
+            case code
+            case accountType = "account_type"
+        }
+    }
+
+    private struct VerifyEduResponse: Decodable {
+        let success: Bool?
+        let message: String?
+        let error: String?
+    }
+
+    private func sendCode() async {
+        guard canSendCode else { return }
+        await MainActor.run {
+            isWorking = true
+            errorText = nil
+            successText = nil
+        }
+        defer { Task { @MainActor in isWorking = false } }
+
+        let normalized = eduEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        do {
+            let response: VerifyEduResponse = try await APIClient.shared.send(
+                path: "/api/verify-edu",
+                method: "POST",
+                body: VerifyEduRequest(action: nil, schoolEmail: normalized, code: nil, accountType: "business"),
+                requiresAuth: true
+            )
+            await MainActor.run {
+                if response.success == true {
+                    codeSent = true
+                    successText = response.message ?? "Code sent."
+                    errorText = nil
+                } else {
+                    errorText = response.error ?? "Unable to send code."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorText = error.localizedDescription
+            }
+        }
+    }
+
+    private func verifyCode() async {
+        guard canVerifyCode else { return }
+        await MainActor.run {
+            isWorking = true
+            errorText = nil
+            successText = nil
+        }
+        defer { Task { @MainActor in isWorking = false } }
+
+        let normalizedCode = verificationCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let response: VerifyEduResponse = try await APIClient.shared.send(
+                path: "/api/verify-edu",
+                method: "POST",
+                body: VerifyEduRequest(action: "verify", schoolEmail: nil, code: normalizedCode, accountType: "business"),
+                requiresAuth: true
+            )
+            await MainActor.run {
+                if response.success == true {
+                    successText = "Campus connected."
+                    errorText = nil
+                    showVerifiedModal = true
+                } else {
+                    errorText = response.error ?? "Verification failed."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorText = error.localizedDescription
+            }
         }
     }
 }

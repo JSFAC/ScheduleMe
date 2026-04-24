@@ -26,6 +26,8 @@ final class ProviderDataStore: ObservableObject {
         let eduVerified: Bool?
         let founder50: Bool?
         let platformFeePercent: Double?
+        let rating: Double?
+        let reviewCount: Int
         let hours: [String: String]?
         let availabilityStatus: String?
         let customRequestRequiresExactTime: Bool?
@@ -50,6 +52,8 @@ final class ProviderDataStore: ObservableObject {
             case eduVerified = "edu_verified"
             case founder50
             case platformFeePercent = "platform_fee_percent"
+            case rating
+            case reviewCount = "review_count"
             case hours
             case providerHours = "provider_hours"
             case businessHours = "business_hours"
@@ -123,6 +127,8 @@ final class ProviderDataStore: ObservableObject {
             eduVerified = Self.decodeFlexibleBool(container, key: .eduVerified)
             founder50 = Self.decodeFlexibleBool(container, key: .founder50)
             platformFeePercent = Self.decodeFlexibleDouble(container, key: .platformFeePercent)
+            rating = Self.decodeFlexibleDouble(container, key: .rating)
+            reviewCount = Self.decodeFlexibleInt(container, key: .reviewCount) ?? 0
 
             if let direct = try? container.decode([String: String].self, forKey: .hours) {
                 hours = direct
@@ -276,6 +282,28 @@ final class ProviderDataStore: ObservableObject {
             }
             if let stringValue = try? container.decode(String.self, forKey: key) {
                 return Double(stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+            return nil
+        }
+
+        private static func decodeFlexibleInt(
+            _ container: KeyedDecodingContainer<CodingKeys>,
+            key: CodingKeys
+        ) -> Int? {
+            if let value = try? container.decode(Int.self, forKey: key) {
+                return value
+            }
+            if let doubleValue = try? container.decode(Double.self, forKey: key) {
+                return Int(doubleValue.rounded())
+            }
+            if let stringValue = try? container.decode(String.self, forKey: key) {
+                let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let intValue = Int(trimmed) {
+                    return intValue
+                }
+                if let doubleValue = Double(trimmed) {
+                    return Int(doubleValue.rounded())
+                }
             }
             return nil
         }
@@ -1244,6 +1272,8 @@ final class ProviderDataStore: ObservableObject {
                         eduVerified: profile.eduVerified,
                         founder50: profile.founder50,
                         platformFeePercent: profile.platformFeePercent,
+                        rating: profile.rating,
+                        reviewCount: profile.reviewCount,
                         hours: profile.hours,
                         availabilityStatus: profile.availabilityStatus,
                         customRequestRequiresExactTime: requiresExactTime
@@ -1412,6 +1442,8 @@ final class ProviderDataStore: ObservableObject {
                 eduVerified: profile.eduVerified,
                 founder50: profile.founder50,
                 platformFeePercent: profile.platformFeePercent,
+                rating: profile.rating,
+                reviewCount: profile.reviewCount,
                 hours: profile.hours,
                 availabilityStatus: status,
                 customRequestRequiresExactTime: profile.customRequestRequiresExactTime
@@ -1513,6 +1545,8 @@ final class ProviderDataStore: ObservableObject {
                 eduVerified: profile.eduVerified,
                 founder50: profile.founder50,
                 platformFeePercent: profile.platformFeePercent,
+                rating: profile.rating,
+                reviewCount: profile.reviewCount,
                 hours: normalizedBusinessHours(normalizedInput),
                 availabilityStatus: profile.availabilityStatus,
                 customRequestRequiresExactTime: profile.customRequestRequiresExactTime
@@ -1589,11 +1623,22 @@ final class ProviderDataStore: ObservableObject {
                 eduVerified: profile.eduVerified,
                 founder50: profile.founder50,
                 platformFeePercent: profile.platformFeePercent,
+                rating: profile.rating,
+                reviewCount: profile.reviewCount,
                 hours: profile.hours,
                 availabilityStatus: profile.availabilityStatus,
                 customRequestRequiresExactTime: profile.customRequestRequiresExactTime
             )
         }
+    }
+
+    func loadReviews(for businessID: String) async throws -> [BusinessReview] {
+        let response: ReviewsResponse = try await APIClient.shared.get(
+            path: "/api/reviews",
+            queryItems: [.init(name: "business_id", value: businessID)],
+            requiresAuth: false
+        )
+        return response.reviews
     }
 
     private func updateBooking(bookingID: String, status: String) async throws {
@@ -1740,8 +1785,8 @@ final class ProviderDataStore: ObservableObject {
     private func resolveBusinessSelectFields() async throws -> String {
         // Try richest shape first, then gracefully fall back for older/mismatched schemas.
         let candidates = [
-            "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,availability_status,owner_id",
-            "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,availability_status",
+            "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,availability_status,rating,review_count,owner_id",
+            "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,availability_status,rating,review_count",
             "id,name,owner_name,owner_email,phone,address,description,website,instagram,cover_url,media_urls,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,founder50,platform_fee_percent,hours,provider_hours,business_hours,hours_json,availability_status,custom_request_requires_exact_time,custom_requests_require_exact_time,custom_request_exact_time,owner_id",
             "id,name,owner_name,owner_email,phone,address,description,website,instagram,cover_url,media_urls,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,founder50,platform_fee_percent,hours,business_hours,hours_json,availability_status,custom_request_requires_exact_time,custom_requests_require_exact_time,custom_request_exact_time,owner_id",
             "id,name,owner_name,owner_email,phone,address,description,website,service_tags,stripe_onboarded,is_onboarded,school_domain,edu_verified,founder50,platform_fee_percent,hours,business_hours,hours_json,availability_status,owner_id",
@@ -1822,6 +1867,8 @@ final class ProviderDataStore: ObservableObject {
             eduVerified: row.eduVerified ?? false,
             founder50: row.founder50 ?? false,
             platformFeePercent: row.platformFeePercent,
+            rating: row.rating,
+            reviewCount: max(row.reviewCount, 0),
             hours: normalizedHours,
             availabilityStatus: availability,
             customRequestRequiresExactTime: row.customRequestRequiresExactTime ?? true

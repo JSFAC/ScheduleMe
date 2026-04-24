@@ -95,6 +95,7 @@ struct ProviderEditListingView: View {
     }
 
     @EnvironmentObject private var providerStore: ProviderDataStore
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isEditMode = false
     @State private var providerName = ""
     @State private var ownerName = ""
@@ -124,9 +125,12 @@ struct ProviderEditListingView: View {
     @State private var editingService: ProviderService?
     @State private var previewMode: PreviewMode = .open
     @State private var openPreviewImageIndex = 0
+    @State private var previewReviews: [BusinessReview] = []
+    @State private var isLoadingPreviewReviews = false
     @State private var isSaving = false
     @State private var message: String?
     @State private var showSavedToast = false
+    @State private var deletingServiceIDs: Set<String> = []
 
     private var coverImageURL: String {
         images.first?.url ?? ""
@@ -153,6 +157,32 @@ struct ProviderEditListingView: View {
         return nil
     }
 
+    private var previewReviewCount: Int {
+        max(providerStore.profile?.reviewCount ?? 0, 0)
+    }
+
+    private var previewIsNewProvider: Bool {
+        previewReviewCount == 0
+    }
+
+    private var previewRatingLabel: String {
+        providerStore.profile?.ratingLabel ?? "New"
+    }
+
+    private var compactCardRatingText: String {
+        previewIsNewProvider ? "No reviews" : "\(previewRatingLabel)★"
+    }
+
+    private var bestPreviewReviews: [BusinessReview] {
+        previewReviews
+            .sorted { lhs, rhs in
+                if lhs.rating != rhs.rating { return lhs.rating > rhs.rating }
+                return lhs.createdAt > rhs.createdAt
+            }
+            .prefix(5)
+            .map { $0 }
+    }
+
     var body: some View {
         ZStack {
             ScheduleMeBackground()
@@ -170,12 +200,13 @@ struct ProviderEditListingView: View {
                                 .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
                                 .foregroundStyle(ScheduleMeTheme.titleText)
                             Spacer()
-                            Button(isEditMode ? "Done Editing" : "Edit Card") {
-                                withAnimation(.easeInOut(duration: 0.2)) { isEditMode.toggle() }
-                                if !isEditMode {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                        proxy.scrollTo("listing-top", anchor: .top)
+                            Button(isEditMode ? (isSaving ? "Saving..." : "Done Editing") : "Edit Card") {
+                                if isEditMode {
+                                    Task {
+                                        await saveListingFromUI(proxy: proxy)
                                     }
+                                } else {
+                                    withAnimation(.easeInOut(duration: 0.2)) { isEditMode = true }
                                 }
                             }
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
@@ -186,7 +217,8 @@ struct ProviderEditListingView: View {
                             .clipShape(Capsule())
                             .overlay(Capsule().stroke(ScheduleMeTheme.cardBorder))
                             .contentShape(Rectangle())
-        .buttonStyle(.plain)
+                            .buttonStyle(.plain)
+                            .disabled(isSaving)
                         }
 
                         previewModePicker
@@ -202,21 +234,7 @@ struct ProviderEditListingView: View {
 
                         Button(isSaving ? "Saving..." : "Save Listing") {
                             Task {
-                                await save()
-                                if message == "Listing updated." {
-                                    await MainActor.run {
-                                        hideKeyboard()
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            isEditMode = false
-                                        }
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
-                                            proxy.scrollTo("listing-top", anchor: .top)
-                                        }
-                                        showSavedToast = true
-                                    }
-                                    try? await Task.sleep(for: .seconds(1.5))
-                                    await MainActor.run { showSavedToast = false }
-                                }
+                                await saveListingFromUI(proxy: proxy)
                             }
                         }
                         .buttonStyle(ScheduleMePrimaryButtonStyle())
@@ -278,7 +296,7 @@ struct ProviderEditListingView: View {
             showWebsiteField = false
             showInstagramField = false
 
-            services = providerStore.profile?.serviceTags ?? []
+            services = (providerStore.profile?.serviceTags ?? []).map { ProviderCategoryNormalizer.label(for: $0) }
             if services.isEmpty {
                 services = providerStore.services.map(\.name)
             }
@@ -292,6 +310,7 @@ struct ProviderEditListingView: View {
             hydratedURLs.append(contentsOf: rawMedia)
             images = sanitizedImages(hydratedURLs.map { EditableImage(id: UUID(), url: $0) })
             await prefetchPreviewImages(urls: images.map(\.url))
+            await loadPreviewReviews()
         }
         .onChange(of: images) { _, newImages in
             let sanitized = sanitizedImages(newImages)
@@ -388,13 +407,15 @@ struct ProviderEditListingView: View {
                             .background(ScheduleMeTheme.accentSoft)
                             .clipShape(Capsule())
 
-                        Text("New")
-                            .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.bold))
-                            .foregroundStyle(Color(hex: "B45309"))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(hex: "FEF3C7"))
-                            .clipShape(Capsule())
+                        if previewIsNewProvider {
+                            Text("New")
+                                .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.bold))
+                                .foregroundStyle(Color(hex: "B45309"))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(hex: "FEF3C7"))
+                                .clipShape(Capsule())
+                        }
                     }
 
                     HStack(spacing: 6) {
@@ -406,7 +427,7 @@ struct ProviderEditListingView: View {
                             .foregroundStyle(ScheduleMeTheme.mutedText)
                         Text("•")
                             .foregroundStyle(ScheduleMeTheme.mutedText)
-                        Text("0.0★")
+                        Text(compactCardRatingText)
                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                             .foregroundStyle(ScheduleMeTheme.mutedText)
                     }
@@ -550,10 +571,10 @@ struct ProviderEditListingView: View {
                                 Image(systemName: "star.fill")
                                     .font(.system(size: 13))
                                     .foregroundColor(.orange)
-                                Text("New")
+                                Text(previewRatingLabel)
                                     .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
                                     .foregroundColor(ScheduleMeTheme.titleText)
-                                Text("(0)")
+                                Text("(\(previewReviewCount))")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
                             }
@@ -571,6 +592,10 @@ struct ProviderEditListingView: View {
                                 Button("Add") {
                                     let trimmed = newCategoryTag.trimmingCharacters(in: .whitespacesAndNewlines)
                                     guard !trimmed.isEmpty else { return }
+                                    if let invalid = ProviderInputValidator.invalidCategoryMessage(trimmed) {
+                                        message = invalid
+                                        return
+                                    }
                                     if !services.contains(trimmed) {
                                         services.append(trimmed)
                                     }
@@ -595,7 +620,7 @@ struct ProviderEditListingView: View {
                                         Image(systemName: "line.3.horizontal")
                                             .font(.system(size: 11, weight: .semibold))
                                             .foregroundStyle(ScheduleMeTheme.mutedText)
-                                        Text(service)
+                                        Text(ProviderCategoryNormalizer.label(for: service))
                                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                             .foregroundStyle(ScheduleMeTheme.titleText)
                                         Button {
@@ -627,7 +652,7 @@ struct ProviderEditListingView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
                                     ForEach(Array(services.prefix(6)), id: \.self) { tag in
-                                        Text(tag)
+                                        Text(ProviderCategoryNormalizer.label(for: tag))
                                             .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                             .foregroundStyle(ScheduleMeTheme.accent)
                                             .padding(.horizontal, 10)
@@ -682,12 +707,22 @@ struct ProviderEditListingView: View {
                                                     .foregroundColor(ScheduleMeTheme.accent)
 
                                                 if isEditMode {
-                                                    Button("Edit") {
-                                                        editingService = service
+                                                    HStack(spacing: 10) {
+                                                        Button("Edit") {
+                                                            editingService = service
+                                                        }
+                                                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                                        .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                                                        .buttonStyle(.plain)
+
+                                                        Button(deletingServiceIDs.contains(service.id) ? "Deleting..." : "Delete") {
+                                                            Task { await deleteServiceFromListing(service) }
+                                                        }
+                                                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
+                                                        .foregroundStyle(Color.red)
+                                                        .buttonStyle(.plain)
+                                                        .disabled(deletingServiceIDs.contains(service.id))
                                                     }
-                                                    .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
-                                                    .foregroundStyle(Color(hex: "FCA5A5"))
-                                                    .buttonStyle(.plain)
                                                 }
                                             }
                                         }
@@ -854,21 +889,38 @@ struct ProviderEditListingView: View {
                             Text("Reviews")
                                 .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.bold))
                                 .foregroundStyle(ScheduleMeTheme.titleText)
-                            ScheduleMeCard {
-                                VStack(spacing: 8) {
-                                    Image(systemName: "star")
-                                        .font(.system(size: 24))
-                                        .foregroundStyle(ScheduleMeTheme.accent)
-                                    Text("No reviews yet")
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
-                                        .foregroundStyle(ScheduleMeTheme.titleText)
-                                    Text("Be the first to book and leave a review.")
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
-                                        .foregroundStyle(ScheduleMeTheme.mutedText)
-                                        .multilineTextAlignment(.center)
+                            if isLoadingPreviewReviews {
+                                ProviderPreviewReviewSkeletonList()
+                            } else if bestPreviewReviews.isEmpty {
+                                ScheduleMeCard {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "star")
+                                            .font(.system(size: 24))
+                                            .foregroundStyle(ScheduleMeTheme.accent)
+                                        Text("No reviews yet")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 15).weight(.semibold))
+                                            .foregroundStyle(ScheduleMeTheme.titleText)
+                                        Text("Be the first to book and leave a review.")
+                                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                                            .foregroundStyle(ScheduleMeTheme.mutedText)
+                                            .multilineTextAlignment(.center)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 6)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 6)
+                            } else if bestPreviewReviews.count > 1 {
+                                TabView {
+                                    ForEach(bestPreviewReviews) { review in
+                                        ProviderPreviewReviewCard(review: review)
+                                            .padding(.horizontal, 2)
+                                    }
+                                }
+                                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                                .frame(height: 260)
+                            } else {
+                                ForEach(bestPreviewReviews) { review in
+                                    ProviderPreviewReviewCard(review: review)
+                                }
                             }
                         }
                 }
@@ -1048,8 +1100,15 @@ struct ProviderEditListingView: View {
                                     editingService = service
                                 }
                                 .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
-                                .foregroundStyle(Color(hex: "FCA5A5"))
+                                .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
                                 .buttonStyle(.plain)
+                                Button(deletingServiceIDs.contains(service.id) ? "Deleting..." : "Delete") {
+                                    Task { await deleteServiceFromListing(service) }
+                                }
+                                .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
+                                .foregroundStyle(Color.red)
+                                .buttonStyle(.plain)
+                                .disabled(deletingServiceIDs.contains(service.id))
                             }
                         }
                         .padding(.horizontal, 10)
@@ -1090,7 +1149,7 @@ struct ProviderEditListingView: View {
                             Image(systemName: "line.3.horizontal")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(ScheduleMeTheme.mutedText)
-                            Text(service)
+                            Text(ProviderCategoryNormalizer.label(for: service))
                                 .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.semibold))
                                 .foregroundStyle(ScheduleMeTheme.titleText)
                             Button {
@@ -1337,13 +1396,17 @@ struct ProviderEditListingView: View {
             }
             let contentType = item.supportedContentTypes.first
             let isVideo = contentType?.conforms(to: .movie) == true
-            let mimeType = contentType?.preferredMIMEType ?? (isVideo ? "video/mp4" : "image/jpeg")
-            let ext = contentType?.preferredFilenameExtension ?? (isVideo ? "mp4" : "jpg")
             let mediaType = isVideo ? "video" : "image"
-            let url = try await providerStore.uploadListingMedia(
+            let baseMimeType = contentType?.preferredMIMEType ?? (isVideo ? "video/mp4" : "image/jpeg")
+            let optimized = try UploadMediaOptimizer.prepareForUpload(
                 data: data,
-                mimeType: mimeType,
-                fileName: "provider_listing_\(UUID().uuidString).\(ext)",
+                mimeType: baseMimeType,
+                mediaType: mediaType
+            )
+            let url = try await providerStore.uploadListingMedia(
+                data: optimized.data,
+                mimeType: optimized.mimeType,
+                fileName: "provider_listing_\(UUID().uuidString).\(optimized.fileExtension)",
                 mediaType: mediaType
             )
             await MainActor.run {
@@ -1351,7 +1414,7 @@ struct ProviderEditListingView: View {
                 showAddImageSheet = false
             }
         } catch {
-            mediaUploadError = error.localizedDescription
+            mediaUploadError = humanReadableMediaUploadError(error)
         }
     }
 
@@ -1365,10 +1428,15 @@ struct ProviderEditListingView: View {
             guard let data = image.jpegData(compressionQuality: 0.85) else {
                 throw DataStoreError.server("Could not process captured image.")
             }
-            let url = try await providerStore.uploadListingMedia(
+            let optimized = try UploadMediaOptimizer.prepareForUpload(
                 data: data,
                 mimeType: "image/jpeg",
-                fileName: "provider_camera_\(UUID().uuidString).jpg",
+                mediaType: "image"
+            )
+            let url = try await providerStore.uploadListingMedia(
+                data: optimized.data,
+                mimeType: optimized.mimeType,
+                fileName: "provider_camera_\(UUID().uuidString).\(optimized.fileExtension)",
                 mediaType: "image"
             )
             await MainActor.run {
@@ -1376,7 +1444,7 @@ struct ProviderEditListingView: View {
                 showAddImageSheet = false
             }
         } catch {
-            mediaUploadError = error.localizedDescription
+            mediaUploadError = humanReadableMediaUploadError(error)
         }
     }
 
@@ -1395,12 +1463,17 @@ struct ProviderEditListingView: View {
             let data = try Data(contentsOf: url)
             let type = UTType(filenameExtension: url.pathExtension) ?? .data
             let isVideo = type.conforms(to: .movie)
-            let mimeType = type.preferredMIMEType ?? (isVideo ? "video/mp4" : "image/jpeg")
             let mediaType = isVideo ? "video" : "image"
-            let safeName = url.lastPathComponent.isEmpty ? "upload_\(UUID().uuidString).\(isVideo ? "mp4" : "jpg")" : url.lastPathComponent
-            let uploaded = try await providerStore.uploadListingMedia(
+            let baseMimeType = type.preferredMIMEType ?? (isVideo ? "video/mp4" : "image/jpeg")
+            let optimized = try UploadMediaOptimizer.prepareForUpload(
                 data: data,
-                mimeType: mimeType,
+                mimeType: baseMimeType,
+                mediaType: mediaType
+            )
+            let safeName = "upload_\(UUID().uuidString).\(optimized.fileExtension)"
+            let uploaded = try await providerStore.uploadListingMedia(
+                data: optimized.data,
+                mimeType: optimized.mimeType,
                 fileName: safeName,
                 mediaType: mediaType
             )
@@ -1409,7 +1482,7 @@ struct ProviderEditListingView: View {
                 showAddImageSheet = false
             }
         } catch {
-            mediaUploadError = error.localizedDescription
+            mediaUploadError = humanReadableMediaUploadError(error)
         }
     }
 
@@ -1530,10 +1603,22 @@ struct ProviderEditListingView: View {
     }
 
     private func save() async {
+        if let invalid = ProviderInputValidator.invalidNameMessage(providerName) {
+            message = invalid
+            return
+        }
+        for tag in services {
+            if let invalid = ProviderInputValidator.invalidCategoryMessage(tag) {
+                message = invalid
+                return
+            }
+        }
+
         isSaving = true
         defer { isSaving = false }
         do {
-            let tags = services.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            let rawTags = services.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            let tags = ProviderCategoryNormalizer.normalizeServiceTags(rawTags)
             let media = images.map { normalizeImageURL($0.url) }.filter { !$0.isEmpty }
             try await providerStore.updateProviderProfile(
                 name: providerName.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1554,11 +1639,42 @@ struct ProviderEditListingView: View {
         }
     }
 
+    private func saveListingFromUI(proxy: ScrollViewProxy) async {
+        await save()
+        guard message == "Listing updated." else { return }
+
+        await MainActor.run {
+            hideKeyboard()
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isEditMode = false
+            }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                proxy.scrollTo("listing-top", anchor: .top)
+            }
+            showSavedToast = true
+        }
+        try? await Task.sleep(for: .seconds(1.5))
+        await MainActor.run { showSavedToast = false }
+    }
+
     private func moveImage(from: Int, to: Int) {
         guard from >= 0, from < images.count, to >= 0, to < images.count, from != to else { return }
         withAnimation(.easeInOut(duration: 0.18)) {
             let item = images.remove(at: from)
             images.insert(item, at: to)
+        }
+    }
+
+    private func deleteServiceFromListing(_ service: ProviderService) async {
+        guard !deletingServiceIDs.contains(service.id) else { return }
+        deletingServiceIDs.insert(service.id)
+        defer { deletingServiceIDs.remove(service.id) }
+
+        do {
+            try await providerStore.deleteService(id: service.id)
+            message = "Deleted \(service.name)."
+        } catch {
+            message = error.localizedDescription
         }
     }
 
@@ -1584,11 +1700,30 @@ struct ProviderEditListingView: View {
         guard let first = services.first, !first.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return "No category"
         }
-        return first
-            .replacingOccurrences(of: "_", with: " ")
-            .split(separator: " ")
-            .map { $0.capitalized }
-            .joined(separator: " ")
+        return ProviderCategoryNormalizer.label(for: first)
+    }
+
+    private func humanReadableMediaUploadError(_ error: Error) -> String {
+        let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = message.lowercased()
+        if lower.contains("413") || lower.contains("request entity too large") || lower.contains("payload too large") {
+            return "File is too large for this upload path. Please choose a smaller image/video."
+        }
+        if lower.contains("blocked by safety filters") || lower.contains("safety filter") || lower.contains("moderation") {
+            return "Upload was blocked by safety filters. Try another image."
+        }
+        return message
+    }
+
+    private func loadPreviewReviews() async {
+        let businessID = providerStore.profile?.id.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !businessID.isEmpty else {
+            previewReviews = []
+            return
+        }
+        isLoadingPreviewReviews = true
+        defer { isLoadingPreviewReviews = false }
+        previewReviews = (try? await providerStore.loadReviews(for: businessID)) ?? []
     }
 }
 
@@ -1996,6 +2131,136 @@ struct ProviderBusinessHoursView: View {
             }
         }
         return nil
+    }
+}
+
+private struct ProviderPreviewReviewSkeletonList: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach(0..<2, id: \.self) { _ in
+                ScheduleMeCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(ScheduleMeTheme.surface)
+                            .frame(width: 110, height: 12)
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(ScheduleMeTheme.surface)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 12)
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(ScheduleMeTheme.surface)
+                            .frame(width: 90, height: 12)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+}
+
+private struct ProviderPreviewReviewCard: View {
+    let review: BusinessReview
+
+    private static let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "webm"]
+
+    private func resolvedMediaURL(from raw: String) -> URL? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let direct = URL(string: trimmed), direct.scheme != nil {
+            return direct
+        }
+        if let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+           let parsed = URL(string: encoded),
+           parsed.scheme != nil {
+            return parsed
+        }
+        return nil
+    }
+
+    private func isVideoURL(_ url: URL) -> Bool {
+        Self.videoExtensions.contains(url.pathExtension.lowercased())
+    }
+
+    var body: some View {
+        ScheduleMeCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    HStack(spacing: 2) {
+                        ForEach(1...5, id: \.self) { i in
+                            Image(systemName: i <= review.rating ? "star.fill" : "star")
+                                .font(.system(size: 12))
+                                .foregroundColor(i <= review.rating ? .orange : ScheduleMeTheme.mutedText.opacity(0.3))
+                        }
+                    }
+                    Spacer()
+                    Text(review.createdAt.formatted(date: .abbreviated, time: .omitted))
+                        .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                }
+
+                if let name = review.reviewerName, !name.isEmpty {
+                    HStack(spacing: 8) {
+                        if let avatarURL = review.reviewerAvatarURL {
+                            AsyncImage(url: avatarURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable().scaledToFill()
+                                default:
+                                    Circle().fill(ScheduleMeTheme.accentSoft)
+                                }
+                            }
+                            .frame(width: 22, height: 22)
+                            .clipShape(Circle())
+                        }
+                        Text(name)
+                            .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                            .foregroundColor(ScheduleMeTheme.titleText)
+                    }
+                }
+
+                if let comment = review.comment, !comment.isEmpty {
+                    Text(comment)
+                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
+                        .foregroundColor(ScheduleMeTheme.mutedText)
+                }
+
+                if !review.reviewMediaURLs.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(review.reviewMediaURLs, id: \.self) { media in
+                                if let url = resolvedMediaURL(from: media) {
+                                    ZStack {
+                                        if isVideoURL(url) {
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .fill(ScheduleMeTheme.accentSoft)
+                                            Image(systemName: "play.circle.fill")
+                                                .font(.system(size: 22, weight: .semibold))
+                                                .foregroundStyle(ScheduleMeTheme.accent)
+                                        } else {
+                                            AsyncImage(url: url) { phase in
+                                                switch phase {
+                                                case .success(let image):
+                                                    image.resizable().scaledToFill()
+                                                default:
+                                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                        .fill(ScheduleMeTheme.accentSoft)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .frame(width: 72, height: 72)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .stroke(ScheduleMeTheme.cardBorder)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

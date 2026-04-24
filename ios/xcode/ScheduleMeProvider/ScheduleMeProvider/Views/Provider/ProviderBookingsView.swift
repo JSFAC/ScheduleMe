@@ -769,13 +769,17 @@ struct ProviderBookingsView: View {
                 throw DataStoreError.server("Could not read selected photo.")
             }
             let contentType = item.supportedContentTypes.first
-            let mimeType = contentType?.preferredMIMEType ?? "image/jpeg"
-            let ext = contentType?.preferredFilenameExtension ?? "jpg"
+            let baseMimeType = contentType?.preferredMIMEType ?? "image/jpeg"
+            let optimized = try UploadMediaOptimizer.prepareForUpload(
+                data: data,
+                mimeType: baseMimeType,
+                mediaType: "image"
+            )
             let url = try await providerStore.uploadCompletionProofMedia(
                 bookingID: bookingID,
-                data: data,
-                mimeType: mimeType,
-                fileName: "completion_proof_\(UUID().uuidString).\(ext)"
+                data: optimized.data,
+                mimeType: optimized.mimeType,
+                fileName: "completion_proof_\(UUID().uuidString).\(optimized.fileExtension)"
             )
             let cleaned = url.trimmingCharacters(in: .whitespacesAndNewlines)
             if !cleaned.isEmpty, !completionProofPhotoURLs.contains(cleaned) {
@@ -785,6 +789,10 @@ struct ProviderBookingsView: View {
             let message = error.localizedDescription
             if message.lowercased().contains("blocked by safety filters") {
                 completionProofError = "Photo upload was blocked by automated filters. Please try another image or contact support."
+            } else if message.lowercased().contains("413") ||
+                        message.lowercased().contains("request entity too large") ||
+                        message.lowercased().contains("payload too large") {
+                completionProofError = "Photo is too large to upload. Please choose a smaller image."
             } else {
                 completionProofError = message
             }

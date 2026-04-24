@@ -4,8 +4,6 @@
 <dict>
 	<key>API_BASE_URL</key>
 	<string>https://www.usescheduleme.com</string>
-	<key>APPLE_PAY_MERCHANT_ID</key>
-	<string>$(APPLE_PAY_MERCHANT_ID)</string>
 	<key>APP_URL_SCHEME</key>
 	<string>schedulemeprovider</string>
 	<key>CFBundleURLTypes</key>
@@ -25,6 +23,10 @@
 	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>ScheduleMe uses your camera so you can capture and send photos in provider messages and update listing images.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>ScheduleMe needs calendar access to sync your provider bookings to Google Calendar.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>ScheduleMe needs full calendar access to sync your provider bookings to Google Calendar.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ScheduleMe uses your location to show nearby activity, improve local provider/booking context, and support location-based features.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

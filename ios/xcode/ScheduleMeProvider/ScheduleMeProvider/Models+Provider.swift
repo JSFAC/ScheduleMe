@@ -530,9 +530,18 @@ struct ProviderProfile: Hashable {
     let eduVerified: Bool
     let founder50: Bool
     let platformFeePercent: Double?
+    let rating: Double?
+    let reviewCount: Int
     let hours: [String: String]
     let availabilityStatus: String
     let customRequestRequiresExactTime: Bool
+
+    var ratingLabel: String {
+        guard reviewCount > 0, let rating else { return "New" }
+        return String(format: "%.1f", rating)
+    }
+
+    var isNew: Bool { reviewCount == 0 }
 }
 
 struct ProviderStripeBalance: Hashable {

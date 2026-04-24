@@ -610,6 +610,8 @@ struct BusinessReview: Decodable, Identifiable {
     let comment: String?
     let createdAt: Date
     let reviewerName: String?
+    let reviewerAvatarURL: URL?
+    let reviewMediaURLs: [String]
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -617,6 +619,66 @@ struct BusinessReview: Decodable, Identifiable {
         case comment
         case createdAt = "created_at"
         case reviewerName = "reviewer_name"
+        case reviewerAvatarURL = "reviewer_avatar_url"
+        case profiles
+        case reviewMediaURLs = "review_media_urls"
+    }
+
+    enum ProfileCodingKeys: String, CodingKey {
+        case name
+        case avatarURL = "avatar_url"
+    }
+
+    private static func resolveRemoteURL(from raw: String?) -> URL? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let absolute = URL(string: trimmed), absolute.scheme != nil {
+            return absolute
+        }
+
+        if trimmed.hasPrefix("//"), let protocolRelative = URL(string: "https:\(trimmed)") {
+            return protocolRelative
+        }
+
+        let normalizedPath = trimmed.hasPrefix("/") ? trimmed : "/\(trimmed)"
+        let supabaseBase = "https://imfrlykibvjdbijegdky.supabase.co"
+        return URL(string: "\(supabaseBase)\(normalizedPath)")
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        rating = try container.decode(Int.self, forKey: .rating)
+        comment = try? container.decodeIfPresent(String.self, forKey: .comment)
+        createdAt = (try? container.decode(Date.self, forKey: .createdAt)) ?? .distantPast
+
+        let explicitName = try? container.decodeIfPresent(String.self, forKey: .reviewerName)
+        if explicitName?.isEmpty == false {
+            reviewerName = explicitName
+        } else if let profiles = try? container.nestedContainer(keyedBy: ProfileCodingKeys.self, forKey: .profiles) {
+            reviewerName = try? profiles.decodeIfPresent(String.self, forKey: .name)
+        } else {
+            reviewerName = nil
+        }
+
+        let explicitAvatar = try? container.decodeIfPresent(String.self, forKey: .reviewerAvatarURL)
+        if let explicitAvatar, !explicitAvatar.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            reviewerAvatarURL = Self.resolveRemoteURL(from: explicitAvatar)
+        } else if let profiles = try? container.nestedContainer(keyedBy: ProfileCodingKeys.self, forKey: .profiles) {
+            let rawAvatar = (try? profiles.decodeIfPresent(String.self, forKey: .avatarURL)) ?? nil
+            if let avatarFromProfile = rawAvatar?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !avatarFromProfile.isEmpty {
+                reviewerAvatarURL = Self.resolveRemoteURL(from: avatarFromProfile)
+            } else {
+                reviewerAvatarURL = nil
+            }
+        } else {
+            reviewerAvatarURL = nil
+        }
+
+        reviewMediaURLs = (try? container.decodeIfPresent([String].self, forKey: .reviewMediaURLs)) ?? []
     }
 }
 

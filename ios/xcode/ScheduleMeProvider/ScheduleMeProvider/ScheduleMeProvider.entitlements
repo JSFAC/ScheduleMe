@@ -11,7 +11,5 @@
 		<string>applinks:usescheduleme.com</string>
 		<string>applinks:www.usescheduleme.com</string>
 	</array>
-	<key>com.apple.developer.in-app-payments</key>
-	<array/>
 </dict>
 </plist>
