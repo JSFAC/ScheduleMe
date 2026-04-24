@@ -200,7 +200,7 @@ export default function Hero({
         </p>
 
         {/* Mock UI preview */}
-        <div ref={previewRef} className="js-hero-shell mt-16 mx-auto max-w-2xl opacity-0-init animate-fade-up animate-delay-500">
+        <div ref={previewRef} className="js-hero-shell mt-16 mx-auto max-w-2xl min-h-[470px] opacity-0-init animate-fade-up animate-delay-500">
           <div className="p-1 shadow-modal rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
             <div className="rounded-2xl text-left space-y-3 p-5" style={{ minHeight: 360, background: dm ? '#0f0f0f' : '#f5f5f7', border: dm ? '1px solid #1c1c1e' : '1px solid rgba(0,0,0,0.06)' }}>
               {/* User message */}
@@ -210,12 +210,12 @@ export default function Hero({
                   style={{
                     background: '#0F766E',
                     opacity: showMessageShell ? 1 : 0,
-                    transition: 'opacity 760ms ease, transform 1040ms cubic-bezier(0.22, 1.32, 0.34, 1), box-shadow 900ms cubic-bezier(0.22, 1.2, 0.36, 1)',
+                    transition: 'opacity 860ms ease, transform 1120ms cubic-bezier(0.22, 1.2, 0.36, 1), box-shadow 900ms cubic-bezier(0.22, 1.2, 0.36, 1)',
                     transform: showMessageShell
                       ? messageState === 'sent'
-                        ? 'translateY(-3px) scale(1.01)'
+                        ? 'translateY(-2px) scale(1.005)'
                         : 'translateY(0) scale(1)'
-                      : 'translateY(24px) scale(0.82)',
+                      : 'translateY(16px) scale(0.94)',
                     boxShadow: messageState === 'sent' ? '0 12px 30px rgba(15,118,110,0.28)' : 'none',
                   }}
                 >
@@ -235,28 +235,26 @@ export default function Hero({
                   J
                 </div>
               </div>
-              {hasTyped && (
-                <div
-                  className="pr-0.5 mt-0.5 flex justify-end"
+              <div
+                className="pr-0.5 mt-0.5 flex justify-end min-h-[14px]"
+                style={{
+                  opacity: hasTyped ? 1 : 0,
+                  transform: hasTyped ? 'translateY(0)' : 'translateY(6px)',
+                  transition: 'opacity 640ms ease, transform 760ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                }}
+              >
+                <p
+                  className="text-[10px] font-semibold"
                   style={{
-                    opacity: hasTyped ? 1 : 0,
-                    transform: hasTyped ? 'translateY(0)' : 'translateY(6px)',
-                    transition: 'opacity 640ms ease, transform 760ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                    color: dm ? '#6b7280' : '#9ca3af',
+                    opacity: messageState === 'sent' ? 1 : 0.88,
+                    transform: messageState === 'sent' ? 'translateY(0)' : 'translateY(2px)',
+                    transition: 'opacity 560ms ease, transform 700ms cubic-bezier(0.22, 1.14, 0.36, 1)',
                   }}
                 >
-                  <p
-                    className="text-[10px] font-semibold"
-                    style={{
-                      color: dm ? '#6b7280' : '#9ca3af',
-                      opacity: messageState === 'sent' ? 1 : 0.88,
-                      transform: messageState === 'sent' ? 'translateY(0)' : 'translateY(2px)',
-                      transition: 'opacity 560ms ease, transform 700ms cubic-bezier(0.22, 1.14, 0.36, 1)',
-                    }}
-                  >
-                    {messageState === 'sent' ? 'Sent' : 'Ready to send'}
-                  </p>
-                </div>
-              )}
+                  {messageState === 'sent' ? 'Sent' : 'Ready to send'}
+                </p>
+              </div>
               {/* System match result */}
               <div className="flex items-end gap-2.5">
                 <div
@@ -271,7 +269,7 @@ export default function Hero({
                 >
                   <svg className="h-3.5 w-3.5" style={{ color: '#0F766E' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                 </div>
-                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ minHeight: 180, background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: showMatchShell ? 1 : 0, transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.84)', transition: 'opacity 860ms cubic-bezier(0.2, 1.2, 0.3, 1), transform 1080ms cubic-bezier(0.22, 1.32, 0.34, 1)' }}>
+                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ minHeight: 180, background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: showMatchShell ? 1 : 0, transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(14px) scale(0.95)', transition: 'opacity 900ms cubic-bezier(0.22, 1.14, 0.36, 1), transform 980ms cubic-bezier(0.22, 1.14, 0.36, 1)' }}>
                   <div className="flex items-center gap-2">
                     <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${matchState === 'loading' || matchState === 'transition' ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
                     <div className="relative h-4 overflow-hidden">
@@ -297,16 +295,24 @@ export default function Hero({
                       </p>
                     </div>
                   </div>
-                  {(matchState === 'loading' || matchState === 'transition') && (
-                    <div className="px-3 py-2 rounded-xl text-[11px] font-medium" style={{ background: dm ? '#2c2c2e' : '#f5f5f7', color: dm ? '#cbd5e1' : '#475569' }}>
-                      Finding students nearby
-                      <span className="ml-1 inline-flex gap-0.5 align-middle">
-                        <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '120ms' }} />
-                        <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '240ms' }} />
-                      </span>
-                    </div>
-                  )}
+                  <div
+                    className="px-3 py-2 rounded-xl text-[11px] font-medium min-h-[32px]"
+                    style={{
+                      background: dm ? '#2c2c2e' : '#f5f5f7',
+                      color: dm ? '#cbd5e1' : '#475569',
+                      opacity: matchState === 'loading' || matchState === 'transition' ? 1 : 0,
+                      transform: matchState === 'loading' || matchState === 'transition' ? 'translateY(0)' : 'translateY(4px)',
+                      visibility: matchState === 'loading' || matchState === 'transition' ? 'visible' : 'hidden',
+                      transition: 'opacity 520ms ease, transform 720ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                    }}
+                  >
+                    Finding students nearby
+                    <span className="ml-1 inline-flex gap-0.5 align-middle">
+                      <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '120ms' }} />
+                      <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '240ms' }} />
+                    </span>
+                  </div>
                   <div className="space-y-1.5">
                     {STUDENT_MATCHES.map((pro, i) => (
                       <div
@@ -334,27 +340,26 @@ export default function Hero({
                       </div>
                     ))}
                   </div>
-                  {showViewAll && (
-                    <button
-                      type="button"
-                      className="text-[11px] font-semibold underline underline-offset-2 mt-1"
-                      style={{
-                        color: dm ? '#9ca3af' : '#4b5563',
-                        opacity: showViewAll ? 1 : 0,
-                        transform: showViewAll ? 'translateY(0)' : 'translateY(4px)',
-                        transition: 'opacity 580ms ease, transform 720ms cubic-bezier(0.22, 1.2, 0.36, 1)',
-                      }}
-                    >
-                      View all
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="text-[11px] font-semibold underline underline-offset-2 mt-1 min-h-[16px]"
+                    style={{
+                      color: dm ? '#9ca3af' : '#4b5563',
+                      opacity: showViewAll ? 1 : 0,
+                      transform: showViewAll ? 'translateY(0)' : 'translateY(4px)',
+                      visibility: showViewAll ? 'visible' : 'hidden',
+                      transition: 'opacity 580ms ease, transform 720ms cubic-bezier(0.22, 1.2, 0.36, 1)',
+                    }}
+                  >
+                    View all
+                  </button>
                 </div>
               </div>
               {/* Matched provider cards */}
               <div className="grid grid-cols-3 gap-2 pt-2">
                 {BADGES.map((item, idx) => (
-                  <div key={item.label} className="js-hero-pop rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined, opacity: badgeStages[idx] > 0 ? 1 : 0, transform: badgeStages[idx] > 0 ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.84)', transition: 'opacity 900ms cubic-bezier(0.2, 1.2, 0.3, 1), transform 1020ms cubic-bezier(0.22, 1.32, 0.34, 1)' }}>
-                    <div className={`h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold ${badgeStages[idx] >= 1 ? 'hero-badge-check-reveal' : ''}`} style={{ background: '#0F766E', transition: 'transform 780ms cubic-bezier(0.22, 1.3, 0.34, 1)', transform: badgeStages[idx] >= 1 ? 'scale(1)' : 'scale(0.56)' }}>✓</div>
+                  <div key={item.label} className="js-hero-pop rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined, opacity: badgeStages[idx] > 0 ? 1 : 0, transform: badgeStages[idx] > 0 ? 'translateY(0) scale(1)' : 'translateY(14px) scale(0.95)', transition: 'opacity 760ms cubic-bezier(0.22, 1.14, 0.36, 1), transform 900ms cubic-bezier(0.22, 1.14, 0.36, 1)' }}>
+                    <div className={`h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold ${badgeStages[idx] >= 1 ? 'hero-badge-check-reveal' : ''}`} style={{ background: '#0F766E', transition: 'transform 760ms cubic-bezier(0.22, 1.14, 0.36, 1)', transform: badgeStages[idx] >= 1 ? 'scale(1)' : 'scale(0.82)' }}>✓</div>
                     <p className="text-xs font-semibold truncate transition-all duration-500" style={{ color: dm ? '#d1d5db' : '#262626', opacity: badgeStages[idx] >= 2 ? 1 : 0, transform: badgeStages[idx] >= 2 ? 'translateY(0)' : 'translateY(6px)' }}>{item.label}</p>
                     <p className="text-xs transition-all duration-500" style={{ color: dm ? '#525252' : '#a3a3a3', opacity: badgeStages[idx] >= 3 ? 1 : 0, transform: badgeStages[idx] >= 3 ? 'translateY(0)' : 'translateY(4px)' }}>
                       {Array.from({ length: 5 }).map((_, sIdx) => (

@@ -241,70 +241,83 @@ const Business: NextPage = () => {
               </p>
             </div>
 
-            <div className="js-why rounded-3xl border border-neutral-800 bg-neutral-900/70 p-7 md:p-10 mb-8">
-              <p className="text-sm md:text-base text-neutral-400 leading-relaxed">
-                Founder50 note: standard platform fee is{' '}
-                <span className="text-accent font-semibold">12%</span>, while Founder50 members are locked into{' '}
-                <span className="text-accent font-semibold">6%</span> forever.
-              </p>
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  'No setup fees',
-                  'No monthly subscription',
-                  'No per-lead charges',
-                ].map((item) => (
-                  <div key={item} className="rounded-xl border border-neutral-800 bg-neutral-950/55 px-4 py-3 text-sm text-neutral-200 flex items-center gap-2">
-                    <span className="text-accent">✓</span>
-                    {item}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {[
-                  { job: 'Leaky faucet repair', total: 150 },
-                  { job: 'Deep house cleaning', total: 280 },
-                  { job: 'Electrical panel work', total: 600 },
-                ].map((example) => (
-                  <div key={example.job} className="rounded-2xl border border-neutral-800 bg-neutral-950/50 p-4">
-                    <p className="text-xs text-neutral-500 mb-3">{example.job}</p>
-                    <div className="space-y-1.5 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Customer pays</span>
-                        <span className="text-white font-semibold">${example.total}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">ScheduleMe (12%)</span>
-                        <span className="text-neutral-400">-${Math.round(example.total * 0.12)}</span>
-                      </div>
-                      <div className="h-px bg-neutral-800 my-1.5" />
-                      <div className="flex justify-between">
-                        <span className="text-neutral-300 font-semibold">You receive</span>
-                        <span className="text-accent font-bold">${Math.round(example.total * 0.88)}</span>
-                      </div>
+            <div className="js-why space-y-6">
+              <div className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-7 md:p-9">
+                <p className="text-sm md:text-base text-neutral-400 leading-relaxed text-center">
+                  Founder50 note: standard platform fee is{' '}
+                  <span className="text-accent font-semibold">12%</span>, while Founder50 members are locked into{' '}
+                  <span className="text-accent font-semibold">6%</span> forever.
+                </p>
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    'No setup fees',
+                    'No monthly subscription',
+                    'No per-lead charges',
+                  ].map((item) => (
+                    <div key={item} className="rounded-xl bg-neutral-950/55 px-4 py-3 text-sm text-neutral-200 flex items-center justify-center gap-2">
+                      <span className="text-accent">✓</span>
+                      {item}
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 rounded-2xl border border-neutral-800 overflow-hidden">
-                <div className="grid grid-cols-3 bg-neutral-900 border-b border-neutral-800">
-                  <div className="p-3 text-xs text-neutral-500 font-medium">Feature</div>
-                  <div className="p-3 text-xs text-neutral-500 font-medium text-center">Others</div>
-                  <div className="p-3 text-xs text-accent font-semibold text-center">ScheduleMe</div>
+                  ))}
                 </div>
-                {[
-                  { label: 'Monthly subscription', them: true, us: false },
-                  { label: 'Per-lead fees', them: true, us: false },
-                  { label: 'Pay only when you earn', them: false, us: true },
-                  { label: 'Real-time SMS + email alerts', them: false, us: true },
-                ].map((row, idx) => (
-                  <div key={row.label} className={`grid grid-cols-3 ${idx % 2 === 0 ? 'bg-neutral-950/35' : 'bg-neutral-950/65'}`}>
-                    <div className="p-3 text-xs text-neutral-300">{row.label}</div>
-                    <div className="p-3 text-center text-neutral-500">{row.them ? '✓' : '✕'}</div>
-                    <div className="p-3 text-center text-accent">{row.us ? '✓' : '✕'}</div>
-                  </div>
-                ))}
               </div>
-              <div className="mt-7 flex flex-wrap gap-3">
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-3xl border border-neutral-800 bg-neutral-900/55 p-6 md:p-7">
+                  <h3 className="text-lg font-semibold text-white mb-4">What does 12% look like?</h3>
+                  <div className="space-y-3">
+                    {[
+                      { job: 'Leaky faucet repair', total: 150 },
+                      { job: 'Deep house cleaning', total: 280 },
+                      { job: 'Electrical panel work', total: 600 },
+                    ].map((example) => (
+                      <div key={example.job} className="rounded-xl bg-neutral-950/55 px-4 py-3">
+                        <p className="text-xs text-neutral-500 mb-2">{example.job}</p>
+                        <div className="space-y-1.5 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-neutral-500">Customer pays</span>
+                            <span className="text-white font-semibold">${example.total}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-500">ScheduleMe (12%)</span>
+                            <span className="text-neutral-400">-${Math.round(example.total * 0.12)}</span>
+                          </div>
+                          <div className="h-px bg-neutral-800 my-1.5" />
+                          <div className="flex justify-between">
+                            <span className="text-neutral-300 font-semibold">You receive</span>
+                            <span className="text-accent font-bold">${Math.round(example.total * 0.88)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-neutral-800 bg-neutral-900/55 p-6 md:p-7">
+                  <h3 className="text-lg font-semibold text-white mb-4">Why providers switch</h3>
+                  <div className="rounded-2xl overflow-hidden">
+                    <div className="grid grid-cols-3 bg-neutral-900 border-b border-neutral-800">
+                      <div className="p-3 text-xs text-neutral-500 font-medium">Feature</div>
+                      <div className="p-3 text-xs text-neutral-500 font-medium text-center">Others</div>
+                      <div className="p-3 text-xs text-accent font-semibold text-center">ScheduleMe</div>
+                    </div>
+                    {[
+                      { label: 'Monthly subscription', them: true, us: false },
+                      { label: 'Per-lead fees', them: true, us: false },
+                      { label: 'Pay only when you earn', them: false, us: true },
+                      { label: 'Real-time SMS + email alerts', them: false, us: true },
+                    ].map((row, idx) => (
+                      <div key={row.label} className={`grid grid-cols-3 ${idx % 2 === 0 ? 'bg-neutral-950/35' : 'bg-neutral-950/65'}`}>
+                        <div className="p-3 text-xs text-neutral-300">{row.label}</div>
+                        <div className="p-3 text-center text-neutral-500">{row.them ? '✓' : '✕'}</div>
+                        <div className="p-3 text-center text-accent">{row.us ? '✓' : '✕'}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
                 <Link href="/provider/signup" className="btn-primary text-base px-8 py-3.5 shadow-xl shadow-accent/20">
                   Join for Free →
                 </Link>
