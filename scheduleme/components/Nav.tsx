@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useDm } from '../lib/DarkModeContext';
+import BrandRouteLoader from './BrandRouteLoader';
 
 interface NavProps { variant?: 'light' | 'dark'; }
 
@@ -55,32 +56,6 @@ const CONSUMER_TOUR_STEPS = [
     cta: 'Finish tour',
   },
 ] as const;
-
-function BrandLoader({ provider = false, message }: { provider?: boolean; message?: string }) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden px-6" style={{ background: '#07090d' }}>
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: 'linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px)',
-          backgroundSize: '48px 48px',
-        }}
-      />
-      <div className="relative text-center">
-        <p className="text-5xl font-black tracking-[-0.03em] text-white">ScheduleMe</p>
-        {provider ? (
-          <p className="text-xs font-bold uppercase tracking-[0.28em] mt-2" style={{ color: '#0F766E' }}>FOR PROVIDERS</p>
-        ) : null}
-        <div className="mt-8 flex justify-center">
-          <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
-        </div>
-        {message ? (
-          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>{message}</p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 export default function Nav({ variant = 'light' }: NavProps) {
   const isDark = variant === 'dark';
@@ -375,7 +350,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           50% { box-shadow: 0 0 0 8px rgba(15, 118, 110, 0); }
         }
       `}</style>
-      {signingOut && <BrandLoader provider={useProviderLoader} message="Signing out..." />}
+      {signingOut && <BrandRouteLoader audience={useProviderLoader ? 'provider' : 'consumer'} message="Signing out..." />}
       {routeTransitioning && (
         <div
           aria-hidden="true"

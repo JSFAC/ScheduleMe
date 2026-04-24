@@ -179,6 +179,35 @@ function normalizeThreads(input: any): any[] {
       profiles: t?.profiles && typeof t.profiles === 'object' ? t.profiles : null,
     }));
 }
+
+function buildThreadFallbackFromBookings(rows: any[], businessId: string) {
+  const grouped = new Map<string, any[]>();
+  for (const booking of rows || []) {
+    const key = booking?.user_id || booking?.profiles?.id || booking?.profiles?.email || booking?.id;
+    if (!key) continue;
+    const current = grouped.get(key) || [];
+    current.push(booking);
+    grouped.set(key, current);
+  }
+
+  return Array.from(grouped.values()).map((group: any[]) => {
+    const sorted = [...group].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latest = sorted[0];
+    return {
+      id: latest?.profiles?.id || latest?.user_id || latest?.profiles?.email || latest?.id,
+      customer_id: latest?.profiles?.id || latest?.user_id || null,
+      business_id: businessId,
+      booking_id: latest?.id || null,
+      booking_ids: sorted.map((row: any) => row.id).filter(Boolean),
+      service: latest?.service || 'Conversation',
+      status: latest?.status || 'pending',
+      created_at: latest?.created_at || new Date().toISOString(),
+      profiles: latest?.profiles || null,
+      lastMessage: null,
+      unreadCount: 0,
+    };
+  });
+}
 function onlyDigits(v: string) { return (v || '').replace(/[^\d]/g, '').slice(0, 7); }
 function digitsToDollars(digits: string) { return digits ? (Number(digits) / 100).toFixed(2) : ''; }
 function toCalDate(d: Date) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z'); }
@@ -782,18 +811,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
 
   return (
     <div className="space-y-3">
-      {/* Tab switcher */}
-      <div className="flex rounded-xl p-1 gap-1" style={{ background: dm ? '#2c2c2e' : '#f2f2f7' }}>
-        {(['card', 'modal'] as const).map(mode => (
-          <button key={mode} onClick={() => switchTab(mode)}
-            className="flex-1 py-2 rounded-lg text-sm font-bold transition-all"
-            style={{ background: tab === mode ? bg : 'transparent', color: tab === mode ? (dm ? '#f2f2f7' : '#1c1c1e') : muted, boxShadow: tab === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
-            {mode === 'card' ? 'Card View' : 'Modal View'}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'card' ? cardPreview : modalPreview}
+      {modalPreview}
 
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden"
         onChange={e => { uploadFiles(Array.from(e.target.files || [])); e.target.value = ''; }} />
@@ -1079,11 +1097,40 @@ const BusinessDashboard: NextPage = () => {
         fetch('/api/stripe-balance', { method: 'POST', headers: authHeaders }),
       ]);
 
+      let resolvedBookings: any[] = [];
+
       if (bkgRes.status === 'fulfilled' && bkgRes.value?.ok) {
         const bkgData = await bkgRes.value.json().catch(() => ({}));
-        setBookings(normalizeBookings(bkgData?.bookings));
+        resolvedBookings = normalizeBookings(bkgData?.bookings);
+        setBookings(resolvedBookings);
       } else {
-        setBookings([]);
+        const { data: fallbackBookings } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            business_id,
+            user_id,
+            service,
+            status,
+            created_at,
+            scheduled_start,
+            scheduled_end,
+            amount_cents,
+            paid_at,
+            customer_proposed_price_cents,
+            provider_proposed_price_cents,
+            price_accepted_by_customer,
+            price_accepted_by_provider,
+            price_accepted_at,
+            dispute_amount_cents,
+            dispute_note,
+            dispute_at,
+            profiles(id, name, phone, email, avatar_url)
+          `)
+          .eq('business_id', safeBiz.id)
+          .order('created_at', { ascending: false });
+        resolvedBookings = normalizeBookings(fallbackBookings);
+        setBookings(resolvedBookings);
       }
 
       if (msgsRes.status === 'fulfilled' && msgsRes.value?.ok) {
@@ -1092,8 +1139,9 @@ const BusinessDashboard: NextPage = () => {
         setMsgThreads(normalized);
         setThreads(normalized);
       } else {
-        setMsgThreads([]);
-        setThreads([]);
+        const fallbackThreads = normalizeThreads(buildThreadFallbackFromBookings(resolvedBookings, safeBiz.id));
+        setMsgThreads(fallbackThreads);
+        setThreads(fallbackThreads);
       }
 
       if (balRes.status === 'fulfilled' && balRes.value?.ok) {
@@ -2454,53 +2502,58 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                         </div>
 
-                        <div className="rounded-[28px] border bg-white p-5">
+                        <div className="provider-premium-panel rounded-[30px] border bg-white p-6">
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Publish Checklist</h2>
-                              <p className="mt-1 text-xs text-neutral-500">
-                                Draft profiles stay private until all requirements are complete.
-                              </p>
+                              <p className="mt-1 text-xs text-neutral-500">Finish these launch blockers to publish your provider page.</p>
                             </div>
                             <span
-                              className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                              className="rounded-full px-3 py-1.5 text-[11px] font-semibold"
                               style={{ background: publishReady ? '#ecfdf5' : '#fff7ed', color: publishReady ? '#047857' : '#9a3412' }}
                             >
-                              {publishReady ? 'Ready' : 'Draft'}
+                              {publishReady ? 'Ready to Publish' : 'Draft'}
                             </span>
                           </div>
-                          <div className="mt-4 grid grid-cols-1 gap-2 text-xs">
+                          <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                             {[
-                              { key: 'coreProfile', label: 'Core profile fields' },
-                              { key: 'services', label: 'At least one service' },
-                              { key: 'media', label: 'Photo or media uploaded' },
-                              { key: 'stripe', label: 'Stripe connected' },
+                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and contact details.' },
+                              { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
+                              { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
+                              { key: 'stripe', label: 'Stripe connected', hint: 'Connect payouts before you publish publicly.' },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
                               return (
                                 <div
                                   key={item.key}
-                                  className="rounded-2xl border px-3 py-2.5 flex items-center justify-between"
-                                  style={{ borderColor: ok ? '#bbf7d0' : '#fed7aa', background: ok ? '#f0fdf4' : '#fff7ed' }}
+                                  className="rounded-[24px] border px-4 py-4"
+                                  style={{ borderColor: ok ? '#b7e5ce' : '#f2d39a', background: ok ? '#eef9f3' : '#fff6e7' }}
                                 >
-                                  <span style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</span>
-                                  <span style={{ color: ok ? '#166534' : '#9a3412', fontWeight: 700 }}>{ok ? 'Done' : 'Needed'}</span>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="font-semibold" style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</p>
+                                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : '#9a3412' }}>{item.hint}</p>
+                                    </div>
+                                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : 'rgba(154,52,18,0.10)', color: ok ? '#166534' : '#9a3412' }}>
+                                      {ok ? 'Done' : 'Needed'}
+                                    </span>
+                                  </div>
                                 </div>
                               );
                             })}
                           </div>
-                          <div className="mt-4 flex gap-2">
+                          <div className="mt-5 flex flex-wrap gap-2">
                             <button
                               onClick={() => handlePublish('publish')}
                               disabled={publishLoading || !publishReady}
-                              className="btn-primary rounded-full px-4 py-2 text-sm disabled:opacity-50"
+                              className="btn-primary rounded-full px-4 py-2.5 text-sm disabled:opacity-50"
                             >
                               {publishLoading ? 'Updating…' : 'Publish Profile'}
                             </button>
                             <button
                               onClick={() => handlePublish('unpublish')}
                               disabled={publishLoading || !business?.public_visibility}
-                              className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 disabled:opacity-50"
+                              className="rounded-full border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 disabled:opacity-50"
                             >
                               Unpublish
                             </button>

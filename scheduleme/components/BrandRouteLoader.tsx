@@ -9,31 +9,63 @@ export default function BrandRouteLoader({
   audience = 'consumer',
   message,
 }: BrandRouteLoaderProps) {
+  const isProvider = audience === 'provider';
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden px-6"
-      style={{ background: '#07090d' }}
+      style={{ background: isProvider ? '#0a0a0a' : '#ffffff' }}
     >
       <div
         className="absolute inset-0"
         style={{
           backgroundImage:
-            'linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px)',
+            isProvider
+              ? 'linear-gradient(to right,rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.02) 1px,transparent 1px)'
+              : 'linear-gradient(to right,rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.03) 1px,transparent 1px)',
           backgroundSize: '48px 48px',
         }}
       />
       <div className="relative text-center">
-        <p className="text-5xl font-black tracking-[-0.03em] text-white">ScheduleMe</p>
-        {audience === 'provider' ? (
-          <p className="text-xs font-bold uppercase tracking-[0.28em] mt-2" style={{ color: '#0F766E' }}>
-            FOR PROVIDERS
-          </p>
-        ) : null}
-        <div className="mt-8 flex justify-center">
-          <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
+        <p
+          style={{
+            fontSize: '1.75rem',
+            fontWeight: 900,
+            color: isProvider ? '#fff' : '#0a0a0a',
+            letterSpacing: '-0.03em',
+            marginBottom: 4,
+          }}
+        >
+          ScheduleMe
+        </p>
+        <p
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: '#0F766E',
+            marginBottom: message ? 20 : 20,
+          }}
+        >
+          {isProvider ? 'for Providers' : 'for Everyone'}
+        </p>
+        <div className="flex justify-center">
+          <div
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              border: '2px solid rgba(15,118,110,0.25)',
+              borderTopColor: '#0F766E',
+              animation: 'spin 0.7s linear infinite',
+            }}
+          />
         </div>
         {message ? (
-          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>
+          <p
+            className="text-sm mt-5"
+            style={{ color: isProvider ? 'rgba(255,255,255,0.72)' : 'rgba(10,10,10,0.62)' }}
+          >
             {message}
           </p>
         ) : null}

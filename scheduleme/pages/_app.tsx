@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import '../styles/globals.css';
 import 'leaflet/dist/leaflet.css';
 import { DarkModeProvider } from '../lib/DarkModeContext';
+import BrandRouteLoader from '../components/BrandRouteLoader';
 
 const normUrl = (url: unknown) => (typeof url === 'string' ? url : '');
 const isProvider = (url: unknown) => {
@@ -23,11 +24,6 @@ const isAuthRoute = (url: unknown) => {
     u.startsWith('/auth/')
   );
 };
-const isProviderDashboardRoute = (url: unknown) => {
-  const u = normUrl(url);
-  return u.startsWith('/provider/dashboard') || u.startsWith('/business/dashboard');
-};
-
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
@@ -80,8 +76,7 @@ export default function App({ Component, pageProps }: AppProps) {
     const onStart = (url: string) => {
       scrollRef.current = window.scrollY;
       const crossingShell = isProvider(router.asPath) !== isProvider(url);
-      const movingIntoProviderDashboard = isProviderDashboardRoute(url);
-      if (crossingShell && !isAuthRoute(router.asPath) && !isAuthRoute(url) && !movingIntoProviderDashboard) {
+      if (crossingShell && !isAuthRoute(router.asPath) && !isAuthRoute(url)) {
         // Business/consumer transition — show overlay for full duration
         isTransitioning.current = true;
         setVisible(false);
@@ -166,43 +161,10 @@ export default function App({ Component, pageProps }: AppProps) {
             zIndex: 9999,
             opacity: overlayFade ? 1 : 0,
             transition: 'opacity 0.32s ease',
-            background: toProvider ? '#0a0a0a' : '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
             pointerEvents: 'none',
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: toProvider
-                ? 'linear-gradient(to right,rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.02) 1px,transparent 1px)'
-                : 'linear-gradient(to right,rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.03) 1px,transparent 1px)',
-              backgroundSize: '48px 48px',
-            }}
-          />
-          <div style={{ position: 'relative', textAlign: 'center' }}>
-            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toProvider ? '#fff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: 4 }}>
-              ScheduleMe
-            </p>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0F766E', marginBottom: 20 }}>
-              {toProvider ? 'for Providers' : 'for Everyone'}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <div
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  border: '2px solid rgba(15,118,110,0.25)',
-                  borderTopColor: '#0F766E',
-                  animation: 'spin 0.7s linear infinite',
-                }}
-              />
-            </div>
-          </div>
+          <BrandRouteLoader audience={toProvider ? 'provider' : 'consumer'} />
         </div>
       )}
 
