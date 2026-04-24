@@ -248,6 +248,36 @@ function downloadIcsBatch(filename: string, events: { title: string; details?: s
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+function ProviderBrandLoader({ message }: { message?: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#07090d' }}>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-0 h-[560px] w-[760px] -translate-x-1/2 rounded-full"
+        style={{ background: 'radial-gradient(ellipse, rgba(10,132,255,0.08) 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: 'linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px)',
+          backgroundSize: '48px 48px',
+        }}
+      />
+      <div className="relative text-center">
+        <p className="text-5xl font-black tracking-[-0.03em] text-white">ScheduleMe</p>
+        <p className="text-xs font-bold uppercase tracking-[0.28em] mt-2" style={{ color: '#0F766E' }}>FOR PROVIDERS</p>
+        <div className="mt-8 flex justify-center">
+          <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
+        </div>
+        {message ? (
+          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>{message}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function canMarkComplete(b: Booking, bizHours?: any) {
   if (!b?.scheduled_start) return true;
   try {
@@ -1898,27 +1928,7 @@ const BusinessDashboard: NextPage = () => {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#07090d' }}>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-0 h-[560px] w-[760px] -translate-x-1/2 rounded-full"
-          style={{ background: 'radial-gradient(ellipse, rgba(10,132,255,0.08) 0%, transparent 70%)' }}
-        />
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px)',
-          backgroundSize: '48px 48px',
-        }} />
-        <div className="relative text-center">
-          <p className="text-5xl font-black tracking-[-0.03em] text-white">ScheduleMe</p>
-          <p className="text-xs font-bold uppercase tracking-[0.28em] mt-2" style={{ color: '#0F766E' }}>FOR PROVIDERS</p>
-          <div className="mt-8 flex justify-center">
-            <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
-          </div>
-          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>Loading provider dashboard...</p>
-        </div>
-      </div>
-    );
+    return <ProviderBrandLoader />;
   }
 
   if (!business) {
@@ -2058,12 +2068,8 @@ const BusinessDashboard: NextPage = () => {
   return (
     <>
       {signingOut && (
-        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(8px)' }}>
-          <div className="relative h-8 w-8 mb-4">
-            <div className="absolute inset-0 rounded-full border-2 border-white/20" />
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" />
-          </div>
-          <p className="text-white font-semibold text-sm tracking-wide">Signing you out…</p>
+        <div className="fixed inset-0 z-[9999]">
+          <ProviderBrandLoader message="Signing you out..." />
         </div>
       )}
       {showTour && tour && (
