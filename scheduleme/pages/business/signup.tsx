@@ -65,7 +65,7 @@ const SignupPage: NextPage = () => {
 
     setSuccess('Provider account created. Redirecting to dashboard...');
     if (typeof window !== 'undefined') sessionStorage.removeItem(PROVIDER_SIGNUP_CTX_KEY);
-    setTimeout(() => router.replace('/business/dashboard'), 350);
+    setTimeout(() => router.replace('/provider/dashboard'), 350);
     return true;
   };
 
@@ -179,7 +179,7 @@ const SignupPage: NextPage = () => {
       await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/business/signup?oauth=1`,
+          redirectTo: `${window.location.origin}/provider/signup?oauth=1`,
           ...(provider === 'google' ? { queryParams: { prompt: 'select_account' } } : {}),
         },
       });
@@ -196,10 +196,6 @@ const SignupPage: NextPage = () => {
     const cleanName = fullName.trim();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanName) {
-      setError('Please enter your full name.');
-      return;
-    }
     if (!cleanEmail || !/^\S+@\S+\.\S+$/.test(cleanEmail)) {
       setError('Please enter a valid email address.');
       return;
@@ -218,7 +214,7 @@ const SignupPage: NextPage = () => {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
-        options: { data: { full_name: cleanName } },
+        options: { data: { full_name: cleanName || businessName.trim() } },
       });
       if (signUpError) throw signUpError;
 
@@ -294,7 +290,7 @@ const SignupPage: NextPage = () => {
                 type="text"
                 autoComplete="name"
                 className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                placeholder="Full name"
+                placeholder="Full name (optional)"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
@@ -310,7 +306,7 @@ const SignupPage: NextPage = () => {
                 type="password"
                 autoComplete="new-password"
                 className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                placeholder="Create password (8+ chars)"
+                placeholder="Create password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -387,7 +383,7 @@ const SignupPage: NextPage = () => {
 
             {siteKey && (
               <div className="w-full flex flex-col items-center">
-                <div className="w-full flex justify-center">
+                <div className="w-full rounded-xl border border-neutral-700/70 bg-neutral-900/70 py-4 flex justify-center">
                   <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
                 </div>
                 {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500 text-center">Captcha loading... If it doesn&apos;t appear, disable ad blockers and refresh.</p>}
@@ -397,7 +393,7 @@ const SignupPage: NextPage = () => {
           </div>
 
           <p className="text-center text-xs text-neutral-600 mt-4">
-            Already have a provider account? <Link href="/business/auth/login" className="text-accent hover:underline">Log in</Link>
+            Already have a provider account? <Link href="/provider/auth/login" className="text-accent hover:underline">Log in</Link>
           </p>
         </div>
       </div>

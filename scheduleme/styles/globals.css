@@ -375,15 +375,19 @@ html, body {
 @keyframes heroCtaPopIn {
   0% {
     opacity: 0;
-    transform: translateY(16px) scale(0.9);
+    transform: translateY(22px) scale(0.86);
   }
-  56% {
+  52% {
     opacity: 1;
-    transform: translateY(-9px) scale(1.075);
+    transform: translateY(-8px) scale(1.08);
   }
-  78% {
+  74% {
     opacity: 1;
-    transform: translateY(3px) scale(0.985);
+    transform: translateY(4px) scale(0.98);
+  }
+  88% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.012);
   }
   100% {
     opacity: 1;
@@ -392,10 +396,10 @@ html, body {
 }
 
 .hero-cta-pop {
-  animation: heroCtaPopIn 1140ms cubic-bezier(0.18, 1.24, 0.3, 1) both;
+  animation: heroCtaPopIn 1380ms cubic-bezier(0.22, 1.26, 0.34, 1) both;
 }
-.hero-cta-pop-primary { animation-delay: 430ms; }
-.hero-cta-pop-secondary { animation-delay: 620ms; }
+.hero-cta-pop-primary { animation-delay: 480ms; }
+.hero-cta-pop-secondary { animation-delay: 700ms; }
 
 @keyframes testimonialStarIn {
   0% {
@@ -424,11 +428,15 @@ html, body {
 @keyframes heroBadgeStarIn {
   0% {
     opacity: 0;
-    transform: translateY(4px) scale(0.74);
+    transform: translateY(6px) scale(0.68);
   }
-  65% {
+  60% {
     opacity: 1;
-    transform: translateY(-1px) scale(1.08);
+    transform: translateY(-2px) scale(1.12);
+  }
+  82% {
+    opacity: 1;
+    transform: translateY(1px) scale(0.98);
   }
   100% {
     opacity: 1;
@@ -441,23 +449,28 @@ html, body {
   transform: translateY(4px) scale(0.74);
 }
 .hero-badge-star-visible {
-  animation: heroBadgeStarIn 520ms cubic-bezier(0.2, 1.18, 0.3, 1) both;
+  animation: heroBadgeStarIn 760ms cubic-bezier(0.22, 1.22, 0.34, 1) both;
 }
 
 @keyframes heroBadgeCheckReveal {
   0% {
     opacity: 0;
-    transform: rotate(-180deg) scale(0.6);
+    transform: rotate(-250deg) scale(0.42);
     clip-path: inset(100% 0 0 0);
   }
-  55% {
+  46% {
     opacity: 1;
-    transform: rotate(-24deg) scale(1.08);
-    clip-path: inset(16% 0 0 0);
+    transform: rotate(-38deg) scale(1.1);
+    clip-path: inset(38% 0 0 0);
   }
-  78% {
+  68% {
     opacity: 1;
-    transform: rotate(10deg) scale(0.98);
+    transform: rotate(10deg) scale(0.96);
+    clip-path: inset(0 0 0 0);
+  }
+  84% {
+    opacity: 1;
+    transform: rotate(-4deg) scale(1.03);
     clip-path: inset(0 0 0 0);
   }
   100% {
@@ -468,7 +481,7 @@ html, body {
 }
 
 .hero-badge-check-reveal {
-  animation: heroBadgeCheckReveal 820ms cubic-bezier(0.2, 1.2, 0.32, 1) both;
+  animation: heroBadgeCheckReveal 1180ms cubic-bezier(0.22, 1.22, 0.34, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

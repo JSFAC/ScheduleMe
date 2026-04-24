@@ -11,7 +11,7 @@ export default function StripeConnectReturnPage() {
     const fallbackParam = typeof router.query.fallback === 'string' ? router.query.fallback : '';
 
     const target = targetParam.trim();
-    const fallback = fallbackParam.trim() || '/business/dashboard';
+    const fallback = fallbackParam.trim() || '/provider/dashboard';
 
     if (!target) {
       window.location.replace(fallback);
@@ -45,4 +45,3 @@ export default function StripeConnectReturnPage() {
     </main>
   );
 }
-

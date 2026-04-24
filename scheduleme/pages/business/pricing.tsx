@@ -98,7 +98,7 @@ const FAQ = [
 
 const CheckIcon = ({ green }: { green?: boolean }) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
-    className={green ? 'text-green-400' : 'text-accent'} aria-hidden="true">
+    className={green ? 'text-accent' : 'text-accent'} aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
   </svg>
 );
@@ -139,11 +139,11 @@ const BusinessPricing: NextPage = () => {
               No subscriptions. No monthly fees. No per-lead charges.
               You only pay when a customer pays you.
             </p>
-            <p className="text-sm text-emerald-300 font-semibold mb-10">
+            <p className="text-sm text-accent font-semibold mb-10">
               Founder50: Standard platform fee is 12%, but as a Founder50 member, you are locked into 6% forever.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/business/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
+              <Link href="/provider/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
                 Join for Free →
               </Link>
               <a href="mailto:hello@usescheduleme.com"
@@ -164,7 +164,7 @@ const BusinessPricing: NextPage = () => {
                 <p className="text-neutral-400 text-sm font-semibold uppercase tracking-widest mb-4">The only number that matters</p>
                 <p className="text-8xl md:text-9xl font-black text-white mb-2" style={{ letterSpacing: '-0.04em' }}>12<span className="text-accent">%</span></p>
                 <p className="text-neutral-400 text-lg mb-4">commission on completed jobs. That's it.</p>
-                <p className="text-emerald-300 text-sm font-semibold mb-8">Founder50 members are locked into 6% forever.</p>
+                <p className="text-accent text-sm font-semibold mb-8">Founder50 members are locked into 6% forever.</p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-sm">
                   <div className="flex items-center gap-2 text-neutral-300">
                     <CheckIcon />
@@ -211,7 +211,7 @@ const BusinessPricing: NextPage = () => {
                     <div className="h-px bg-neutral-800 my-2" />
                     <div className="flex justify-between">
                       <span className="text-neutral-300 font-semibold">You receive</span>
-                      <span className="text-green-400 font-bold text-base">${Math.round(ex.total * 0.88)}</span>
+                      <span className="text-accent font-bold text-base">${Math.round(ex.total * 0.88)}</span>
                     </div>
                   </div>
                 </div>
@@ -230,7 +230,7 @@ const BusinessPricing: NextPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {HOW_IT_WORKS.map((step) => (
                 <div key={step.step} className="js-reveal">
-                  <p className="text-4xl font-black text-neutral-800 mb-3" style={{ letterSpacing: '-0.03em' }}>{step.step}</p>
+                  <p className="text-4xl font-black text-neutral-500 mb-3" style={{ letterSpacing: '-0.03em' }}>{step.step}</p>
                   <p className="text-base font-bold text-white mb-2">{step.title}</p>
                   <p className="text-sm text-neutral-400 leading-relaxed">{step.desc}</p>
                 </div>
@@ -295,7 +295,7 @@ const BusinessPricing: NextPage = () => {
               Free to join. Approval within 24 hours. No credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/business/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
+              <Link href="/provider/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
                 Create Your Profile →
               </Link>
               <a href="mailto:hello@usescheduleme.com"

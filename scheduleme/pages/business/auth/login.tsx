@@ -34,7 +34,7 @@ const BusinessLoginPage: NextPage = () => {
   useEffect(() => {
     if (router.query.error === 'not_a_business') {
       setError('not_a_business');
-      router.replace('/business/auth/login', undefined, { shallow: true });
+      router.replace('/provider/auth/login', undefined, { shallow: true });
     }
   }, [router.query.error, router]);
   const [success, setSuccess] = useState<string | null>(null);
@@ -115,18 +115,12 @@ const BusinessLoginPage: NextPage = () => {
             has_seen_welcome: true,
           }, { onConflict: 'id', ignoreDuplicates: false });
         } catch {}
-        router.replace('/business/dashboard');
+        router.replace('/provider/dashboard');
       } else {
-        // Not a business — sign out AND delete the orphaned auth account
-        const userId = session.user.id;
+        // Not a provider account yet — send to provider signup with terms gate.
         const email = session.user.email ?? '';
         await supabase.auth.signOut();
-        await fetch('/api/cleanup-auth-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, email }),
-        });
-        setError('not_a_business');
+        router.replace(`/provider/signup?from=oauth-login&email=${encodeURIComponent(email)}`);
       }
     });
   }, [router]);
@@ -186,7 +180,7 @@ const BusinessLoginPage: NextPage = () => {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/business/auth/set-password`,
+          redirectTo: `${window.location.origin}/provider/auth/set-password`,
           ...(captchaToken ? { captchaToken } : {}),
         });
         if (error) throw error;
@@ -218,7 +212,7 @@ const BusinessLoginPage: NextPage = () => {
         } catch {}
 
         setFailedCount(0);
-        router.push('/business/dashboard');
+        router.push('/provider/dashboard');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
@@ -258,7 +252,7 @@ const BusinessLoginPage: NextPage = () => {
                     : error}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Link href="/business/signup"
+                  <Link href="/provider/signup"
                     className="flex items-center justify-center px-3 py-2 rounded-lg bg-accent/20 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/30 transition-colors text-center">
                     Create Provider Account
                   </Link>
@@ -327,7 +321,7 @@ const BusinessLoginPage: NextPage = () => {
 
                 <p className="text-center text-xs text-neutral-600 pt-1">
                   New provider?{' '}
-                  <Link href="/business/signup" className="text-accent hover:underline">Create provider account →</Link>
+                  <Link href="/provider/signup" className="text-accent hover:underline">Create provider account →</Link>
                 </p>
               </div>
             ) : (

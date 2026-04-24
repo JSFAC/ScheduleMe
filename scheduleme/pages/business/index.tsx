@@ -113,7 +113,7 @@ const Business: NextPage = () => {
               ScheduleMe delivers campus‑matched leads that fit your service and availability. You pay only when jobs are completed — no setup fees, no lock‑in.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/business/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
+              <Link href="/provider/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
                 Join for Free →
               </Link>
               <a href="#how" className="inline-flex items-center justify-center px-10 py-4 rounded-xl border border-neutral-700 text-neutral-300 text-base font-semibold hover:bg-neutral-800 transition-colors">
@@ -194,7 +194,7 @@ const Business: NextPage = () => {
               ))}
             </ol>
             <div className="js-sec mt-14 text-center">
-              <Link href="/business/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
+              <Link href="/provider/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
                 Get Started Free →
               </Link>
             </div>
@@ -228,19 +228,45 @@ const Business: NextPage = () => {
           </div>
         </section>
 
-        {/* Pricing teaser */}
-        <section className="py-20 px-6 bg-neutral-900/30 border-y border-neutral-900" aria-labelledby="biz-pricing-teaser">
-          <div className="mx-auto max-w-3xl text-center js-sec">
-            <span className="section-eyebrow mb-4 block">Pricing</span>
-            <h2 id="biz-pricing-teaser" className="text-3xl md:text-4xl font-bold text-white mb-5">
-              Pay only for what you get
-            </h2>
-            <p className="text-neutral-400 mb-10 text-lg leading-relaxed">
-              Start free with $8 per lead, or go unlimited with Pro at $79/month.<br className="hidden md:block" /> No contracts, no hidden fees.
-            </p>
-            <Link href="/business/pricing" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
-              View Full Pricing →
-            </Link>
+        {/* Pricing */}
+        <section id="pricing" className="py-24 px-6 bg-neutral-900/30 border-y border-neutral-900" aria-labelledby="biz-pricing-heading">
+          <div className="mx-auto max-w-4xl">
+            <div className="js-sec text-center mb-12">
+              <span className="section-eyebrow mb-4 block">Pricing</span>
+              <h2 id="biz-pricing-heading" className="text-4xl md:text-5xl font-bold text-white mb-5">
+                Free to join. 12% when you earn.
+              </h2>
+              <p className="text-neutral-400 text-lg leading-relaxed max-w-2xl mx-auto">
+                No subscriptions. No monthly fees. No per-lead charges. You only pay when a customer pays you.
+              </p>
+            </div>
+
+            <div className="js-why rounded-3xl border border-neutral-800 bg-neutral-900/70 p-7 md:p-10">
+              <p className="text-sm md:text-base text-neutral-400 leading-relaxed">
+                Standard platform fee is <span className="text-accent font-semibold">12%</span>. Founder50 members are locked into{' '}
+                <span className="text-accent font-semibold">6%</span> forever.
+              </p>
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  'No setup fees',
+                  'No monthly subscription',
+                  'No per-lead charges',
+                ].map((item) => (
+                  <div key={item} className="rounded-xl border border-neutral-800 bg-neutral-950/55 px-4 py-3 text-sm text-neutral-200 flex items-center gap-2">
+                    <span className="text-accent">✓</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link href="/provider/signup" className="btn-primary text-base px-8 py-3.5 shadow-xl shadow-accent/20">
+                  Join for Free →
+                </Link>
+                <a href="#faq" className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl border border-neutral-700 text-neutral-200 text-base font-semibold hover:bg-neutral-800 transition-colors">
+                  Talk to us
+                </a>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -271,7 +297,7 @@ const Business: NextPage = () => {
             <p className="text-neutral-400 mb-10 text-lg leading-relaxed">
               Join free in 5 minutes. No credit card, no commitment.<br className="hidden md:block" /> Publish as soon as your checklist is complete.
             </p>
-            <Link href="/business/signup" className="btn-primary text-base px-12 py-4 shadow-xl shadow-accent/20">
+            <Link href="/provider/signup" className="btn-primary text-base px-12 py-4 shadow-xl shadow-accent/20">
               Create Your Provider Profile →
             </Link>
           </div>

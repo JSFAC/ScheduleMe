@@ -24,6 +24,7 @@ export default function Hero({
   const previewRef = useRef<HTMLDivElement | null>(null);
   const hasStartedSequenceRef = useRef(false);
   const [typedCount, setTypedCount] = useState(0);
+  const [messageShellVisible, setMessageShellVisible] = useState(false);
   const [messageState, setMessageState] = useState<'typing' | 'ready' | 'sent'>('typing');
   const [matchState, setMatchState] = useState<'idle' | 'loading' | 'transition' | 'done'>('idle');
   const [visibleStudents, setVisibleStudents] = useState(0);
@@ -40,7 +41,7 @@ export default function Hero({
   const typedMessage = HERO_MESSAGE.slice(0, typedCount);
   const isTyping = typedCount > 0 && typedCount < HERO_MESSAGE.length;
   const hasTyped = typedCount >= HERO_MESSAGE.length;
-  const showMessageShell = typedCount > 0 || hasTyped;
+  const showMessageShell = messageShellVisible;
   const showMatchShell = matchState !== 'idle';
 
   useEffect(() => {
@@ -57,37 +58,41 @@ export default function Hero({
 
     const startSequence = () => {
       setTypedCount(0);
+      setMessageShellVisible(false);
       setMessageState('typing');
       setMatchState('idle');
       setVisibleStudents(0);
       setBadgeStages([0, 0, 0]);
       setShowViewAll(false);
 
-      typingInterval = window.setInterval(() => {
+      timers.push(window.setTimeout(() => setMessageShellVisible(true), 180));
+      timers.push(window.setTimeout(() => {
+        typingInterval = window.setInterval(() => {
         setTypedCount((prev) => {
           if (prev >= HERO_MESSAGE.length) {
             if (typingInterval != null) window.clearInterval(typingInterval);
             typingInterval = null;
             setMessageState('ready');
-            timers.push(window.setTimeout(() => setMessageState('sent'), 980));
-            timers.push(window.setTimeout(() => setMatchState('loading'), 1460));
-            timers.push(window.setTimeout(() => setMatchState('transition'), 4600));
-            timers.push(window.setTimeout(() => setMatchState('done'), 5480));
-            timers.push(window.setTimeout(() => setVisibleStudents(1), 5800));
-            timers.push(window.setTimeout(() => setVisibleStudents(2), 6520));
-            timers.push(window.setTimeout(() => setShowViewAll(true), 7300));
+            timers.push(window.setTimeout(() => setMessageState('sent'), 1260));
+            timers.push(window.setTimeout(() => setMatchState('loading'), 1840));
+            timers.push(window.setTimeout(() => setMatchState('transition'), 5600));
+            timers.push(window.setTimeout(() => setMatchState('done'), 6880));
+            timers.push(window.setTimeout(() => setVisibleStudents(1), 7400));
+            timers.push(window.setTimeout(() => setVisibleStudents(2), 8260));
+            timers.push(window.setTimeout(() => setShowViewAll(true), 9300));
 
             BADGES.forEach((_, idx) => {
-              const base = 7300 + idx * 740;
+              const base = 9400 + idx * 980;
               timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 1 : v))), base));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 520));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 1020));
+              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 680));
+              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 1340));
             });
             return prev;
           }
           return prev + 1;
         });
-      }, 62);
+        }, 72);
+      }, 920));
     };
 
     const io = new IntersectionObserver(
@@ -182,12 +187,12 @@ export default function Hero({
                     background: '#0F766E',
                     minHeight: 50,
                     opacity: showMessageShell ? 1 : 0,
-                    transition: 'opacity 560ms ease, transform 760ms cubic-bezier(0.18, 1.22, 0.32, 1), box-shadow 620ms cubic-bezier(0.22, 1.2, 0.36, 1)',
+                    transition: 'opacity 760ms ease, transform 1040ms cubic-bezier(0.22, 1.32, 0.34, 1), box-shadow 900ms cubic-bezier(0.22, 1.2, 0.36, 1)',
                     transform: showMessageShell
                       ? messageState === 'sent'
-                        ? 'translateY(-4px) scale(1.015)'
+                        ? 'translateY(-3px) scale(1.01)'
                         : 'translateY(0) scale(1)'
-                      : 'translateY(18px) scale(0.86)',
+                      : 'translateY(24px) scale(0.82)',
                     boxShadow: messageState === 'sent' ? '0 12px 30px rgba(15,118,110,0.28)' : 'none',
                   }}
                 >
@@ -213,7 +218,7 @@ export default function Hero({
                   style={{
                     opacity: hasTyped ? 1 : 0,
                     transform: hasTyped ? 'translateY(0)' : 'translateY(6px)',
-                    transition: 'opacity 460ms ease, transform 560ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                    transition: 'opacity 640ms ease, transform 760ms cubic-bezier(0.22, 1.14, 0.36, 1)',
                   }}
                 >
                   <p
@@ -221,8 +226,8 @@ export default function Hero({
                     style={{
                       color: dm ? '#6b7280' : '#9ca3af',
                       opacity: messageState === 'sent' ? 1 : 0.88,
-                      transform: messageState === 'sent' ? 'translateY(0)' : 'translateY(1px)',
-                      transition: 'opacity 360ms ease, transform 460ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                      transform: messageState === 'sent' ? 'translateY(0)' : 'translateY(2px)',
+                      transition: 'opacity 560ms ease, transform 700ms cubic-bezier(0.22, 1.14, 0.36, 1)',
                     }}
                   >
                     {messageState === 'sent' ? 'Sent' : 'Ready to send'}
@@ -238,31 +243,31 @@ export default function Hero({
                     border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5',
                     opacity: showMatchShell ? 1 : 0,
                     transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(18px) scale(0.72)',
-                    transition: 'opacity 620ms ease, transform 820ms cubic-bezier(0.18, 1.22, 0.32, 1)',
+                    transition: 'opacity 760ms ease, transform 980ms cubic-bezier(0.22, 1.28, 0.34, 1)',
                   }}
                 >
                   <svg className="h-3.5 w-3.5" style={{ color: '#0F766E' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                 </div>
-                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: showMatchShell ? 1 : 0, transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(18px) scale(0.9)', transition: 'opacity 700ms cubic-bezier(0.16, 1.2, 0.3, 1), transform 820ms cubic-bezier(0.16, 1.26, 0.3, 1)' }}>
+                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: showMatchShell ? 1 : 0, transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.84)', transition: 'opacity 860ms cubic-bezier(0.2, 1.2, 0.3, 1), transform 1080ms cubic-bezier(0.22, 1.32, 0.34, 1)' }}>
                   <div className="flex items-center gap-2">
                     <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${matchState === 'loading' || matchState === 'transition' ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
                     <div className="relative h-4 overflow-hidden">
                       <p
-                        className="text-xs font-semibold absolute left-0 top-0 transition-all duration-700"
+                        className="text-xs font-semibold absolute left-0 top-0 transition-all duration-1000"
                         style={{
                           color: dm ? '#8e8e93' : '#6b7280',
                           opacity: matchState === 'loading' || matchState === 'transition' ? 1 : 0,
-                          transform: matchState === 'loading' || matchState === 'transition' ? 'translateY(0)' : 'translateY(-8px)',
+                          transform: matchState === 'loading' || matchState === 'transition' ? 'translateY(0)' : 'translateY(-10px)',
                         }}
                       >
                         Matching you with student barbers...
                       </p>
                       <p
-                        className="text-xs font-semibold absolute left-0 top-0 transition-all duration-700"
+                        className="text-xs font-semibold absolute left-0 top-0 transition-all duration-1000"
                         style={{
                           color: dm ? '#8e8e93' : '#6b7280',
                           opacity: matchState === 'done' ? 1 : 0,
-                          transform: matchState === 'done' ? 'translateY(0)' : 'translateY(8px)',
+                          transform: matchState === 'done' ? 'translateY(0)' : 'translateY(10px)',
                         }}
                       >
                         2 student barbers near you
@@ -290,7 +295,7 @@ export default function Hero({
                           transform: visibleStudents > i ? 'translateY(0) scale(1)' : 'translateY(14px) scale(0.9)',
                           maxHeight: visibleStudents > i ? 70 : 0,
                           overflow: 'hidden',
-                          transition: `opacity 820ms cubic-bezier(0.16, 1.24, 0.3, 1) ${i * 140}ms, transform 860ms cubic-bezier(0.16, 1.28, 0.3, 1) ${i * 140}ms, max-height 780ms cubic-bezier(0.22, 1, 0.36, 1) ${i * 140}ms`,
+                          transition: `opacity 980ms cubic-bezier(0.2, 1.2, 0.3, 1) ${i * 180}ms, transform 1100ms cubic-bezier(0.22, 1.32, 0.34, 1) ${i * 180}ms, max-height 920ms cubic-bezier(0.22, 1, 0.36, 1) ${i * 180}ms`,
                         }}
                       >
                         <div className="flex items-center gap-2">
@@ -315,7 +320,7 @@ export default function Hero({
                         color: dm ? '#9ca3af' : '#4b5563',
                         opacity: showViewAll ? 1 : 0,
                         transform: showViewAll ? 'translateY(0)' : 'translateY(4px)',
-                        transition: 'opacity 380ms ease, transform 460ms cubic-bezier(0.22, 1.2, 0.36, 1)',
+                        transition: 'opacity 580ms ease, transform 720ms cubic-bezier(0.22, 1.2, 0.36, 1)',
                       }}
                     >
                       View all
@@ -326,12 +331,12 @@ export default function Hero({
               {/* Matched provider cards */}
               <div className="grid grid-cols-3 gap-2 pt-2">
                 {BADGES.map((item, idx) => (
-                  <div key={item.label} className="js-hero-pop rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined, opacity: badgeStages[idx] > 0 ? 1 : 0, transform: badgeStages[idx] > 0 ? 'translateY(0) scale(1)' : 'translateY(16px) scale(0.88)', transition: 'opacity 640ms cubic-bezier(0.16, 1.2, 0.3, 1), transform 640ms cubic-bezier(0.16, 1.2, 0.3, 1)' }}>
-                    <div className={`h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold ${badgeStages[idx] >= 1 ? 'hero-badge-check-reveal' : ''}`} style={{ background: '#0F766E', transition: 'transform 520ms cubic-bezier(0.16, 1.25, 0.3, 1)', transform: badgeStages[idx] >= 1 ? 'scale(1)' : 'scale(0.65)' }}>✓</div>
+                  <div key={item.label} className="js-hero-pop rounded-xl p-3 shadow-card text-center transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-default" style={{ background: dm ? '#1a1a1a' : 'white', border: dm ? '1px solid #262626' : undefined, opacity: badgeStages[idx] > 0 ? 1 : 0, transform: badgeStages[idx] > 0 ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.84)', transition: 'opacity 900ms cubic-bezier(0.2, 1.2, 0.3, 1), transform 1020ms cubic-bezier(0.22, 1.32, 0.34, 1)' }}>
+                    <div className={`h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold ${badgeStages[idx] >= 1 ? 'hero-badge-check-reveal' : ''}`} style={{ background: '#0F766E', transition: 'transform 780ms cubic-bezier(0.22, 1.3, 0.34, 1)', transform: badgeStages[idx] >= 1 ? 'scale(1)' : 'scale(0.56)' }}>✓</div>
                     <p className="text-xs font-semibold truncate transition-all duration-500" style={{ color: dm ? '#d1d5db' : '#262626', opacity: badgeStages[idx] >= 2 ? 1 : 0, transform: badgeStages[idx] >= 2 ? 'translateY(0)' : 'translateY(6px)' }}>{item.label}</p>
                     <p className="text-xs transition-all duration-500" style={{ color: dm ? '#525252' : '#a3a3a3', opacity: badgeStages[idx] >= 3 ? 1 : 0, transform: badgeStages[idx] >= 3 ? 'translateY(0)' : 'translateY(4px)' }}>
                       {Array.from({ length: 5 }).map((_, sIdx) => (
-                        <span key={sIdx} className={`inline-block hero-badge-star ${badgeStages[idx] >= 3 ? 'hero-badge-star-visible' : ''}`} style={{ animationDelay: `${sIdx * 70}ms` }}>★</span>
+                        <span key={sIdx} className={`inline-block hero-badge-star ${badgeStages[idx] >= 3 ? 'hero-badge-star-visible' : ''}`} style={{ animationDelay: `${sIdx * 120}ms` }}>★</span>
                       ))}
                     </p>
                   </div>

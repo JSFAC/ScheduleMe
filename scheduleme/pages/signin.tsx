@@ -523,7 +523,7 @@ const SignIn: NextPage = () => {
               <button
                 onClick={() => {
                   setBusinessRedirecting(true);
-                  setTimeout(() => { window.location.href = '/business/auth/login'; }, 1200);
+                  setTimeout(() => { window.location.href = '/provider/auth/login'; }, 1200);
                 }}
                 className="text-xs text-neutral-500 hover:text-accent transition-colors">
                 Are you a provider? Log in here →

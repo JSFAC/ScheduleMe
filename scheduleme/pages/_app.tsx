@@ -9,14 +9,15 @@ import '../styles/globals.css';
 import 'leaflet/dist/leaflet.css';
 import { DarkModeProvider } from '../lib/DarkModeContext';
 
-const isBiz = (url: string) => url.startsWith('/business') || url.startsWith('/auth');
+const isProvider = (url: string) =>
+  url.startsWith('/business') || url.startsWith('/provider') || url.startsWith('/auth');
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayFade, setOverlayFade] = useState(false);
-  const [toBusiness, setToBusiness] = useState(false);
+  const [toProvider, setToProvider] = useState(false);
   const isTransitioning = useRef(false);
 
   // We track scroll position and restore it ourselves so Next's
@@ -59,11 +60,11 @@ export default function App({ Component, pageProps }: AppProps) {
 
     const onStart = (url: string) => {
       scrollRef.current = window.scrollY;
-      if (isBiz(router.asPath) !== isBiz(url)) {
+      if (isProvider(router.asPath) !== isProvider(url)) {
         // Business/consumer transition — show overlay for full duration
         isTransitioning.current = true;
         setVisible(false);
-        setToBusiness(isBiz(url));
+        setToProvider(isProvider(url));
         setShowOverlay(true);
         setOverlayFade(false);
         requestAnimationFrame(() => requestAnimationFrame(() => setOverlayFade(true)));
@@ -140,7 +141,7 @@ export default function App({ Component, pageProps }: AppProps) {
             zIndex: 9999,
             opacity: overlayFade ? 1 : 0,
             transition: 'opacity 0.32s ease',
-            background: toBusiness ? '#0a0a0a' : '#ffffff',
+            background: toProvider ? '#0a0a0a' : '#ffffff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -151,18 +152,18 @@ export default function App({ Component, pageProps }: AppProps) {
             style={{
               position: 'absolute',
               inset: 0,
-              backgroundImage: toBusiness
+              backgroundImage: toProvider
                 ? 'linear-gradient(to right,rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.02) 1px,transparent 1px)'
                 : 'linear-gradient(to right,rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.03) 1px,transparent 1px)',
               backgroundSize: '48px 48px',
             }}
           />
           <div style={{ position: 'relative', textAlign: 'center' }}>
-            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toBusiness ? '#fff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: 4 }}>
+            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: toProvider ? '#fff' : '#0a0a0a', letterSpacing: '-0.03em', marginBottom: 4 }}>
               ScheduleMe
             </p>
             <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#0F766E', marginBottom: 20 }}>
-              {toBusiness ? 'for Business' : 'for Everyone'}
+              {toProvider ? 'for Providers' : 'for Everyone'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <div

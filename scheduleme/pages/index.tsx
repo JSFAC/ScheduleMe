@@ -228,7 +228,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               </p>
             </div>
 
-            <div className="js-pricing-item rounded-3xl p-8 md:p-12 mx-auto max-w-3xl" style={{ background: dm ? 'linear-gradient(180deg,#141414,#101010)' : 'linear-gradient(180deg,#ffffff,#fbfdfd)', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.14)', boxShadow: dm ? '0 20px 46px rgba(0,0,0,0.45)' : '0 10px 28px rgba(15,118,110,0.08)' }}>
+            <div className="js-pricing-item rounded-3xl p-8 md:p-12 mx-auto max-w-3xl" style={{ background: dm ? 'linear-gradient(180deg,#141414,#101010)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.14)', boxShadow: dm ? '0 20px 46px rgba(0,0,0,0.45)' : '0 12px 34px rgba(15,118,110,0.09)' }}>
               <p className="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.08em]" style={{ background: dm ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.12)', color: '#0F766E' }}>
                 Consumer pricing
               </p>
@@ -258,14 +258,14 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               </div>
             </div>
 
-            <div className="js-pricing-item mt-8 rounded-2xl p-6 md:p-7 mx-auto max-w-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: dm ? '#121212' : '#f8fbfb', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.16)' }}>
+            <div className="js-pricing-item mt-8 rounded-3xl p-6 md:p-7 mx-auto max-w-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ background: dm ? 'linear-gradient(180deg,#121212,#101010)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)', border: dm ? '1px solid #2b2b2b' : '1px solid rgba(15,118,110,0.16)', boxShadow: dm ? '0 14px 36px rgba(0,0,0,0.38)' : '0 8px 24px rgba(15,118,110,0.06)' }}>
               <div>
                 <p className="text-lg font-bold mb-1" style={{ color: dm ? 'white' : '#111827' }}>Building as a student provider?</p>
                 <p className="text-sm md:text-base" style={{ color: dm ? '#9ca3af' : '#4b5563' }}>
                   Grow in your campus marketplace and only pay for real completed bookings.
                 </p>
               </div>
-              <Link href="/business/pricing" className="btn-primary px-6 py-3 text-sm shrink-0">See Student Provider Plans →</Link>
+              <Link href="/provider#pricing" className="btn-primary px-6 py-3 text-sm shrink-0">See Student Provider Plans →</Link>
             </div>
           </div>
         </section>
@@ -283,9 +283,9 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                   Join 2,400+ local pros on ScheduleMe. No cold calls, no ad spend — just customers who need exactly what you offer, right now.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <Link href="/business" className="btn-primary px-7 py-3">Learn More</Link>
-                  <Link href="/business/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Join for Free</Link>
-                  <Link href="/business/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-700 border border-neutral-600 text-neutral-200 text-sm font-semibold hover:bg-neutral-600 transition-colors">Provider Dashboard →</Link>
+                  <Link href="/provider" className="btn-primary px-7 py-3">Learn More</Link>
+                  <Link href="/provider/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Join for Free</Link>
+                  <Link href="/provider/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Provider Dashboard →</Link>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-4 w-full md:w-auto md:flex-shrink-0" role="list">
@@ -350,7 +350,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               <div>
                 <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Business</p>
                 <ul className="space-y-2" role="list">
-                  {[{ label: 'Join as a Pro', href: '/business' }, { label: 'Sign Up', href: '/business/signup' }, { label: 'Dashboard', href: '/dashboard' }].map((l) => (
+                  {[{ label: 'Join as a Pro', href: '/provider' }, { label: 'Sign Up', href: '/provider/signup' }, { label: 'Dashboard', href: '/provider/dashboard' }].map((l) => (
                     <li key={l.href}><Link href={l.href} className="text-sm text-neutral-500 hover:text-neutral-200 transition-colors">{l.label}</Link></li>
                   ))}
                 </ul>

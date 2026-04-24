@@ -883,7 +883,15 @@ export default function BizPage() {
     || guestNeedsAuth
     || isSelfOwnedBusiness
     || providerCannotAcceptPayments;
-  const bookingCtaLabel = submitting ? 'Booking…' : (selectedSvc ? (isCustom ? (requiresTime ? 'Request Custom Service' : 'Request by date') : (requiresTime ? 'Book '+selectedSvc.name+' — $'+(selectedSvc.price_cents/100).toFixed(2) : 'Book by date')) : 'Confirm booking');
+  const bookingCtaLabel = submitting
+    ? 'Booking…'
+    : guestNeedsAuth
+      ? 'Confirm booking'
+      : (selectedSvc
+        ? (isCustom
+            ? (requiresTime ? 'Request Custom Service' : 'Request by date')
+            : (requiresTime ? 'Book ' + selectedSvc.name + ' — $' + (selectedSvc.price_cents / 100).toFixed(2) : 'Book by date'))
+        : 'Confirm booking');
 
   const availableSlots = date && requiresTime ? (() => {
     const dk = localDateKey(date);

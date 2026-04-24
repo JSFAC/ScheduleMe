@@ -31,6 +31,19 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: true,
+  async redirects() {
+    return [
+      { source: '/business/pricing', destination: '/provider#pricing', permanent: false },
+      { source: '/provider/pricing', destination: '/provider#pricing', permanent: false },
+      { source: '/business/:path*', destination: '/provider/:path*', permanent: false },
+    ];
+  },
+  async rewrites() {
+    return [
+      { source: '/provider/:path*', destination: '/business/:path*' },
+      { source: '/provider', destination: '/business' },
+    ];
+  },
   async headers() {
     return [
       {

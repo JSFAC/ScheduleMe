@@ -78,10 +78,10 @@ const VerifiedPage: NextPage = () => {
               role: nextRole,
               has_seen_welcome: true,
             }, { onConflict: 'id', ignoreDuplicates: false });
-            target = '/business/dashboard';
+            target = '/provider/dashboard';
           } else {
             await supabase.auth.signOut();
-            target = '/business/auth/login?error=not_a_business';
+            target = '/provider/auth/login?error=not_a_business';
           }
         } else {
           await supabase.from('profiles').upsert({

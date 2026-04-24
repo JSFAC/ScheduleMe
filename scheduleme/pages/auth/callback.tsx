@@ -68,12 +68,12 @@ const AuthCallback: NextPage = () => {
             await supabase.from('profiles').upsert({
               id: userId, email, name, role: nextRole, has_seen_welcome: true,
             }, { onConflict: 'id', ignoreDuplicates: false });
-            router.replace('/business/dashboard');
+            router.replace('/provider/dashboard');
           } else {
             // Not a registered business — sign out but DO NOT delete their account
             // Route to provider signup so they can agree to terms + complete onboarding.
             await supabase.auth.signOut();
-            router.replace(`/business/signup?from=oauth-login&email=${encodeURIComponent(email || '')}`);
+            router.replace(`/provider/signup?from=oauth-login&email=${encodeURIComponent(email || '')}`);
           }
         } else {
           // Consumer flow — profiles is source of truth (trigger creates row on signup)

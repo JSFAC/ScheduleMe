@@ -423,7 +423,7 @@ function ReferCard() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   async function copyProviderSignupLink() {
-    const signupUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://usescheduleme.com'}/business`;
+    const signupUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://usescheduleme.com'}/provider`;
     try {
       await navigator.clipboard.writeText(signupUrl);
       setCopiedLink(true);
