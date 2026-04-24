@@ -216,7 +216,7 @@ export default function Hero({
                     transform: showMessageShell
                       ? messageState === 'sent'
                         ? 'translateY(-2px)'
-                        : 'translateY(0)',
+                        : 'translateY(0)'
                       : 'translateY(16px)',
                     boxShadow: messageState === 'sent' ? '0 12px 30px rgba(15,118,110,0.28)' : 'none',
                   }}
