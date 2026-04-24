@@ -273,9 +273,11 @@ export default function BizPage() {
     embeddedQuery === '1' ||
     (Array.isArray(embeddedQuery) && embeddedQuery.includes('1')) ||
     embeddedParam === '1';
+  const isDashboardEmbed = allowEditInBiz && isEmbedded;
   const hideNav = isPreview;
   const [biz, setBiz] = useState(null);
   const [services, setServices] = useState([]);
+  const [draftServices, setDraftServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSvc, setSelectedSvc] = useState(null);
   const isCustom = selectedSvc?.id === '__custom__';
@@ -317,6 +319,9 @@ export default function BizPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [svcDrafts, setSvcDrafts] = useState<Record<string, any>>({});
   const [newSvc, setNewSvc] = useState({ name: '', price: '', duration: '60', description: '' });
+  const [showNewServiceComposer, setShowNewServiceComposer] = useState(false);
+  const [savingAllEdits, setSavingAllEdits] = useState(false);
+  const [deletedServiceIds, setDeletedServiceIds] = useState<string[]>([]);
   const imgInputRef = useRef<HTMLInputElement | null>(null);
   const vidInputRef = useRef<HTMLInputElement | null>(null);
   const [galleryIdx, setGalleryIdx] = useState(0);
@@ -411,7 +416,7 @@ export default function BizPage() {
             if (session.user?.email && data.owner_email && session.user.email === data.owner_email) {
               setCanEdit(true);
               if (router.query?.edit === '1' && allowEditInBiz) {
-                setEditMode(true);
+                setEditMode(isDashboardEmbed ? false : true);
               } else if (router.query?.edit === '1' && !allowEditInBiz) {
                 showToast('Edit your listing in the business dashboard.');
                 setEditMode(false);
@@ -428,6 +433,7 @@ export default function BizPage() {
           .then(d => {
             const svc = d.services || [];
             setServices(svc);
+            setDraftServices(svc.map((item: any) => ({ ...item })));
             const prices = svc.map((s: any) => Number(s.price_cents || s.price || 0));
             const avg = averagePriceCents(prices);
             const primaryTag = Array.isArray(data.service_tags) ? data.service_tags[0] : null;
@@ -440,7 +446,7 @@ export default function BizPage() {
     };
 
     loadBusiness();
-  }, [router.isReady, slugValue, businessIdFromQuery, isPreview]);
+  }, [router.isReady, slugValue, businessIdFromQuery, isPreview, isDashboardEmbed]);
 
   useEffect(() => {
     if (!biz?.id) return;
@@ -510,6 +516,20 @@ export default function BizPage() {
     return data;
   }
 
+  async function saveDashboardListing(changes: Record<string, any>) {
+    if (!biz) return;
+    const headers = await getAuthHeaders();
+    if (!headers) throw new Error('Sign in required');
+    const res = await fetch('/api/provider-live-edit', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ business_id: biz.id, changes }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to save listing');
+    return data;
+  }
+
   function normalizeImageList(images: string[]) {
     const next: string[] = [];
     for (const url of images) {
@@ -517,6 +537,22 @@ export default function BizPage() {
       next.push(url);
     }
     return next;
+  }
+
+  function resetEmbeddedDrafts(nextBiz: any = biz, nextServices: any[] = services) {
+    if (!nextBiz) return;
+    setEditDesc(nextBiz.description || '');
+    const initialImages = [nextBiz.cover_url, ...(nextBiz.media_urls || [])].filter(Boolean) as string[];
+    setEditImages(normalizeImageList(initialImages));
+    setEditVideo(nextBiz.video_url || null);
+    setDraftServices((nextServices || []).map((svc: any) => ({ ...svc })));
+    setSvcDrafts({});
+    setDeletedServiceIds([]);
+    setNewSvc({ name: '', price: '', duration: '60', description: '' });
+    setShowNewServiceComposer(false);
+    setMediaErr('');
+    setErr('');
+    setEditNotice(null);
   }
 
   async function uploadMedia(file: File, type: 'image' | 'video') {
@@ -568,13 +604,25 @@ export default function BizPage() {
       if (!res.ok) { setMediaErr(data.error || 'Upload failed'); return; }
       if (type === 'video') {
         setEditVideo(data.url);
-        await submitChangeRequest({ video_url: data.url }, 'media');
-        setEditNotice('Video submitted for review.');
+        if (isDashboardEmbed) {
+          await saveDashboardListing({ video_url: data.url });
+          setBiz((prev: any) => prev ? { ...prev, video_url: data.url } : prev);
+          setEditNotice('Video updated.');
+        } else {
+          await submitChangeRequest({ video_url: data.url }, 'media');
+          setEditNotice('Video submitted for review.');
+        }
       } else if (data.url) {
         const next = normalizeImageList([...editImages, data.url]);
         setEditImages(next);
-        await submitChangeRequest({ cover_url: next[0] || null, media_urls: next.slice(1) }, 'media');
-        setEditNotice('Photos submitted for review.');
+        if (isDashboardEmbed) {
+          await saveDashboardListing({ cover_url: next[0] || null, media_urls: next.slice(1) });
+          setBiz((prev: any) => prev ? { ...prev, cover_url: next[0] || null, media_urls: next.slice(1) } : prev);
+          setEditNotice('Photos updated.');
+        } else {
+          await submitChangeRequest({ cover_url: next[0] || null, media_urls: next.slice(1) }, 'media');
+          setEditNotice('Photos submitted for review.');
+        }
       }
     } catch (e: any) {
       setMediaErr(e?.message || 'Upload failed');
@@ -588,8 +636,14 @@ export default function BizPage() {
     const normalized = normalizeImageList(next);
     setEditImages(normalized);
     try {
-      await submitChangeRequest({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) }, 'media');
-      setEditNotice('Photos submitted for review.');
+      if (isDashboardEmbed) {
+        await saveDashboardListing({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) });
+        setBiz((prev: any) => prev ? { ...prev, cover_url: normalized[0] || null, media_urls: normalized.slice(1) } : prev);
+        setEditNotice('Photos updated.');
+      } else {
+        await submitChangeRequest({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) }, 'media');
+        setEditNotice('Photos submitted for review.');
+      }
     } catch (e: any) {
       setMediaErr(e?.message || 'Failed to update photos');
     }
@@ -616,8 +670,14 @@ export default function BizPage() {
     if (!biz) return;
     setEditVideo(null);
     try {
-      await submitChangeRequest({ video_url: null }, 'media');
-      setEditNotice('Video removal submitted for review.');
+      if (isDashboardEmbed) {
+        await saveDashboardListing({ video_url: null });
+        setBiz((prev: any) => prev ? { ...prev, video_url: null } : prev);
+        setEditNotice('Video removed.');
+      } else {
+        await submitChangeRequest({ video_url: null }, 'media');
+        setEditNotice('Video removal submitted for review.');
+      }
     } catch (e: any) {
       setMediaErr(e?.message || 'Failed to update video');
     }
@@ -627,8 +687,14 @@ export default function BizPage() {
     if (!biz) return;
     setEditSaving(true);
     try {
-      await submitChangeRequest({ description: editDesc }, 'profile');
-      setEditNotice('Description submitted for review.');
+      if (isDashboardEmbed) {
+        await saveDashboardListing({ description: editDesc });
+        setBiz((prev: any) => prev ? { ...prev, description: editDesc } : prev);
+        setEditNotice('Description updated.');
+      } else {
+        await submitChangeRequest({ description: editDesc }, 'profile');
+        setEditNotice('Description submitted for review.');
+      }
     } catch (e: any) {
       setEditNotice(e?.message || 'Failed to submit description');
     } finally {
@@ -657,6 +723,16 @@ export default function BizPage() {
   async function saveService(id: string) {
     const d = svcDrafts[id];
     if (!biz || !d) return;
+    if (isDashboardEmbed && editMode) {
+      const price = Math.round(parseFloat(d.price || '0') * 100);
+      setDraftServices((prev: any[]) => prev.map((s) => (
+        s.id === id
+          ? { ...s, name: d.name, description: d.description, price_cents: price, duration_min: Number(d.duration || 60) }
+          : s
+      )));
+      setSvcDrafts((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
+      return;
+    }
     const headers = await getAuthHeaders();
     if (!headers) return;
     const price = Math.round(parseFloat(d.price || '0') * 100);
@@ -680,6 +756,14 @@ export default function BizPage() {
 
   async function deleteService(id: string) {
     if (!biz) return;
+    if (isDashboardEmbed && editMode) {
+      if (!String(id).startsWith('draft-')) {
+        setDeletedServiceIds((prev) => prev.includes(id) ? prev : [...prev, id]);
+      }
+      setDraftServices((prev: any[]) => prev.filter((s) => s.id !== id));
+      setSvcDrafts((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
+      return;
+    }
     const headers = await getAuthHeaders();
     if (!headers) return;
     await fetch('/api/services', {
@@ -696,6 +780,23 @@ export default function BizPage() {
     const name = newSvc.name.trim();
     const priceCents = Math.round(parseFloat(newSvc.price || '0') * 100);
     if (!name || !priceCents) { setErr('Add a name and price'); return; }
+    if (isDashboardEmbed && editMode) {
+      setDraftServices((prev: any[]) => [
+        ...prev,
+        {
+          id: `draft-${Date.now()}`,
+          name,
+          description: newSvc.description || '',
+          price_cents: priceCents,
+          duration_min: Number(newSvc.duration || 60),
+          sort_order: prev.length,
+          requires_time: true,
+        },
+      ]);
+      setNewSvc({ name: '', price: '', duration: '60', description: '' });
+      setShowNewServiceComposer(false);
+      return;
+    }
     const headers = await getAuthHeaders();
     if (!headers) return;
     const maxOrder = services.reduce((max: number, s: any) => Math.max(max, s.sort_order ?? 0), -1);
@@ -942,7 +1043,8 @@ export default function BizPage() {
     setGalleryIdx((i) => (i + 1) % imgs.length);
   }
 
-  const orderedServices = [...services].sort((a: any, b: any) => {
+  const servicesForDisplay = editMode && isDashboardEmbed ? draftServices : services;
+  const orderedServices = [...servicesForDisplay].sort((a: any, b: any) => {
     const ao = a.sort_order ?? 0;
     const bo = b.sort_order ?? 0;
     if (ao !== bo) return ao - bo;
@@ -957,6 +1059,13 @@ export default function BizPage() {
     if (idx < 0 || swapIdx < 0 || swapIdx >= orderedServices.length) return;
     const a = orderedServices[idx];
     const b = orderedServices[swapIdx];
+    if (isDashboardEmbed && editMode) {
+      const next = [...orderedServices];
+      const [moved] = next.splice(idx, 1);
+      next.splice(swapIdx, 0, moved);
+      setDraftServices(next.map((svc: any, order: number) => ({ ...svc, sort_order: order })));
+      return;
+    }
     const headers = await getAuthHeaders();
     if (!headers) return;
     const aOrder = a.sort_order ?? idx;
@@ -977,6 +1086,117 @@ export default function BizPage() {
         s.id === b.id ? { ...s, sort_order: aOrder } : s
       )
     );
+  }
+
+  async function cancelEmbeddedEditing() {
+    if (!biz) return;
+    resetEmbeddedDrafts();
+    setEditMode(false);
+  }
+
+  async function saveEmbeddedEditing() {
+    if (!biz) return;
+    setSavingAllEdits(true);
+    setErr('');
+    setMediaErr('');
+    try {
+      if ((editDesc || '') !== (biz.description || '')) {
+        if (isDashboardEmbed) {
+          await saveDashboardListing({ description: editDesc });
+        } else {
+          await submitChangeRequest({ description: editDesc }, 'profile');
+        }
+      }
+
+      const originalImages = normalizeImageList([biz.cover_url, ...(biz.media_urls || [])].filter(Boolean) as string[]);
+      const nextImages = normalizeImageList(editImages);
+      const mediaChanged =
+        JSON.stringify(originalImages) !== JSON.stringify(nextImages) ||
+        (biz.video_url || null) !== (editVideo || null);
+      if (mediaChanged) {
+        if (isDashboardEmbed) {
+          await saveDashboardListing({
+            cover_url: nextImages[0] || null,
+            media_urls: nextImages.slice(1),
+            video_url: editVideo || null,
+          });
+        } else {
+          await submitChangeRequest({
+            cover_url: nextImages[0] || null,
+            media_urls: nextImages.slice(1),
+            video_url: editVideo || null,
+          }, 'media');
+        }
+      }
+
+      const headers = await getAuthHeaders();
+      if (!headers) throw new Error('Sign in required');
+
+      for (const id of deletedServiceIds) {
+        await fetch('/api/services', {
+          method: 'DELETE',
+          headers,
+          body: JSON.stringify({ id, business_id: biz.id }),
+        });
+      }
+
+      const originalMap = new Map((services || []).map((svc: any) => [svc.id, svc]));
+      for (let index = 0; index < draftServices.length; index += 1) {
+        const svc: any = draftServices[index];
+        const payload = {
+          business_id: biz.id,
+          name: svc.name,
+          description: svc.description || '',
+          price_cents: Number(svc.price_cents || 0),
+          duration_min: Number(svc.duration_min || 60),
+          sort_order: index,
+        };
+        if (String(svc.id).startsWith('draft-')) {
+          await fetch('/api/services', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+          });
+          continue;
+        }
+        const original = originalMap.get(svc.id);
+        const changed =
+          !original ||
+          original.name !== payload.name ||
+          (original.description || '') !== payload.description ||
+          Number(original.price_cents || 0) !== payload.price_cents ||
+          Number(original.duration_min || 60) !== payload.duration_min ||
+          Number(original.sort_order || 0) !== payload.sort_order;
+        if (changed) {
+          await fetch('/api/services', {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ id: svc.id, ...payload }),
+          });
+        }
+      }
+
+      const refreshed = await fetch('/api/services?business_id=' + biz.id).then((r) => r.json()).catch(() => null);
+      const nextServices = refreshed?.services || draftServices;
+      setServices(nextServices);
+      setDraftServices(nextServices.map((svc: any) => ({ ...svc })));
+      setBiz((prev: any) => prev ? {
+        ...prev,
+        description: editDesc,
+        cover_url: nextImages[0] || null,
+        media_urls: nextImages.slice(1),
+        video_url: editVideo || null,
+      } : prev);
+      setEditMode(false);
+      setDeletedServiceIds([]);
+      setShowNewServiceComposer(false);
+      setEditNotice('Listing updates saved.');
+      setTimeout(() => setEditNotice(null), 2500);
+    } catch (e: any) {
+      setErr(e?.message || 'Failed to save changes');
+    } finally {
+      setSavingAllEdits(false);
+    }
   }
 
   async function toggleFavorite() {
@@ -1212,18 +1432,142 @@ export default function BizPage() {
               </div>
             </div>
           )}
-          {!editMode && imgs.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto py-2 relative z-20" style={{ marginTop: 16, marginBottom: 18 }}>
-              {imgs.map((url, i) => (
-                <button
-                  key={url}
-                  onClick={() => { setGalleryIdx(i); }}
-                  className="h-16 w-16 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 border p-1"
-                  style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb'), background: dm ? '#121212' : '#f8fafc' }}
-                >
-                  <img src={url} alt="" className="max-h-full max-w-full object-contain" />
-                </button>
-              ))}
+          {isEmbedded && (
+            <div className="rounded-2xl p-4 shadow-lg mb-5 relative z-20" style={{ background: card, border: '1px solid ' + bdr }}>
+              <div className="relative overflow-hidden rounded-2xl" style={{ background: dm ? '#101010' : '#f6f2e9', minHeight: 240 }}>
+                {imgs[galleryIdx] ? (
+                  <img
+                    src={imgs[galleryIdx]}
+                    alt={biz?.name || 'Provider'}
+                    className="w-full object-cover"
+                    style={{ minHeight: 240, maxHeight: 320 }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center text-sm font-semibold" style={{ minHeight: 240, color: mu }}>
+                    No photos yet
+                  </div>
+                )}
+                {imgs.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goPrevImage}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full flex items-center justify-center text-white"
+                      style={{ background: 'rgba(0,0,0,0.38)' }}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goNextImage}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full flex items-center justify-center text-white"
+                      style={{ background: 'rgba(0,0,0,0.38)' }}
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+              </div>
+              {imgs.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pt-3">
+                  {imgs.map((url, i) => (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => setGalleryIdx(i)}
+                      className="h-16 w-16 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 border p-1"
+                      style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb'), background: dm ? '#121212' : '#f8fafc' }}
+                    >
+                      <img src={url} alt="" className="max-h-full max-w-full object-contain" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {editMode && (
+            <div className="rounded-2xl p-4 mb-5" style={{ background: card, border: '1px solid ' + bdr }}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: tx }}>Photos & video</p>
+                  <p className="text-xs" style={{ color: mu }}>Click the upload area or drag in files. Reorder photos below to change the cover.</p>
+                </div>
+              </div>
+              {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
+              {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
+              <div
+                className="mb-3 rounded-xl border border-dashed px-4 py-5 text-center text-sm font-medium cursor-pointer"
+                style={{ borderColor: dm ? '#2d2d2f' : '#cfe7de', color: tx, background: dm ? '#0c0c0d' : '#f5fbf8' }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
+                }}
+                onClick={() => imgInputRef.current?.click()}
+              >
+                Click to add photos, or drag and drop photos/videos here.
+              </div>
+              <div
+                className="flex gap-2 overflow-x-auto pb-1"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
+                }}
+              >
+                {editImages.map((url, i) => (
+                  <div key={url}
+                    draggable
+                    onDragStart={() => onDragStart(i)}
+                    onDragOver={(e) => onDragOver(e, i)}
+                    onDragEnd={onDragEnd}
+                    className="relative flex-shrink-0 rounded-xl overflow-hidden"
+                    style={{ width: 76, height: 76, opacity: dragIdx === i ? 0.5 : 1, border: i === 0 ? '2px solid #007e6d' : '1px solid ' + bdr, cursor: 'grab' }}>
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    {i === 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5" style={{ background: 'rgba(0,126,109,0.85)', color: 'white' }}>COVER</div>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                      className="absolute top-1 right-1 h-5 w-5 rounded-full flex items-center justify-center"
+                      style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {editImages.length === 0 && (
+                  <div className="text-xs px-2 py-6" style={{ color: mu }}>No photos yet</div>
+                )}
+              </div>
+              {editVideo && (
+                <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
+                  <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>
+                  <button onClick={removeVideo} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
+                </div>
+              )}
+              <input
+                ref={imgInputRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
+                  if (e.target) e.target.value = '';
+                }}
+              />
+              <input
+                ref={vidInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadMedia(file, 'video');
+                  if (e.target) e.target.value = '';
+                }}
+              />
             </div>
           )}
           <div className="rounded-2xl p-5 shadow-lg mt-0.5 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
@@ -1238,7 +1582,45 @@ export default function BizPage() {
                 <path d="M9 15l-5 5" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold mb-2" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
+            <div className="flex items-start justify-between gap-4 mb-2 pr-12">
+              <div>
+                <h1 className="text-xl font-bold" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
+              </div>
+              {isDashboardEmbed && (
+                <div className="flex items-center gap-2 shrink-0">
+                  {editMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={cancelEmbeddedEditing}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                        style={{ background: dm ? '#111827' : '#f3f4f6', border: '1px solid ' + bdr, color: tx }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveEmbeddedEditing}
+                        disabled={savingAllEdits}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                        style={{ background: accent, color: 'white', opacity: savingAllEdits ? 0.65 : 1 }}
+                      >
+                        {savingAllEdits ? 'Saving…' : 'Save changes'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { resetEmbeddedDrafts(); setEditMode(true); }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                      style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}
+                    >
+                      Edit mode
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             {ownerDisplayName ? (
               <p className="text-sm font-semibold mb-2" style={{ color: dm ? '#d1d5db' : '#4b5563' }}>
                 {ownerDisplayName}
@@ -1276,14 +1658,7 @@ export default function BizPage() {
                 />
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-[11px]" style={{ color: mu }}>{editDesc.length}/1000</span>
-                  <button
-                    onClick={saveDescription}
-                    disabled={editSaving}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent, opacity: editSaving ? 0.6 : 1 }}
-                  >
-                    {editSaving ? 'Saving…' : 'Save description'}
-                  </button>
+                  {isDashboardEmbed && <span className="text-[11px]" style={{ color: mu }}>Saved when you click Save changes.</span>}
                 </div>
               </div>
             ) : (
@@ -1303,103 +1678,6 @@ export default function BizPage() {
               )}
             </div>
           </div>
-          {editMode && (
-            <div className="rounded-2xl p-4 mb-5" style={{ background: card, border: '1px solid ' + bdr }}>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-sm font-bold" style={{ color: tx }}>Photos & video</p>
-                  <p className="text-xs" style={{ color: mu }}>Drag to reorder. First image becomes the cover.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => imgInputRef.current?.click()}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
-                    Add photo
-                  </button>
-                  <button onClick={() => vidInputRef.current?.click()}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
-                    Add video
-                  </button>
-                </div>
-              </div>
-              {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
-              {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
-              <div
-                className="mb-3 rounded-xl border border-dashed px-4 py-4 text-center text-xs"
-                style={{ borderColor: dm ? '#2d2d2f' : '#d1d5db', color: mu, background: dm ? '#0c0c0d' : '#f9fafb' }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) uploadMedia(file, 'image');
-                }}
-                onClick={() => imgInputRef.current?.click()}
-              >
-                Drag & drop a photo here, or click to choose a file.
-              </div>
-              <div
-                className="flex gap-2 overflow-x-auto pb-1"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) uploadMedia(file, 'image');
-                }}
-              >
-                {editImages.map((url, i) => (
-                  <div key={url}
-                    draggable
-                    onDragStart={() => onDragStart(i)}
-                    onDragOver={(e) => onDragOver(e, i)}
-                    onDragEnd={onDragEnd}
-                    className="relative flex-shrink-0 rounded-xl overflow-hidden"
-                    style={{ width: 76, height: 76, opacity: dragIdx === i ? 0.5 : 1, border: i === 0 ? '2px solid #007e6d' : '1px solid ' + bdr, cursor: 'grab' }}>
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                    {i === 0 && (
-                      <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5" style={{ background: 'rgba(0,126,109,0.85)', color: 'white' }}>COVER</div>
-                    )}
-                    <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
-                      className="absolute top-1 right-1 h-5 w-5 rounded-full flex items-center justify-center"
-                      style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>
-                      ×
-                    </button>
-                  </div>
-                ))}
-                {editImages.length === 0 && (
-                  <div className="text-xs px-2 py-6" style={{ color: mu }}>No photos yet</div>
-                )}
-              </div>
-              {editVideo && (
-                <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
-                  <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>
-                  <button onClick={removeVideo} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
-                </div>
-              )}
-              <input
-                ref={imgInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadMedia(file, 'image');
-                  if (e.target) e.target.value = '';
-                }}
-              />
-              <input
-                ref={vidInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadMedia(file, 'video');
-                  if (e.target) e.target.value = '';
-                }}
-              />
-            </div>
-          )}
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Services</h2>
           <div className="flex flex-col gap-3 mb-5">
             {orderedServices.length === 0 && <div className="rounded-2xl p-5 text-center" style={{background:card,border:'1px solid '+bdr}}><p className="text-sm" style={{color:mu}}>No services listed yet</p></div>}
@@ -1471,27 +1749,46 @@ export default function BizPage() {
             })}
             {editMode ? (
               <div className="w-full rounded-2xl p-4" style={{ background: card, border: '1.5px dashed ' + bdr }}>
-                <p className="text-sm font-bold mb-2" style={{ color: tx }}>Add new service</p>
-                <div className="grid grid-cols-1 gap-2">
-                  <input value={newSvc.name} onChange={(e) => setNewSvc((p) => ({ ...p, name: e.target.value }))} placeholder="Service name"
-                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
-                  <textarea value={newSvc.description} onChange={(e) => setNewSvc((p) => ({ ...p, description: e.target.value }))} rows={2} placeholder="Description"
-                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <input value={newSvc.price} onChange={(e) => setNewSvc((p) => ({ ...p, price: e.target.value }))} placeholder="Price (e.g. 25)"
-                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
-                  <input value={newSvc.duration} onChange={(e) => setNewSvc((p) => ({ ...p, duration: e.target.value }))} placeholder="Minutes"
-                    className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-[11px]" style={{ color: mu }}>This will appear immediately on your listing.</span>
-                  <button onClick={addService}
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: tx }}>Add new service</p>
+                    <p className="text-xs mt-1" style={{ color: mu }}>Start collapsed so the live preview stays clean until you need it.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewServiceComposer((prev) => !prev)}
                     className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
-                    Add service
+                    style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}
+                  >
+                    {showNewServiceComposer ? 'Close' : 'Add service'}
                   </button>
                 </div>
+                {showNewServiceComposer && (
+                  <>
+                    <div className="grid grid-cols-1 gap-2 mt-3">
+                      <input value={newSvc.name} onChange={(e) => setNewSvc((p) => ({ ...p, name: e.target.value }))} placeholder="Service name"
+                        className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                      <textarea value={newSvc.description} onChange={(e) => setNewSvc((p) => ({ ...p, description: e.target.value }))} rows={2} placeholder="Description"
+                        className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <input value={newSvc.price} onChange={(e) => setNewSvc((p) => ({ ...p, price: e.target.value }))} placeholder="Price (e.g. 25)"
+                        className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                      <input value={newSvc.duration} onChange={(e) => setNewSvc((p) => ({ ...p, duration: e.target.value }))} placeholder="Minutes"
+                        className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[11px]" style={{ color: mu }}>
+                        {isDashboardEmbed ? 'This saves when you click Save changes.' : 'This will appear immediately on your listing.'}
+                      </span>
+                      <button onClick={addService}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                        style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}>
+                        Add service
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -1535,8 +1832,6 @@ export default function BizPage() {
               </div>
             )}
           </div>
-          {!isEmbedded && (
-          <>
           <h2 className="text-lg font-bold mb-3" style={{color:tx}}>Reviews</h2>
           <div className="flex flex-col gap-3 mb-5">
             {reviewsLoading && (
@@ -1668,8 +1963,6 @@ export default function BizPage() {
             {err && <p className="text-red-500 text-sm">{err}</p>}
           </div>
         </div>
-        </>
-        )}
 
         </div>
         {!isEmbedded && <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)' }}>
