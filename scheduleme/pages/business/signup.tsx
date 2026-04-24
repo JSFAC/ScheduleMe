@@ -340,10 +340,10 @@ const SignupPage: NextPage = () => {
 
               {siteKey && (
                 <div className="w-full flex flex-col items-center">
-                  <div className="w-full rounded-xl border border-neutral-700/70 bg-neutral-900/70 py-4 flex justify-center">
+                  <div className="w-full rounded-xl border border-neutral-800 bg-neutral-950/45 py-3.5 flex justify-center captcha-blend-shell">
                     <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
                   </div>
-                  {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500 text-center">Captcha loading... If it doesn&apos;t appear, disable ad blockers and refresh.</p>}
+                  {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500/90 text-center">Captcha loading... If it doesn&apos;t appear, disable ad blockers and refresh.</p>}
                   {captchaLoadError && <p className="mt-2 text-xs text-red-400 text-center">{captchaLoadError}</p>}
                 </div>
               )}
