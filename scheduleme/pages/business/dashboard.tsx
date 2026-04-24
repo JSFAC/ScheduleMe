@@ -68,8 +68,31 @@ const NAV: { id: TabId; label: string; d: string }[] = [
 ];
 
 function fmt(cents: number) { return '$' + (cents / 100).toFixed(2); }
-function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
-function fmtTime(d: string) { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+function safeDate(value?: string | null) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function fmtDate(d?: string | null) {
+  const dt = safeDate(d);
+  if (!dt) return '—';
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtShortDate(d?: string | null) {
+  const dt = safeDate(d);
+  if (!dt) return '';
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function fmtTime(d?: string | null) {
+  const dt = safeDate(d);
+  if (!dt) return '—';
+  return dt.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+function fmtClockTime(d?: string | null) {
+  const dt = safeDate(d);
+  if (!dt) return '';
+  return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
 function onlyDigits(v: string) { return (v || '').replace(/[^\d]/g, '').slice(0, 7); }
 function digitsToDollars(digits: string) { return digits ? (Number(digits) / 100).toFixed(2) : ''; }
 function toCalDate(d: Date) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z'); }
@@ -852,88 +875,98 @@ const BusinessDashboard: NextPage = () => {
   }
 
   const loadData = useCallback(async () => {
-    const supabase = getSupabase();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { router.push('/business/auth/login'); return; }
-    const email = session.user.email || '';
-    const normalizedEmail = String(email || '').toLowerCase().trim();
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .maybeSingle();
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/business/auth/login'); return; }
+      const email = session.user.email || '';
+      const normalizedEmail = String(email || '').toLowerCase().trim();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-    let biz: any = null;
-    let bizErr: any = null;
+      let biz: any = null;
+      let bizErr: any = null;
 
-    const byOwnerID = await supabase
-      .from('businesses')
-      .select('*')
-      .eq('owner_id', session.user.id)
-      .maybeSingle();
-    biz = byOwnerID.data;
-    bizErr = byOwnerID.error;
-
-    // Legacy safety fallback: if owner_id is missing but owner_email matches this account,
-    // self-heal by linking owner_id for future strict ownership checks.
-    if (!biz && normalizedEmail) {
-      const byLegacyEmail = await supabase
+      const byOwnerID = await supabase
         .from('businesses')
         .select('*')
-        .ilike('owner_email', normalizedEmail)
+        .eq('owner_id', session.user.id)
         .maybeSingle();
-      if (byLegacyEmail.data) {
-        if (!byLegacyEmail.data.owner_id) {
-          await supabase.from('businesses').update({ owner_id: session.user.id }).eq('id', byLegacyEmail.data.id);
-        }
-        biz = { ...byLegacyEmail.data, owner_id: session.user.id };
-      } else if (byLegacyEmail.error) {
-        bizErr = byLegacyEmail.error;
-      }
-    }
-    if (bizErr || !biz) {
-      await supabase.auth.signOut();
-      router.replace('/business/auth/login?error=not_a_business');
-      return;
-    }
+      biz = byOwnerID.data;
+      bizErr = byOwnerID.error;
 
-    // Ensure profile is marked as business
-    try {
-      const nextRole = profile?.role === 'admin' ? 'admin' : 'business';
-      await supabase.from('profiles').upsert({
-        id: session.user.id,
-        email,
-        role: nextRole,
-        has_seen_welcome: true,
-      }, { onConflict: 'id', ignoreDuplicates: false });
-    } catch {}
-    setBusiness(biz);
-    loadBlockedCustomers(biz.id);
-    setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
-    setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
-    setEditServices((biz.service_tags || []).map((tag: string) => serviceTagToLabel(tag)).join(', '));
-    setEditHours(hoursToMap(biz.hours));
-    setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
-    setMediaVideo(biz.video_url || null);
-    setPublicVisibility(Boolean(biz.public_visibility));
-    setPublicShowName(Boolean(biz.public_show_name));
-    setPublicShowPhotos(Boolean(biz.public_show_photos));
-    setCampusShowName(Boolean(biz.campus_show_name));
-    refreshPublishStatus();
-    setLoading(false);
-    const authHeaders = await getAuthHeaders();
-    const [bkgRes, msgsRes, balRes] = await Promise.all([
-      fetch('/api/bookings?business_id=' + biz.id, { headers: authHeaders }),
-      fetch('/api/messages?business_id=' + biz.id, { headers: authHeaders }),
-      fetch('/api/stripe-balance', { method: 'POST', headers: authHeaders }).catch(() => null),
-    ]);
-    if (bkgRes && bkgRes.ok) { const bkgData = await bkgRes.json(); setBookings(bkgData.bookings || []); }
-    if (msgsRes && msgsRes.ok) { const md = await msgsRes.json(); setMsgThreads(md.threads || []); setThreads(md.threads || []); }
-    if (balRes && balRes.ok) {
+      // Legacy safety fallback: if owner_id is missing but owner_email matches this account,
+      // self-heal by linking owner_id for future strict ownership checks.
+      if (!biz && normalizedEmail) {
+        const byLegacyEmail = await supabase
+          .from('businesses')
+          .select('*')
+          .ilike('owner_email', normalizedEmail)
+          .maybeSingle();
+        if (byLegacyEmail.data) {
+          if (!byLegacyEmail.data.owner_id) {
+            await supabase.from('businesses').update({ owner_id: session.user.id }).eq('id', byLegacyEmail.data.id);
+          }
+          biz = { ...byLegacyEmail.data, owner_id: session.user.id };
+        } else if (byLegacyEmail.error) {
+          bizErr = byLegacyEmail.error;
+        }
+      }
+      if (bizErr || !biz) {
+        await supabase.auth.signOut();
+        router.replace('/business/auth/login?error=not_a_business');
+        return;
+      }
+
+      // Ensure profile is marked as business
       try {
-        const b = await balRes.json();
-        if (typeof b?.available === 'number' && typeof b?.pending === 'number') setPayoutBalance({ available: b.available, pending: b.pending });
+        const nextRole = profile?.role === 'admin' ? 'admin' : 'business';
+        await supabase.from('profiles').upsert({
+          id: session.user.id,
+          email,
+          role: nextRole,
+          has_seen_welcome: true,
+        }, { onConflict: 'id', ignoreDuplicates: false });
       } catch {}
+      setBusiness(biz);
+      loadBlockedCustomers(biz.id);
+      setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
+      setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
+      const serviceTags = Array.isArray(biz.service_tags) ? biz.service_tags : [];
+      setEditServices(serviceTags.map((tag: string) => serviceTagToLabel(tag)).join(', '));
+      setEditHours(hoursToMap(biz.hours));
+      setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
+      setMediaVideo(biz.video_url || null);
+      setPublicVisibility(Boolean(biz.public_visibility));
+      setPublicShowName(Boolean(biz.public_show_name));
+      setPublicShowPhotos(Boolean(biz.public_show_photos));
+      setCampusShowName(Boolean(biz.campus_show_name));
+      refreshPublishStatus();
+
+      const authHeaders = await getAuthHeaders();
+      const [bkgRes, msgsRes, balRes] = await Promise.all([
+        fetch('/api/bookings?business_id=' + biz.id, { headers: authHeaders }),
+        fetch('/api/messages?business_id=' + biz.id, { headers: authHeaders }),
+        fetch('/api/stripe-balance', { method: 'POST', headers: authHeaders }).catch(() => null),
+      ]);
+      if (bkgRes && bkgRes.ok) { const bkgData = await bkgRes.json(); setBookings(Array.isArray(bkgData.bookings) ? bkgData.bookings : []); }
+      if (msgsRes && msgsRes.ok) { const md = await msgsRes.json(); const normalizedThreads = Array.isArray(md.threads) ? md.threads : []; setMsgThreads(normalizedThreads); setThreads(normalizedThreads); }
+      if (balRes && balRes.ok) {
+        try {
+          const b = await balRes.json();
+          if (typeof b?.available === 'number' && typeof b?.pending === 'number') setPayoutBalance({ available: b.available, pending: b.pending });
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Provider dashboard loadData failed', err);
+      setBookings([]);
+      setMsgThreads([]);
+      setThreads([]);
+    } finally {
+      setLoading(false);
     }
   }, [router]);
 
@@ -1729,15 +1762,20 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
-  // Keep loading state lightweight so provider auth doesn't feel like multiple splash screens.
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: dm ? '#0a0a0a' : '#f5f5f4' }}>
-        <div className="w-full max-w-md rounded-2xl border p-6 text-center" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
-          <p className="text-sm font-semibold mb-3" style={{ color: dm ? '#e5e5e5' : '#171717' }}>Loading provider dashboard…</p>
-          <div className="flex justify-center">
-            <div className="h-5 w-5 rounded-full border-2 border-accent/25 border-t-accent animate-spin" />
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#07090d' }}>
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px)',
+          backgroundSize: '48px 48px',
+        }} />
+        <div className="relative text-center">
+          <p className="text-5xl font-black tracking-[-0.03em] text-white">ScheduleMe</p>
+          <p className="text-xs font-bold uppercase tracking-[0.28em] mt-2" style={{ color: '#0F766E' }}>FOR PROVIDERS</p>
+          <div className="mt-8 flex justify-center">
+            <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
           </div>
+          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.68)' }}>Loading provider dashboard…</p>
         </div>
       </div>
     );
@@ -2251,9 +2289,7 @@ const BusinessDashboard: NextPage = () => {
                         const providerNetPayoutCents = b.amount_cents ? Math.max(0, Math.round(b.amount_cents * (1 - payoutFeeRate))) : 0;
                         const scheduledSource = b.scheduled_start || b.scheduled_end || null;
                         const scheduledLabel = scheduledSource
-                          ? (b.scheduled_exact
-                            ? new Date(scheduledSource).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                            : new Date(scheduledSource).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+                          ? (b.scheduled_exact ? fmtTime(scheduledSource) : fmtShortDate(scheduledSource))
                           : null;
                         const canComplete = canMarkComplete(b, business?.hours);
                         return (
@@ -2541,7 +2577,7 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {t.unreadCount > 0 && <span className="h-4 w-4 rounded-full bg-accent flex items-center justify-center text-[9px] font-black text-white">{t.unreadCount}</span>}
-                            {t.lastMessage && <span className="text-[10px] text-neutral-400">{new Date(t.lastMessage.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                            {t.lastMessage && <span className="text-[10px] text-neutral-400">{fmtShortDate(t.lastMessage.created_at)}</span>}
                           </div>
                         </div>
                         <p className="text-[11px] truncate mb-0.5 pl-9" style={{ color: dm ? '#9ca3af' : '#737373' }}>
@@ -2602,7 +2638,7 @@ const BusinessDashboard: NextPage = () => {
                       <div className="mt-3 flex items-center gap-3 px-3 py-2 rounded-xl border" style={{ background: dm ? '#0d0d0d' : '#fafafa', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-bold text-neutral-700 truncate">{activeMsgThread.service}</p>
-                          <p className="text-[10px] text-neutral-400 mt-0.5">{new Date(activeMsgThread.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          <p className="text-[10px] text-neutral-400 mt-0.5">{fmtDate(activeMsgThread.created_at)}</p>
                         </div>
                         <StatusBadge status={activeMsgThread.status} />
                       </div>
@@ -2620,10 +2656,12 @@ const BusinessDashboard: NextPage = () => {
                         const isBiz = msg.sender_type === 'business';
                         const hasImage = Boolean(msg.image_url);
                         const hasText = Boolean(msg.content);
-                        const showTime = i === 0 || new Date(msg.created_at).getTime() - new Date(threadMessages[i-1].created_at).getTime() > 300000;
+                        const currentMsgTime = safeDate(msg.created_at)?.getTime() ?? 0;
+                        const prevMsgTime = i > 0 ? (safeDate(threadMessages[i - 1]?.created_at)?.getTime() ?? 0) : 0;
+                        const showTime = i === 0 || (currentMsgTime > 0 && prevMsgTime > 0 && currentMsgTime - prevMsgTime > 300000);
                         return (
                           <div key={msg.id}>
-                            {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
+                            {showTime && <p className="text-center text-[10px] text-neutral-400 py-1">{fmtClockTime(msg.created_at)}</p>}
                             <div className={`flex ${isBiz ? 'justify-end' : 'justify-start'}`}>
                               {hasImage && !hasText ? (
                                 <button
