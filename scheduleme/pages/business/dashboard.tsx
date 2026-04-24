@@ -2551,8 +2551,8 @@ const BusinessDashboard: NextPage = () => {
 
             {/* BOOKINGS */}
             {tab === 'bookings' && (
-              <div className="space-y-4">
-                <div className="flex gap-2 flex-wrap">
+              <div className="space-y-5">
+                <div className="provider-segment-shell flex gap-2 flex-wrap">
                   {([
                     { key: 'all', label: 'All (' + bookings.length + ')' },
                     { key: 'pending', label: 'Pending (' + bookings.filter(b => isProviderPendingBooking(b)).length + ')' },
@@ -2568,7 +2568,7 @@ const BusinessDashboard: NextPage = () => {
                   ))}
                 </div>
                 {filteredBookings.length === 0
-                  ? <div className="bg-white rounded-2xl border border-neutral-100 py-12 text-center text-neutral-400 text-sm">No bookings in this category.</div>
+                  ? <div className="provider-premium-panel bg-white rounded-[28px] border border-neutral-100 py-14 text-center text-neutral-400 text-sm">No bookings in this category.</div>
                   : <div className="space-y-3">
                       {filteredBookings.map((b, i) => {
                         const isCustom = isCustomPricingBooking(b);
@@ -2596,7 +2596,7 @@ const BusinessDashboard: NextPage = () => {
                           : null;
                         const canComplete = canMarkComplete(b, business?.hours);
                         return (
-                        <div key={b.id} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
+                        <div key={b.id} className="provider-list-card bg-white rounded-[30px] border border-neutral-100 px-6 py-5">
                           <div className="flex items-start justify-between gap-4 mb-3">
                             <div className="flex items-start gap-3 min-w-0">
                               <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
@@ -2612,7 +2612,7 @@ const BusinessDashboard: NextPage = () => {
                             </div>
                             <StatusBadge status={b.status} />
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2" style={{ color: dm ? '#636366' : '#9ca3af' }}>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3" style={{ color: dm ? '#636366' : '#8e978f' }}>
                             <span>{fmtTime(b.created_at)}</span>
                             {b.profiles?.phone && <span>{b.profiles.phone}</span>}
                             {b.profiles?.email && <span>{b.profiles.email}</span>}
@@ -2629,7 +2629,7 @@ const BusinessDashboard: NextPage = () => {
                               Your disputed price: {fmt(inferredProviderProposedCents)}
                             </div>
                           )}
-                          {b.note && <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
+                          {b.note && <p className="text-xs mb-3 leading-relaxed" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Note: {b.note}</p>}
                           {isCustom && b.amount_cents && b.status !== 'price_disputed' && (
                             <div className="mb-3 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#e5e7eb', background: '#f8fafc', color: '#374151' }}>
                               Your set price {fmt(b.amount_cents)}
@@ -3098,15 +3098,15 @@ const BusinessDashboard: NextPage = () => {
 
             {/* CLIENTS */}
             {tab === 'clients' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {clients.length === 0
-                  ? <div className="bg-white rounded-2xl border border-neutral-100 py-12 text-center text-neutral-400 text-sm">No clients yet.</div>
+                  ? <div className="provider-premium-panel bg-white rounded-[28px] border border-neutral-100 py-14 text-center text-neutral-400 text-sm">No clients yet.</div>
                   : clients.map(c => {
                       const userId = c.id;
                       const isBlocked = userId ? !!blockedCustomers[userId] : false;
                       const cb = bookings.filter(b => b.profiles?.email === c.email && isActiveOrCompleted(b));
                       return (
-                        <div key={c.email} className="bg-white rounded-2xl border border-neutral-100 px-5 py-4">
+                        <div key={c.email} className="provider-list-card bg-white rounded-[30px] border border-neutral-100 px-6 py-5">
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 overflow-hidden">
@@ -3167,9 +3167,9 @@ const BusinessDashboard: NextPage = () => {
 
             {/* CALENDAR — interactive grid + daily list */}
             {tab === 'calendar' && (
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-5 items-start">
+              <div className="space-y-5">
                 {/* Calendar */}
-                <div className="bg-white rounded-2xl border border-neutral-100 p-5 w-full">
+                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 w-full">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-1.5">
                       <button
@@ -3240,7 +3240,7 @@ const BusinessDashboard: NextPage = () => {
                 </div>
 
                 {/* Booking list */}
-                <div className="flex-1 bg-white rounded-2xl border border-neutral-100 overflow-hidden w-full">
+                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 overflow-hidden w-full">
                   <div className="px-5 py-4 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">
@@ -3338,9 +3338,9 @@ const BusinessDashboard: NextPage = () => {
             {/* MESSAGES */}
             {/* SETTINGS */}
             {tab === 'services' && (
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-5">
               <div className="space-y-5">
-                <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                <div className="provider-premium-panel rounded-[30px] p-6" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                   <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
                   <div className="flex flex-col gap-3">
                     <div className="relative">
@@ -3380,7 +3380,7 @@ const BusinessDashboard: NextPage = () => {
                     <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#007e6d' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
                   </div>
                 </div>
-                <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                <div className="provider-premium-panel rounded-[30px] p-6" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                   <h3 className="font-bold text-base mb-2" style={{ color: dm ? '#f2f2f7' : '#111' }}>Custom Request Scheduling</h3>
                   <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
                   <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
@@ -3389,14 +3389,14 @@ const BusinessDashboard: NextPage = () => {
                   </label>
                 </div>
               </div>
-              <div className="rounded-2xl overflow-hidden self-start" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+              <div className="provider-premium-panel rounded-[30px] overflow-hidden self-start" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <div className="px-5 py-4" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                   <h3 className="font-bold text-base" style={{ color: dm ? '#f2f2f7' : '#111' }}>Your Services ({services.length})</h3>
                 </div>
                 {svcLoading ? <div className="p-6 text-center text-sm" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Loading...</div>
                 : services.length === 0 ? <div className="p-6 text-center text-sm" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>No services yet — add your first one above</div>
                 : <div>{services.map(svc => (
-                    <div key={svc.id} className="px-5 py-4 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                    <div key={svc.id} className="px-5 py-4 flex items-center justify-between gap-3 provider-service-row" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm" style={{ color: dm ? '#f2f2f7' : '#111' }}>{svc.name}</p>
                         {svc.description && <p className="text-xs mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{svc.description}</p>}
@@ -3424,11 +3424,11 @@ const BusinessDashboard: NextPage = () => {
             </div>
             )}
             {tab === 'preview' && (
-              <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
-                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+              <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 overflow-hidden">
+                <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold text-neutral-500">Live Preview</p>
-                    <p className="text-[11px] text-neutral-400">Interactive preview of your listing inside the dashboard.</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Edit Listing</p>
+                    <p className="text-sm font-semibold text-neutral-900 mt-1">Live Preview</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -3450,7 +3450,7 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
                 {business ? (
-                  <div className="p-4" key={previewKey}>
+                  <div className="p-5" key={previewKey}>
                     <EditablePreview
                       business={business}
                       services={services}
@@ -3471,8 +3471,8 @@ const BusinessDashboard: NextPage = () => {
             )}
 
             {tab === 'settings' && (
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)] gap-5">
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6 lg:col-span-2">
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
+                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 lg:col-span-2">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
@@ -3486,7 +3486,7 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
@@ -3552,7 +3552,7 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
                 <div className="space-y-5">
-                  <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-4">Account Info</h2>
                     <div className="space-y-3">
                       {[
@@ -3582,7 +3582,7 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
                 <div className="space-y-5">
-                  <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
                     <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     {business?.stripe_onboarded ? (
@@ -3626,7 +3626,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                     )}
                   </div>
-                  <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Session</h2>
                     <p className="text-xs text-neutral-400 mb-4">Signed in as {business?.owner_email}</p>
                     <div className="grid grid-cols-1 gap-2">
@@ -3640,7 +3640,7 @@ const BusinessDashboard: NextPage = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Legal & Support</h2>
                     <p className="text-xs text-neutral-400 mb-4">Review the latest policies and contact support.</p>
                     <div className="grid grid-cols-1 gap-2">
@@ -4163,6 +4163,45 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-\[28px\],
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-\[24px\] {
           box-shadow: 0 14px 34px rgba(60, 79, 72, 0.05), 0 2px 6px rgba(60, 79, 72, 0.04);
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-premium-panel,
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card {
+          position: relative;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,252,247,0.98) 100%) !important;
+          border-color: #e7dccd !important;
+          box-shadow:
+            0 18px 46px rgba(63, 83, 74, 0.07),
+            0 2px 10px rgba(63, 83, 74, 0.04) !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-segment-shell {
+          padding: 10px;
+          border-radius: 22px;
+          background: rgba(255, 252, 247, 0.84);
+          border: 1px solid #e7dccd;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card::before,
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-premium-panel::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          border-radius: inherit;
+          background: linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0) 28%);
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-service-row:hover,
+        .provider-dashboard-shell[data-provider-theme='light'] .provider-inline-row:hover {
+          background: rgba(246, 239, 228, 0.45);
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-100,
