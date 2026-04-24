@@ -93,6 +93,30 @@ function fmtClockTime(d?: string | null) {
   if (!dt) return '';
   return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
+function normalizeBookings(input: any): Booking[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((b: any) => b && typeof b === 'object' && typeof b.id === 'string')
+    .map((b: any) => ({
+      ...b,
+      profiles: b?.profiles && typeof b.profiles === 'object' ? b.profiles : null,
+      service: typeof b?.service === 'string' ? b.service : '',
+      status: typeof b?.status === 'string' ? b.status : 'pending',
+      created_at: typeof b?.created_at === 'string' ? b.created_at : '',
+      amount_cents: typeof b?.amount_cents === 'number' ? b.amount_cents : null,
+    }));
+}
+function normalizeThreads(input: any): any[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((t: any) => t && typeof t === 'object')
+    .map((t: any) => ({
+      ...t,
+      unreadCount: Number.isFinite(t?.unreadCount) ? Number(t.unreadCount) : 0,
+      booking_ids: Array.isArray(t?.booking_ids) ? t.booking_ids : [],
+      profiles: t?.profiles && typeof t.profiles === 'object' ? t.profiles : null,
+    }));
+}
 function onlyDigits(v: string) { return (v || '').replace(/[^\d]/g, '').slice(0, 7); }
 function digitsToDollars(digits: string) { return digits ? (Number(digits) / 100).toFixed(2) : ''; }
 function toCalDate(d: Date) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z'); }
@@ -952,8 +976,16 @@ const BusinessDashboard: NextPage = () => {
         fetch('/api/messages?business_id=' + biz.id, { headers: authHeaders }),
         fetch('/api/stripe-balance', { method: 'POST', headers: authHeaders }).catch(() => null),
       ]);
-      if (bkgRes && bkgRes.ok) { const bkgData = await bkgRes.json(); setBookings(Array.isArray(bkgData.bookings) ? bkgData.bookings : []); }
-      if (msgsRes && msgsRes.ok) { const md = await msgsRes.json(); const normalizedThreads = Array.isArray(md.threads) ? md.threads : []; setMsgThreads(normalizedThreads); setThreads(normalizedThreads); }
+      if (bkgRes && bkgRes.ok) {
+        const bkgData = await bkgRes.json().catch(() => ({}));
+        setBookings(normalizeBookings(bkgData.bookings));
+      }
+      if (msgsRes && msgsRes.ok) {
+        const md = await msgsRes.json().catch(() => ({}));
+        const normalized = normalizeThreads(md.threads);
+        setMsgThreads(normalized);
+        setThreads(normalized);
+      }
       if (balRes && balRes.ok) {
         try {
           const b = await balRes.json();
@@ -1775,7 +1807,25 @@ const BusinessDashboard: NextPage = () => {
           <div className="mt-8 flex justify-center">
             <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
           </div>
-          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.68)' }}>Loading provider dashboard…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: dm ? '#0a0a0a' : '#f8fafc' }}>
+        <div className="w-full max-w-md rounded-2xl border p-6 text-center" style={{ background: dm ? '#171717' : '#fff', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+          <p className="text-base font-bold mb-2" style={{ color: dm ? '#f5f5f5' : '#111827' }}>Couldn’t load your provider account</p>
+          <p className="text-sm mb-4" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>Please refresh, or sign in again.</p>
+          <div className="flex justify-center gap-2">
+            <button onClick={() => window.location.reload()} className="text-sm font-semibold px-4 py-2 rounded-lg bg-accent text-white">
+              Refresh
+            </button>
+            <button onClick={handleSignOut} className="text-sm font-semibold px-4 py-2 rounded-lg border" style={{ borderColor: dm ? '#3f3f46' : '#d1d5db', color: dm ? '#e5e7eb' : '#374151' }}>
+              Sign out
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1789,7 +1839,7 @@ const BusinessDashboard: NextPage = () => {
     .filter(b => b.status === 'completed' && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const totalEarned = toProviderNet(totalCompletedGross);
-  const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (t.unreadCount || 0), 0);
+  const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (Number(t?.unreadCount) || 0), 0);
   const pendingCount = bookings.filter(b => isProviderPendingBooking(b)).length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
   const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);

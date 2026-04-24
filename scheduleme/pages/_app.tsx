@@ -85,7 +85,11 @@ export default function App({ Component, pageProps }: AppProps) {
     };
 
     const onDone = () => {
-      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+      try {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      } catch {
+        window.scrollTo(0, 0);
+      }
       if (isTransitioning.current) {
         isTransitioning.current = false;
         // Keep overlay visible for longer so dashboard can finish loading
