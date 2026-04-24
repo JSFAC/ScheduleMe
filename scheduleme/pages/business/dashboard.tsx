@@ -249,14 +249,31 @@ function downloadIcsBatch(filename: string, events: { title: string; details?: s
   URL.revokeObjectURL(url);
 }
 
+function formatCampusLabel(domain?: string | null) {
+  const value = String(domain || '').trim().toLowerCase();
+  if (!value) return '';
+  const known: Record<string, string> = {
+    'ucsc.edu': 'UCSC',
+    'ucsb.edu': 'UCSB',
+    'ucsd.edu': 'UCSD',
+    'ucdavis.edu': 'UC Davis',
+    'berkeley.edu': 'UC Berkeley',
+    'ucla.edu': 'UCLA',
+    'uci.edu': 'UCI',
+    'ucmerced.edu': 'UC Merced',
+    'ucr.edu': 'UC Riverside',
+    'ucsf.edu': 'UCSF',
+    'usc.edu': 'USC',
+    'stanford.edu': 'Stanford',
+  };
+  if (known[value]) return known[value];
+  const base = value.replace(/\.edu$/, '').split('.')[0] || value;
+  return base.length <= 5 ? base.toUpperCase() : base.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
+}
+
 function ProviderBrandLoader({ message }: { message?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#07090d' }}>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-0 h-[560px] w-[760px] -translate-x-1/2 rounded-full"
-        style={{ background: 'radial-gradient(ellipse, rgba(10,132,255,0.08) 0%, transparent 70%)' }}
-      />
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden px-6" style={{ background: '#07090d' }}>
       <div
         className="absolute inset-0"
         style={{
@@ -2043,6 +2060,7 @@ const BusinessDashboard: NextPage = () => {
   });
   const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
   const uniqueClients = clients.length;
+  const campusLabel = formatCampusLabel(business?.school_domain);
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
   const activeCustomerId = activeMsgThread?.profiles?.id || activeMsgThread?.customer_id;
   const isCustomerBlocked = activeCustomerId ? !!blockedCustomers[activeCustomerId] : false;
@@ -2069,7 +2087,7 @@ const BusinessDashboard: NextPage = () => {
     <>
       {signingOut && (
         <div className="fixed inset-0 z-[9999]">
-          <ProviderBrandLoader message="Signing you out..." />
+          <ProviderBrandLoader message="Signing out..." />
         </div>
       )}
       {showTour && tour && (
@@ -2285,7 +2303,7 @@ const BusinessDashboard: NextPage = () => {
           )}
 
 
-          <main className="flex-1 px-6 py-7 max-w-5xl mx-auto w-full">
+          <main className="flex-1 px-6 py-7 max-w-[1320px] mx-auto w-full">
             {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (
               <div className="rounded-2xl border px-5 py-4 flex items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
                 <div>
@@ -2379,6 +2397,15 @@ const BusinessDashboard: NextPage = () => {
                                 <span className="h-2 w-2 rounded-full" style={{ background: availabilityTone.dot }} />
                                 Status: {availabilityLabel}
                               </span>
+                              {business?.edu_verified && campusLabel && (
+                                <span
+                                  className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold"
+                                  style={{ background: 'rgba(0,126,109,0.10)', borderColor: 'rgba(0,126,109,0.22)', color: '#007e6d' }}
+                                >
+                                  <span className="h-2 w-2 rounded-full" style={{ background: '#007e6d' }} />
+                                  EDU verified provider: {campusLabel}
+                                </span>
+                              )}
                               {pendingCount > 0 && (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
                                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -2411,16 +2438,6 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                         </div>
                       </div>
-
-                      {business?.edu_verified && (
-                        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4">
-                          <p className="text-sm font-bold text-neutral-900">EDU Verified Provider</p>
-                          <p className="mt-1 text-sm text-emerald-700">Verified provider for your campus.</p>
-                          <p className="mt-1 text-xs text-neutral-500">
-                            Linked to your customer EDU verification. No separate provider EDU flow.
-                          </p>
-                        </div>
-                      )}
 
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {overviewMetrics.map((s) => (
@@ -3344,56 +3361,58 @@ const BusinessDashboard: NextPage = () => {
             {/* MESSAGES */}
             {/* SETTINGS */}
             {tab === 'services' && (
-            <div className="flex flex-col gap-5 max-w-xl">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-5">
+              <div className="space-y-5">
                 <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
-                <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
-                <div className="flex flex-col gap-3">
-                  <div className="relative">
-                    <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
-                    <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcName.length}/60</span>
-                  </div>
-                  <div className="relative">
-                    <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
-                    <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcDesc.length}/300</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
-                      <div className="flex items-center rounded-xl border px-3 py-2.5" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }}>
-                        <span className="text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={digitsToDollars(svcPrice)}
-                          onChange={e => setSvcPrice(onlyDigits(e.target.value))}
-                          placeholder="0.00"
-                          className="flex-1 ml-2 text-sm outline-none bg-transparent"
-                          style={{ color: dm ? '#f2f2f7' : '#111' }}
-                        />
+                  <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
+                  <div className="flex flex-col gap-3">
+                    <div className="relative">
+                      <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                      <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcName.length}/60</span>
+                    </div>
+                    <div className="relative">
+                      <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                      <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcDesc.length}/300</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
+                        <div className="flex items-center rounded-xl border px-3 py-2.5" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }}>
+                          <span className="text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={digitsToDollars(svcPrice)}
+                            onChange={e => setSvcPrice(onlyDigits(e.target.value))}
+                            placeholder="0.00"
+                            className="flex-1 ml-2 text-sm outline-none bg-transparent"
+                            style={{ color: dm ? '#f2f2f7' : '#111' }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>
+                        <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
                       </div>
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>
-                      <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#f9fafb', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
-                    </div>
+                    <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
+                      Requires exact time
+                      <input type="checkbox" checked={svcRequiresTime} onChange={e => setSvcRequiresTime(e.target.checked)} />
+                    </label>
+                    {svcError && <p className="text-red-500 text-sm">{svcError}</p>}
+                    <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#007e6d' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
                   </div>
+                </div>
+                <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                  <h3 className="font-bold text-base mb-2" style={{ color: dm ? '#f2f2f7' : '#111' }}>Custom Request Scheduling</h3>
+                  <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
                   <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
                     Requires exact time
-                    <input type="checkbox" checked={svcRequiresTime} onChange={e => setSvcRequiresTime(e.target.checked)} />
+                    <input type="checkbox" checked={business?.custom_requires_time !== false} onChange={e => handleCustomRequiresTime(e.target.checked)} />
                   </label>
-                  {svcError && <p className="text-red-500 text-sm">{svcError}</p>}
-                  <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#007e6d' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
                 </div>
               </div>
-              <div className="rounded-2xl p-5" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
-                <h3 className="font-bold text-base mb-2" style={{ color: dm ? '#f2f2f7' : '#111' }}>Custom Request Scheduling</h3>
-                <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
-                <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', color: dm ? '#e5e7eb' : '#374151', background: dm ? '#111' : '#f9fafb' }}>
-                  Requires exact time
-                  <input type="checkbox" checked={business?.custom_requires_time !== false} onChange={e => handleCustomRequiresTime(e.target.checked)} />
-                </label>
-              </div>
-              <div className="rounded-2xl overflow-hidden" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+              <div className="rounded-2xl overflow-hidden self-start" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <div className="px-5 py-4" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                   <h3 className="font-bold text-base" style={{ color: dm ? '#f2f2f7' : '#111' }}>Your Services ({services.length})</h3>
                 </div>
@@ -3475,7 +3494,7 @@ const BusinessDashboard: NextPage = () => {
             )}
 
             {tab === 'settings' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)] gap-5">
                 <div className="bg-white rounded-2xl border border-neutral-100 p-6 lg:col-span-2">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -3584,6 +3603,8 @@ const BusinessDashboard: NextPage = () => {
                       </button>
                     </div>
                   </div>
+                </div>
+                <div className="space-y-5">
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
                     <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
