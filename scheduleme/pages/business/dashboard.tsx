@@ -9,6 +9,7 @@ import { useRouter } from 'next/router';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
 import { normalizeServiceTags, serviceTagToLabel } from '../../lib/categoryNormalization';
+import BrandRouteLoader from '../../components/BrandRouteLoader';
 
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
 
@@ -269,30 +270,6 @@ function formatCampusLabel(domain?: string | null) {
   if (known[value]) return known[value];
   const base = value.replace(/\.edu$/, '').split('.')[0] || value;
   return base.length <= 5 ? base.toUpperCase() : base.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
-}
-
-function ProviderBrandLoader({ message }: { message?: string }) {
-  return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden px-6" style={{ background: '#07090d' }}>
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: 'linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px)',
-          backgroundSize: '48px 48px',
-        }}
-      />
-      <div className="relative text-center">
-        <p className="text-5xl font-black tracking-[-0.03em] text-white">ScheduleMe</p>
-        <p className="text-xs font-bold uppercase tracking-[0.28em] mt-2" style={{ color: '#0F766E' }}>FOR PROVIDERS</p>
-        <div className="mt-8 flex justify-center">
-          <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
-        </div>
-        {message ? (
-          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>{message}</p>
-        ) : null}
-      </div>
-    </div>
-  );
 }
 
 function canMarkComplete(b: Booking, bizHours?: any) {
@@ -1945,7 +1922,7 @@ const BusinessDashboard: NextPage = () => {
   }
 
   if (loading) {
-    return <ProviderBrandLoader />;
+    return <BrandRouteLoader audience="provider" />;
   }
 
   if (!business) {
@@ -2087,7 +2064,7 @@ const BusinessDashboard: NextPage = () => {
     <>
       {signingOut && (
         <div className="fixed inset-0 z-[9999]">
-          <ProviderBrandLoader message="Signing out..." />
+          <BrandRouteLoader audience="provider" message="Signing out..." />
         </div>
       )}
       {showTour && tour && (
