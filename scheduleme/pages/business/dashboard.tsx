@@ -1910,6 +1910,7 @@ const BusinessDashboard: NextPage = () => {
           <div className="mt-8 flex justify-center">
             <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
           </div>
+          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.68)' }}>Loading provider dashboard…</p>
         </div>
       </div>
     );
