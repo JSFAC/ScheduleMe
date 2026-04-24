@@ -463,6 +463,40 @@ export default function BizPage() {
   }, [canEdit]);
 
   useEffect(() => {
+    if (!isDashboardEmbed || typeof window === 'undefined') return;
+    function notifyParent() {
+      window.parent?.postMessage(
+        { type: 'scheduleme-dashboard-preview-state', editMode },
+        window.location.origin
+      );
+    }
+    notifyParent();
+  }, [isDashboardEmbed, editMode]);
+
+  useEffect(() => {
+    if (!isDashboardEmbed || typeof window === 'undefined') return;
+    async function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (typeof event.data !== 'object' || event.data === null) return;
+      if (event.data?.type !== 'scheduleme-dashboard-preview-action') return;
+      if (event.data.action === 'enter-edit') {
+        resetEmbeddedDrafts();
+        setEditMode(true);
+        return;
+      }
+      if (event.data.action === 'cancel-edit') {
+        await cancelEmbeddedEditing();
+        return;
+      }
+      if (event.data.action === 'save-edit') {
+        await saveEmbeddedEditing();
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [isDashboardEmbed, biz, services, editDesc, editImages, editVideo, draftServices, deletedServiceIds]);
+
+  useEffect(() => {
     if (!biz?.id) return;
     setLoadingSlots(true);
     const from = new Date().toISOString();
@@ -1468,106 +1502,105 @@ export default function BizPage() {
                   </>
                 )}
               </div>
-              {imgs.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pt-3">
+              {(imgs.length > 1 || editMode) && (
+                <div
+                  className="flex gap-2 overflow-x-auto pt-3"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
+                  }}
+                >
                   {imgs.map((url, i) => (
-                    <button
+                    <div
                       key={url}
-                      type="button"
-                      onClick={() => setGalleryIdx(i)}
-                      className="h-16 w-16 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 border p-1"
-                      style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb'), background: dm ? '#121212' : '#f8fafc' }}
+                      draggable={editMode}
+                      onDragStart={() => editMode && onDragStart(i)}
+                      onDragOver={(e) => editMode && onDragOver(e, i)}
+                      onDragEnd={() => editMode && onDragEnd()}
+                      className="relative h-16 w-16 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 border p-1"
+                      style={{ borderColor: i === galleryIdx ? '#10b981' : (dm ? '#2c2c2e' : '#e5e7eb'), background: dm ? '#121212' : '#f8fafc', opacity: dragIdx === i ? 0.5 : 1, cursor: editMode ? 'grab' : 'pointer' }}
                     >
-                      <img src={url} alt="" className="max-h-full max-w-full object-contain" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setGalleryIdx(i)}
+                        className="absolute inset-0"
+                        aria-label={`Open media ${i + 1}`}
+                      />
+                      <img src={url} alt="" className="max-h-full max-w-full object-contain pointer-events-none" />
+                      {editMode && i === 0 && (
+                        <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5" style={{ background: 'rgba(0,126,109,0.85)', color: 'white' }}>COVER</div>
+                      )}
+                      {editMode && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                          className="absolute top-0.5 right-0.5 h-4.5 w-4.5 rounded-full flex items-center justify-center text-[10px]"
+                          style={{ background: 'rgba(0,0,0,0.7)', color: 'white' }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
                   ))}
+                  {editMode && imgs.length === 0 && (
+                    <div className="text-xs px-2 py-6" style={{ color: mu }}>No photos yet</div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-          {editMode && (
-            <div className="rounded-2xl p-4 mb-5" style={{ background: card, border: '1px solid ' + bdr }}>
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div>
-                  <p className="text-sm font-bold" style={{ color: tx }}>Photos & video</p>
-                  <p className="text-xs" style={{ color: mu }}>Click the upload area or drag in files. Reorder photos below to change the cover.</p>
-                </div>
-              </div>
-              {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
-              {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
-              <div
-                className="mb-3 rounded-xl border border-dashed px-4 py-5 text-center text-sm font-medium cursor-pointer"
-                style={{ borderColor: dm ? '#2d2d2f' : '#cfe7de', color: tx, background: dm ? '#0c0c0d' : '#f5fbf8' }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
-                }}
-                onClick={() => imgInputRef.current?.click()}
-              >
-                Click to add photos, or drag and drop photos/videos here.
-              </div>
-              <div
-                className="flex gap-2 overflow-x-auto pb-1"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
-                }}
-              >
-                {editImages.map((url, i) => (
-                  <div key={url}
-                    draggable
-                    onDragStart={() => onDragStart(i)}
-                    onDragOver={(e) => onDragOver(e, i)}
-                    onDragEnd={onDragEnd}
-                    className="relative flex-shrink-0 rounded-xl overflow-hidden"
-                    style={{ width: 76, height: 76, opacity: dragIdx === i ? 0.5 : 1, border: i === 0 ? '2px solid #007e6d' : '1px solid ' + bdr, cursor: 'grab' }}>
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                    {i === 0 && (
-                      <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold py-0.5" style={{ background: 'rgba(0,126,109,0.85)', color: 'white' }}>COVER</div>
+              {editMode && (
+                <>
+                  <div className="mt-4">
+                    <div className="mb-2">
+                      <p className="text-sm font-bold" style={{ color: tx }}>Photos & video</p>
+                      <p className="text-xs" style={{ color: mu }}>Click the upload area or drag in files. Reorder photos below to change the cover.</p>
+                    </div>
+                    {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
+                    {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
+                    <div
+                      className="mb-3 rounded-xl border border-dashed px-4 py-5 text-center text-sm font-medium cursor-pointer"
+                      style={{ borderColor: dm ? '#2d2d2f' : '#cfe7de', color: tx, background: dm ? '#0c0c0d' : '#f5fbf8' }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
+                      }}
+                      onClick={() => imgInputRef.current?.click()}
+                    >
+                      Click to add photos, or drag and drop photos/videos here.
+                    </div>
+                    {editVideo && (
+                      <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
+                        <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>
+                        <button onClick={removeVideo} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
+                      </div>
                     )}
-                    <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
-                      className="absolute top-1 right-1 h-5 w-5 rounded-full flex items-center justify-center"
-                      style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>
-                      ×
-                    </button>
                   </div>
-                ))}
-                {editImages.length === 0 && (
-                  <div className="text-xs px-2 py-6" style={{ color: mu }}>No photos yet</div>
-                )}
-              </div>
-              {editVideo && (
-                <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
-                  <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>
-                  <button onClick={removeVideo} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
-                </div>
+                  <input
+                    ref={imgInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
+                      if (e.target) e.target.value = '';
+                    }}
+                  />
+                  <input
+                    ref={vidInputRef}
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadMedia(file, 'video');
+                      if (e.target) e.target.value = '';
+                    }}
+                  />
+                </>
               )}
-              <input
-                ref={imgInputRef}
-                type="file"
-                accept="image/*,video/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
-                  if (e.target) e.target.value = '';
-                }}
-              />
-              <input
-                ref={vidInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadMedia(file, 'video');
-                  if (e.target) e.target.value = '';
-                }}
-              />
             </div>
           )}
           <div className="rounded-2xl p-5 shadow-lg mt-0.5 relative z-10 mb-5" style={{background:card,border:'1px solid '+bdr}}>
@@ -1586,40 +1619,6 @@ export default function BizPage() {
               <div>
                 <h1 className="text-xl font-bold" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
               </div>
-              {isDashboardEmbed && (
-                <div className="flex items-center gap-2 shrink-0">
-                  {editMode ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={cancelEmbeddedEditing}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                        style={{ background: dm ? '#111827' : '#f3f4f6', border: '1px solid ' + bdr, color: tx }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={saveEmbeddedEditing}
-                        disabled={savingAllEdits}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                        style={{ background: accent, color: 'white', opacity: savingAllEdits ? 0.65 : 1 }}
-                      >
-                        {savingAllEdits ? 'Saving…' : 'Save changes'}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => { resetEmbeddedDrafts(); setEditMode(true); }}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                      style={{ background: accentWash, border: '1px solid ' + accentBorder, color: accent }}
-                    >
-                      Edit mode
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
             {ownerDisplayName ? (
               <p className="text-sm font-semibold mb-2" style={{ color: dm ? '#d1d5db' : '#4b5563' }}>

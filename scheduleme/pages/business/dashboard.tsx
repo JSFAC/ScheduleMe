@@ -945,6 +945,7 @@ const BusinessDashboard: NextPage = () => {
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
   const [previewKey, setPreviewKey] = useState(() => Date.now());
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [services, setServices] = useState([]);
   const [svcLoading, setSvcLoading] = useState(false);
@@ -978,6 +979,24 @@ const BusinessDashboard: NextPage = () => {
       } catch {}
     }
   }, [tab]);
+
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (typeof event.data !== 'object' || event.data === null) return;
+      if (event.data?.type === 'scheduleme-dashboard-preview-state') {
+        setPreviewEditMode(!!event.data.editMode);
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  function sendPreviewAction(action: 'enter-edit' | 'save-edit' | 'cancel-edit') {
+    previewFrameRef.current?.contentWindow?.postMessage(
+      { type: 'scheduleme-dashboard-preview-action', action },
+      window.location.origin
+    );
+  }
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
@@ -2338,27 +2357,14 @@ const BusinessDashboard: NextPage = () => {
 
         {/* Sidebar */}
         <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-neutral-100 fixed left-0 top-0 bottom-0 z-30">
-          <div className="px-5 py-5 border-b border-neutral-100 flex items-start justify-between gap-3">
+          <div className="px-5 py-5 border-b border-neutral-100">
             <Link href="/provider">
-              <span className="text-[17px] font-black text-neutral-900" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
+              <span className="text-[17px] font-black" style={{ letterSpacing: '-0.03em' }}>
+                <span className="text-neutral-900">Schedule</span>
+                <span className="text-accent">Me</span>
+              </span>
               <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-accent mt-0.5">for Providers</span>
             </Link>
-            <button
-              type="button"
-              onClick={toggleDarkMode}
-              aria-label="Toggle dark mode"
-              className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
-                {dm
-                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                  : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                }
-              </svg>
-              <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
-                <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
-              </div>
-            </button>
           </div>
           <div className="px-4 py-4 border-b border-neutral-100">
             <div className="flex items-center gap-3">
@@ -2403,7 +2409,28 @@ const BusinessDashboard: NextPage = () => {
               </button>
             ))}
           </nav>
-          <div className="px-3 py-4 border-t border-neutral-100 space-y-1">
+          <div className="px-3 py-4 border-t border-neutral-100 space-y-3">
+            <div className="px-3">
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                aria-label="Toggle dark mode"
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors"
+              >
+                <span className="text-sm font-semibold text-neutral-700">{dm ? 'Dark mode' : 'Light mode'}</span>
+                <div className="flex items-center gap-1.5">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
+                    {dm
+                      ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                      : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                    }
+                  </svg>
+                  <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
+                    <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
+                  </div>
+                </div>
+              </button>
+            </div>
             <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Quick Links</p>
             <Link href="/provider" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" /></svg>
@@ -3773,17 +3800,37 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-sm font-semibold text-neutral-900 mt-1">Live Preview</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPreviewKey(Date.now())}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
-                    >
-                      Refresh
-                    </button>
+                    {previewEditMode ? (
+                      <>
+                        <button
+                          onClick={() => sendPreviewAction('cancel-edit')}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => sendPreviewAction('save-edit')}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg text-white"
+                          style={{ background: '#007e6d' }}
+                        >
+                          Save changes
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => sendPreviewAction('enter-edit')}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg border"
+                        style={{ borderColor: 'rgba(0,126,109,0.18)', background: 'rgba(0,126,109,0.10)', color: '#007e6d' }}
+                      >
+                        Edit mode
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="p-5" key={previewKey}>
                   {business?.slug ? (
                     <iframe
+                      ref={previewFrameRef}
                       title="ScheduleMe Live Preview"
                       src={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}&embedded=1&k=${previewKey}`}
                       className="w-full rounded-[24px] border border-neutral-100 bg-white"
