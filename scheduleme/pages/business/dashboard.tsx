@@ -45,6 +45,67 @@ interface Business {
   public_visibility?: boolean; public_show_name?: boolean; public_show_photos?: boolean; campus_show_name?: boolean;
 }
 
+function toStringSafe(v: any, fallback = ''): string {
+  return typeof v === 'string' ? v : (v == null ? fallback : String(v));
+}
+
+function toNumberSafe(v: any, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toBooleanSafe(v: any): boolean {
+  return v === true || v === 'true' || v === 1;
+}
+
+function toStringArray(v: any): string[] {
+  if (Array.isArray(v)) return v.map((x) => toStringSafe(x)).filter(Boolean);
+  if (typeof v === 'string') {
+    const trimmed = v.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map((x) => toStringSafe(x)).filter(Boolean);
+      } catch {}
+    }
+    return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeBusiness(input: any): Business | null {
+  if (!input || typeof input !== 'object') return null;
+  return {
+    ...input,
+    id: toStringSafe(input.id),
+    name: toStringSafe(input.name, 'My Provider'),
+    owner_name: toStringSafe(input.owner_name),
+    owner_email: toStringSafe(input.owner_email),
+    phone: toStringSafe(input.phone),
+    description: toStringSafe(input.description),
+    stripe_account_id: input.stripe_account_id ? toStringSafe(input.stripe_account_id) : null,
+    stripe_onboarded: toBooleanSafe(input.stripe_onboarded),
+    service_tags: toStringArray(input.service_tags),
+    address: toStringSafe(input.address),
+    rating: input.rating == null ? null : toNumberSafe(input.rating, 0),
+    price_tier: input.price_tier == null ? undefined : toNumberSafe(input.price_tier, 0),
+    review_count: input.review_count == null ? undefined : toNumberSafe(input.review_count, 0),
+    slug: input.slug == null ? null : toStringSafe(input.slug),
+    availability_status: input.availability_status == null ? null : toStringSafe(input.availability_status),
+    break_until: input.break_until == null ? null : toStringSafe(input.break_until),
+    is_onboarded: toBooleanSafe(input.is_onboarded),
+    website: toStringSafe(input.website),
+    instagram: toStringSafe(input.instagram),
+    school_domain: input.school_domain == null ? null : toStringSafe(input.school_domain),
+    edu_verified: toBooleanSafe(input.edu_verified),
+    public_visibility: toBooleanSafe(input.public_visibility),
+    public_show_name: toBooleanSafe(input.public_show_name),
+    public_show_photos: toBooleanSafe(input.public_show_photos),
+    campus_show_name: toBooleanSafe(input.campus_show_name),
+  };
+}
+
 const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text: string; border: string }> = {
   pending:         { label: 'Pending',         dot: 'bg-amber-400',   bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
   confirmed:       { label: 'Confirmed',       dot: 'bg-blue-500',    bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
@@ -964,40 +1025,55 @@ const BusinessDashboard: NextPage = () => {
           has_seen_welcome: true,
         }, { onConflict: 'id', ignoreDuplicates: false });
       } catch {}
-      setBusiness(biz);
-      loadBlockedCustomers(biz.id);
-      setEditName(biz.name || ''); setEditPhone(biz.phone || ''); setEditAddress(biz.address || '');
-      setEditDesc(biz.description || ''); setEditWebsite(biz.website || '');
-      const serviceTags = Array.isArray(biz.service_tags) ? biz.service_tags : [];
+      const safeBiz = normalizeBusiness(biz);
+      if (!safeBiz?.id) {
+        await supabase.auth.signOut();
+        router.replace('/business/auth/login?error=not_a_business');
+        return;
+      }
+
+      setBusiness(safeBiz);
+      loadBlockedCustomers(safeBiz.id);
+      setEditName(safeBiz.name || ''); setEditPhone(safeBiz.phone || ''); setEditAddress(safeBiz.address || '');
+      setEditDesc(safeBiz.description || ''); setEditWebsite(safeBiz.website || '');
+      const serviceTags = Array.isArray(safeBiz.service_tags) ? safeBiz.service_tags : [];
       setEditServices(serviceTags.map((tag: string) => serviceTagToLabel(tag)).join(', '));
-      setEditHours(hoursToMap(biz.hours));
-      setMediaImages(biz.media_urls || (biz.cover_url ? [biz.cover_url] : []));
-      setMediaVideo(biz.video_url || null);
-      setPublicVisibility(Boolean(biz.public_visibility));
-      setPublicShowName(Boolean(biz.public_show_name));
-      setPublicShowPhotos(Boolean(biz.public_show_photos));
-      setCampusShowName(Boolean(biz.campus_show_name));
+      setEditHours(hoursToMap(safeBiz.hours));
+      setMediaImages(toStringArray(safeBiz.media_urls).length ? toStringArray(safeBiz.media_urls) : (safeBiz.cover_url ? [toStringSafe(safeBiz.cover_url)] : []));
+      setMediaVideo(safeBiz.video_url ? toStringSafe(safeBiz.video_url) : null);
+      setPublicVisibility(Boolean(safeBiz.public_visibility));
+      setPublicShowName(Boolean(safeBiz.public_show_name));
+      setPublicShowPhotos(Boolean(safeBiz.public_show_photos));
+      setCampusShowName(Boolean(safeBiz.campus_show_name));
       refreshPublishStatus();
 
       const authHeaders = await getAuthHeaders();
-      const [bkgRes, msgsRes, balRes] = await Promise.all([
-        fetch('/api/bookings?business_id=' + biz.id, { headers: authHeaders }),
-        fetch('/api/messages?business_id=' + biz.id, { headers: authHeaders }),
-        fetch('/api/stripe-balance', { method: 'POST', headers: authHeaders }).catch(() => null),
+      const [bkgRes, msgsRes, balRes] = await Promise.allSettled([
+        fetch('/api/bookings?business_id=' + safeBiz.id, { headers: authHeaders }),
+        fetch('/api/messages?business_id=' + safeBiz.id, { headers: authHeaders }),
+        fetch('/api/stripe-balance', { method: 'POST', headers: authHeaders }),
       ]);
-      if (bkgRes && bkgRes.ok) {
-        const bkgData = await bkgRes.json().catch(() => ({}));
-        setBookings(normalizeBookings(bkgData.bookings));
+
+      if (bkgRes.status === 'fulfilled' && bkgRes.value?.ok) {
+        const bkgData = await bkgRes.value.json().catch(() => ({}));
+        setBookings(normalizeBookings(bkgData?.bookings));
+      } else {
+        setBookings([]);
       }
-      if (msgsRes && msgsRes.ok) {
-        const md = await msgsRes.json().catch(() => ({}));
-        const normalized = normalizeThreads(md.threads);
+
+      if (msgsRes.status === 'fulfilled' && msgsRes.value?.ok) {
+        const md = await msgsRes.value.json().catch(() => ({}));
+        const normalized = normalizeThreads(md?.threads);
         setMsgThreads(normalized);
         setThreads(normalized);
+      } else {
+        setMsgThreads([]);
+        setThreads([]);
       }
-      if (balRes && balRes.ok) {
+
+      if (balRes.status === 'fulfilled' && balRes.value?.ok) {
         try {
-          const b = await balRes.json();
+          const b = await balRes.value.json();
           if (typeof b?.available === 'number' && typeof b?.pending === 'number') setPayoutBalance({ available: b.available, pending: b.pending });
         } catch {}
       }
@@ -1153,7 +1229,12 @@ const BusinessDashboard: NextPage = () => {
   async function loadThreads() {
     if (!business) return;
     const res = await fetch('/api/messages?business_id=' + business.id, { headers: await getAuthHeaders() });
-    if (res.ok) { const d = await res.json(); setThreads(d.threads || []); setMsgThreads(d.threads || []); }
+    if (res.ok) {
+      const d = await res.json().catch(() => ({}));
+      const normalized = normalizeThreads(d?.threads);
+      setThreads(normalized);
+      setMsgThreads(normalized);
+    }
   }
 
   async function loadBlockedCustomers(businessId: string) {
@@ -1816,6 +1897,7 @@ const BusinessDashboard: NextPage = () => {
           <div className="mt-8 flex justify-center">
             <div className="h-7 w-7 rounded-full border-[3px] border-accent/30 border-t-accent animate-spin" />
           </div>
+          <p className="text-sm mt-5" style={{ color: 'rgba(255,255,255,0.72)' }}>Loading provider dashboard...</p>
         </div>
       </div>
     );
@@ -1848,7 +1930,7 @@ const BusinessDashboard: NextPage = () => {
     .filter(b => b.status === 'completed' && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const totalEarned = toProviderNet(totalCompletedGross);
-  const totalUnreadMsgs = msgThreads.reduce((s: number, t: any) => s + (Number(t?.unreadCount) || 0), 0);
+  const totalUnreadMsgs = (Array.isArray(msgThreads) ? msgThreads : []).reduce((s: number, t: any) => s + (Number(t?.unreadCount) || 0), 0);
   const pendingCount = bookings.filter(b => isProviderPendingBooking(b)).length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
   const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);
