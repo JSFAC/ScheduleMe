@@ -40,6 +40,7 @@ interface Business {
   stripe_account_id: string | null; stripe_onboarded: boolean;
   service_tags: string[]; address: string; rating: number | null; price_tier?: number | null; review_count?: number | null;
   slug?: string | null;
+  hours?: any;
   availability_status?: string | null; break_until?: string | null;
   is_onboarded: boolean; website?: string; instagram?: string;
   school_domain?: string | null; edu_verified?: boolean;
@@ -299,6 +300,31 @@ function formatCampusLabel(domain?: string | null) {
   if (known[value]) return known[value];
   const base = value.replace(/\.edu$/, '').split('.')[0] || value;
   return base.length <= 5 ? base.toUpperCase() : base.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
+}
+
+const DASHBOARD_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function normalizeDashboardHours(hours: any): Array<{ day: string; time: string }> {
+  if (!hours) return [];
+  if (Array.isArray(hours)) return hours.filter((h) => h?.day && typeof h?.time === 'string');
+  return Object.entries(hours).map(([day, time]) => ({ day, time: String(time || '') })).filter((h) => h.time);
+}
+
+function dashboardDayMatches(pattern: string, date: Date) {
+  const dayName = DASHBOARD_DAY_NAMES[date.getDay()];
+  const text = String(pattern || '').trim().toLowerCase();
+  if (!text) return false;
+  return text.includes(dayName.toLowerCase()) || text.includes(dayName.slice(0, 3).toLowerCase());
+}
+
+function hasBusinessHoursOnDate(hours: any, date: Date) {
+  const normalized = normalizeDashboardHours(hours);
+  if (!normalized.length) return false;
+  const match = normalized.find((entry) => dashboardDayMatches(entry.day, date));
+  if (!match) return false;
+  const value = String(match.time || '').trim().toLowerCase();
+  if (!value || value.includes('closed')) return false;
+  return true;
 }
 
 function canMarkComplete(b: Booking, bizHours?: any) {
@@ -826,7 +852,6 @@ const BusinessDashboard: NextPage = () => {
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','services','edit','settings'];
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
-  const [previewKey, setPreviewKey] = useState(() => Date.now());
   const [signingOut, setSigningOut] = useState(false);
   const [services, setServices] = useState([]);
   const [svcLoading, setSvcLoading] = useState(false);
@@ -1080,6 +1105,8 @@ const BusinessDashboard: NextPage = () => {
       loadBlockedCustomers(safeBiz.id);
       setEditName(safeBiz.name || ''); setEditPhone(safeBiz.phone || ''); setEditAddress(safeBiz.address || '');
       setEditDesc(safeBiz.description || ''); setEditWebsite(safeBiz.website || '');
+      setEditAvailability(safeBiz.availability_status || 'open');
+      setEditBreakUntil(safeBiz.break_until ? String(safeBiz.break_until).slice(0, 10) : '');
       const serviceTags = Array.isArray(safeBiz.service_tags) ? safeBiz.service_tags : [];
       setEditServices(serviceTags.map((tag: string) => serviceTagToLabel(tag)).join(', '));
       setEditHours(hoursToMap(safeBiz.hours));
@@ -1184,6 +1211,16 @@ const BusinessDashboard: NextPage = () => {
     mediaVideo,
     services.length,
   ]);
+
+  useEffect(() => {
+    if (tab !== 'edit' || !business?.slug) return;
+    if (typeof window === 'undefined') return;
+    const target = `/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`;
+    const timeout = window.setTimeout(() => {
+      window.location.assign(target);
+    }, 120);
+    return () => window.clearTimeout(timeout);
+  }, [tab, business?.slug, business?.id]);
 
   useEffect(() => { loadData(); if (router.query.stripe === 'success') loadData(); }, [loadData, router.query]);
 
@@ -1547,6 +1584,23 @@ const BusinessDashboard: NextPage = () => {
     setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
 
+  async function openCustomerThreadByEmail(email: string) {
+    const existing = msgThreads.find((t: any) => {
+      const threadEmail = String(t?.profiles?.email || '').toLowerCase();
+      return threadEmail && threadEmail === String(email || '').toLowerCase();
+    });
+    if (!existing) return;
+    setTab('messages');
+    try {
+      window.history.replaceState(null, '', '#messages');
+    } catch {}
+    if (activeMsgThread?.id === existing.id) return;
+    setActiveMsgThread(existing);
+    setThreadMessages([]);
+    await loadThreadMessages(existing);
+    setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  }
+
   async function sendBusinessMessage() {
     if (!msgDraft.trim() || !selectedThread || msgSending) return;
     setMsgSending(true);
@@ -1700,6 +1754,31 @@ const BusinessDashboard: NextPage = () => {
       showToast('Custom request scheduling updated', true);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to update custom request settings', false);
+    }
+  }
+
+  async function handleSaveHours() {
+    if (!business) return;
+    setSettingsSaving(true);
+    try {
+      const breakUntilIso = editBreakUntil ? new Date(editBreakUntil + 'T23:59:59').toISOString() : null;
+      const { error } = await getSupabase().from('businesses').update({
+        hours: mapToHoursArray(editHours),
+        availability_status: editAvailability,
+        break_until: breakUntilIso,
+      }).eq('id', business.id);
+      if (error) throw error;
+      setBusiness((b: any) => b ? {
+        ...b,
+        hours: mapToHoursArray(editHours),
+        availability_status: editAvailability,
+        break_until: breakUntilIso,
+      } : b);
+      showToast('Business hours saved.', true);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to save business hours', false);
+    } finally {
+      setSettingsSaving(false);
     }
   }
 
@@ -2206,6 +2285,10 @@ const BusinessDashboard: NextPage = () => {
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {NAV.map(item => (
               <button key={item.id} onClick={() => {
+                if (item.id === 'edit' && business?.slug) {
+                  window.location.assign(`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`);
+                  return;
+                }
                 setTab(item.id);
                 try {
                   window.history.replaceState(null, '', '#' + item.id);
@@ -2470,7 +2553,13 @@ const BusinessDashboard: NextPage = () => {
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => setTab('edit')}
+                              onClick={() => {
+                                if (business?.slug) {
+                                  window.location.assign(`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`);
+                                  return;
+                                }
+                                setTab('edit');
+                              }}
                               className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
                             >
                               Edit Listing
@@ -2695,7 +2784,7 @@ const BusinessDashboard: NextPage = () => {
                             {scheduledLabel && <span>{b.scheduled_exact ? 'Requested for ' : 'Due by '}{scheduledLabel}</span>}
                           </div>
                           {isCustom && b.customer_proposed_price_cents != null && (
-                            <div className="mb-2 text-xs font-semibold" style={{ color: '#0f766e' }}>
+                            <div className="mb-2 text-xs font-semibold" style={{ color: '#b45309' }}>
                               Customer proposed: {fmt(b.customer_proposed_price_cents)}
                             </div>
                           )}
@@ -2732,7 +2821,7 @@ const BusinessDashboard: NextPage = () => {
                                 </div>
                                 <div className="flex flex-col gap-2.5">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#f3d0d0', background: '#fff7f7', color: '#b42318' }}>
+                                    <div className="rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: '#f4d9c7', background: '#fff9f4', color: '#b45309' }}>
                                       Customer proposed {fmt(b.customer_proposed_price_cents ?? b.dispute_amount_cents)}
                                     </div>
                                     <button
@@ -2816,20 +2905,20 @@ const BusinessDashboard: NextPage = () => {
                                           />
                                         </div>
                                         {!!(b.customer_proposed_price_cents || b.dispute_amount_cents) && (
-                                          <button
-                                            onClick={() => {
-                                              const rawDigits = onlyDigits(bookingPrices[b.id] || '');
-                                              const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
-                                              const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
-                                              const cents = typedCents > 0 ? typedCents : fallbackCents;
-                                              if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
-                                              setConfirmAction({ booking: b, action: 'dispute', priceCents: cents });
-                                            }}
-                                            disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
-                                            className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 text-white disabled:opacity-40"
-                                            style={{ background: '#dc2626' }}>
-                                            Dispute price
-                                          </button>
+                                        <button
+                                          onClick={() => {
+                                            const rawDigits = onlyDigits(bookingPrices[b.id] || '');
+                                            const typedCents = rawDigits ? parseInt(rawDigits, 10) : 0;
+                                            const fallbackCents = b.customer_proposed_price_cents ?? b.dispute_amount_cents ?? b.amount_cents ?? 0;
+                                            const cents = typedCents > 0 ? typedCents : fallbackCents;
+                                            if (cents < 500) { showToast('Minimum price is $5.00', false); return; }
+                                            setConfirmAction({ booking: b, action: 'dispute', priceCents: cents });
+                                          }}
+                                          disabled={!bookingPrices[b.id] && !b.amount_cents && !b.customer_proposed_price_cents && !b.dispute_amount_cents}
+                                          className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl h-9 disabled:opacity-40"
+                                          style={{ background: '#fff7ed', border: '1px solid #f4d9c7', color: '#b45309' }}>
+                                          Dispute price
+                                        </button>
                                         )}
                                       </div>
                                       <p className="text-[10px] mt-1" style={{ color: dm ? '#636366' : '#9ca3af' }}>Set the price — customer will be prompted to pay after confirmation</p>
@@ -2859,11 +2948,12 @@ const BusinessDashboard: NextPage = () => {
                                     onClick={() => setConfirmComplete(b)}
                                     disabled={!canComplete}
                                     title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
-                                    className="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    className="text-xs font-bold px-3.5 py-2 rounded-xl text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ background: '#007e6d' }}>
                                     Mark Complete
                                   </button>
                                   {b.paid_at && (
-                                    <span className="text-xs font-bold text-emerald-600 px-1">
+                                    <span className="text-xs font-bold px-1" style={{ color: '#007e6d' }}>
                                       ✓ Payment secured
                                       {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
                                     </span>
@@ -2877,14 +2967,14 @@ const BusinessDashboard: NextPage = () => {
                                     className="shrink-0 text-xs font-bold px-3.5 py-2 rounded-xl bg-accent text-white">
                                     Accept booking
                                   </button>
-                                  <span className="text-xs font-bold text-emerald-600 px-1">
+                                  <span className="text-xs font-bold px-1" style={{ color: '#007e6d' }}>
                                     ✓ Payment secured
                                     {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
                                   </span>
                                 </div>
                               )}
                               {b.status !== 'confirmed' && b.status !== 'paid' && b.paid_at && (
-                                <span className="text-xs font-bold text-emerald-600 px-1">
+                                <span className="text-xs font-bold px-1" style={{ color: '#007e6d' }}>
                                   ✓ Payment secured
                                   {providerNetPayoutCents > 0 ? ` · est. payout ${fmt(providerNetPayoutCents)}` : ''}
                                 </span>
@@ -3177,7 +3267,12 @@ const BusinessDashboard: NextPage = () => {
                 {clients.length === 0
                   ? <div className="provider-premium-panel bg-white rounded-[28px] border border-neutral-100 py-14 text-center text-neutral-400 text-sm">No clients yet.</div>
                   : clients.map(c => {
-                      const userId = c.id;
+                      const linkedThread = msgThreads.find((t: any) => {
+                        const threadEmail = String(t?.profiles?.email || '').toLowerCase();
+                        return threadEmail && threadEmail === String(c.email || '').toLowerCase();
+                      });
+                      const userId = c.id || linkedThread?.profiles?.id || linkedThread?.customer_id;
+                      const avatarUrl = c.avatar_url || linkedThread?.profiles?.avatar_url;
                       const isBlocked = userId ? !!blockedCustomers[userId] : false;
                       const cb = bookings.filter(b => b.profiles?.email === c.email && isActiveOrCompleted(b));
                       return (
@@ -3185,8 +3280,8 @@ const BusinessDashboard: NextPage = () => {
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 overflow-hidden">
-                                {c.avatar_url
-                                  ? <img src={c.avatar_url} alt={c.name} className="h-full w-full object-cover" />
+                                {avatarUrl
+                                  ? <img src={avatarUrl} alt={c.name} className="h-full w-full object-cover" />
                                   : <span className="text-accent font-black text-sm">{c.name.charAt(0).toUpperCase()}</span>
                                 }
                               </div>
@@ -3213,8 +3308,14 @@ const BusinessDashboard: NextPage = () => {
                           )}
                           <div className="mt-4 flex flex-wrap gap-2">
                             <button
-                              onClick={() => userId && openCustomerThread(userId)}
-                              disabled={!userId}
+                              onClick={() => {
+                                if (userId) {
+                                  openCustomerThread(userId);
+                                  return;
+                                }
+                                if (c.email) openCustomerThreadByEmail(c.email);
+                              }}
+                              disabled={!userId && !linkedThread}
                               className="text-xs font-semibold px-3.5 py-2 rounded-xl border text-white transition-colors disabled:opacity-40"
                               style={{ borderColor: '#007e6d', background: '#007e6d' }}>
                               Message
@@ -3278,6 +3379,8 @@ const BusinessDashboard: NextPage = () => {
                       const isToday = isViewingCurrentMonth && day === today.getDate();
                       const isSelected = calendarDay === day;
                       const count = bookingDates.get(day) || 0;
+                      const cellDate = new Date(calendarYear, calendarMonth, day);
+                      const hasHours = hasBusinessHoursOnDate(business?.hours, cellDate);
                       const dayBookings = bookings.filter(b => {
                         if (b.status === 'cancelled') return false;
                         const d = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
@@ -3288,8 +3391,9 @@ const BusinessDashboard: NextPage = () => {
                           key={day}
                           type="button"
                           title={count > 0 ? dayBookings.map(b => b.profiles?.name || 'Customer').join(', ') : ''}
-                          onClick={() => setCalendarDay(isSelected ? null : day)}
+                          onClick={() => hasHours && setCalendarDay(isSelected ? null : day)}
                           className={`h-11 rounded-xl text-[12px] relative transition-all duration-200 flex items-center justify-center ${
+                            !hasHours ? 'text-neutral-300 cursor-not-allowed' :
                             isSelected ? 'bg-accent text-white font-black shadow-md' :
                             isToday ? 'bg-accent/10 text-accent font-bold' :
                             count > 0 ? 'bg-[#f5fbf8] text-accent font-bold ring-1 ring-[#cfe7de] hover:bg-[#edf8f4]' :
@@ -3300,7 +3404,9 @@ const BusinessDashboard: NextPage = () => {
                           {count > 0 && !isSelected && (
                             <span
                               className="absolute -top-1.5 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black flex items-center justify-center"
-                              style={{ background: isToday ? '#007e6d' : '#e6f4ef', color: isToday ? 'white' : '#0f766e' }}
+                              style={hasHours
+                                ? { background: isToday ? '#007e6d' : '#e6f4ef', color: isToday ? 'white' : '#0f766e' }
+                                : { background: '#f3f4f6', color: '#9ca3af' }}
                             >
                               {count}
                             </span>
@@ -3373,10 +3479,15 @@ const BusinessDashboard: NextPage = () => {
                                 <span>{bookingDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</span>
                                 {b.profiles?.phone && <span>{b.profiles.phone}</span>}
                               </div>
-                              <div className="flex flex-wrap gap-2 pl-11 mt-2">
+                              <div className="flex flex-wrap items-center gap-2 pl-11 mt-2 text-[10px]">
                                 {b.scheduled_start && (
-                                  <span className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-600">
+                                  <span className="font-semibold" style={{ color: '#007e6d' }}>
                                     Scheduled
+                                  </span>
+                                )}
+                                {b.scheduled_start && (
+                                  <span className="text-neutral-400">
+                                    {fmtShortDate(b.scheduled_start)} {fmtClockTime(b.scheduled_start)}
                                   </span>
                                 )}
                               </div>
@@ -3386,7 +3497,8 @@ const BusinessDashboard: NextPage = () => {
                                     onClick={() => setConfirmComplete(b)}
                                     disabled={!canComplete}
                                     title={!canComplete && b.scheduled_start ? `Available after ${fmtTime(b.scheduled_start)}` : 'Mark booking complete'}
-                                    className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ background: '#007e6d' }}>
                                     Complete
                                   </button>
                                   {b.status === 'pending' && isCustomBooking && (
@@ -3414,23 +3526,23 @@ const BusinessDashboard: NextPage = () => {
             {/* MESSAGES */}
             {/* SETTINGS */}
             {tab === 'services' && (
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
               <div className="space-y-5">
                 <div className="provider-premium-panel rounded-[30px] p-6" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                   <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Add Service</h3>
                   <div className="flex flex-col gap-3">
                     <div className="relative">
-                        <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-2xl px-4 py-3 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6'), boxShadow: dm ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.7)' }} />
+                        <input value={svcName} maxLength={60} onChange={e => setSvcName(e.target.value)} placeholder="Service name (e.g. Haircut, Oil Change)" className="w-full rounded-2xl px-4 py-3 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#ffffff', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
                       <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcName.length}/60</span>
                     </div>
                     <div className="relative">
-                        <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-2xl px-4 py-3 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6'), boxShadow: dm ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.7)' }} />
+                        <textarea value={svcDesc} maxLength={300} onChange={e => setSvcDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full rounded-2xl px-4 py-3 text-sm outline-none resize-none" style={{ background: dm ? '#2c2c2e' : '#ffffff', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
                       <span className="absolute bottom-2 right-3 text-[10px]" style={{ color: dm ? '#9ca3af' : '#9ca3af' }}>{svcDesc.length}/300</span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Price ($)</label>
-                        <div className="flex items-center rounded-2xl border px-3 py-3" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6') }}>
+                        <div className="flex items-center rounded-2xl border px-3 py-3" style={{ background: dm ? '#2c2c2e' : '#ffffff', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }}>
                           <span className="text-sm font-semibold" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>$</span>
                           <input
                             type="text"
@@ -3445,27 +3557,18 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                       <div>
                         <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>
-                        <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-2xl px-4 py-3 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#fffdfa', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#dfd5c6') }} />
+                        <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-2xl px-4 py-3 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#ffffff', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
                       </div>
                     </div>
                     <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
                       Requires exact time
-                      <input type="checkbox" checked={svcRequiresTime} onChange={e => setSvcRequiresTime(e.target.checked)} />
+                      <input type="checkbox" checked={svcRequiresTime} onChange={e => setSvcRequiresTime(e.target.checked)} className="h-5 w-5 rounded-full accent-[#007e6d]" />
                     </label>
                     {svcError && <p className="text-red-500 text-sm">{svcError}</p>}
                     <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#007e6d' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
                   </div>
                 </div>
-                <div className="provider-premium-panel rounded-[30px] p-6" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
-                  <h3 className="font-bold text-base mb-2" style={{ color: dm ? '#f2f2f7' : '#111' }}>Custom Request Scheduling</h3>
-                  <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
-                  <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
-                    Requires exact time
-                    <input type="checkbox" checked={business?.custom_requires_time !== false} onChange={e => handleCustomRequiresTime(e.target.checked)} />
-                  </label>
-                </div>
-              </div>
-              <div className="provider-premium-panel rounded-[30px] overflow-hidden self-start" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                <div className="provider-premium-panel rounded-[30px] overflow-hidden self-start" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                 <div className="px-5 py-4" style={{ borderBottom: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
                   <h3 className="font-bold text-base" style={{ color: dm ? '#f2f2f7' : '#111' }}>Your Services ({services.length})</h3>
                 </div>
@@ -3497,6 +3600,69 @@ const BusinessDashboard: NextPage = () => {
                     </div>
                   ))}</div>}
               </div>
+              </div>
+              <div className="space-y-5">
+                <div className="provider-premium-panel rounded-[30px] p-6" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                  <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Availability</h3>
+                  <div className="grid grid-cols-3 gap-2 mb-5">
+                    {[
+                      { key: 'open', label: 'Open', activeBg: '#007e6d', activeColor: '#fff', border: '#bfe5db', color: '#0f766e' },
+                      { key: 'busy', label: 'Busy', activeBg: '#fff7ed', activeColor: '#b45309', border: '#f4d9c7', color: '#b45309' },
+                      { key: 'closed', label: 'Closed', activeBg: '#fff7f7', activeColor: '#b42318', border: '#f3d0d0', color: '#b42318' },
+                    ].map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => setEditAvailability(option.key)}
+                        className="rounded-full border px-3 py-2 text-sm font-semibold transition-colors"
+                        style={editAvailability === option.key
+                          ? { background: option.activeBg, borderColor: option.border, color: option.activeColor }
+                          : { background: '#fff', borderColor: '#e5e7eb', color: '#4b5563' }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <h4 className="font-semibold text-sm mb-3" style={{ color: dm ? '#f2f2f7' : '#111' }}>Business Hours</h4>
+                  <div className="space-y-2">
+                    {HOURS_DAYS.map((day) => {
+                      const current = editHours[day] || '';
+                      const open = !!current && current.toLowerCase() !== 'closed';
+                      return (
+                        <div key={day} className="flex items-center gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#fff' }}>
+                          <div className="min-w-[96px] text-sm font-medium" style={{ color: dm ? '#f2f2f7' : '#111' }}>{day}</div>
+                          <div className="flex-1 text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                            {open ? 'Open' : 'Closed'}
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={open}
+                            onChange={(e) => setEditHours((prev) => ({ ...prev, [day]: e.target.checked ? (prev[day] && prev[day].toLowerCase() !== 'closed' ? prev[day] : '9 AM - 5 PM') : 'Closed' }))}
+                            className="h-5 w-5 rounded-full accent-[#007e6d]"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveHours}
+                    disabled={settingsSaving}
+                    className="mt-5 w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white"
+                    style={{ background: settingsSaving ? '#9ca3af' : '#007e6d' }}
+                  >
+                    {settingsSaving ? 'Saving…' : 'Save Hours'}
+                  </button>
+                </div>
+                <div className="provider-premium-panel rounded-[30px] p-6" style={{ background: dm ? '#1c1c1e' : 'white', border: '1px solid ' + (dm ? '#2c2c2e' : '#f0f0f0') }}>
+                  <h3 className="font-bold text-base mb-2" style={{ color: dm ? '#f2f2f7' : '#111' }}>Custom Request Scheduling</h3>
+                  <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
+                  <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
+                    Requires exact time
+                    <input type="checkbox" checked={business?.custom_requires_time !== false} onChange={e => handleCustomRequiresTime(e.target.checked)} className="h-5 w-5 rounded-full accent-[#007e6d]" />
+                  </label>
+                </div>
+              </div>
             </div>
             )}
             {tab === 'edit' && (
@@ -3506,41 +3672,36 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Edit Listing</p>
                     <p className="text-sm font-semibold text-neutral-900 mt-1">Full Editor</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPreviewKey(Date.now())}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
+                  {business?.slug && (
+                    <a
+                      href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#f5fbf8] text-accent border border-[#cfe7de]"
                     >
-                      Refresh
-                    </button>
-                    {business?.slug && (
-                      <a
-                        href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}&k=${previewKey}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      >
-                        Open full-page editor
-                      </a>
-                    )}
-                  </div>
+                      Open full-page editor
+                    </a>
+                  )}
                 </div>
-                {business ? (
-                  <div className="p-5" key={previewKey}>
-                    {business?.slug ? (
-                      <iframe
-                        title="ScheduleMe Full Editor"
-                        src={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&embedded=1&bid=${business.id}&k=${previewKey}`}
-                        className="w-full rounded-[24px] border border-neutral-100 bg-white"
-                        style={{ minHeight: '78vh' }}
-                      />
-                    ) : (
-                      <div className="p-6 text-sm text-neutral-500">Editor unavailable until your provider slug is ready.</div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="p-6 text-sm text-neutral-500">Preview unavailable — provider data is still loading.</div>
-                )}
+                <div className="p-8 md:p-12">
+                  {business?.slug ? (
+                    <div className="min-h-[52vh] rounded-[24px] border border-[#e5e7eb] bg-[#fcfbf7] flex flex-col items-center justify-center text-center px-6">
+                      <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
+                        <div className="h-5 w-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                      </div>
+                      <h3 className="text-lg font-black text-neutral-900">Opening the full editor…</h3>
+                      <p className="mt-2 max-w-md text-sm text-neutral-500">
+                        Edit now opens the actual full-page provider editor instead of the broken embedded shell.
+                      </p>
+                      <a
+                        href={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}`}
+                        className="mt-5 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white"
+                      >
+                        Open editor now
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="p-6 text-sm text-neutral-500">Editor unavailable until your provider slug is ready.</div>
+                  )}
+                </div>
               </div>
             )}
 
