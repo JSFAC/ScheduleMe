@@ -11,6 +11,11 @@ import { DarkModeProvider } from '../lib/DarkModeContext';
 
 const isProvider = (url: string) =>
   url.startsWith('/business') || url.startsWith('/provider') || url.startsWith('/auth');
+const isAuthRoute = (url: string) =>
+  url.startsWith('/signin') ||
+  url.startsWith('/provider/auth') ||
+  url.startsWith('/business/auth') ||
+  url.startsWith('/auth/');
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -60,7 +65,8 @@ export default function App({ Component, pageProps }: AppProps) {
 
     const onStart = (url: string) => {
       scrollRef.current = window.scrollY;
-      if (isProvider(router.asPath) !== isProvider(url)) {
+      const crossingShell = isProvider(router.asPath) !== isProvider(url);
+      if (crossingShell && !isAuthRoute(router.asPath) && !isAuthRoute(url)) {
         // Business/consumer transition — show overlay for full duration
         isTransitioning.current = true;
         setVisible(false);

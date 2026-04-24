@@ -722,7 +722,7 @@ const CampusPage: NextPage = () => {
             )}
 
             {!campusLoaded ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3" style={{ alignItems: 'stretch' }}>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3" style={{ alignItems: 'stretch' }}>
                 {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`campus-feed-skeleton-${i}`} />)}
               </div>
             ) : sorted.length === 0 ? (
@@ -757,7 +757,7 @@ const CampusPage: NextPage = () => {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3" style={{ alignItems: 'stretch' }}>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3" style={{ alignItems: 'stretch' }}>
                 {sorted.filter((biz) => {
                   if (activeCategory === 'All' && !search) return !featuredIds.has(biz.id);
                   return true;
@@ -789,7 +789,7 @@ const CampusPage: NextPage = () => {
     return (
       <button onClick={onClick} className="biz-card group w-full text-left flex flex-col"
         style={{ borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
-        <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '16 / 10', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+        <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '16 / 9', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
           {biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL ? (
             <img src={biz.coverUrl} alt={cardLabel} onLoad={() => setImgLoaded(true)}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"

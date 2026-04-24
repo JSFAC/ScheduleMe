@@ -143,7 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!user) return;
     if (!(await rateLimitByPrincipal(res, user.id, { max: 120, windowMs: 60_000, keyPrefix: 'msg-get-user' }))) return;
 
-    const { booking_id, user_id, business_id, thread_business_id, before, after, limit } = req.query;
+    const { booking_id, user_id, business_id, thread_business_id, thread_customer_id, before, after, limit } = req.query;
     const supabase = getSupabase();
 
     if (booking_id) {
@@ -251,6 +251,81 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    if (thread_customer_id) {
+      const threadCustomerID = Array.isArray(thread_customer_id) ? thread_customer_id[0] : thread_customer_id;
+      const businessID = Array.isArray(business_id) ? business_id[0] : business_id;
+      if (!isValidUuid(threadCustomerID)) return res.status(400).json({ error: 'Invalid thread_customer_id' });
+      if (!isValidUuid(businessID)) return res.status(400).json({ error: 'Invalid business_id' });
+
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('id, owner_id, owner_email')
+        .eq('id', businessID)
+        .maybeSingle();
+      if (!biz) return res.status(404).json({ error: 'Business not found' });
+      if (!isBusinessOwnerForUser(biz, user)) return res.status(403).json({ error: 'Access denied' });
+
+      const { data: customerBookings, error: customerBookingsError } = await supabase
+        .from('bookings')
+        .select('id, user_id, service, status, created_at, profiles(id, name, email, phone, avatar_url)')
+        .eq('business_id', businessID)
+        .eq('user_id', threadCustomerID)
+        .order('created_at', { ascending: false });
+      if (customerBookingsError) return res.status(500).json({ error: 'Failed to load conversation bookings' });
+      if (!customerBookings?.length) return res.status(404).json({ error: 'Conversation not found' });
+
+      const bookingIDs = customerBookings.map((b: any) => b.id).filter(Boolean);
+      const pageSize = parsePageSize(limit);
+      const validBefore = parseCursor(before);
+      const validAfter = parseCursor(after);
+
+      try {
+        const payload = await fetchThreadMessages({
+          supabase,
+          bookingIDs,
+          pageSize,
+          before: validBefore,
+          after: validAfter,
+        });
+
+        const { data: latestMessage } = await supabase
+          .from('messages')
+          .select('id, booking_id, sender_type, content, image_url, message_type, read, created_at')
+          .in('booking_id', bookingIDs)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const { count } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .in('booking_id', bookingIDs)
+          .eq('read', false)
+          .eq('sender_type', 'user');
+
+        const latestBooking = customerBookings[0];
+        return res.status(200).json({
+          messages: payload.messages,
+          has_more: payload.hasMore,
+          thread: {
+            id: threadCustomerID,
+            customer_id: threadCustomerID,
+            business_id: businessID,
+            booking_id: latestBooking?.id || null,
+            booking_ids: bookingIDs,
+            service: latestBooking?.service || 'Conversation',
+            status: latestBooking?.status || 'pending',
+            created_at: latestMessage?.created_at || latestBooking?.created_at || new Date().toISOString(),
+            profiles: latestBooking?.profiles || null,
+            lastMessage: latestMessage || null,
+            unreadCount: count ?? 0,
+          },
+        });
+      } catch {
+        return res.status(500).json({ error: 'Failed to fetch conversation messages' });
+      }
+    }
+
     if (user_id) {
       if (!isValidUuid(user_id)) return res.status(400).json({ error: 'Invalid user_id' });
       // Can only fetch your own threads
@@ -302,20 +377,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, service, status, created_at, profiles(id, name, email, phone)')
+        .select('id, user_id, service, status, created_at, profiles(id, name, email, phone, avatar_url)')
         .eq('business_id', business_id)
         .order('created_at', { ascending: false });
 
-      const threads = await Promise.all((bookings || []).map(async (b: any) => {
-        const { data: msgs } = await supabase.from('messages')
+      const grouped = new Map<string, any[]>();
+      for (const booking of bookings || []) {
+        const key = booking?.user_id || booking?.profiles?.id || booking?.profiles?.email || booking?.id;
+        if (!key) continue;
+        const current = grouped.get(key) || [];
+        current.push(booking);
+        grouped.set(key, current);
+      }
+
+      const threads = await Promise.all(Array.from(grouped.entries()).map(async ([customerId, rows]) => {
+        const sorted = [...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const bookingIDs = sorted.map((r: any) => r.id).filter(Boolean);
+        const latestBooking = sorted[0];
+        const customerUUID = sorted.find((r: any) => isValidUuid(r?.user_id))?.user_id
+          || sorted.find((r: any) => isValidUuid(r?.profiles?.id))?.profiles?.id
+          || null;
+        const threadID = customerUUID || `booking:${latestBooking?.id || customerId}`;
+        const { data: msgs } = await supabase
+          .from('messages')
           .select('id, sender_type, content, image_url, message_type, created_at')
-          .eq('booking_id', b.id).order('created_at', { ascending: false }).limit(1);
-        const { count } = await supabase.from('messages')
+          .in('booking_id', bookingIDs)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const { count } = await supabase
+          .from('messages')
           .select('*', { count: 'exact', head: true })
-          .eq('booking_id', b.id).eq('read', false).eq('sender_type', 'user');
-        return { ...b, lastMessage: msgs?.[0] ?? null, unreadCount: count ?? 0 };
+          .in('booking_id', bookingIDs)
+          .eq('read', false)
+          .eq('sender_type', 'user');
+
+        return {
+          id: threadID,
+          customer_id: customerUUID,
+          business_id,
+          booking_id: latestBooking?.id || null,
+          booking_ids: bookingIDs,
+          service: latestBooking?.service || 'Conversation',
+          status: latestBooking?.status || 'pending',
+          created_at: latestBooking?.created_at || new Date().toISOString(),
+          profiles: latestBooking?.profiles || null,
+          lastMessage: msgs?.[0] ?? null,
+          unreadCount: count ?? 0,
+        };
       }));
-      return res.status(200).json({ threads });
+      return res.status(200).json({
+        threads: threads.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      });
     }
 
     return res.status(400).json({ error: 'booking_id, user_id, or business_id required' });

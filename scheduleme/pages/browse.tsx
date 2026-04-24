@@ -241,7 +241,7 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
       disabled={isLocked}
       className="biz-card group w-full text-left flex flex-col animate-fade-up"
       style={{ animationDelay: `${index * 0.05}s`, borderRadius: 18, overflow: 'hidden', background: cardBg, boxShadow: dm ? '0 0 0 1px #2c2c2e' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)', cursor: isLocked ? 'not-allowed' : 'pointer' }}>
-      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '16 / 10', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
+      <div className="relative flex-shrink-0 w-full overflow-hidden" style={{ aspectRatio: '16 / 9', background: dm ? '#2c2c2e' : '#e5e7eb' }}>
         {isLocked ? (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
             <span className="text-[34px] font-black" style={{ color: dm ? '#d1d5db' : '#6b7280', letterSpacing: '-0.04em' }}>{initials}</span>
@@ -585,7 +585,7 @@ const BrowsePage: NextPage = () => {
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
       </div>
@@ -712,7 +712,7 @@ const BrowsePage: NextPage = () => {
             ))}
           </div>
         </div>
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-7">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-7">
           {viewMode !== 'map' ? (
             <>
               <p className="text-[10px] font-black text-accent/50 uppercase tracking-[0.14em] mb-5">
@@ -720,7 +720,7 @@ const BrowsePage: NextPage = () => {
                 {!bizLoading && totalPages > 1 && <span className="ml-2 text-neutral-300">· Page {page} of {totalPages}</span>}
               </p>
               {bizLoading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3">
                   {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
@@ -755,7 +755,7 @@ const BrowsePage: NextPage = () => {
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 animate-fade-up" style={{ alignItems: 'stretch', animationDuration: '0.3s' }}>
                   {paginated.map((biz, i) => (
                     <BizCard key={biz.id} biz={biz} onClick={() => { if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }} dm={dm} index={i} />
                   ))}

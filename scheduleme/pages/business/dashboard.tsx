@@ -663,8 +663,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
 
 const BusinessDashboard: NextPage = () => {
   const router = useRouter();
-  const { dm: darkMode, toggle: toggleDark } = useDm();
-  const dm = darkMode;
+  const { dm } = useDm();
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','services','preview','settings'];
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
@@ -735,6 +734,7 @@ const BusinessDashboard: NextPage = () => {
   const [bkFilter, setBkFilter] = useState<'all'|'pending'|'disputed'|'active'|'completed'|'cancelled'>('pending');
   const [bkFilterTouched, setBkFilterTouched] = useState(false);
   const [calendarDay, setCalendarDay] = useState<number | null>(null);
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
   const [confirmComplete, setConfirmComplete] = useState<Booking | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ booking: Booking; action: 'confirm' | 'cancel' | 'dispute' | 'accept_price'; priceCents?: number } | null>(null);
   const [confirmSubmitting, setConfirmSubmitting] = useState(false);
@@ -1023,15 +1023,29 @@ const BusinessDashboard: NextPage = () => {
     return () => clearInterval(interval);
   }, [tab, business]);
 
+  const threadMessagesUrl = useCallback((thread: any, businessId?: string | null) => {
+    const bid = businessId || business?.id;
+    if (!thread) return null;
+    if (thread?.customer_id && isValidUuid(thread.customer_id) && bid) {
+      return `/api/messages?thread_customer_id=${thread.customer_id}&business_id=${bid}`;
+    }
+    const fallbackBookingId = thread?.booking_id || thread?.booking_ids?.[0];
+    if (fallbackBookingId && isValidUuid(fallbackBookingId)) {
+      return `/api/messages?booking_id=${fallbackBookingId}`;
+    }
+    return null;
+  }, [business?.id]);
+
   // Polling for active thread messages (merged by customer)
   useEffect(() => {
     if (!activeMsgThread || !business) return;
-    const threadId = activeMsgThread.id;
     const businessId = business.id;
 
     const loadMessages = async () => {
+      const url = threadMessagesUrl(activeMsgThread, businessId);
+      if (!url) return;
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/messages?thread_customer_id=${threadId}&business_id=${businessId}`, { headers });
+      const res = await fetch(url, { headers });
       if (res.ok) {
         const d = await res.json();
         setThreadMessages((prev: any[]) => {
@@ -1056,7 +1070,7 @@ const BusinessDashboard: NextPage = () => {
     return () => {
       if (msgPollRef2.current) { clearInterval(msgPollRef2.current); msgPollRef2.current = null; }
     };
-  }, [activeMsgThread?.id, business?.id]);
+  }, [activeMsgThread?.id, activeMsgThread?.customer_id, business?.id, threadMessagesUrl]);
 
   useEffect(() => {
     msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1080,8 +1094,10 @@ const BusinessDashboard: NextPage = () => {
     } catch {}
   }
 
-  async function loadThreadMessages(bookingId: string) {
-    const res = await fetch('/api/messages?thread_customer_id=' + bookingId + '&business_id=' + business?.id, { headers: await getAuthHeaders() });
+  async function loadThreadMessages(thread: any) {
+    const url = threadMessagesUrl(thread);
+    if (!url) return;
+    const res = await fetch(url, { headers: await getAuthHeaders() });
     if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t); }
   }
 
@@ -1273,13 +1289,7 @@ const BusinessDashboard: NextPage = () => {
       if (activeMsgThread?.id === existing.id) return;
       setActiveMsgThread(existing);
       setThreadMessages([]);
-      const authHeaders = await getAuthHeaders();
-      const res = await fetch('/api/messages?thread_customer_id=' + existing.id + '&business_id=' + business.id, { headers: authHeaders });
-      if (res.ok) {
-        const d = await res.json();
-        setThreadMessages(d.messages || []);
-        if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t);
-      }
+      await loadThreadMessages(existing);
       setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       return;
     }
@@ -1719,43 +1729,14 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
-  // While loading, render the existing provider-branded splash
+  // Keep loading state lightweight so provider auth doesn't feel like multiple splash screens.
   if (loading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{
-          position: 'relative',
-          background: '#0a0a0a',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage:
-              'linear-gradient(to right,rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.02) 1px,transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
-        <div style={{ position: 'relative', textAlign: 'center' }}>
-          <p style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', marginBottom: 4 }}>
-            ScheduleMe
-          </p>
-          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#007e6d', marginBottom: 20 }}>
-            for Providers
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: '50%',
-                border: '2px solid rgba(10,132,255,0.25)',
-                borderTopColor: '#007e6d',
-                animation: 'spin 0.7s linear infinite',
-              }}
-            />
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: dm ? '#0a0a0a' : '#f5f5f4' }}>
+        <div className="w-full max-w-md rounded-2xl border p-6 text-center" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+          <p className="text-sm font-semibold mb-3" style={{ color: dm ? '#e5e5e5' : '#171717' }}>Loading provider dashboard…</p>
+          <div className="flex justify-center">
+            <div className="h-5 w-5 rounded-full border-2 border-accent/25 border-t-accent animate-spin" />
           </div>
         </div>
       </div>
@@ -1820,11 +1801,17 @@ const BusinessDashboard: NextPage = () => {
   });
 
   const today = new Date();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
+  const calendarBase = new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset, 1);
+  const calendarYear = calendarBase.getFullYear();
+  const calendarMonth = calendarBase.getMonth();
+  const calendarMonthLabel = calendarBase.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+  const isViewingCurrentMonth = calendarYear === today.getFullYear() && calendarMonth === today.getMonth();
   const bookingDates = new Map<number, number>();
   bookings.filter(b => b.status !== 'cancelled').forEach(b => {
     const d = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
+    if (d.getMonth() !== calendarMonth || d.getFullYear() !== calendarYear) return;
     const day = d.getDate();
     bookingDates.set(day, (bookingDates.get(day) || 0) + 1);
   });
@@ -1861,6 +1848,10 @@ const BusinessDashboard: NextPage = () => {
     { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Provider landing page link.' },
   ];
   const tour = TOUR_STEPS[tourStep];
+
+  useEffect(() => {
+    setCalendarDay(null);
+  }, [calendarMonthOffset]);
   function finishTour() {
     if (typeof window !== 'undefined') localStorage.setItem('sm_biz_tour_seen', '1');
     setShowTour(false);
@@ -1964,28 +1955,11 @@ const BusinessDashboard: NextPage = () => {
             ))}
           </nav>
           <div className="px-3 py-4 border-t border-neutral-100 space-y-1">
-            {/* Dark mode toggle */}
-            <button onClick={toggleDark} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
-              <div className="flex items-center gap-3">
-                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  {darkMode
-                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                    : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                  }
-                </svg>
-                {darkMode ? 'Light Mode' : 'Dark Mode'}
-              </div>
-              <div className="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors"
-                style={{ background: darkMode ? '#007e6d' : '#d1d5db' }}>
-                <span className="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
-                  style={{ transform: darkMode ? 'translateX(16px)' : 'translateX(0)' }} />
-              </div>
-            </button>
+            <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Quick Links</p>
             <Link href="/home" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-              Consumer site
+              Open consumer app
             </Link>
-            <Link href="/business" scroll={false} target="_blank" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"><svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>Provider landing page</Link>
             <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
               Sign out
@@ -2011,7 +1985,7 @@ const BusinessDashboard: NextPage = () => {
           />
 
                     {/* Stripe banner */}
-          {business && !business.stripe_onboarded && (
+          {business && tab === 'overview' && !business.stripe_onboarded && (
             <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
                 <div className="flex items-center gap-2.5 text-sm">
@@ -2030,7 +2004,7 @@ const BusinessDashboard: NextPage = () => {
               )}
             </div>
           )}
-          {business && business.stripe_onboarded && stripeSuccess && (
+          {business && tab === 'overview' && business.stripe_onboarded && stripeSuccess && (
             <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
                 <div className="flex items-center gap-2.5 text-sm">
@@ -2129,15 +2103,14 @@ const BusinessDashboard: NextPage = () => {
                 {(() => {
                   const platformFeeLabel = business?.founder50 ? 'after 6% platform fee (Founder50)' : 'after 12% platform fee';
                   return (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
-                    { label: 'Total Payout', value: fmt(totalEarned), sub: `${platformFeeLabel} · completed only`, icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: '#10b981', bg: 'bg-emerald-50' },
-                    { label: 'This Month', value: fmt(thisMonthEarned), sub: new Date().toLocaleDateString('en-US',{month:'long'}), icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5', color: '#007e6d', bg: 'bg-blue-50' },
-                    { label: 'Awaiting Release', value: awaitingReleaseAmount > 0 ? fmt(awaitingReleaseAmount) : String(pendingCount), sub: awaitingReleaseAmount > 0 ? (heldInStripeAmount > 0 ? 'held until completion' : 'customer payment pending') : 'need your action', icon: awaitingReleaseAmount > 0 ? 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z' : 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', color: '#f59e0b', bg: 'bg-amber-50' },
-                    { label: 'Clients', value: String(uniqueClients), sub: completedCount + ' jobs completed', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z', color: '#8b5cf6', bg: 'bg-violet-50' },
+                    { label: 'Total Payout', value: fmt(totalEarned), sub: `${platformFeeLabel} · completed only`, icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: '#10b981' },
+                    { label: 'Open Bookings', value: String(pendingCount), sub: 'needs response or completion', icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', color: '#f59e0b' },
+                    { label: 'Unread Messages', value: String(totalUnreadMsgs), sub: `${uniqueClients} clients · ${completedCount} jobs completed`, icon: 'M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m0 0h3.375m-3.375 0v3.75m0-8.25a9 9 0 100 18 9 9 0 000-18z', color: '#8b5cf6' },
                   ].map(s => (
                     <div key={s.label} className="rounded-2xl border p-5" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#f0f0f0' }}>
-                      <div className="h-9 w-9 rounded-xl flex items-center justify-center mb-3" style={{ background: dm ? 'rgba(255,255,255,0.06)' : undefined }}>
+                      <div className="h-9 w-9 rounded-xl flex items-center justify-center mb-3" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f8fafc' }}>
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                       </div>
                       <p className="text-2xl font-black text-neutral-900" style={{ letterSpacing: '-0.025em' }}>{s.value}</p>
@@ -2197,14 +2170,6 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <div><h2 className="text-sm font-bold text-neutral-900">Revenue</h2><p className="text-xs text-neutral-400 mt-0.5">Past 8 weeks</p></div>
-                    <span className="text-xs font-semibold text-neutral-400 bg-neutral-50 px-3 py-1.5 rounded-lg border border-neutral-100">After commission</span>
-                  </div>
-                  <RevenueChart bookings={bookings} />
-                </div>
-
                 <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
                   <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
                     <h2 className="text-sm font-bold text-neutral-900">Recent Bookings</h2>
@@ -2213,7 +2178,7 @@ const BusinessDashboard: NextPage = () => {
                   {bookings.length === 0
                     ? <div className="px-5 py-10 text-center text-neutral-400 text-sm">No bookings yet.</div>
                     : <div className="divide-y divide-neutral-50">
-                        {bookings.slice(0, 5).map(b => (
+                        {bookings.slice(0, 4).map(b => (
                           <div key={b.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || 'Customer'}</p>
@@ -2229,59 +2194,16 @@ const BusinessDashboard: NextPage = () => {
                   }
                 </div>
 
-                <div className="bg-white rounded-2xl border border-neutral-100 p-5 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${business?.stripe_onboarded ? 'bg-emerald-50' : 'bg-amber-50'}`}>
-                      <svg className={`h-4 w-4 ${business?.stripe_onboarded ? 'text-emerald-500' : 'text-amber-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d={business?.stripe_onboarded ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z'} /></svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-neutral-900">Payment Account</p>
-                      <p className="text-xs font-semibold mt-0.5" style={{ color: business?.stripe_onboarded ? '#0f766e' : '#9ca3af' }}>
-                        {business?.stripe_onboarded
-                          ? 'Step 2/2: Bank connected — payouts live. Standard payouts arrive in 1–2 business days.'
-                          : 'Step 1/2: Connect bank & get paid.'}
-                      </p>
-                      {business?.stripe_onboarded && (
-                        <p className="text-[11px] mt-1" style={{ color: dm ? '#6b7280' : '#94a3b8' }}>
-                          New Stripe accounts may take up to 7 days for the first payout to arrive.
-                        </p>
-                      )}
-                      {stripeShowsZeroButHeld && (
-                        <p className="text-[11px] mt-1" style={{ color: dm ? '#fbbf24' : '#b45309' }}>
-                          Stripe shows $0 because funds are still held in-platform until provider confirmation/completion.
-                          Awaiting release: {fmt(awaitingReleaseAmount)}.
-                        </p>
-                      )}
-                      {business?.stripe_onboarded && payoutBalance && payoutBalance.pending > 0 && (
-                        <p className="text-[11px] mt-1" style={{ color: dm ? '#fbbf24' : '#b45309' }}>
-                          Funds are pending with Stripe and will be available before payout. Instant payouts only work after funds are available.
-                        </p>
-                      )}
-                    </div>
+                <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex items-center justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white' }}>
+                  <div>
+                    <p className="text-sm font-bold text-neutral-900">Payments and payouts</p>
+                    <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                      Manage Stripe connection and payout details in Settings.
+                    </p>
                   </div>
-                  {business?.stripe_onboarded ? (
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">Connected ✓</span>
-                      <button
-                        type="button"
-                        onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
-                        className="text-[11px] font-semibold px-3 py-1.5 rounded-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
-                        Disconnect
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-4 py-2">{stripeLoading ? 'Loading…' : stripeCta}</button>
-                      {business?.stripe_account_id && (
-                        <button
-                          type="button"
-                          onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
-                          className="text-[11px] font-semibold px-3 py-1.5 rounded-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
-                          Disconnect
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <button type="button" onClick={() => setTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
+                    Open Settings
+                  </button>
                 </div>
               </div>
             )}
@@ -2577,7 +2499,7 @@ const BusinessDashboard: NextPage = () => {
                 {/* Thread list */}
                 <div className={`${activeMsgThread ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 shrink-0 rounded-2xl border overflow-hidden`} style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f5f5f5' }}>
                   <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: dm ? '#262626' : '#f5f5f5' }}>
-                    <p className="text-xs font-black uppercase tracking-[0.1em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>{msgThreads.length} conversation{msgThreads.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs font-black uppercase tracking-[0.1em]" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#a3a3a3' }}>{msgThreads.length} client thread{msgThreads.length !== 1 ? 's' : ''}</p>
                     {totalUnreadMsgs > 0 && <span className="text-[10px] font-black bg-accent text-white px-2 py-0.5 rounded-full">{totalUnreadMsgs} unread</span>}
                   </div>
                   <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
@@ -2593,7 +2515,9 @@ const BusinessDashboard: NextPage = () => {
                         setActiveMsgThread(t);
                         setThreadMessages([]);
                         const authHeaders = await getAuthHeaders();
-                        const res = await fetch('/api/messages?thread_customer_id=' + t.id + '&business_id=' + business?.id, { headers: authHeaders });
+                        const url = threadMessagesUrl(t, business?.id);
+                        if (!url) return;
+                        const res = await fetch(url, { headers: authHeaders });
                         if (res.ok) { const d = await res.json(); setThreadMessages(d.messages || []); if (d.thread) setActiveMsgThread((t: any) => t ? { ...t, ...d.thread } : t); }
                         if (t.unreadCount > 0) {
                           const ids = t.booking_ids || (t.booking_id ? [t.booking_id] : []);
@@ -2620,7 +2544,9 @@ const BusinessDashboard: NextPage = () => {
                             {t.lastMessage && <span className="text-[10px] text-neutral-400">{new Date(t.lastMessage.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                           </div>
                         </div>
-                        <p className="text-[11px] truncate mb-0.5 pl-9" style={{ color: dm ? '#9ca3af' : '#737373' }}>{t.service}</p>
+                        <p className="text-[11px] truncate mb-0.5 pl-9" style={{ color: dm ? '#9ca3af' : '#737373' }}>
+                          {(t.booking_ids?.length || 1)} booking{(t.booking_ids?.length || 1) === 1 ? '' : 's'} · {t.service || 'Conversation'}
+                        </p>
                         {t.lastMessage
                           ? <p className={`text-[11px] truncate pl-9 ${t.unreadCount > 0 ? 'font-semibold text-neutral-700' : 'text-neutral-400'}`}>
                               {t.lastMessage.sender_type === 'business' ? 'You: ' : ''}
@@ -2900,27 +2826,45 @@ const BusinessDashboard: NextPage = () => {
 
             {/* CALENDAR — interactive grid + daily list */}
             {tab === 'calendar' && (
-              <div className="flex flex-col xl:flex-row gap-6 items-start">
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-5 items-start">
                 {/* Calendar */}
-                <div className="bg-white rounded-2xl border border-neutral-100 p-6 shrink-0 w-full xl:w-[420px]">
+                <div className="bg-white rounded-2xl border border-neutral-100 p-5 w-full">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-base font-black text-neutral-900">{today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        aria-label="Previous month"
+                        onClick={() => setCalendarMonthOffset(v => v - 1)}
+                        className="h-8 w-8 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 transition-colors"
+                      >
+                        ‹
+                      </button>
+                      <h2 className="text-base font-black text-neutral-900 min-w-[150px] text-center">{calendarMonthLabel}</h2>
+                      <button
+                        type="button"
+                        aria-label="Next month"
+                        onClick={() => setCalendarMonthOffset(v => v + 1)}
+                        className="h-8 w-8 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 transition-colors"
+                      >
+                        ›
+                      </button>
+                    </div>
                     <span className="text-xs text-neutral-400 bg-neutral-50 px-2 py-1 rounded-lg border border-neutral-100">{bookingDates.size} days</span>
                   </div>
                   <div className="grid grid-cols-7 mb-2">
                     {['S','M','T','W','T','F','S'].map((d,i) => <div key={i} className="text-center text-[11px] font-bold text-neutral-400 py-0.5">{d}</div>)}
                   </div>
-                  <div className="grid grid-cols-7 gap-1">
+                  <div className="grid grid-cols-7 gap-1.5">
                     {Array.from({ length: firstDay }).map((_, i) => <div key={'e'+i} />)}
                     {Array.from({ length: daysInMonth }).map((_, i) => {
                       const day = i + 1;
-                      const isToday = day === today.getDate();
+                      const isToday = isViewingCurrentMonth && day === today.getDate();
                       const isSelected = calendarDay === day;
                       const count = bookingDates.get(day) || 0;
                       const dayBookings = bookings.filter(b => {
                         if (b.status === 'cancelled') return false;
                         const d = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
-                        return d.getDate() === day;
+                        return d.getDate() === day && d.getMonth() === calendarMonth && d.getFullYear() === calendarYear;
                       });
                       return (
                         <button
@@ -2928,7 +2872,7 @@ const BusinessDashboard: NextPage = () => {
                           type="button"
                           title={count > 0 ? dayBookings.map(b => b.profiles?.name || 'Customer').join(', ') : ''}
                           onClick={() => setCalendarDay(isSelected ? null : day)}
-                          className={`aspect-square flex flex-col items-center justify-center rounded-xl text-[12px] relative transition-colors ${
+                          className={`h-11 rounded-xl text-[12px] relative transition-all duration-200 flex items-center justify-center ${
                             isSelected ? 'bg-accent text-white font-black shadow-md' :
                             isToday ? 'bg-accent/10 text-accent font-bold' :
                             count > 0 ? 'bg-blue-50 text-blue-700 font-bold hover:bg-blue-100' :
@@ -2936,11 +2880,12 @@ const BusinessDashboard: NextPage = () => {
                           }`}
                         >
                           {day}
-                          {count > 0 && !isSelected && !isToday && (
-                            <span className="absolute bottom-1 flex gap-0.5">
-                              {Array.from({length: Math.min(count, 3)}).map((_,di) => (
-                                <span key={di} className="h-1 w-1 rounded-full bg-accent" />
-                              ))}
+                          {count > 0 && !isSelected && (
+                            <span
+                              className="absolute -top-1.5 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black flex items-center justify-center"
+                              style={{ background: isToday ? '#007e6d' : '#dbeafe', color: isToday ? 'white' : '#1d4ed8' }}
+                            >
+                              {count}
                             </span>
                           )}
                         </button>
@@ -2958,7 +2903,7 @@ const BusinessDashboard: NextPage = () => {
                   <div className="px-5 py-4 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">
-                        {calendarDay ? `Schedule for ${today.toLocaleDateString('en-US', { month: 'short' })} ${calendarDay}` : 'All Scheduled'}
+                        {calendarDay ? `Schedule for ${calendarBase.toLocaleDateString('en-US', { month: 'short' })} ${calendarDay}` : `Scheduled in ${calendarBase.toLocaleDateString('en-US', { month: 'short' })}`}
                       </h2>
                       <p className="text-[11px] text-neutral-400 mt-0.5">Click a day to filter this list.</p>
                     </div>
@@ -2976,8 +2921,9 @@ const BusinessDashboard: NextPage = () => {
                     const list = bookings
                       .filter(b => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'paid')
                       .filter(b => {
-                        if (!calendarDay) return true;
                         const d = b.scheduled_start ? new Date(b.scheduled_start) : new Date(b.created_at);
+                        if (d.getMonth() !== calendarMonth || d.getFullYear() !== calendarYear) return false;
+                        if (!calendarDay) return true;
                         return d.getDate() === calendarDay;
                       });
                     if (list.length === 0) {
@@ -3263,109 +3209,20 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border border-neutral-100 p-6">
-                  <h2 className="text-sm font-bold text-neutral-900 mb-5">Edit Provider Profile</h2>
-                  <form onSubmit={handleSaveSettings} className="space-y-4">
-                    {settingsError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{settingsError}</div>}
-                    {settingsNotice && <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700">{settingsNotice}</div>}
-                    {([
-                      { label: 'Provider Name', v: editName, s: () => {}, ph: 'Pacific Plumbing Co.', t: 'text', disabled: true, requestChange: true, max: 60 },
-                      { label: 'Phone', v: editPhone, s: setEditPhone, ph: '(415) 555-0192', t: 'tel', max: 20 },
-                      { label: 'Address / City', v: editAddress, s: setEditAddress, ph: 'San Francisco, CA', t: 'text', max: 120 },
-                      { label: 'Website', v: editWebsite, s: setEditWebsite, ph: 'https://...', t: 'url', max: 200 },
-                      { label: 'Services (comma-separated)', v: editServices, s: setEditServices, ph: 'Plumbing, Drain Cleaning', t: 'text', max: 200 },
-                    ] as const).map((f) => (
-                      <div key={f.label}>
-                        <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">{f.label}</label>
-                        <div className="relative">
-                          <input type={f.t} className="form-input" value={f.v} maxLength={(f as any).max} placeholder={f.ph} onChange={e => (f as any).disabled ? undefined : (f.s as (v: string) => void)(e.target.value)} style={(f as any).disabled ? { opacity: 0.5, cursor: 'not-allowed', background: dm ? '#1a1a1a' : '#f5f5f5' } : undefined} readOnly={(f as any).disabled} />
-                          <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{String(f.v || '').length}/{(f as any).max}</span>
-                        </div>
-                      {(f as any).requestChange && (
-                        <button type="button" onClick={async () => {
-                          const newName = prompt('Enter requested new provider name:');
-                          if (newName?.trim()) {
-                            const trimmed = newName.trim().slice(0, 60);
-                            fetch('/api/business-change-requests', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify({ business_id: business?.id, changes: { name: trimmed }, request_type: 'profile' }) }).catch(() => {});
-                            alert('Request sent! We\'ll update your name within 24 hours.');
-                          }
-                        }} className="mt-1.5 text-xs font-semibold text-accent hover:underline">
-                          Request name change →
-                        </button>
-                      )}
-                      </div>
-                    ))}
-                    <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Description</label>
-                      <div className="relative">
-                        <textarea className="form-input resize-none" rows={3} value={editDesc} maxLength={1000} placeholder="Tell customers about your services…" onChange={e => setEditDesc(e.target.value)} />
-                        <span className="absolute bottom-2 right-3 text-[10px] text-neutral-400">{editDesc.length}/1000</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5">Availability</label>
-                      <select
-                        className="form-input"
-                        value={editAvailability}
-                        onChange={e => setEditAvailability(e.target.value)}
-                      >
-                        <option value="open">Open</option>
-                        <option value="busy">Busy (Limited availability)</option>
-                        <option value="closed">Closed / On break</option>
-                      </select>
-                      {editAvailability !== 'open' && (
-                        <div className="mt-2">
-                          <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">On break until (optional)</label>
-                          <input
-                            type="date"
-                            className="form-input"
-                            value={editBreakUntil}
-                            onChange={e => setEditBreakUntil(e.target.value)}
-                          />
-                        </div>
-                      )}
-                      <p className="text-[11px] mt-1" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>
-                        Use this when you are away for the semester or not taking new bookings.
-                      </p>
-                    </div>
-                    {/* Business hours */}
-                    <div>
-                      <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Provider Hours <span className="normal-case font-normal">(optional — leave blank if you come to the client)</span></label>
-                      <datalist id="hours-options">
-                        <option value="By appointment" />
-                        <option value="7:00 AM – 3:00 PM" />
-                        <option value="8:00 AM – 4:00 PM" />
-                        <option value="8:00 AM – 5:00 PM" />
-                        <option value="9:00 AM – 5:00 PM" />
-                        <option value="9:00 AM – 6:00 PM" />
-                        <option value="10:00 AM – 6:00 PM" />
-                        <option value="10:00 AM – 8:00 PM" />
-                        <option value="11:00 AM – 7:00 PM" />
-                        <option value="12:00 PM – 8:00 PM" />
-                        <option value="24 Hours" />
-                      </datalist>
-                      <div className="space-y-2 rounded-xl border p-3" style={{ borderColor: dm ? '#262626' : '#e5e7eb', background: dm ? '#0d0d0d' : '#f9fafb' }}>
-                        {HOURS_DAYS.map(day => (
-                          <div key={day} className="flex items-center gap-3">
-                            <span className="text-xs font-medium w-20 shrink-0" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{day.slice(0,3)}</span>
-                            <input
-                              list="hours-options"
-                              placeholder="Closed (optional)"
-                              className="flex-1 text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent"
-                              style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
-                              value={editHours[day] || ''}
-                              onChange={e => setEditHours(h => ({ ...h, [day]: e.target.value }))}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[11px] mt-2" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>
-                        Use formats like “8:30 AM – 6:45 PM”, “By appointment”, or leave blank for closed.
-                      </p>
-                    </div>
-                      <button type="submit" disabled={settingsSaving} className="btn-primary w-full py-2.5 text-sm">
-                      {settingsSaved ? '✓ Saved!' : settingsSaving ? 'Saving…' : 'Save Changes'}
-                    </button>
-                  </form>
+                  <h2 className="text-sm font-bold text-neutral-900 mb-2">Listing Details Moved</h2>
+                  <p className="text-sm text-neutral-500 mb-4">
+                    Provider profile content now lives in <strong>Edit</strong> so Settings stays focused on visibility, payments, and account actions.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') window.location.hash = 'preview';
+                      setTab('preview');
+                    }}
+                    className="btn-primary text-sm px-4 py-2.5"
+                  >
+                    Open Edit Listing
+                  </button>
                 </div>
                 <div className="space-y-5">
                   <div className="bg-white rounded-2xl border border-neutral-100 p-6">
