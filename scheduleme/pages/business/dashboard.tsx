@@ -364,26 +364,118 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function RevenueChart({ bookings }: { bookings: Booking[] }) {
-  const weeks = Array.from({ length: 8 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (7 - i) * 7);
-    const ws = new Date(d); ws.setDate(d.getDate() - d.getDay());
-    const we = new Date(ws); we.setDate(ws.getDate() + 6);
-    const earned = bookings.filter(b => (b.status === 'paid' || b.status === 'completed') && b.amount_cents)
-      .filter(b => { const bd = new Date(b.created_at); return bd >= ws && bd <= we; })
-      .reduce((s, b) => s + (b.amount_cents || 0), 0);
-    return { label: ws.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), earned };
+function RevenueChart({ bookings, dm }: { bookings: Booking[]; dm: boolean }) {
+  const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+  const completedWeeks = Array.from({ length: 12 }, (_, i) => {
+    const now = new Date();
+    const startOfCurrentWeek = new Date(now);
+    startOfCurrentWeek.setHours(0, 0, 0, 0);
+    startOfCurrentWeek.setDate(now.getDate() - now.getDay());
+
+    const weekStart = new Date(startOfCurrentWeek);
+    weekStart.setDate(startOfCurrentWeek.getDate() - ((11 - i) + 1) * 7);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const earned = bookings
+      .filter((b) => (b.status === 'paid' || b.status === 'completed') && b.amount_cents)
+      .filter((b) => {
+        const anchor = new Date(b.paid_at || b.created_at);
+        return anchor >= weekStart && anchor <= weekEnd;
+      })
+      .reduce((sum, b) => sum + (b.amount_cents || 0), 0);
+
+    return {
+      label: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      rangeLabel: `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      earned,
+    };
   });
-  const max = Math.max(...weeks.map(w => w.earned), 1);
+
+  const providerNet = (grossCents: number) => Math.max(0, Math.round(grossCents * 0.88));
+  const weekly = completedWeeks.map((w) => ({ ...w, net: providerNet(w.earned) }));
+  const max = Math.max(...weekly.map((w) => w.net), 1);
+  const highestIndex = weekly.reduce((best, item, idx, arr) => item.net > arr[best].net ? idx : best, 0);
+  const latestNonZeroIndex = (() => {
+    for (let i = weekly.length - 1; i >= 0; i -= 1) {
+      if (weekly[i].net > 0) return i;
+    }
+    return weekly.length - 1;
+  })();
+  const [selectedIndex, setSelectedIndex] = useState(latestNonZeroIndex);
+
+  useEffect(() => {
+    setSelectedIndex(latestNonZeroIndex);
+  }, [latestNonZeroIndex]);
+
+  const selected = weekly[selectedIndex] || weekly[weekly.length - 1];
+  const trailingQuarterRevenue = weekly.reduce((sum, w) => sum + w.net, 0);
+
   return (
-    <div className="flex items-end gap-2 h-24">
-      {weeks.map((w, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-          <div className="w-full rounded-t-md transition-all duration-500"
-            style={{ height: Math.max((w.earned / max) * 88, w.earned > 0 ? 6 : 2) + 'px', background: w.earned > 0 ? '#007e6d' : '#e5e7eb' }} />
-          {w.earned > 0 && <span className="text-[9px] text-neutral-400 whitespace-nowrap">{w.label}</span>}
-        </div>
-      ))}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[11px] font-medium" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>
+          Each bar represents 1 completed week from the past 3 months.
+        </p>
+        <span
+          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold"
+          style={{
+            background: dm ? 'rgba(0,126,109,0.18)' : '#f5fbf8',
+            border: `1px solid ${dm ? 'rgba(93,214,198,0.32)' : '#cfe7de'}`,
+            color: dm ? '#d7fff8' : '#0f766e',
+          }}
+        >
+          <span className="h-2 w-2 rounded-full" style={{ background: '#007e6d' }} />
+          {selected?.rangeLabel}: {currency.format((selected?.net || 0) / 100)}
+        </span>
+      </div>
+
+      <div className="flex items-end justify-end gap-2 h-36">
+        {weekly.map((w, i) => {
+          const isHighest = i === highestIndex;
+          const isSelected = i === selectedIndex;
+          const hasRevenue = w.net > 0;
+          const opacity = isHighest ? 1 : hasRevenue ? 0.42 : 0.18;
+          return (
+            <button
+              key={`${w.label}-${i}`}
+              type="button"
+              onClick={() => setSelectedIndex(i)}
+              className="flex-1 flex flex-col items-center gap-2 group"
+              title={`${w.rangeLabel}: ${currency.format(w.net / 100)}`}
+            >
+              <div
+                className="w-full rounded-t-[12px] rounded-b-[4px] transition-all duration-200"
+                style={{
+                  height: Math.max((w.net / max) * 112, hasRevenue ? 10 : 3),
+                  background: '#007e6d',
+                  opacity: isSelected ? 1 : opacity,
+                  boxShadow: isSelected ? '0 8px 18px rgba(0,126,109,0.18)' : 'none',
+                  transform: isSelected ? 'translateY(-2px)' : 'none',
+                }}
+              />
+              <span
+                className="text-[10px] whitespace-nowrap transition-colors"
+                style={{ color: isSelected ? '#007e6d' : (dm ? '#8e8e93' : '#9ca3af'), fontWeight: isSelected ? 700 : 500 }}
+              >
+                {w.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>
+          Highest-revenue week is fully opaque. Click a bar to inspect that week.
+        </p>
+        <p className="text-[11px] font-semibold" style={{ color: dm ? '#d1d5db' : '#0f766e' }}>
+          Past 3 months: {currency.format(trailingQuarterRevenue / 100)}
+        </p>
+      </div>
     </div>
   );
 }
@@ -848,7 +940,7 @@ function EditablePreview({ business, services, mediaImages, mediaVideo, editDesc
 
 const BusinessDashboard: NextPage = () => {
   const router = useRouter();
-  const { dm } = useDm();
+  const { dm, toggle: toggleDarkMode } = useDm();
   const VALID_TABS: TabId[] = ['overview','bookings','messages','clients','calendar','services','edit','settings'];
   const [tab, setTab] = useState<TabId>('overview');
   const [previewEditMode, setPreviewEditMode] = useState(false);
@@ -2246,11 +2338,27 @@ const BusinessDashboard: NextPage = () => {
 
         {/* Sidebar */}
         <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-neutral-100 fixed left-0 top-0 bottom-0 z-30">
-          <div className="px-5 py-5 border-b border-neutral-100">
+          <div className="px-5 py-5 border-b border-neutral-100 flex items-start justify-between gap-3">
             <Link href="/provider">
               <span className="text-[17px] font-black text-neutral-900" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
               <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-accent mt-0.5">for Providers</span>
             </Link>
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              aria-label="Toggle dark mode"
+              className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
+                {dm
+                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                  : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                }
+              </svg>
+              <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
+                <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
+              </div>
+            </button>
           </div>
           <div className="px-4 py-4 border-b border-neutral-100">
             <div className="flex items-center gap-3">
@@ -2316,7 +2424,26 @@ const BusinessDashboard: NextPage = () => {
           {/* Mobile topbar — just the business name */}
           <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20"
             style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
-            <span className="text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
+            <div className="w-full flex items-center justify-between gap-3">
+              <span className="text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                aria-label="Toggle dark mode"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-full border transition-colors"
+                style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#fff' }}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#d1fae5' : '#525252' }}>
+                  {dm
+                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                    : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                  }
+                </svg>
+                <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
+                  <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
+                </div>
+              </button>
+            </div>
           </header>
 
           {/* Mobile bottom tab bar */}
@@ -2578,21 +2705,11 @@ const BusinessDashboard: NextPage = () => {
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Revenue</h2>
-                              <p className="mt-1 text-xs text-neutral-500">Top 8 weeks in your provider dashboard.</p>
+                              <p className="mt-1 text-xs text-neutral-500">Weekly revenue across your past 3 months.</p>
                             </div>
-                            <span className="rounded-full bg-neutral-50 px-3 py-1 text-[11px] font-semibold text-neutral-500">
-                              Today pay-in: {fmt(bookings
-                                .filter((b) => (b.status === 'paid' || b.status === 'completed') && b.amount_cents)
-                                .filter((b) => {
-                                  const now = new Date();
-                                  const created = new Date(b.created_at);
-                                  return created.toDateString() === now.toDateString();
-                                })
-                                .reduce((sum, b) => sum + toProviderNet(b.amount_cents || 0), 0))}
-                            </span>
                           </div>
                           <div className="mt-5">
-                            <RevenueChart bookings={bookings} />
+                            <RevenueChart bookings={bookings} dm={dm} />
                           </div>
                         </div>
 
