@@ -264,7 +264,7 @@ const SignupPage: NextPage = () => {
               Create your provider account
             </h1>
             <p className="text-neutral-400">
-              Sign up with email, Google, or Apple. We&apos;ll create your provider draft and you can finish setup in dashboard.
+              Sign up with email and agree to provider terms. We&apos;ll create your listing and you can finish setup in Provider Hub.
             </p>
           </div>
 
@@ -272,44 +272,81 @@ const SignupPage: NextPage = () => {
             {error && <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">{error}</div>}
             {success && <div className="rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3 text-sm text-green-400">{success}</div>}
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business / provider name *</label>
-              <input
-                type="text"
-                maxLength={60}
-                required
-                className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                placeholder="e.g. Mike R. Plumbing"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-              />
-            </div>
-
             <form onSubmit={handleEmailSignup} className="space-y-3">
-              <input
-                type="text"
-                autoComplete="name"
-                className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                placeholder="Full name (optional)"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-              <input
-                type="email"
-                autoComplete="email"
-                className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <input
-                type="password"
-                autoComplete="new-password"
-                className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
-                placeholder="Create password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div>
+                <label className="block text-[11px] uppercase tracking-[0.12em] font-semibold text-neutral-500 mb-1.5">Business / provider name</label>
+                <input
+                  type="text"
+                  maxLength={60}
+                  required
+                  className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                  placeholder="e.g. Mike R. Plumbing"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-[0.12em] font-semibold text-neutral-500 mb-1.5">Full name</label>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                  placeholder="Jamie Rivera"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-[0.12em] font-semibold text-neutral-500 mb-1.5">Email</label>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-[0.12em] font-semibold text-neutral-500 mb-1.5">Password</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                  placeholder="Create password (8+ chars)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              <div className={`rounded-xl border p-4 ${agree ? 'border-neutral-700' : 'border-neutral-800'}`}>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-accent focus:ring-accent"
+                    checked={agree}
+                    onChange={(e) => setAgree(e.target.checked)}
+                  />
+                  <span className="text-sm text-neutral-300 leading-snug">
+                    I agree to the <Link href="/terms" className="text-accent hover:underline">Terms of Service</Link>,{' '}
+                    <Link href="/privacy" className="text-accent hover:underline">Privacy Policy</Link>, and the{' '}
+                    <strong className="text-white">12% commission structure</strong> on completed jobs.
+                    <span className="block mt-2 text-xs text-neutral-500">
+                      Founder50 note: standard platform fee is 12%, while Founder50 members are locked into 6% forever.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              {siteKey && (
+                <div className="w-full flex flex-col items-center">
+                  <div className="w-full rounded-xl border border-neutral-700/70 bg-neutral-900/70 py-4 flex justify-center">
+                    <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
+                  </div>
+                  {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500 text-center">Captcha loading... If it doesn&apos;t appear, disable ad blockers and refresh.</p>}
+                  {captchaLoadError && <p className="mt-2 text-xs text-red-400 text-center">{captchaLoadError}</p>}
+                </div>
+              )}
 
               <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-sm font-bold disabled:opacity-60">
                 {loading ? 'Creating account...' : 'Create provider account'}
@@ -362,34 +399,6 @@ const SignupPage: NextPage = () => {
               </div>
             )}
 
-            <div className={`rounded-xl border p-4 ${agree ? 'border-neutral-700' : 'border-neutral-800'}`}>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-neutral-600 bg-neutral-800 text-accent focus:ring-accent"
-                  checked={agree}
-                  onChange={(e) => setAgree(e.target.checked)}
-                />
-                <span className="text-sm text-neutral-400">
-                  I agree to the <Link href="/terms" className="text-accent hover:underline">Terms of Service</Link>,{' '}
-                  <Link href="/privacy" className="text-accent hover:underline">Privacy Policy</Link>, and the{' '}
-                  <strong className="text-neutral-300">12% commission structure</strong> on completed jobs.
-                  <span className="block mt-2 text-xs text-neutral-500">
-                    Founder50 note: standard platform fee is 12%, while Founder50 members are locked into 6% forever.
-                  </span>
-                </span>
-              </label>
-            </div>
-
-            {siteKey && (
-              <div className="w-full flex flex-col items-center">
-                <div className="w-full rounded-xl border border-neutral-700/70 bg-neutral-900/70 py-4 flex justify-center">
-                  <div ref={captchaRef} className="hcaptcha-shell" style={{ minHeight: 78 }} />
-                </div>
-                {!captchaWidgetId && <p className="mt-2 text-xs text-neutral-500 text-center">Captcha loading... If it doesn&apos;t appear, disable ad blockers and refresh.</p>}
-                {captchaLoadError && <p className="mt-2 text-xs text-red-400 text-center">{captchaLoadError}</p>}
-              </div>
-            )}
           </div>
 
           <p className="text-center text-xs text-neutral-600 mt-4">
