@@ -7,6 +7,8 @@
 import SwiftUI
 import Combine
 import UIKit
+import AuthenticationServices
+import Supabase
 
 // MARK: - Shared Theme + Reusable UI Primitives
 
@@ -794,14 +796,26 @@ struct ProviderOnboardingSheet: View {
 
     let onCreated: ((String?) -> Void)?
 
+    private enum EntryMode: Hashable {
+        case newProvider
+        case existingAccount
+    }
+
     @State private var businessName = ""
     @State private var ownerName = ""
     @State private var email = ""
     @State private var phone = ""
+    @State private var loginEmail = ""
+    @State private var loginPassword = ""
     @State private var agreedToProviderTerms = false
     @State private var isSubmitting = false
+    @State private var isSigningIn = false
+    @State private var isOAuthLoading = false
+    @State private var oauthProviderInFlight: Provider?
     @State private var errorText: String?
     @State private var successText: String?
+    @State private var entryMode: EntryMode = .newProvider
+    @AppStorage("scheduleme_provider_terms_accepted") private var hasAcceptedProviderTerms = false
 
     init(onCreated: ((String?) -> Void)? = nil) {
         self.onCreated = onCreated
@@ -821,74 +835,129 @@ struct ProviderOnboardingSheet: View {
             ScheduleMePage {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Spacer()
+                            Button {
+                                dismiss()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(ScheduleMeTheme.mutedText)
+                                    .frame(width: 34, height: 34)
+                                    .background(ScheduleMeTheme.surface)
+                                    .clipShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+
                         Text("Create your provider account")
                             .font(.custom(ScheduleMeTheme.fontName, size: 34).weight(.bold))
                             .foregroundColor(ScheduleMeTheme.titleText)
 
-                        Text("Sign up with your email and agree to provider terms. We'll create your provider draft so you can finish setup in Provider Hub.")
+                        Text(entryMode == .newProvider
+                             ? "Create your listing in minutes. First-time provider setup requires agreement to provider terms."
+                             : "Already have an account? Sign in and continue in Provider Hub without re-entering terms.")
                             .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.medium))
                             .foregroundColor(ScheduleMeTheme.mutedText)
 
                         ScheduleMeCard {
-                            field("Business / provider name", text: $businessName, placeholder: "e.g. Mike R. Plumbing")
-                            field("Full name", text: $ownerName, placeholder: "Jamie Rivera")
-                            field("Email", text: $email, placeholder: "you@example.com", keyboard: .emailAddress, noCap: true)
-                            field("Phone (optional)", text: $phone, placeholder: "(555)-555-5555", keyboard: .phonePad)
+                            entryModeToggle
 
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack(alignment: .top, spacing: 10) {
-                                    Image(systemName: agreedToProviderTerms ? "checkmark.square.fill" : "square")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(agreedToProviderTerms ? ScheduleMeTheme.accent : ScheduleMeTheme.mutedText)
-                                        .padding(.top, 1)
-                                    Text("I agree to the Terms of Service, Privacy Policy, and the 12% commission structure on completed jobs.")
-                                        .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
-                                        .foregroundColor(ScheduleMeTheme.titleText)
-                                        .multilineTextAlignment(.leading)
-                                    Spacer(minLength: 0)
+                            if entryMode == .newProvider {
+                                newProviderFields
+                            } else {
+                                existingAccountFields
+                            }
+
+                            VStack(alignment: .leading, spacing: 0) {
+                                if let errorText {
+                                    Text(errorText)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                                        .foregroundColor(.red)
+                                } else if let successText {
+                                    Text(successText)
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                        .foregroundColor(ScheduleMeTheme.accent)
+                                } else if isOAuthLoading {
+                                    Text("Opening \(oauthProviderInFlight == .apple ? "Apple" : "Google") sign in…")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                                        .foregroundColor(ScheduleMeTheme.accent)
                                 }
-                                .contentShape(Rectangle())
-                                .onTapGesture { agreedToProviderTerms.toggle() }
+                            }
+                            .frame(minHeight: 34, alignment: .topLeading)
 
-                                HStack(spacing: 10) {
-                                    Button("Terms of Service") {
-                                        if let url = URL(string: "https://www.usescheduleme.com/terms") {
-                                            openURL(url)
-                                        }
-                                    }
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundColor(ScheduleMeTheme.accent)
-
-                                    Button("Privacy Policy") {
-                                        if let url = URL(string: "https://www.usescheduleme.com/privacy") {
-                                            openURL(url)
-                                        }
-                                    }
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundColor(ScheduleMeTheme.accent)
+                            if entryMode == .newProvider {
+                                Button(isSubmitting ? "Creating account..." : "Create provider account") {
+                                    Task { await submit() }
                                 }
+                                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                .disabled(isSubmitting || isSigningIn || isOAuthLoading || !canSubmit)
+                            } else {
+                                Button(isSigningIn ? "Signing in..." : (appState.isAuthenticated ? "Continue to Provider Hub" : "Sign in and continue")) {
+                                    Task { await signInWithEmailAccount() }
+                                }
+                                .buttonStyle(ScheduleMePrimaryButtonStyle())
+                                .disabled(
+                                    isSubmitting
+                                    || isSigningIn
+                                    || isOAuthLoading
+                                    || (!appState.isAuthenticated && (loginEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || loginPassword.isEmpty))
+                                )
+                            }
 
-                                Text("Founder50 note: standard platform fee is 12%; Founder50 members are locked into 6%.")
+                            HStack(spacing: 10) {
+                                Rectangle()
+                                    .fill(ScheduleMeTheme.cardBorder)
+                                    .frame(height: 1)
+                                Text("or continue with")
                                     .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
                                     .foregroundColor(ScheduleMeTheme.mutedText)
+                                Rectangle()
+                                    .fill(ScheduleMeTheme.cardBorder)
+                                    .frame(height: 1)
                             }
 
-                            if let errorText {
-                                Text(errorText)
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
-                                    .foregroundColor(.red)
+                            Button {
+                                if requireTermsAcceptanceForSocialSignIn() {
+                                    Task { await signInWithOAuth(.google) }
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if isOAuthLoading && oauthProviderInFlight == .google {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                    Image("GoogleIcon")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 18, height: 18)
+                                    }
+                                    Text("Continue with Google")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                                }
                             }
-                            if let successText {
-                                Text(successText)
-                                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
-                                    .foregroundColor(ScheduleMeTheme.accent)
-                            }
+                            .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                            .disabled(isSubmitting || isSigningIn || isOAuthLoading)
 
-                            Button(isSubmitting ? "Creating account..." : "Create provider account") {
-                                Task { await submit() }
+                            Button {
+                                if requireTermsAcceptanceForSocialSignIn() {
+                                    Task { await signInWithOAuth(.apple) }
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if isOAuthLoading && oauthProviderInFlight == .apple {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "apple.logo")
+                                            .font(.system(size: 14, weight: .semibold))
+                                    }
+                                    Text("Continue with Apple")
+                                        .font(.custom(ScheduleMeTheme.fontName, size: 14).weight(.semibold))
+                                }
                             }
-                            .buttonStyle(ScheduleMePrimaryButtonStyle())
-                            .disabled(isSubmitting || !canSubmit)
+                            .buttonStyle(ScheduleMeSecondaryButtonStyle())
+                            .disabled(isSubmitting || isSigningIn || isOAuthLoading)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -896,13 +965,9 @@ struct ProviderOnboardingSheet: View {
                     .padding(.bottom, 28)
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear {
+                agreedToProviderTerms = hasAcceptedProviderTerms
                 let defaultName = appState.userFirstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 if ownerName.isEmpty, !defaultName.isEmpty {
                     ownerName = defaultName
@@ -911,6 +976,98 @@ struct ProviderOnboardingSheet: View {
                 if email.isEmpty, !defaultEmail.isEmpty {
                     email = defaultEmail
                 }
+                if loginEmail.isEmpty, !defaultEmail.isEmpty {
+                    loginEmail = defaultEmail
+                }
+                entryMode = appState.isAuthenticated ? .existingAccount : .newProvider
+            }
+        }
+    }
+
+    private var entryModeToggle: some View {
+        HStack(spacing: 0) {
+            ForEach([EntryMode.newProvider, .existingAccount], id: \.self) { mode in
+                let active = entryMode == mode
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        entryMode = mode
+                        errorText = nil
+                        successText = nil
+                    }
+                } label: {
+                    Text(mode == .newProvider ? "New provider" : "Already have account")
+                        .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(active ? .bold : .semibold))
+                        .foregroundColor(active ? ScheduleMeTheme.accent : ScheduleMeTheme.mutedText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(active ? ScheduleMeTheme.accentSoft : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(ScheduleMeTheme.surface)
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(ScheduleMeTheme.cardBorder))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var newProviderFields: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            field("Business / provider name", text: $businessName, placeholder: "e.g. Mike R. Plumbing")
+            field("Full name", text: $ownerName, placeholder: "Jamie Rivera")
+            field("Email", text: $email, placeholder: "you@example.com", keyboard: .emailAddress, noCap: true)
+            field("Phone (optional)", text: $phone, placeholder: "(555)-555-5555", keyboard: .phonePad)
+
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: agreedToProviderTerms ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(agreedToProviderTerms ? ScheduleMeTheme.accent : ScheduleMeTheme.mutedText)
+                    .padding(.top, 1)
+                Text("I agree to the Terms of Service, Privacy Policy, and the 12% commission structure on completed jobs.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+                    .foregroundColor(ScheduleMeTheme.titleText)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { agreedToProviderTerms.toggle() }
+
+            HStack(spacing: 10) {
+                Button("Terms of Service") {
+                    if let url = URL(string: "https://www.usescheduleme.com/terms") {
+                        openURL(url)
+                    }
+                }
+                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                .foregroundColor(ScheduleMeTheme.accent)
+
+                Button("Privacy Policy") {
+                    if let url = URL(string: "https://www.usescheduleme.com/privacy") {
+                        openURL(url)
+                    }
+                }
+                .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
+                .foregroundColor(ScheduleMeTheme.accent)
+            }
+
+            Text("Founder50 note: standard platform fee is 12%; Founder50 members are locked into 6%.")
+                .font(.custom(ScheduleMeTheme.fontName, size: 11).weight(.medium))
+                .foregroundColor(ScheduleMeTheme.mutedText)
+        }
+    }
+
+    private var existingAccountFields: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if appState.isAuthenticated {
+                Text("You're already signed in. Continue to Provider Hub to finish your listing setup.")
+                    .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
+                    .foregroundColor(ScheduleMeTheme.mutedText)
+            } else {
+                field("Email", text: $loginEmail, placeholder: "you@example.com", keyboard: .emailAddress, noCap: true)
+                field("Password", text: $loginPassword, placeholder: "Password", secure: true)
             }
         }
     }
@@ -921,18 +1078,25 @@ struct ProviderOnboardingSheet: View {
         text: Binding<String>,
         placeholder: String,
         keyboard: UIKeyboardType = .default,
-        noCap: Bool = false
+        noCap: Bool = false,
+        secure: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label.uppercased())
                 .font(.custom(ScheduleMeTheme.fontName, size: 10).weight(.semibold))
                 .tracking(1.2)
                 .foregroundColor(ScheduleMeTheme.mutedText)
-            TextField(placeholder, text: text)
-                .keyboardType(keyboard)
-                .textInputAutocapitalization(noCap ? .never : .words)
-                .autocorrectionDisabled(noCap)
-                .scheduleMeFieldStyle()
+            Group {
+                if secure {
+                    SecureField(placeholder, text: text)
+                } else {
+                    TextField(placeholder, text: text)
+                        .keyboardType(keyboard)
+                        .textInputAutocapitalization(noCap ? .never : .words)
+                        .autocorrectionDisabled(noCap)
+                }
+            }
+            .scheduleMeFieldStyle()
         }
     }
 
@@ -986,15 +1150,199 @@ struct ProviderOnboardingSheet: View {
                 requiresAuth: false
             )
             if response.success == true {
-                successText = "Provider account created. Finish setup and publish from Provider Hub."
+                hasAcceptedProviderTerms = true
+                successText = "Provider account created. Finish your listing setup and publish from Provider Hub."
                 onCreated?(response.businessId)
                 try? await Task.sleep(for: .seconds(0.5))
                 dismiss()
                 return
             }
-            errorText = response.error ?? "Could not create draft profile."
+            errorText = response.error ?? "Could not create listing."
         } catch {
-            errorText = error.localizedDescription
+            errorText = normalizeProviderSetupError(error)
         }
+    }
+
+    private func signInWithEmailAccount() async {
+        errorText = nil
+        successText = nil
+
+        if appState.isAuthenticated {
+            onCreated?(nil)
+            dismiss()
+            return
+        }
+
+        isSigningIn = true
+        defer { isSigningIn = false }
+        let normalizedEmail = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        do {
+            do {
+                try await SupabaseManager.shared.signInViaMobileEmailAuth(
+                    email: normalizedEmail,
+                    password: loginPassword,
+                    isSignup: false
+                )
+            } catch {
+                try await SupabaseManager.shared.client.auth.signIn(email: normalizedEmail, password: loginPassword)
+            }
+            appState.setAuthMethodHint("email")
+            await appState.bootstrap(context: .signingIn)
+            onCreated?(nil)
+            dismiss()
+        } catch {
+            errorText = normalizeSignInError(error)
+        }
+    }
+
+    private func signInWithOAuth(_ provider: Provider) async {
+        successText = nil
+        if let configError = SupabaseManager.shared.oauthConfigurationError() {
+            errorText = configError
+            return
+        }
+        isOAuthLoading = true
+        oauthProviderInFlight = provider
+        defer {
+            isOAuthLoading = false
+            oauthProviderInFlight = nil
+        }
+        do {
+            guard let callbackScheme = SupabaseManager.shared.redirectURL.scheme else {
+                throw DataStoreError.invalidConfiguration("SUPABASE_REDIRECT_URL is missing a URL scheme.")
+            }
+            let queryParams: [(name: String, value: String?)] = provider == .google
+                ? [(name: "prompt", value: "select_account")]
+                : []
+            try await SupabaseManager.shared.client.auth.signInWithOAuth(
+                provider: provider,
+                redirectTo: SupabaseManager.shared.redirectURL,
+                queryParams: queryParams,
+                launchFlow: { @MainActor url in
+                    let useEphemeral = provider != .google
+                    return try await authenticateEphemeral(url: url, callbackScheme: callbackScheme, prefersEphemeral: useEphemeral)
+                }
+            )
+            appState.setAuthMethodHint(provider == .apple ? "apple" : "google")
+            await appState.bootstrap(context: .signingIn)
+
+            let defaultName = appState.userFirstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if ownerName.isEmpty, !defaultName.isEmpty {
+                ownerName = defaultName
+            }
+            let defaultEmail = appState.userEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if email.isEmpty, !defaultEmail.isEmpty {
+                email = defaultEmail
+            }
+            if loginEmail.isEmpty, !defaultEmail.isEmpty {
+                loginEmail = defaultEmail
+            }
+
+            if entryMode == .existingAccount {
+                onCreated?(nil)
+                dismiss()
+            } else {
+                successText = provider == .google
+                    ? "Signed in with Google. Complete details, agree to terms, then create your provider account."
+                    : "Signed in with Apple. Complete details, agree to terms, then create your provider account."
+            }
+        } catch {
+            errorText = userFacingOAuthError(error)
+        }
+    }
+
+    @MainActor
+    private func authenticateEphemeral(url: URL, callbackScheme: String, prefersEphemeral: Bool) async throws -> URL {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackScheme) { callbackURL, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let callbackURL else {
+                    continuation.resume(throwing: DataStoreError.server("Missing callback URL."))
+                    return
+                }
+                continuation.resume(returning: callbackURL)
+            }
+            session.prefersEphemeralWebBrowserSession = prefersEphemeral
+            session.presentationContextProvider = ProviderOAuthPresentationProvider.shared
+            session.start()
+        }
+    }
+
+    private func userFacingOAuthError(_ error: Error) -> String {
+        let raw = (error as NSError).localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = raw.lowercased()
+        if normalized.contains("no api key found in request") {
+            return "Google/Apple sign in isn't set up. Add SUPABASE_PUBLISHABLE_KEY in Config.local.xcconfig."
+        }
+        if normalized.contains("webauthenticationsession error 1")
+            || normalized.contains("aswebauthenticationsession")
+            || normalized.contains("canceled login") {
+            return "Sign in was canceled."
+        }
+        if raw.isEmpty { return "Could not complete sign in." }
+        return raw
+    }
+
+    private func normalizeProviderSetupError(_ error: Error) -> String {
+        let raw = (error as NSError).localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = raw.lowercased()
+        if normalized.contains("no api key found in request") {
+            return "Provider setup isn't fully configured. Add SUPABASE_PUBLISHABLE_KEY in Config.local.xcconfig."
+        }
+        if raw.isEmpty {
+            return "Could not create listing."
+        }
+        return raw
+    }
+
+    private func requireTermsAcceptanceForSocialSignIn() -> Bool {
+        if entryMode == .existingAccount {
+            return true
+        }
+        guard agreedToProviderTerms else {
+            errorText = "Please accept the Terms, Privacy Policy, and commission structure before continuing with Apple or Google."
+            return false
+        }
+        hasAcceptedProviderTerms = true
+        return true
+    }
+
+    private func normalizeSignInError(_ error: Error) -> String {
+        let raw = (error as NSError).localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = raw.lowercased()
+        if normalized.contains("invalid login credentials")
+            || normalized.contains("invalid credentials")
+            || normalized.contains("wrong password")
+            || normalized.contains("incorrect password") {
+            return "Incorrect email or password."
+        }
+        if normalized.contains("no api key found in request") {
+            return "Provider sign in isn't set up. Add SUPABASE_PUBLISHABLE_KEY in Config.local.xcconfig."
+        }
+        if raw.isEmpty {
+            return "Could not sign in right now. Please try again."
+        }
+        return raw
+    }
+}
+
+private final class ProviderOAuthPresentationProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    static let shared = ProviderOAuthPresentationProvider()
+    private override init() {}
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        let windowScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        if let keyWindow = windowScenes.flatMap(\.windows).first(where: \.isKeyWindow) {
+            return keyWindow
+        }
+        if let windowScene = windowScenes.first {
+            return ASPresentationAnchor(windowScene: windowScene)
+        }
+        preconditionFailure("No active UIWindowScene available for web authentication presentation.")
     }
 }

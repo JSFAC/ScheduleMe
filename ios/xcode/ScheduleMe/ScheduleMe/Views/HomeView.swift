@@ -488,7 +488,7 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showingProviderHub) {
                 AccountView(openProviderOnAppear: true)
             }
-            .sheet(isPresented: $showingProviderOnboarding) {
+            .fullScreenCover(isPresented: $showingProviderOnboarding) {
                 ProviderOnboardingSheet()
             }
             .overlay(alignment: .bottom) {

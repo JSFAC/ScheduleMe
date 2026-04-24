@@ -162,6 +162,10 @@ struct AuthView: View {
     /// Starts OAuth provider flow (Apple/Google) and reboots app session state on success.
     private func signInWithOAuth(_ provider: Provider) {
         errorText = nil
+        if let configError = SupabaseManager.shared.oauthConfigurationError() {
+            errorText = configError
+            return
+        }
         isLoading = true
         Task {
             defer { isLoading = false }
@@ -223,6 +227,9 @@ struct AuthView: View {
 
         if normalized.contains("captcha") {
             return "Email login is blocked by a security challenge. Use Apple/Google for now or try again shortly."
+        }
+        if normalized.contains("no api key found in request") {
+            return "Google/Apple sign in isn't set up. Add SUPABASE_PUBLISHABLE_KEY in Config.local.xcconfig."
         }
         if normalizedDomain.contains("authenticationservices.webauthenticationsession")
             || normalized.contains("webauthenticationsession error 1")
@@ -339,6 +346,7 @@ private struct ConsumerWelcomeFlow: View {
                                 AuthActionButton(label: "Log in", style: .outline) { step = .login }
                                 AuthActionButton(label: "Create account", style: .filled) { step = .signup }
                             }
+
                             if let onContinueAsGuest {
                                 Button("Continue as guest") {
                                     onContinueAsGuest()
@@ -346,6 +354,19 @@ private struct ConsumerWelcomeFlow: View {
                                 .font(.custom(ConsumerAuthTheme.fontName, size: 13).weight(.medium))
                                 .foregroundColor(ConsumerAuthTheme.textSub)
                             }
+
+                            Button {
+                                showingProviderOnboarding = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "briefcase")
+                                        .font(.system(size: 11, weight: .semibold))
+                                    Text("Join as provider")
+                                        .font(.custom(ConsumerAuthTheme.fontName, size: 13).weight(.semibold))
+                                }
+                                .foregroundColor(ConsumerAuthTheme.accent)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, isCompactHeight ? 20 : 26)
@@ -367,13 +388,6 @@ private struct ConsumerWelcomeFlow: View {
                     }
                     .padding(.top, 16)
 
-                    Button("Want to offer services? Create provider draft →") {
-                        showingProviderOnboarding = true
-                    }
-                    .font(.custom(ConsumerAuthTheme.fontName, size: 12).weight(.semibold))
-                    .foregroundColor(ConsumerAuthTheme.accent)
-                    .padding(.top, 12)
-
                     Spacer(minLength: isCompactHeight ? 18 : 24)
                 }
                 .frame(minHeight: proxy.size.height)
@@ -389,7 +403,7 @@ private struct ConsumerWelcomeFlow: View {
                 hasUnlockedAuthButtons = true
             }
         }
-        .sheet(isPresented: $showingProviderOnboarding) {
+        .fullScreenCover(isPresented: $showingProviderOnboarding) {
             ProviderOnboardingSheet()
         }
     }

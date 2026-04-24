@@ -1,5 +1,5 @@
 // FILE OVERVIEW:
-// Consumer account/profile screen with tabs (profile, payments, addresses, notifications, security).
+// Unified account screen with Customer/Provider modes and mode-specific tabs.
 //
 // DEBUG NOTES:
 // Dark mode toggle, profile save, and account tab UI issues are handled here.
@@ -16,6 +16,8 @@ struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var selectedTab: AccountTab = .profile
+    @AppStorage("scheduleme_account_mode") private var storedAccountModeRaw = AccountMode.customer.rawValue
+    @State private var accountMode: AccountMode = .customer
     @State private var fullName = ""
     @State private var emailAddress = ""
     @State private var phoneNumber = ""
@@ -165,9 +167,12 @@ struct AccountView: View {
                         }
                         .padding(.horizontal, 20)
 
+                        modeSwitcher
+                            .padding(.horizontal, 20)
+
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
-                                ForEach(AccountTab.allCases) { tab in
+                                ForEach(modeTabs) { tab in
                                     AccountTabButton(
                                         title: tab.title,
                                         systemImage: tab.systemImage,
@@ -261,9 +266,16 @@ struct AccountView: View {
             if emailAddress.isEmpty {
                 emailAddress = usingApplePrivateRelay ? "Apple ID" : (appState.userEmail ?? "")
             }
+            if let restoredMode = AccountMode(rawValue: storedAccountModeRaw) {
+                accountMode = restoredMode
+            } else {
+                accountMode = .customer
+            }
             if openProviderOnAppear {
+                accountMode = .provider
                 selectedTab = .provider
             }
+            ensureTabSelectionValidForMode()
             if openEduOnAppear {
                 withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
                     if appState.eduVerified == true {
@@ -281,8 +293,9 @@ struct AccountView: View {
                 upsertAddress(updated)
             }
         }
-        .sheet(isPresented: $showingProviderOnboarding) {
+        .fullScreenCover(isPresented: $showingProviderOnboarding) {
             ProviderOnboardingSheet { _ in
+                accountMode = .provider
                 selectedTab = .provider
                 Task { await loadProviderHub() }
             }
@@ -363,6 +376,13 @@ struct AccountView: View {
             guard tab == .provider else { return }
             Task { await loadProviderHub() }
         }
+        .onChange(of: accountMode) { _, newMode in
+            storedAccountModeRaw = newMode.rawValue
+            ensureTabSelectionValidForMode()
+            if selectedTab == .provider {
+                Task { await loadProviderHub() }
+            }
+        }
     }
 
     // MARK: - Derived Display State
@@ -427,6 +447,44 @@ struct AccountView: View {
         let source = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         if let first = source.first { return String(first).uppercased() }
         return "SM"
+    }
+
+    private var modeTabs: [AccountTab] {
+        switch accountMode {
+        case .customer:
+            return [.profile, .payments, .addresses, .notifications, .security]
+        case .provider:
+            return [.provider, .payments, .notifications, .security]
+        }
+    }
+
+    private var modeSwitcher: some View {
+        HStack(spacing: 10) {
+            AccountModeButton(
+                title: "Customer",
+                systemImage: "person",
+                isSelected: accountMode == .customer
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    accountMode = .customer
+                }
+            }
+
+            AccountModeButton(
+                title: "Provider",
+                systemImage: "briefcase",
+                isSelected: accountMode == .provider
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    accountMode = .provider
+                }
+            }
+        }
+    }
+
+    private func ensureTabSelectionValidForMode() {
+        if modeTabs.contains(selectedTab) { return }
+        selectedTab = modeTabs.first ?? .profile
     }
 
     // MARK: - Tab Sections
@@ -647,16 +705,16 @@ struct AccountView: View {
                         .tracking(1.2)
                         .foregroundColor(ScheduleMeTheme.mutedText)
 
-                    Text(providerBusiness?.name ?? "Create provider profile")
+                    Text(providerBusiness?.name ?? "Create your listing")
                         .font(.custom(ScheduleMeTheme.fontName, size: 18).weight(.semibold))
                         .foregroundColor(ScheduleMeTheme.titleText)
 
                     if providerBusiness != nil {
-                        Text(providerIsLive ? "Live and bookable" : "Draft mode (not public yet)")
+                        Text(providerIsLive ? "Live and bookable" : "Hidden until you publish")
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.semibold))
                             .foregroundColor(providerIsLive ? Color(hex: "16a34a") : Color(hex: "ca8a04"))
                     } else {
-                        Text("Create a draft profile first, then complete setup and publish when ready.")
+                        Text("Start your listing, then finish setup and publish when you're ready.")
                             .font(.custom(ScheduleMeTheme.fontName, size: 12).weight(.medium))
                             .foregroundColor(ScheduleMeTheme.mutedText)
                     }
@@ -677,7 +735,7 @@ struct AccountView: View {
                     }
 
                     if providerBusiness == nil {
-                        Button("Create Provider Draft") {
+                        Button("Create Listing") {
                             showingProviderOnboarding = true
                         }
                         .buttonStyle(ScheduleMePrimaryButtonStyle())
@@ -1359,7 +1417,7 @@ private enum AccountTab: CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .profile: return "Profile"
-        case .provider: return "Provider"
+        case .provider: return "Provider Hub"
         case .payments: return "Payments"
         case .addresses: return "Addresses"
         case .notifications: return "Notifications"
@@ -1377,6 +1435,11 @@ private enum AccountTab: CaseIterable, Identifiable {
         case .security: return "lock"
         }
     }
+}
+
+private enum AccountMode: String {
+    case customer
+    case provider
 }
 
 private struct AccountStatCard: View {
@@ -1440,6 +1503,36 @@ private struct AccountTabButton: View {
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
+    }
+}
+
+private struct AccountModeButton: View {
+    let title: String
+    let systemImage: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .font(.custom(ScheduleMeTheme.fontName, size: 13).weight(.semibold))
+            }
+            .foregroundColor(isSelected ? .white : ScheduleMeTheme.accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isSelected ? ScheduleMeTheme.accent : ScheduleMeTheme.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(ScheduleMeTheme.cardBorder)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -185,7 +185,7 @@ struct CampusView: View {
         .fullScreenCover(isPresented: $showingProviderHub) {
             AccountView(openProviderOnAppear: true)
         }
-        .sheet(isPresented: $showingProviderOnboarding) {
+        .fullScreenCover(isPresented: $showingProviderOnboarding) {
             ProviderOnboardingSheet()
         }
     }

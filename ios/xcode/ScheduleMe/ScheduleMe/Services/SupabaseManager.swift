@@ -16,12 +16,18 @@ final class SupabaseManager {
     let redirectURL: URL
     private let apiBaseURL: URL
     private let supabaseURL: URL
-    private let supabaseAnonKey: String
+    private let supabasePublicKey: String
     @MainActor private var didPrewarmAuthPipeline = false
 
     private init() {
         let urlString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? ""
-        let anonKey = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? ""
+        let publishableKey = Self.firstResolvedInfoValue(
+            keys: [
+                "SUPABASE_PUBLISHABLE_KEY",
+                "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+                "SUPABASE_ANON_KEY"
+            ]
+        ) ?? ""
         let configuredAPIBase = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String ?? ""
         // NOTE: SUPABASE_REDIRECT_URL cannot be read from xcconfig/Info.plist because
         // xcconfig treats `//` as a comment, which silently truncates `scheduleme://auth/callback`
@@ -38,12 +44,12 @@ final class SupabaseManager {
         }
 
         self.supabaseURL = supabaseURL
-        self.supabaseAnonKey = anonKey
+        self.supabasePublicKey = publishableKey
         self.redirectURL = redirectURL
         self.apiBaseURL = URL(string: configuredAPIBase.trimmingCharacters(in: .whitespacesAndNewlines)) ?? URL(string: "https://www.usescheduleme.com")!
         client = SupabaseClient(
             supabaseURL: supabaseURL,
-            supabaseKey: anonKey,
+            supabaseKey: publishableKey,
             options: .init(
                 auth: .init(
                     redirectToURL: redirectURL,
@@ -52,6 +58,25 @@ final class SupabaseManager {
                 )
             )
         )
+    }
+
+    /// Returns a human-friendly error when OAuth config is missing/invalid, otherwise `nil`.
+    func oauthConfigurationError() -> String? {
+        let key = supabasePublicKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if key.isEmpty || key.contains("$(") {
+            return "Google/Apple sign in isn't set up. Add SUPABASE_PUBLISHABLE_KEY in Config.local.xcconfig."
+        }
+        return nil
+    }
+
+    private static func firstResolvedInfoValue(keys: [String]) -> String? {
+        for key in keys {
+            guard let raw = Bundle.main.object(forInfoDictionaryKey: key) as? String else { continue }
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.contains("$(") else { continue }
+            return trimmed
+        }
+        return nil
     }
 
     /// Passes OAuth callback URL back into Supabase auth handler.
@@ -191,8 +216,8 @@ final class SupabaseManager {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue(supabasePublicKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(supabasePublicKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder.scheduleMe.encode(
             PasswordResetRequest(
                 email: email,
