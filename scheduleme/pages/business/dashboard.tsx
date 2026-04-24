@@ -2086,7 +2086,7 @@ const BusinessDashboard: NextPage = () => {
               {tab === 'overview' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Welcome back, {business?.owner_name?.split(' ')[0] || 'there'}</p>}
               {tab === 'bookings' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{bookings.length} total · {pendingCount} pending</p>}
               {tab === 'clients' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{clients.length} unique clients</p>}
-            {tab === 'messages' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{threads.length} conversation{threads.length !== 1 ? 's' : ''}</p>}
+            {tab === 'messages' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{msgThreads.length} conversation{msgThreads.length !== 1 ? 's' : ''}</p>}
             </div>
 
             {/* Dismissed campus banner — show small indicator in overview */}

@@ -9,13 +9,20 @@ import '../styles/globals.css';
 import 'leaflet/dist/leaflet.css';
 import { DarkModeProvider } from '../lib/DarkModeContext';
 
-const isProvider = (url: string) =>
-  url.startsWith('/business') || url.startsWith('/provider') || url.startsWith('/auth');
-const isAuthRoute = (url: string) =>
-  url.startsWith('/signin') ||
-  url.startsWith('/provider/auth') ||
-  url.startsWith('/business/auth') ||
-  url.startsWith('/auth/');
+const normUrl = (url: unknown) => (typeof url === 'string' ? url : '');
+const isProvider = (url: unknown) => {
+  const u = normUrl(url);
+  return u.startsWith('/business') || u.startsWith('/provider') || u.startsWith('/auth');
+};
+const isAuthRoute = (url: unknown) => {
+  const u = normUrl(url);
+  return (
+    u.startsWith('/signin') ||
+    u.startsWith('/provider/auth') ||
+    u.startsWith('/business/auth') ||
+    u.startsWith('/auth/')
+  );
+};
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
