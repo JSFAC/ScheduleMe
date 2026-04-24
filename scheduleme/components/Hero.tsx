@@ -114,7 +114,7 @@ export default function Hero({
           return prev + 1;
         });
         }, 48);
-      }, 620));
+      }, 240));
     };
 
     const io = new IntersectionObserver(
@@ -211,6 +211,7 @@ export default function Hero({
                   className="js-hero-pop rounded-2xl rounded-br-sm px-4 py-2.5 text-sm text-white max-w-[300px]"
                   style={{
                     background: '#0F766E',
+                    minHeight: 56,
                     opacity: showMessageShell ? 1 : 0,
                     transition: 'opacity 860ms ease, transform 1120ms cubic-bezier(0.22, 1.2, 0.36, 1), box-shadow 900ms cubic-bezier(0.22, 1.2, 0.36, 1)',
                     transform: showMessageShell
@@ -279,22 +280,21 @@ export default function Hero({
                     </p>
                   </div>
                   <div
-                    className="px-3 py-2 rounded-xl text-[11px] font-medium min-h-[32px]"
                     style={{
-                      background: dm ? '#2c2c2e' : '#f5f5f7',
-                      color: dm ? '#cbd5e1' : '#475569',
+                      maxHeight: matchState === 'loading' || matchState === 'transition' ? 40 : 0,
                       opacity: matchState === 'loading' || matchState === 'transition' ? 1 : 0,
-                      transform: matchState === 'loading' || matchState === 'transition' ? 'translateY(0)' : 'translateY(4px)',
-                      visibility: matchState === 'loading' || matchState === 'transition' ? 'visible' : 'hidden',
-                      transition: 'opacity 520ms ease, transform 720ms cubic-bezier(0.22, 1.14, 0.36, 1)',
+                      overflow: 'hidden',
+                      transition: 'max-height 620ms cubic-bezier(0.22, 1.14, 0.36, 1), opacity 520ms ease',
                     }}
                   >
-                    Finding students nearby
-                    <span className="ml-1 inline-flex gap-0.5 align-middle">
-                      <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '120ms' }} />
-                      <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '240ms' }} />
-                    </span>
+                    <div className="px-3 py-2 rounded-xl text-[11px] font-medium" style={{ background: dm ? '#2c2c2e' : '#f5f5f7', color: dm ? '#cbd5e1' : '#475569' }}>
+                      Finding students nearby
+                      <span className="ml-1 inline-flex gap-0.5 align-middle">
+                        <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '120ms' }} />
+                        <span className="h-1 w-1 rounded-full bg-current animate-bounce" style={{ animationDelay: '240ms' }} />
+                      </span>
+                    </div>
                   </div>
                   <div
                     style={{
