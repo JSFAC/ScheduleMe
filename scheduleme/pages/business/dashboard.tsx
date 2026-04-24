@@ -264,9 +264,18 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
   pendingCount: number; totalUnreadMsgs: number; dm: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [viewport, setViewport] = useState({ w: 1200, h: 900 });
   const [pos, setPos] = useState({ x: 16, y: 120 });
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, bx: 0, by: 0 });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncViewport = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
 
   function onPointerDown(e: React.PointerEvent) {
     dragging.current = false;
@@ -279,8 +288,8 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragging.current = true;
     if (dragging.current) {
       setPos({
-        x: Math.max(8, Math.min(window.innerWidth - 56, dragStart.current.bx + dx)),
-        y: Math.max(80, Math.min(window.innerHeight - 160, dragStart.current.by + dy)),
+        x: Math.max(8, Math.min(viewport.w - 56, dragStart.current.bx + dx)),
+        y: Math.max(80, Math.min(viewport.h - 160, dragStart.current.by + dy)),
       });
     }
   }
@@ -305,8 +314,8 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
           style={{
             background: dm ? '#171717' : 'white',
             border: `1px solid ${dm ? '#262626' : '#e5e7eb'}`,
-            ...(pos.y > window.innerHeight / 2 ? { bottom: '100%', marginBottom: 8 } : { top: '100%', marginTop: 8 }),
-            ...(pos.x > window.innerWidth / 2 ? { right: 0 } : { left: 0 }),
+            ...(pos.y > viewport.h / 2 ? { bottom: '100%', marginBottom: 8 } : { top: '100%', marginTop: 8 }),
+            ...(pos.x > viewport.w / 2 ? { right: 0 } : { left: 0 }),
             animation: 'fadeUp 0.2s ease forwards',
           }}>
           {navItems.map(item => (

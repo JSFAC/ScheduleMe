@@ -23,6 +23,10 @@ const isAuthRoute = (url: unknown) => {
     u.startsWith('/auth/')
   );
 };
+const isProviderDashboardRoute = (url: unknown) => {
+  const u = normUrl(url);
+  return u.startsWith('/provider/dashboard') || u.startsWith('/business/dashboard');
+};
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -73,7 +77,8 @@ export default function App({ Component, pageProps }: AppProps) {
     const onStart = (url: string) => {
       scrollRef.current = window.scrollY;
       const crossingShell = isProvider(router.asPath) !== isProvider(url);
-      if (crossingShell && !isAuthRoute(router.asPath) && !isAuthRoute(url)) {
+      const movingIntoProviderDashboard = isProviderDashboardRoute(url);
+      if (crossingShell && !isAuthRoute(router.asPath) && !isAuthRoute(url) && !movingIntoProviderDashboard) {
         // Business/consumer transition — show overlay for full duration
         isTransitioning.current = true;
         setVisible(false);
