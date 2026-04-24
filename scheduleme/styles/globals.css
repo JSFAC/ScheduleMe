@@ -758,38 +758,6 @@ html.dark [data-nav-tile] {
   border-color: rgba(255,255,255,0.15) !important;
 }
 html.dark [data-nav-tile] .text-neutral-800 { color: rgba(255,255,255,0.9) !important; }
-
-/* Provider signup captcha blend */
-.captcha-blend-shell {
-  position: relative;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)),
-    rgba(5, 8, 12, 0.45);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.05),
-    inset 0 0 0 1px rgba(255,255,255,0.015);
-}
-
-.captcha-blend-shell::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(ellipse at 50% -30%, rgba(15,118,110,0.12), transparent 65%);
-}
-
-.captcha-blend-shell .hcaptcha-shell {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-}
-
-.captcha-blend-shell iframe {
-  border-radius: 10px;
-}
 html.dark [data-nav-tile] .text-blue-500 { color: rgba(255,255,255,0.55) !important; }
 html.dark [data-nav-tile] .text-blue-600 { color: rgba(99,179,237,0.9) !important; }
 html.dark [data-nav-tile] [style*="rgba(59,130,246,0.10)"] {
