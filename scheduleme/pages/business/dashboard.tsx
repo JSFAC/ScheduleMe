@@ -1900,6 +1900,11 @@ const BusinessDashboard: NextPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#07090d' }}>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-0 h-[560px] w-[760px] -translate-x-1/2 rounded-full"
+          style={{ background: 'radial-gradient(ellipse, rgba(10,132,255,0.08) 0%, transparent 70%)' }}
+        />
         <div className="absolute inset-0" style={{
           backgroundImage: 'linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px)',
           backgroundSize: '48px 48px',
@@ -2103,12 +2108,12 @@ const BusinessDashboard: NextPage = () => {
         </div>
       )}
       <Head><title>{business?.name || 'Dashboard'} — ScheduleMe for Providers</title></Head>
-      <div className="min-h-screen flex" style={{ background: 'var(--section-bg, #f8fafc)' }}>
+      <div className="provider-dashboard-shell min-h-screen flex" data-provider-theme={dm ? 'dark' : 'light'} style={{ background: 'var(--section-bg, #f8fafc)' }}>
 
         {/* Sidebar */}
         <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-neutral-100 fixed left-0 top-0 bottom-0 z-30">
           <div className="px-5 py-5 border-b border-neutral-100">
-            <Link href="/business">
+            <Link href="/provider">
               <span className="text-[17px] font-black text-neutral-900" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
               <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-accent mt-0.5">for Providers</span>
             </Link>
@@ -2154,6 +2159,10 @@ const BusinessDashboard: NextPage = () => {
           </nav>
           <div className="px-3 py-4 border-t border-neutral-100 space-y-1">
             <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Quick Links</p>
+            <Link href="/provider" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" /></svg>
+              Provider landing page
+            </Link>
             <Link href="/home" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
               Open consumer app
@@ -4002,6 +4011,75 @@ const BusinessDashboard: NextPage = () => {
           </div>
         </div>
       )}
+      <style jsx global>{`
+        .provider-dashboard-shell[data-provider-theme='light'] {
+          background: #f6f1e6 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] aside,
+        .provider-dashboard-shell[data-provider-theme='light'] header {
+          background: #fffdf8 !important;
+          border-color: #e9dfd1 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .bg-white {
+          background-color: #fffdfa !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-100,
+        .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-200 {
+          border-color: #ebe1d3 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .bg-neutral-50 {
+          background-color: #f6efe4 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-900 {
+          color: #1b252b !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-700 {
+          color: #41535a !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-500 {
+          color: #7f8a85 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-400,
+        .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-300 {
+          color: #a7afa8 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] aside nav button.bg-accent,
+        .provider-dashboard-shell[data-provider-theme='light'] .btn-primary {
+          background: linear-gradient(135deg, #20887a 0%, #1a7569 100%) !important;
+          box-shadow: 0 12px 24px rgba(32, 136, 122, 0.14);
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] aside nav button:not(.bg-accent):hover,
+        .provider-dashboard-shell[data-provider-theme='light'] aside a:hover,
+        .provider-dashboard-shell[data-provider-theme='light'] aside button:hover {
+          background-color: #f4ede2 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .bg-amber-50 {
+          background-color: #fff6e7 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .border-amber-200 {
+          border-color: #f2d39a !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .bg-emerald-50 {
+          background-color: #eef9f3 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .border-emerald-200 {
+          border-color: #b7e5ce !important;
+        }
+      `}</style>
     </>
   );
 };
