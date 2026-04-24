@@ -230,7 +230,7 @@ const Business: NextPage = () => {
 
         {/* Pricing */}
         <section id="pricing" className="py-24 px-6 bg-neutral-900/30 border-y border-neutral-900" aria-labelledby="biz-pricing-heading">
-          <div className="mx-auto max-w-4xl">
+          <div className="mx-auto max-w-5xl">
             <div className="js-sec text-center mb-12">
               <span className="section-eyebrow mb-4 block">Pricing</span>
               <h2 id="biz-pricing-heading" className="text-4xl md:text-5xl font-bold text-white mb-5">
@@ -241,9 +241,10 @@ const Business: NextPage = () => {
               </p>
             </div>
 
-            <div className="js-why rounded-3xl border border-neutral-800 bg-neutral-900/70 p-7 md:p-10">
+            <div className="js-why rounded-3xl border border-neutral-800 bg-neutral-900/70 p-7 md:p-10 mb-8">
               <p className="text-sm md:text-base text-neutral-400 leading-relaxed">
-                Standard platform fee is <span className="text-accent font-semibold">12%</span>. Founder50 members are locked into{' '}
+                Founder50 note: standard platform fee is{' '}
+                <span className="text-accent font-semibold">12%</span>, while Founder50 members are locked into{' '}
                 <span className="text-accent font-semibold">6%</span> forever.
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -255,6 +256,51 @@ const Business: NextPage = () => {
                   <div key={item} className="rounded-xl border border-neutral-800 bg-neutral-950/55 px-4 py-3 text-sm text-neutral-200 flex items-center gap-2">
                     <span className="text-accent">✓</span>
                     {item}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { job: 'Leaky faucet repair', total: 150 },
+                  { job: 'Deep house cleaning', total: 280 },
+                  { job: 'Electrical panel work', total: 600 },
+                ].map((example) => (
+                  <div key={example.job} className="rounded-2xl border border-neutral-800 bg-neutral-950/50 p-4">
+                    <p className="text-xs text-neutral-500 mb-3">{example.job}</p>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Customer pays</span>
+                        <span className="text-white font-semibold">${example.total}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">ScheduleMe (12%)</span>
+                        <span className="text-neutral-400">-${Math.round(example.total * 0.12)}</span>
+                      </div>
+                      <div className="h-px bg-neutral-800 my-1.5" />
+                      <div className="flex justify-between">
+                        <span className="text-neutral-300 font-semibold">You receive</span>
+                        <span className="text-accent font-bold">${Math.round(example.total * 0.88)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8 rounded-2xl border border-neutral-800 overflow-hidden">
+                <div className="grid grid-cols-3 bg-neutral-900 border-b border-neutral-800">
+                  <div className="p-3 text-xs text-neutral-500 font-medium">Feature</div>
+                  <div className="p-3 text-xs text-neutral-500 font-medium text-center">Others</div>
+                  <div className="p-3 text-xs text-accent font-semibold text-center">ScheduleMe</div>
+                </div>
+                {[
+                  { label: 'Monthly subscription', them: true, us: false },
+                  { label: 'Per-lead fees', them: true, us: false },
+                  { label: 'Pay only when you earn', them: false, us: true },
+                  { label: 'Real-time SMS + email alerts', them: false, us: true },
+                ].map((row, idx) => (
+                  <div key={row.label} className={`grid grid-cols-3 ${idx % 2 === 0 ? 'bg-neutral-950/35' : 'bg-neutral-950/65'}`}>
+                    <div className="p-3 text-xs text-neutral-300">{row.label}</div>
+                    <div className="p-3 text-center text-neutral-500">{row.them ? '✓' : '✕'}</div>
+                    <div className="p-3 text-center text-accent">{row.us ? '✓' : '✕'}</div>
                   </div>
                 ))}
               </div>

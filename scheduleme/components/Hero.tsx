@@ -23,6 +23,9 @@ export default function Hero({
   const { dm } = useDm();
   const previewRef = useRef<HTMLDivElement | null>(null);
   const hasStartedSequenceRef = useRef(false);
+  const timersRef = useRef<number[]>([]);
+  const typingIntervalRef = useRef<number | null>(null);
+  const sequenceCompleteRef = useRef(false);
   const [typedCount, setTypedCount] = useState(0);
   const [messageShellVisible, setMessageShellVisible] = useState(false);
   const [messageState, setMessageState] = useState<'typing' | 'ready' | 'sent'>('typing');
@@ -48,15 +51,31 @@ export default function Hero({
     const node = previewRef.current;
     if (!node) return;
 
-    const timers: number[] = [];
-    let typingInterval: number | null = null;
-
     const clearAll = () => {
-      timers.forEach((t) => window.clearTimeout(t));
-      if (typingInterval != null) window.clearInterval(typingInterval);
+      timersRef.current.forEach((t) => window.clearTimeout(t));
+      timersRef.current = [];
+      if (typingIntervalRef.current != null) {
+        window.clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    };
+
+    const completeOffscreen = () => {
+      if (sequenceCompleteRef.current) return;
+      clearAll();
+      sequenceCompleteRef.current = true;
+      setTypedCount(HERO_MESSAGE.length);
+      setMessageShellVisible(true);
+      setMessageState('sent');
+      setMatchState('done');
+      setVisibleStudents(STUDENT_MATCHES.length);
+      setShowViewAll(true);
+      setBadgeStages([3, 3, 3]);
     };
 
     const startSequence = () => {
+      clearAll();
+      sequenceCompleteRef.current = false;
       setTypedCount(0);
       setMessageShellVisible(false);
       setMessageState('typing');
@@ -65,45 +84,50 @@ export default function Hero({
       setBadgeStages([0, 0, 0]);
       setShowViewAll(false);
 
-      timers.push(window.setTimeout(() => setMessageShellVisible(true), 180));
-      timers.push(window.setTimeout(() => {
-        typingInterval = window.setInterval(() => {
+      timersRef.current.push(window.setTimeout(() => setMessageShellVisible(true), 130));
+      timersRef.current.push(window.setTimeout(() => {
+        typingIntervalRef.current = window.setInterval(() => {
         setTypedCount((prev) => {
           if (prev >= HERO_MESSAGE.length) {
-            if (typingInterval != null) window.clearInterval(typingInterval);
-            typingInterval = null;
+            if (typingIntervalRef.current != null) window.clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
             setMessageState('ready');
-            timers.push(window.setTimeout(() => setMessageState('sent'), 1260));
-            timers.push(window.setTimeout(() => setMatchState('loading'), 1840));
-            timers.push(window.setTimeout(() => setMatchState('transition'), 5600));
-            timers.push(window.setTimeout(() => setMatchState('done'), 6880));
-            timers.push(window.setTimeout(() => setVisibleStudents(1), 7400));
-            timers.push(window.setTimeout(() => setVisibleStudents(2), 8260));
-            timers.push(window.setTimeout(() => setShowViewAll(true), 9300));
+            timersRef.current.push(window.setTimeout(() => setMessageState('sent'), 560));
+            timersRef.current.push(window.setTimeout(() => setMatchState('loading'), 820));
+            timersRef.current.push(window.setTimeout(() => setMatchState('transition'), 2100));
+            timersRef.current.push(window.setTimeout(() => setMatchState('done'), 2820));
+            timersRef.current.push(window.setTimeout(() => setVisibleStudents(1), 3100));
+            timersRef.current.push(window.setTimeout(() => setVisibleStudents(2), 3460));
+            timersRef.current.push(window.setTimeout(() => setShowViewAll(true), 3840));
 
             BADGES.forEach((_, idx) => {
-              const base = 9400 + idx * 980;
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 1 : v))), base));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 680));
-              timers.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 1340));
+              const base = 3980 + idx * 320;
+              timersRef.current.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 1 : v))), base));
+              timersRef.current.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 2 : v))), base + 220));
+              timersRef.current.push(window.setTimeout(() => setBadgeStages((cur) => cur.map((v, i) => (i === idx ? 3 : v))), base + 430));
             });
+            timersRef.current.push(window.setTimeout(() => { sequenceCompleteRef.current = true; }, 5200));
             return prev;
           }
           return prev + 1;
         });
-        }, 72);
-      }, 920));
+        }, 48);
+      }, 620));
     };
 
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting || hasStartedSequenceRef.current) return;
-          hasStartedSequenceRef.current = true;
-          timers.push(window.setTimeout(startSequence, 1000));
+          if (entry.intersectionRatio > 0.45 && !hasStartedSequenceRef.current) {
+            hasStartedSequenceRef.current = true;
+            timersRef.current.push(window.setTimeout(startSequence, 420));
+          }
+          if (entry.intersectionRatio === 0 && hasStartedSequenceRef.current && !sequenceCompleteRef.current) {
+            completeOffscreen();
+          }
         });
       },
-      { threshold: 0.5 }
+      { threshold: [0, 0.45] }
     );
 
     io.observe(node);
@@ -162,10 +186,10 @@ export default function Hero({
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 opacity-0-init animate-fade-up animate-delay-300">
-          <Link href={ctaPrimary.href} className="btn-primary text-base px-8 py-4 shadow-lg shadow-accent/20 hero-cta-pop hero-cta-pop-primary">
+          <Link href={ctaPrimary.href} className="btn-primary text-base px-8 py-4 shadow-lg shadow-accent/20">
             {ctaPrimary.label}
           </Link>
-          <Link href={ctaSecondary.href} className="text-base px-8 py-4 rounded-xl font-semibold inline-flex items-center justify-center transition-colors hero-cta-pop hero-cta-pop-secondary" style={{ background: dm ? 'transparent' : 'white', border: dm ? '1px solid #404040' : '1px solid #e5e5e5', color: dm ? '#d1d5db' : '#262626' }}>
+          <Link href={ctaSecondary.href} className="text-base px-8 py-4 rounded-xl font-semibold inline-flex items-center justify-center transition-colors" style={{ background: dm ? 'transparent' : 'white', border: dm ? '1px solid #404040' : '1px solid #e5e5e5', color: dm ? '#d1d5db' : '#262626' }}>
             {ctaSecondary.label}
           </Link>
         </div>
@@ -178,14 +202,13 @@ export default function Hero({
         {/* Mock UI preview */}
         <div ref={previewRef} className="js-hero-shell mt-16 mx-auto max-w-2xl opacity-0-init animate-fade-up animate-delay-500">
           <div className="p-1 shadow-modal rounded-2xl" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
-            <div className="rounded-2xl text-left space-y-3 p-5" style={{ background: dm ? '#0f0f0f' : '#f5f5f7', border: dm ? '1px solid #1c1c1e' : '1px solid rgba(0,0,0,0.06)' }}>
+            <div className="rounded-2xl text-left space-y-3 p-5" style={{ minHeight: 360, background: dm ? '#0f0f0f' : '#f5f5f7', border: dm ? '1px solid #1c1c1e' : '1px solid rgba(0,0,0,0.06)' }}>
               {/* User message */}
               <div className="flex items-end gap-2.5 justify-end">
                 <div
                   className="js-hero-pop rounded-2xl rounded-br-sm px-4 py-2.5 text-sm text-white max-w-[300px]"
                   style={{
                     background: '#0F766E',
-                    minHeight: 50,
                     opacity: showMessageShell ? 1 : 0,
                     transition: 'opacity 760ms ease, transform 1040ms cubic-bezier(0.22, 1.32, 0.34, 1), box-shadow 900ms cubic-bezier(0.22, 1.2, 0.36, 1)',
                     transform: showMessageShell
@@ -197,7 +220,7 @@ export default function Hero({
                   }}
                 >
                   <p className="leading-snug">
-                    {typedMessage || '\u00a0'}
+                    {typedMessage}
                     {isTyping && <span className="inline-block ml-[1px] h-[1.05em] w-[2px] align-middle bg-white/90 animate-pulse" />}
                   </p>
                 </div>
@@ -248,7 +271,7 @@ export default function Hero({
                 >
                   <svg className="h-3.5 w-3.5" style={{ color: '#0F766E' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                 </div>
-                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: showMatchShell ? 1 : 0, transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.84)', transition: 'opacity 860ms cubic-bezier(0.2, 1.2, 0.3, 1), transform 1080ms cubic-bezier(0.22, 1.32, 0.34, 1)' }}>
+                <div className="js-hero-pop rounded-2xl rounded-bl-sm px-4 py-3 text-sm max-w-[280px] space-y-2" style={{ minHeight: 180, background: dm ? '#1c1c1e' : 'white', border: dm ? '1px solid #2c2c2e' : '1px solid #e5e5e5', color: dm ? '#f2f2f7' : '#171717', opacity: showMatchShell ? 1 : 0, transform: showMatchShell ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.84)', transition: 'opacity 860ms cubic-bezier(0.2, 1.2, 0.3, 1), transform 1080ms cubic-bezier(0.22, 1.32, 0.34, 1)' }}>
                   <div className="flex items-center gap-2">
                     <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${matchState === 'loading' || matchState === 'transition' ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
                     <div className="relative h-4 overflow-hidden">
@@ -292,10 +315,9 @@ export default function Hero({
                         style={{
                           background: dm ? '#2c2c2e' : '#f5f5f7',
                           opacity: visibleStudents > i ? 1 : 0,
-                          transform: visibleStudents > i ? 'translateY(0) scale(1)' : 'translateY(14px) scale(0.9)',
-                          maxHeight: visibleStudents > i ? 70 : 0,
-                          overflow: 'hidden',
-                          transition: `opacity 980ms cubic-bezier(0.2, 1.2, 0.3, 1) ${i * 180}ms, transform 1100ms cubic-bezier(0.22, 1.32, 0.34, 1) ${i * 180}ms, max-height 920ms cubic-bezier(0.22, 1, 0.36, 1) ${i * 180}ms`,
+                          transform: visibleStudents > i ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.94)',
+                          visibility: visibleStudents > i ? 'visible' : 'hidden',
+                          transition: `opacity 760ms cubic-bezier(0.22, 1.14, 0.36, 1) ${i * 120}ms, transform 860ms cubic-bezier(0.22, 1.2, 0.36, 1) ${i * 120}ms`,
                         }}
                       >
                         <div className="flex items-center gap-2">
