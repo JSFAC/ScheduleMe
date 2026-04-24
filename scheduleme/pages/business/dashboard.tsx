@@ -4182,6 +4182,12 @@ const BusinessDashboard: NextPage = () => {
           background-color: #fffdfa !important;
         }
 
+        .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-2xl,
+        .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-\[28px\],
+        .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-\[24px\] {
+          box-shadow: 0 14px 34px rgba(60, 79, 72, 0.05), 0 2px 6px rgba(60, 79, 72, 0.04);
+        }
+
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-100,
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-200 {
           border-color: #ebe1d3 !important;
@@ -4234,6 +4240,17 @@ const BusinessDashboard: NextPage = () => {
 
         .provider-dashboard-shell[data-provider-theme='light'] .border-emerald-200 {
           border-color: #b7e5ce !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] main h1,
+        .provider-dashboard-shell[data-provider-theme='light'] main h2,
+        .provider-dashboard-shell[data-provider-theme='light'] main h3 {
+          letter-spacing: -0.03em;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='light'] .shadow-\[0_8px_24px_rgba\(15\,23\,42\,0\.04\)\],
+        .provider-dashboard-shell[data-provider-theme='light'] .shadow-\[0_10px_30px_rgba\(32\,136\,122\,0\.05\)\] {
+          box-shadow: 0 16px 36px rgba(40, 61, 54, 0.06) !important;
         }
       `}</style>
     </>
