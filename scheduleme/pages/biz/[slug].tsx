@@ -1556,7 +1556,7 @@ export default function BizPage() {
                       style={{ borderColor: dm ? '#2d2d2f' : '#b8ddd4', background: dm ? '#0c0c0d' : '#f5fbf8', color: tx }}
                       aria-label="Add photos or videos"
                     >
-                      <span className="text-[11px] font-semibold leading-tight">Add media</span>
+                      <span className="text-[26px] font-semibold leading-none" style={{ color: '#007e6d' }}>+</span>
                     </button>
                   )}
                 </div>
