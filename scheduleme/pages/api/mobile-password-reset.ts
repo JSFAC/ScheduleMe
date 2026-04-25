@@ -46,8 +46,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!isAllowedMobileClient(client)) return res.status(403).json({ error: 'Unsupported mobile client' });
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email address' });
 
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    '';
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
   if (!anonKey) return res.status(500).json({ error: 'Server auth anon config missing' });
 
   try {

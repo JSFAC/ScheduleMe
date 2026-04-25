@@ -55,8 +55,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email address' });
   if (password.length < 6 || password.length > 128) return res.status(400).json({ error: 'Invalid password length' });
 
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    '';
   if (!anonKey) return res.status(500).json({ error: 'Server auth anon config missing' });
 
   try {

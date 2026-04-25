@@ -21,6 +21,8 @@ type MobileBusinessSignupBody = {
   instagram?: string;
   campusProvider?: boolean;
   schoolName?: string;
+  agreeToTerms?: boolean;
+  agree_to_terms?: boolean;
 };
 
 function getSupabase() {
@@ -192,9 +194,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const instagram = normalizeText(body.instagram);
   const schoolName = normalizeText(body.schoolName);
   const campusProvider = body.campusProvider === true;
+  const agreedToTerms = body.agreeToTerms === true || body.agree_to_terms === true;
 
   if (!businessName || !ownerName || !email || !city || !serviceCategoryInput) {
     return res.status(400).json({ error: 'Missing required fields' });
+  }
+  if (!agreedToTerms) {
+    return res.status(400).json({ error: 'Provider terms must be accepted before creating an account' });
   }
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email address' });
   if (phone && !isValidPhone(phone)) return res.status(400).json({ error: 'Invalid phone number' });
