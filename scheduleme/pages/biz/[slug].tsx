@@ -1441,7 +1441,7 @@ export default function BizPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] mb-1" style={{ color: accent }}>Live Preview</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-1" style={{ color: mu }}>Live Preview</p>
                   <h1 className="text-xl font-bold" style={{ color: tx }}>{biz.name}</h1>
                   {ownerDisplayName ? (
                     <p className="text-sm mt-1" style={{ color: mu }}>{ownerDisplayName}</p>
