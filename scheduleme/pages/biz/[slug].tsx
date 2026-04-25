@@ -1468,7 +1468,20 @@ export default function BizPage() {
           )}
           {isEmbedded && (
             <div className="rounded-2xl p-4 shadow-lg mb-5 relative z-20" style={{ background: card, border: '1px solid ' + bdr }}>
-              <div className="relative overflow-hidden rounded-2xl" style={{ background: dm ? '#101010' : '#f6f2e9', minHeight: 240 }}>
+              <div
+                className="relative overflow-hidden rounded-2xl"
+                style={{ background: dm ? '#101010' : '#f6f2e9', minHeight: 240 }}
+                onDragOver={(e) => {
+                  if (!editMode) return;
+                  e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  if (!editMode) return;
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
+                }}
+              >
                 {imgs[galleryIdx] ? (
                   <img
                     src={imgs[galleryIdx]}
@@ -1503,15 +1516,7 @@ export default function BizPage() {
                 )}
               </div>
               {(imgs.length > 1 || editMode) && (
-                <div
-                  className="flex gap-2 overflow-x-auto pt-3"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
-                  }}
-                >
+                <div className="flex gap-2 overflow-x-auto pt-3">
                   {imgs.map((url, i) => (
                     <div
                       key={url}
@@ -1535,16 +1540,24 @@ export default function BizPage() {
                       {editMode && (
                         <button
                           onClick={(e) => { e.stopPropagation(); removeImage(i); }}
-                          className="absolute top-0.5 right-0.5 h-4.5 w-4.5 rounded-full flex items-center justify-center text-[10px]"
-                          style={{ background: 'rgba(0,0,0,0.7)', color: 'white' }}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-lg flex items-center justify-center text-[14px] font-bold shadow-sm"
+                          style={{ background: 'rgba(15,23,42,0.86)', color: 'white', border: '1px solid rgba(255,255,255,0.16)' }}
                         >
                           ×
                         </button>
                       )}
                     </div>
                   ))}
-                  {editMode && imgs.length === 0 && (
-                    <div className="text-xs px-2 py-6" style={{ color: mu }}>No photos yet</div>
+                  {editMode && (
+                    <button
+                      type="button"
+                      onClick={() => imgInputRef.current?.click()}
+                      className="relative h-16 w-16 rounded-xl flex-shrink-0 border border-dashed flex items-center justify-center text-center p-2"
+                      style={{ borderColor: dm ? '#2d2d2f' : '#b8ddd4', background: dm ? '#0c0c0d' : '#f5fbf8', color: tx }}
+                      aria-label="Add photos or videos"
+                    >
+                      <span className="text-[11px] font-semibold leading-tight">Add media</span>
+                    </button>
                   )}
                 </div>
               )}
@@ -1553,23 +1566,10 @@ export default function BizPage() {
                   <div className="mt-4">
                     <div className="mb-2">
                       <p className="text-sm font-bold" style={{ color: tx }}>Photos & video</p>
-                      <p className="text-xs" style={{ color: mu }}>Click the upload area or drag in files. Reorder photos below to change the cover.</p>
+                      <p className="text-xs" style={{ color: mu }}>Click the add-media tile or drag files anywhere in this media section. Reorder photos below to change the cover.</p>
                     </div>
                     {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
                     {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
-                    <div
-                      className="mb-3 rounded-xl border border-dashed px-4 py-5 text-center text-sm font-medium cursor-pointer"
-                      style={{ borderColor: dm ? '#2d2d2f' : '#cfe7de', color: tx, background: dm ? '#0c0c0d' : '#f5fbf8' }}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const file = e.dataTransfer.files?.[0];
-                        if (file) uploadMedia(file, file.type.startsWith('video/') ? 'video' : 'image');
-                      }}
-                      onClick={() => imgInputRef.current?.click()}
-                    >
-                      Click to add photos, or drag and drop photos/videos here.
-                    </div>
                     {editVideo && (
                       <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
                         <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>

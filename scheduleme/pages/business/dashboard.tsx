@@ -3796,21 +3796,36 @@ const BusinessDashboard: NextPage = () => {
               <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 overflow-hidden">
                 <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Edit Listing</p>
-                    <p className="text-sm font-semibold text-neutral-900 mt-1">Live Preview</p>
+                    <p
+                      className="text-[11px] font-semibold uppercase tracking-[0.14em]"
+                      style={{ color: dm ? '#6ee7d8' : '#007e6d' }}
+                    >
+                      Edit Listing
+                    </p>
+                    <p
+                      className="text-sm font-semibold mt-1"
+                      style={{ color: dm ? '#f5f5f5' : '#171717' }}
+                    >
+                      Live Preview
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     {previewEditMode ? (
                       <>
                         <button
                           onClick={() => sendPreviewAction('cancel-edit')}
-                          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200"
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors"
+                          style={{
+                            borderColor: dm ? '#3f3f46' : '#d5ddd8',
+                            background: dm ? '#202225' : '#ffffff',
+                            color: dm ? '#f3f4f6' : '#1f2937',
+                          }}
                         >
                           Cancel
                         </button>
                         <button
                           onClick={() => sendPreviewAction('save-edit')}
-                          className="text-xs font-bold px-3 py-1.5 rounded-lg text-white"
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white transition-colors"
                           style={{ background: '#007e6d' }}
                         >
                           Save changes
@@ -3819,8 +3834,8 @@ const BusinessDashboard: NextPage = () => {
                     ) : (
                       <button
                         onClick={() => sendPreviewAction('enter-edit')}
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg border"
-                        style={{ borderColor: 'rgba(0,126,109,0.18)', background: 'rgba(0,126,109,0.10)', color: '#007e6d' }}
+                        className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors"
+                        style={{ borderColor: 'rgba(0,126,109,0.22)', background: 'rgba(0,126,109,0.12)', color: '#007e6d' }}
                       >
                         Edit mode
                       </button>
