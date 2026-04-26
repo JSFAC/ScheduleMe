@@ -184,10 +184,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       rangeEnd = tmp;
     }
 
-    const severities = (severityInput ? severityInput.split(',') : ['info', 'warning', 'critical'])
+    const severities: SecuritySeverity[] = (severityInput ? severityInput.split(',') : ['info', 'warning', 'critical'])
       .map((s) => s.trim().toLowerCase())
       .filter((s): s is SecuritySeverity => s === 'info' || s === 'warning' || s === 'critical');
-    const normalizedSeverities = severities.length ? severities : ['info', 'warning', 'critical'];
+    const normalizedSeverities: SecuritySeverity[] = severities.length ? severities : ['info', 'warning', 'critical'];
     const filters = { severities: normalizedSeverities, eventType, routeContains, ip, q };
     const rangeStartIso = rangeStart.toISOString();
     const rangeEndIso = rangeEnd.toISOString();

@@ -73,12 +73,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const moderation = await moderateText(candidateName);
   if (!moderation.ok) return res.status(400).json({ error: moderation.reason || 'Business name violates content policy' });
   const nameCheck = validateAndFilter(candidateName, { maxLength: 60, fieldName: 'Business name' });
-  if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
+  if (!nameCheck.ok) {
+    return res.status(400).json({ error: 'error' in nameCheck ? nameCheck.error : 'Invalid business name' });
+  }
   const cleanName = nameCheck.value;
 
   const ownerCandidate = ownerName || normalizedEmail.split('@')[0] || 'Provider';
   const ownerCheck = validateAndFilter(ownerCandidate, { maxLength: 60, fieldName: 'Owner name' });
-  if (!ownerCheck.ok) return res.status(400).json({ error: ownerCheck.error });
+  if (!ownerCheck.ok) {
+    return res.status(400).json({ error: 'error' in ownerCheck ? ownerCheck.error : 'Invalid owner name' });
+  }
 
   const slug = `${slugify(cleanName)}-${Date.now().toString(36)}`;
 

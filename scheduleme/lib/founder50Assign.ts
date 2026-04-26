@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 type BusinessSeed = {
   id: string;
+  campus_key?: string | null;
+  edu_verified?: boolean | null;
 };
 
 export async function assignFounder50IfEligible(

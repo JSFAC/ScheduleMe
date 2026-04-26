@@ -90,23 +90,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const nameMod = await moderateText(businessName);
   if (!nameMod.ok) return res.status(400).json({ error: nameMod.reason || 'Business name violates content policy' });
   const nameCheck = validateAndFilter(businessName, { maxLength: 60, fieldName: 'Business name' });
-  if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
+  if (!nameCheck.ok) {
+    return res.status(400).json({ error: 'error' in nameCheck ? nameCheck.error : 'Invalid business name' });
+  }
 
   if (ownerName) {
     const ownerMod = await moderateText(ownerName);
     if (!ownerMod.ok) return res.status(400).json({ error: ownerMod.reason || 'Owner name violates content policy' });
   }
   const ownerCheck = validateAndFilter(ownerName || '', { maxLength: 60, fieldName: 'Owner name' });
-  if (!ownerCheck.ok) return res.status(400).json({ error: ownerCheck.error });
+  if (!ownerCheck.ok) {
+    return res.status(400).json({ error: 'error' in ownerCheck ? ownerCheck.error : 'Invalid owner name' });
+  }
 
   const cityMod = await moderateText(city);
   if (!cityMod.ok) return res.status(400).json({ error: cityMod.reason || 'City violates content policy' });
   // Validate optional text fields
   const cityCheck = validateAndFilter(city, { maxLength: 120, fieldName: 'City' });
-  if (!cityCheck.ok) return res.status(400).json({ error: cityCheck.error });
+  if (!cityCheck.ok) {
+    return res.status(400).json({ error: 'error' in cityCheck ? cityCheck.error : 'Invalid city' });
+  }
 
   const zipCheck = validateAndFilter(zip, { maxLength: 10, fieldName: 'ZIP' });
-  if (!zipCheck.ok) return res.status(400).json({ error: zipCheck.error });
+  if (!zipCheck.ok) {
+    return res.status(400).json({ error: 'error' in zipCheck ? zipCheck.error : 'Invalid ZIP' });
+  }
   const cleanZip = zipCheck.value.trim();
   if (!/^\d{5}(-\d{4})?$/.test(cleanZip)) return res.status(400).json({ error: 'Invalid ZIP code' });
 

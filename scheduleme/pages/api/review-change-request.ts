@@ -35,6 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .maybeSingle();
 
   if (reqErr || !reqRow) return res.status(404).json({ error: 'Request not found' });
+  const business = Array.isArray(reqRow.businesses) ? reqRow.businesses[0] || null : reqRow.businesses || null;
 
   if (action === 'approve') {
     const updates: Record<string, any> = {};
@@ -51,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updates.service_tags = normalizeServiceTags(raw);
       updates.keywords = [
         ...serviceTagsToTopicKeywords(updates.service_tags),
-        String(reqRow.businesses?.owner_name || '').toLowerCase().trim(),
+        String(business?.owner_name || '').toLowerCase().trim(),
       ].filter(Boolean);
     }
     if (Object.keys(updates).length > 0) {
@@ -71,9 +72,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       await sendChangeRequestDecisionEmail({
-        to: reqRow.businesses?.owner_email,
-        businessName: reqRow.businesses?.name || 'Business',
-        ownerName: reqRow.businesses?.owner_name || 'there',
+        to: business?.owner_email,
+        businessName: business?.name || 'Business',
+        ownerName: business?.owner_name || 'there',
         approved: true,
         notes,
       });
@@ -95,9 +96,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     await sendChangeRequestDecisionEmail({
-      to: reqRow.businesses?.owner_email,
-      businessName: reqRow.businesses?.name || 'Business',
-      ownerName: reqRow.businesses?.owner_name || 'there',
+      to: business?.owner_email,
+      businessName: business?.name || 'Business',
+      ownerName: business?.owner_name || 'there',
       approved: false,
       notes,
     });

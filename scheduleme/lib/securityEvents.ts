@@ -67,7 +67,7 @@ export async function logSecurityEvent(input: SecurityEventInput): Promise<void>
   if (!client) return;
 
   try {
-    await client.from('security_events').insert({
+    const payload = {
       event_type: input.eventType,
       severity: input.severity || 'info',
       route: input.req?.url || null,
@@ -78,7 +78,8 @@ export async function logSecurityEvent(input: SecurityEventInput): Promise<void>
       actor_email: (input.actorEmail || '').trim().toLowerCase() || null,
       message: input.message || null,
       metadata: sanitizeMetadata(input.metadata),
-    });
+    };
+    await (client.from('security_events') as any).insert(payload);
   } catch {
     // Never throw from logger.
   }

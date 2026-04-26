@@ -212,11 +212,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const normalizedSchoolName = normalizeCampusSchoolName(schoolName);
 
   const nameCheck = validateAndFilter(businessName, { maxLength: 100, fieldName: 'Business name' });
-  if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
+  if (!nameCheck.ok) {
+    return res.status(400).json({ error: 'error' in nameCheck ? nameCheck.error : 'Invalid business name' });
+  }
   const ownerCheck = validateAndFilter(ownerName, { maxLength: 100, fieldName: 'Owner name' });
-  if (!ownerCheck.ok) return res.status(400).json({ error: ownerCheck.error });
+  if (!ownerCheck.ok) {
+    return res.status(400).json({ error: 'error' in ownerCheck ? ownerCheck.error : 'Invalid owner name' });
+  }
   const cityCheck = validateAndFilter(city, { maxLength: 100, fieldName: 'City' });
-  if (!cityCheck.ok) return res.status(400).json({ error: cityCheck.error });
+  if (!cityCheck.ok) {
+    return res.status(400).json({ error: 'error' in cityCheck ? cityCheck.error : 'Invalid city' });
+  }
 
   const cleanBusinessName = nameCheck.value;
   const cleanOwnerName = ownerCheck.value;

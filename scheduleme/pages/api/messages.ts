@@ -110,6 +110,7 @@ async function buildThreadSummary(params: {
 
   const latestBooking = bookingRows[0];
   const business = latestBooking?.businesses || null;
+  const normalizedBusiness = Array.isArray(business) ? business[0] || null : business;
   const latestDate = latestMessage?.created_at || latestBooking?.created_at || new Date().toISOString();
 
   return {
@@ -120,11 +121,11 @@ async function buildThreadSummary(params: {
     service: latestBooking?.service || 'Conversation',
     status: latestBooking?.status || 'pending',
     created_at: latestDate,
-    businesses: business
+    businesses: normalizedBusiness
       ? {
-          id: latestBooking?.business_id || business.id || null,
-          name: business.name || null,
-          phone: business.phone || null,
+          id: latestBooking?.business_id || normalizedBusiness.id || null,
+          name: normalizedBusiness.name || null,
+          phone: normalizedBusiness.phone || null,
         }
       : null,
     lastMessage: latestMessage || null,
@@ -384,7 +385,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const grouped = new Map<string, any[]>();
       for (const booking of bookings || []) {
-        const key = booking?.user_id || booking?.profiles?.id || booking?.profiles?.email || booking?.id;
+        const profile = Array.isArray(booking?.profiles) ? booking.profiles[0] || null : booking?.profiles || null;
+        const key = booking?.user_id || profile?.id || profile?.email || booking?.id;
         if (!key) continue;
         const current = grouped.get(key) || [];
         current.push(booking);
@@ -395,8 +397,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const sorted = [...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         const bookingIDs = sorted.map((r: any) => r.id).filter(Boolean);
         const latestBooking = sorted[0];
+        const latestProfile = Array.isArray(latestBooking?.profiles) ? latestBooking.profiles[0] || null : latestBooking?.profiles || null;
         const customerUUID = sorted.find((r: any) => isValidUuid(r?.user_id))?.user_id
-          || sorted.find((r: any) => isValidUuid(r?.profiles?.id))?.profiles?.id
+          || sorted.find((r: any) => {
+            const profile = Array.isArray(r?.profiles) ? r.profiles[0] || null : r?.profiles || null;
+            return isValidUuid(profile?.id);
+          })?.profiles?.[0]?.id
           || null;
         const threadID = customerUUID || `booking:${latestBooking?.id || customerId}`;
         const { data: msgs } = await supabase
@@ -421,7 +427,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           service: latestBooking?.service || 'Conversation',
           status: latestBooking?.status || 'pending',
           created_at: latestBooking?.created_at || new Date().toISOString(),
-          profiles: latestBooking?.profiles || null,
+          profiles: latestProfile,
           lastMessage: msgs?.[0] ?? null,
           unreadCount: count ?? 0,
         };
