@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   // Get booking (two-step to avoid FK join issues)
   let { data: booking, error: bErr } = await sb
     .from('bookings')
-    .select('id, status, user_id, business_id, customer_proposed_price_cents, businesses(owner_id, stripe_onboarded, stripe_account_id, name)')
+    .select('id, status, user_id, business_id, customer_proposed_price_cents, businesses(owner_id, owner_email, stripe_onboarded, stripe_account_id, name)')
     .eq('id', bookingId)
     .maybeSingle();
 
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     }
     const { data: bizRow, error: bizErr } = await sb
       .from('businesses')
-      .select('owner_id, stripe_onboarded, stripe_account_id, name')
+      .select('owner_id, owner_email, stripe_onboarded, stripe_account_id, name')
       .eq('id', booking.business_id)
       .maybeSingle();
     if (bizErr || !bizRow) return res.status(404).json({ error: 'Business not found' });
@@ -92,7 +92,15 @@ export default async function handler(req, res) {
   }
 
   const biz = booking.businesses;
-  if (!biz || biz.owner_id !== user.id) return res.status(403).json({ error: 'Access denied' });
+  const normalizedUserEmail = String(user.email || '').toLowerCase().trim();
+  const normalizedOwnerEmail = String((biz as any)?.owner_email || '').toLowerCase().trim();
+  const isOwner =
+    !!biz
+    && (
+      biz.owner_id === user.id
+      || (!!normalizedUserEmail && normalizedOwnerEmail === normalizedUserEmail)
+    );
+  if (!isOwner) return res.status(403).json({ error: 'Access denied' });
 
   // Ensure business has Stripe connected
   if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {

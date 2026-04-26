@@ -22,11 +22,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const sb = getSupabase();
-    const primarySelect = 'id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,edu_verified,public_visibility,public_show_name,public_show_media,school_domain,campus_school_name,stripe_onboarded,stripe_account_id,is_onboarded';
-    const legacySelect = 'id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,edu_verified,public_visibility,school_domain,is_onboarded';
+    const currentSelect = 'id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,edu_verified,public_visibility,public_show_name,public_show_photos,school_domain,campus_school_name,stripe_onboarded,stripe_account_id,is_onboarded,approved_at,published_at,trust_status,trust_flagged';
+    const compatibilitySelect = 'id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,edu_verified,public_visibility,public_show_name,public_show_media,school_domain,campus_school_name,stripe_onboarded,stripe_account_id,is_onboarded,approved_at,published_at,trust_status,trust_flagged';
+    const legacySelect = 'id,name,slug,description,address,lat,lng,service_tags,cover_url,media_urls,phone,website,calendly_url,rating,review_count,price_tier,founder50,availability_status,campus_provider,edu_verified,public_visibility,school_domain,is_onboarded,approved_at,published_at,trust_status,trust_flagged';
     let query = sb
       .from('businesses')
-      .select(primarySelect)
+      .select(currentSelect)
       .eq('is_onboarded', true)
       .limit(1);
 
@@ -34,6 +35,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     else query = query.eq('slug', slug);
 
     let { data, error } = await query.maybeSingle();
+    if (error) {
+      let fallback = sb
+        .from('businesses')
+        .select(compatibilitySelect)
+        .eq('is_onboarded', true)
+        .limit(1);
+      if (id) fallback = fallback.eq('id', id);
+      else fallback = fallback.eq('slug', slug);
+      const fallbackResult = await fallback.maybeSingle();
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
     if (error) {
       let fallback = sb
         .from('businesses')

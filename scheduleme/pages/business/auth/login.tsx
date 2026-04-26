@@ -186,7 +186,11 @@ const BusinessLoginPage: NextPage = () => {
         if (error) throw error;
         setSuccess('Check your email for a reset link.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const signInPayload: any = { email, password };
+        if (captchaToken) {
+          signInPayload.options = { captchaToken };
+        }
+        const { error } = await supabase.auth.signInWithPassword(signInPayload);
         if (error) throw error;
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) throw new Error('Authentication failed');
