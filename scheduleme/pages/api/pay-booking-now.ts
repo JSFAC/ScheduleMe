@@ -1,4 +1,3 @@
-// @ts-nocheck
 // pages/api/pay-booking-now.ts — Charge a booking immediately (consumer-initiated)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
@@ -260,12 +259,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
       .eq('id', booking.id);
 
-    const amountDollars = (totalChargeCents / 100).toFixed(2);
-    if (user.email) {
+  const amountDollars = (totalChargeCents / 100).toFixed(2);
+  const userMeta = (user as any)?.user_metadata || {};
+  const customerDisplayName =
+    userMeta?.full_name || userMeta?.name || user.email?.split('@')[0] || 'there';
+  if (user.email) {
       await sendNotifyEmail({
         type: 'payment_receipt_customer',
         to: user.email,
-        name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0] || 'there',
+        name: customerDisplayName,
         service: booking.service || 'Service',
         businessName: bizName || 'Your provider',
         amountDollars,
@@ -278,7 +280,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         type: 'payment_notification_business',
         to: bizEmail,
         businessName: bizName || 'Your business',
-        customerName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'A customer',
+        customerName: customerDisplayName || user.email || 'A customer',
         service: booking.service || 'Service',
         amountDollars,
         platformFeePercent,
@@ -293,7 +295,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           to: bizEmail,
           name: bizName || 'Your business',
           service: booking.service || 'Service',
-          customerName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'A customer',
+          customerName: customerDisplayName || user.email || 'A customer',
           bookingId: booking.id,
         });
       }

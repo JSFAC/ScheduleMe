@@ -9,6 +9,7 @@ import { useDm } from '../lib/DarkModeContext';
 import { issuePaymentAccessTicket } from '../lib/paymentAccess';
 
 function getSupabase() {
+  if (typeof window === 'undefined') return null;
   return getSupabaseClient();
 }
 
@@ -72,6 +73,7 @@ const BookPage: NextPage = () => {
 
     // Auto-fill form from logged-in session
     const supabase = getSupabase();
+    if (!supabase) return;
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const u = session.user;
@@ -100,7 +102,13 @@ const BookPage: NextPage = () => {
         return;
       }
 
-      const { data, error } = await getSupabase()
+      const supabase = getSupabase();
+      if (!supabase) {
+        if (!cancelled) setProviderAcceptsPayments(true);
+        return;
+      }
+
+      const { data, error } = await supabase
         .from('businesses')
         .select('stripe_onboarded, stripe_account_id')
         .eq('id', provider.id)
@@ -150,6 +158,11 @@ const BookPage: NextPage = () => {
       }
 
       const supabase = getSupabase();
+      if (!supabase) {
+        setError('Booking is not ready yet. Please try again in a moment.');
+        setLoading(false);
+        return;
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         router.push(`/signin?next=${encodeURIComponent('/book')}`);

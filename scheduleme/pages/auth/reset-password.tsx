@@ -1,15 +1,20 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Nav from '../../components/Nav';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 
 const MIN_PASSWORD_LEN = 8;
 const MAX_PASSWORD_LEN = 128;
 
+function getBrowserSupabase() {
+  if (typeof window === 'undefined') return null;
+  return getSupabaseClient();
+}
+
 const ResetPasswordPage: NextPage = () => {
-  const supabase = useMemo(() => getSupabaseClient(), []);
+  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseClient> | null>(null);
   const [bootState, setBootState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [bootError, setBootError] = useState<string>('');
   const [password, setPassword] = useState('');
@@ -19,6 +24,11 @@ const ResetPasswordPage: NextPage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    setSupabase(getBrowserSupabase());
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
     let mounted = true;
     (async () => {
       try {
@@ -62,6 +72,10 @@ const ResetPasswordPage: NextPage = () => {
     e.preventDefault();
     if (submitting) return;
     setError('');
+    if (!supabase) {
+      setError('Reset is not ready yet. Please try again in a moment.');
+      return;
+    }
 
     if (password.length < MIN_PASSWORD_LEN || password.length > MAX_PASSWORD_LEN) {
       setError(`Password must be between ${MIN_PASSWORD_LEN} and ${MAX_PASSWORD_LEN} characters.`);

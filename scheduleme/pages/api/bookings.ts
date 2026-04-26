@@ -1,4 +1,3 @@
-// @ts-nocheck
 // pages/api/bookings.ts — SECURED + completion proof + consumer confirmation + disputes
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
@@ -436,7 +435,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (service) {
       const svcCheck = validateAndFilter(service, { maxLength: 500, fieldName: 'Service description' });
-      if (!svcCheck.ok) return res.status(400).json({ error: svcCheck.error });
+      if (!svcCheck.ok) return res.status(400).json({ error: 'error' in svcCheck ? svcCheck.error : 'Invalid service description' });
     }
 
     const safeAddress = typeof address === 'string' ? address.trim().slice(0, 300) : null;

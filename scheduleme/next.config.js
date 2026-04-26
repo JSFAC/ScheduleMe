@@ -29,7 +29,7 @@ const securityHeaders = [
 
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
+  typescript: { ignoreBuildErrors: false },
   reactStrictMode: true,
   async redirects() {
     return [

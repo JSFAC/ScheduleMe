@@ -1,7 +1,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import BusinessNav from '../../../components/BusinessNav';
 import { getSupabaseClient } from '../../../lib/supabaseClient';
@@ -9,8 +9,13 @@ import { getSupabaseClient } from '../../../lib/supabaseClient';
 const MIN_PASSWORD_LEN = 8;
 const MAX_PASSWORD_LEN = 128;
 
+function getBrowserSupabase() {
+  if (typeof window === 'undefined') return null;
+  return getSupabaseClient();
+}
+
 const SetProviderPasswordPage: NextPage = () => {
-  const supabase = useMemo(() => getSupabaseClient(), []);
+  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseClient> | null>(null);
   const router = useRouter();
   const [bootState, setBootState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [bootError, setBootError] = useState('');
@@ -20,7 +25,12 @@ const SetProviderPasswordPage: NextPage = () => {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
+  useEffect(() => {
+    setSupabase(getBrowserSupabase());
+  }, []);
+
   async function findBusinessForSession(session: any) {
+    if (!supabase) return null;
     const normalizedEmail = String(session?.user?.email || '').toLowerCase().trim();
     const byOwnerId = await supabase
       .from('businesses')
@@ -48,6 +58,7 @@ const SetProviderPasswordPage: NextPage = () => {
   }
 
   useEffect(() => {
+    if (!supabase) return;
     let mounted = true;
     (async () => {
       try {
@@ -100,6 +111,10 @@ const SetProviderPasswordPage: NextPage = () => {
     e.preventDefault();
     if (submitting) return;
     setError('');
+    if (!supabase) {
+      setError('Password setup is not ready yet. Please try again in a moment.');
+      return;
+    }
 
     if (password.length < MIN_PASSWORD_LEN || password.length > MAX_PASSWORD_LEN) {
       setError(`Password must be between ${MIN_PASSWORD_LEN} and ${MAX_PASSWORD_LEN} characters.`);
@@ -206,4 +221,3 @@ const SetProviderPasswordPage: NextPage = () => {
 };
 
 export default SetProviderPasswordPage;
-

@@ -10,7 +10,11 @@ import BrandRouteLoader from './BrandRouteLoader';
 interface NavProps { variant?: 'light' | 'dark'; }
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
+  if (typeof window === 'undefined') return null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
 }
 
 // Cache key — avoids async flash that causes the nav layout shift/shake
@@ -79,6 +83,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   useEffect(() => {
     const supabase = getSupabase();
+    if (!supabase) return;
     // Verify cache against real session (silently, no re-render if same)
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ? {
@@ -117,13 +122,15 @@ export default function Nav({ variant = 'light' }: NavProps) {
     setSigningOut(true);
     setMenuOpen(false);
     const supabase = getSupabase();
-    try {
-      await Promise.race([
-        supabase.auth.signOut(),
-        new Promise((resolve) => setTimeout(resolve, 3000)),
-      ]);
-    } catch {
-      // Continue with local cleanup even if remote sign-out request fails.
+    if (supabase) {
+      try {
+        await Promise.race([
+          supabase.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 3000)),
+        ]);
+      } catch {
+        // Continue with local cleanup even if remote sign-out request fails.
+      }
     }
     writeCache(null);
     setUser(null);
@@ -292,9 +299,10 @@ export default function Nav({ variant = 'light' }: NavProps) {
   useEffect(() => {
     if (!user?.email) return;
     // Check if user owns a business
-    const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
+    const sbBiz = getSupabase();
+    const supabase = getSupabase();
+    if (!sbBiz || !supabase) return;
     sbBiz.from('businesses').select('id').eq('owner_email', user.email).maybeSingle().then(({data}) => { if(data?.id) setIsBiz(true); });
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
     supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
       .then(({ data }) => {
         const verified = data?.edu_verified === true;
