@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { setSecurityHeaders, rateLimit, getClientIp } from '../../../lib/apiSecurity';
-import { verifyHcaptcha } from '../../../lib/captcha';
+import { requireCaptcha } from '../../../lib/captcha';
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -78,10 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const ip = getClientIp(req);
-    if (typeof captchaToken === 'string' && captchaToken.trim()) {
-      const ok = await verifyHcaptcha(captchaToken.trim(), ip);
-      if (!ok) return res.status(400).json({ error: 'Captcha verification failed. Please try again.' });
-    }
+    if (!(await requireCaptcha(req, res, captchaToken, ip))) return;
 
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase.auth.admin.generateLink({

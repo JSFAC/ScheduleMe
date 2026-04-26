@@ -70,10 +70,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getSupabase();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+  const safeService = String(service || '').trim().slice(0, 120) || 'Service Booking';
+  const safeUserName = String(user_name || '').trim().slice(0, 100) || 'Customer';
+  const safeUserPhone = String(user_phone || '').trim().slice(0, 40);
+  const safeNote = String(note || '').trim().slice(0, 1000);
+  const safeTimezone = String(timezone || 'America/Los_Angeles').trim().slice(0, 60) || 'America/Los_Angeles';
 
   const { data: biz } = await supabase
     .from('businesses')
-    .select('id, stripe_account_id, stripe_onboarded, owner_id')
+    .select('id, name, stripe_account_id, stripe_onboarded, owner_id')
     .eq('id', business_id)
     .maybeSingle();
   if (!biz) return res.status(404).json({ error: 'Business not found' });
@@ -111,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         quantity: 1,
         price_data: {
           currency: 'usd',
-          product_data: { name: service.slice(0, 120) },
+          product_data: { name: safeService },
           unit_amount: serviceAmount,
         },
       },
@@ -129,22 +134,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       source: 'ios-apple-pay',
       business_id: String(business_id),
       user_id: String(user.id),
-      user_name: String(user_name || '').slice(0, 100),
-      user_phone: String(user_phone || '').slice(0, 40),
+      booking_pending_create: '1',
+      business_name: String(biz.name || ''),
+      user_name: safeUserName,
+      user_phone: safeUserPhone,
       user_email: normalizedPayloadEmail,
-      service: String(service || '').slice(0, 120),
-      note: String(note || '').slice(0, 1000),
+      service: safeService,
+      note: safeNote,
       scheduled_start: startIso,
       scheduled_end: endIso || '',
-      timezone: String(timezone || 'America/Los_Angeles').slice(0, 60),
+      timezone: safeTimezone,
       service_price_cents: String(serviceAmount),
+      service_amount_cents: String(serviceAmount),
       protection_fee_cents: String(safeProtectionFee),
+      total_amount_cents: String(totalAmount),
     },
     payment_intent_data: {
       metadata: {
         source: 'ios-apple-pay',
         business_id: String(business_id),
+        business_name: String(biz.name || ''),
         user_id: String(user.id),
+        booking_pending_create: '1',
+        user_name: safeUserName,
+        user_phone: safeUserPhone,
+        user_email: normalizedPayloadEmail,
+        service: safeService,
+        note: safeNote,
+        scheduled_start: startIso,
+        scheduled_end: endIso || '',
+        timezone: safeTimezone,
+        service_amount_cents: String(serviceAmount),
+        protection_fee_cents: String(safeProtectionFee),
+        total_amount_cents: String(totalAmount),
       },
     },
   });
@@ -152,4 +174,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session.url) return res.status(500).json({ error: 'Failed to create checkout session' });
   return res.status(200).json({ url: session.url });
 }
-
