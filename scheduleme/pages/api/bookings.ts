@@ -6,6 +6,7 @@ import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '../../lib/providerTrust';
+import { isAwayWindow } from '../../lib/founder50';
 
 const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
 const VALID_STATUSES = [
@@ -59,6 +60,141 @@ function buildScheduledStart(scheduledDate?: string, scheduledSlot?: string, sch
     base.setHours(parsed.hours, parsed.minutes, 0, 0);
   }
   return base.toISOString();
+}
+
+type HourEntry = { day: string; time: string };
+const FULL_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAY_ABBREV_TO_FULL: Record<string, string> = {
+  sun: 'Sunday',
+  mon: 'Monday',
+  tue: 'Tuesday',
+  tues: 'Tuesday',
+  wed: 'Wednesday',
+  thu: 'Thursday',
+  thur: 'Thursday',
+  thurs: 'Thursday',
+  fri: 'Friday',
+  sat: 'Saturday',
+};
+
+function normalizeHours(hours: HourEntry[] | Record<string, string> | undefined): HourEntry[] {
+  if (!hours) return [];
+  if (Array.isArray(hours)) return hours;
+  const out: HourEntry[] = [];
+  for (const [day, time] of Object.entries(hours)) {
+    if (typeof time === 'string' && time.trim()) out.push({ day, time });
+  }
+  return out;
+}
+
+function normalizeDayNameToken(input: string): string {
+  const raw = String(input || '').trim().toLowerCase().replace(/\./g, '');
+  if (!raw) return '';
+  if (DAY_ABBREV_TO_FULL[raw]) return DAY_ABBREV_TO_FULL[raw];
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function dayPatternMatchesDate(pattern: string, date: Date): boolean {
+  const dayName = FULL_DAY_NAMES[date.getDay()];
+  const normalizedPattern = String(pattern || '').trim();
+  if (!normalizedPattern) return false;
+
+  const lower = normalizedPattern.toLowerCase();
+  if (lower.includes('daily') || lower.includes('every day')) return true;
+
+  const rangeMatch = normalizedPattern.match(/(.+?)\s*(?:–|—|-|\bto\b)\s*(.+)/i);
+  if (rangeMatch) {
+    const startName = normalizeDayNameToken(rangeMatch[1]);
+    const endName = normalizeDayNameToken(rangeMatch[2]);
+    const s = FULL_DAY_NAMES.indexOf(startName);
+    const e = FULL_DAY_NAMES.indexOf(endName);
+    const d = FULL_DAY_NAMES.indexOf(dayName);
+    if (s >= 0 && e >= 0 && d >= 0) {
+      return s <= e ? (d >= s && d <= e) : (d >= s || d <= e);
+    }
+  }
+
+  const tokens = normalizedPattern.split(/[,&/]/).map((t) => normalizeDayNameToken(t)).filter(Boolean);
+  if (tokens.some((t) => t === dayName)) return true;
+
+  const patternLower = normalizedPattern.toLowerCase();
+  const fullLower = dayName.toLowerCase();
+  const shortLower = fullLower.slice(0, 3);
+  return patternLower.includes(fullLower) || patternLower.includes(shortLower);
+}
+
+function parseTimeTokenToMinutes(token: string): number | null {
+  const v = String(token || '').trim();
+  if (!v) return null;
+
+  let m = v.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const mins = parseInt(m[2], 10);
+    const ap = m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60 + mins;
+  }
+
+  m = v.match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const ap = m[2].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60;
+  }
+
+  m = v.match(/^(\d{1,2}):(\d{2})$/);
+  if (m) {
+    const h = parseInt(m[1], 10);
+    const mins = parseInt(m[2], 10);
+    if (h >= 0 && h <= 23 && mins >= 0 && mins <= 59) return h * 60 + mins;
+  }
+
+  return null;
+}
+
+function getHoursForDate(hoursInput: HourEntry[] | Record<string, string> | undefined, date: Date): { open: number; close: number } | null {
+  const hours = normalizeHours(hoursInput);
+  if (!hours.length) return null;
+  let sawNonClosedMatch = false;
+  for (const h of hours) {
+    if (!dayPatternMatchesDate(h.day, date)) continue;
+    const timeRaw = String(h.time || '').trim();
+    if (!timeRaw) continue;
+    const lower = timeRaw.toLowerCase();
+    if (lower.includes('closed')) continue;
+
+    sawNonClosedMatch = true;
+    if (lower === 'by appointment') return { open: 8 * 60, close: 20 * 60 };
+    if (lower === '24 hours' || lower === '24hrs' || lower === '24 hr') return { open: 0, close: 24 * 60 };
+
+    const parts = timeRaw.split(/\s*(?:–|—|-|\bto\b)\s*/i).map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const open = parseTimeTokenToMinutes(parts[0]);
+      const close = parseTimeTokenToMinutes(parts[1]);
+      if (open !== null && close !== null && close > open) return { open, close };
+    }
+  }
+  if (sawNonClosedMatch) return { open: 8 * 60, close: 20 * 60 };
+  return null;
+}
+
+function isScheduledWithinBusinessAvailability(business: any, scheduledStartIso?: string | null): boolean {
+  if (!scheduledStartIso) return true;
+  const scheduledDate = new Date(scheduledStartIso);
+  if (Number.isNaN(scheduledDate.getTime())) return false;
+  if (isAwayWindow(business, scheduledDate)) return false;
+
+  const hoursForDate = getHoursForDate(business?.hours, scheduledDate);
+  const normalizedHours = normalizeHours(business?.hours);
+  if (normalizedHours.length && !hoursForDate) return false;
+  if (!hoursForDate) return true;
+
+  const minutes = scheduledDate.getHours() * 60 + scheduledDate.getMinutes();
+  return minutes >= hoursForDate.open && minutes < hoursForDate.close;
 }
 
 function parseConfirmationWindowHours() {
@@ -141,8 +277,15 @@ async function buildBusinessByIdMap(
   let error: any = null;
   ({ data, error } = await supabase
     .from('businesses')
-    .select('id, name, phone, email')
+    .select('id, name, phone, owner_email, email')
     .in('id', ids));
+
+  if (error && isMissingColumnError(error)) {
+    ({ data, error } = await supabase
+      .from('businesses')
+      .select('id, name, phone, owner_email')
+      .in('id', ids));
+  }
 
   if (error && isMissingColumnError(error)) {
     ({ data, error } = await supabase
@@ -310,7 +453,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data: businessRow } = await supabase
         .from('businesses')
-        .select('id, availability_status, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key')
+        .select('id, availability_status, break_until, away_start, away_end, hours, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key')
         .eq('id', business_id)
         .maybeSingle();
       if (!businessRow) return res.status(404).json({ error: 'Provider not found' });
@@ -321,6 +464,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (availabilityStatus && availabilityStatus !== 'open') {
         return res.status(409).json({
           error: `Provider is currently ${availabilityStatus} and not accepting bookings.`,
+        });
+      }
+      if (!isScheduledWithinBusinessAvailability(businessRow, scheduledStart)) {
+        return res.status(409).json({
+          error: 'That time is outside the provider availability window.',
         });
       }
 
@@ -723,7 +871,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           completion_proof_submitted_at: b.completion_proof_submitted_at ?? b.completion_proof_created_at ?? null,
           business_name: businessById[b.business_id]?.name ?? null,
           business_phone: businessById[b.business_id]?.phone ?? null,
-          business_email: businessById[b.business_id]?.email ?? null,
+          business_email: businessById[b.business_id]?.owner_email ?? businessById[b.business_id]?.email ?? null,
           businesses: undefined,
         }));
         return res.status(200).json({ bookings });

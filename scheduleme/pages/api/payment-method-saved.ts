@@ -13,6 +13,36 @@ function getSupabase() {
   );
 }
 
+async function resolveUserIdsByEmail(supabase: ReturnType<typeof getSupabase>, email?: string | null): Promise<string[]> {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return [];
+  const ids = new Set<string>();
+
+  try {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalized)
+      .limit(50);
+    for (const row of profiles || []) {
+      if (typeof (row as any)?.id === 'string') ids.add((row as any).id);
+    }
+  } catch {}
+
+  try {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', normalized)
+      .limit(50);
+    for (const row of users || []) {
+      if (typeof (row as any)?.id === 'string') ids.add((row as any).id);
+    }
+  } catch {}
+
+  return Array.from(ids);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -35,12 +65,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const isOwner = booking.user_id === user.id;
   if (!isOwner && user.email) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, email')
-      .eq('email', user.email)
-      .maybeSingle();
-    if (!profile?.id || booking.user_id !== profile.id) {
+    const resolvedIds = await resolveUserIdsByEmail(supabase, user.email);
+    if (!resolvedIds.includes(String(booking.user_id || ''))) {
       return res.status(403).json({ error: 'Access denied' });
     }
   }
