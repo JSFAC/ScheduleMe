@@ -9,6 +9,7 @@ import Nav from '../components/Nav';
 import ReviewModal from '../components/ReviewModal';
 import { SkeletonBookingCard } from '../components/SkeletonCard';
 import { useDm } from '../lib/DarkModeContext';
+import { issuePaymentAccessTicket } from '../lib/paymentAccess';
 import { maybeSendWelcomeEmail } from '../lib/sendWelcome';
 import { createClient } from '@supabase/supabase-js';
 
@@ -426,14 +427,8 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
                   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
                   const { data: { session } } = await supabase.auth.getSession();
                   if (!session) return;
-                  const res = await fetch('/api/checkout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                    body: JSON.stringify({ booking_id: booking.id }),
-                  });
-                  const data = await res.json();
-                  if (data.url) window.location.href = data.url;
-                  else alert(data.error || 'Could not start checkout');
+                  issuePaymentAccessTicket(booking.id);
+                  window.location.href = `/pay/${booking.id}`;
                 }}
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm"
                 style={{ background: 'linear-gradient(135deg,#0F766E 0%,#0B5C56 100%)' }}>

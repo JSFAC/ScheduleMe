@@ -329,7 +329,9 @@ const Account: NextPage = () => {
       if (u.user_metadata?.notif_prefs) setNotifPrefs(p => ({ ...p, ...u.user_metadata.notif_prefs }));
       if (u.user_metadata?.addresses) setAddresses(u.user_metadata.addresses);
       try {
-        const res = await fetch(`/api/bookings?user_phone=${encodeURIComponent(u.phone || u.user_metadata?.phone || '')}`);
+        const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(u.id)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
         if (res.ok) { const data = await res.json(); setBookings(data.bookings || []); }
       } catch {}
       if (typeof window !== 'undefined') {

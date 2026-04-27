@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDm } from '../lib/DarkModeContext';
 import type { Business } from '../lib/mockBusinesses';
+import { issuePaymentAccessTicket } from '../lib/paymentAccess';
 
 /* ─── PureBtn: bypasses global button active-scale ─── */
 function PureBtn({ onClick, className, children, style, disabled }: {
@@ -490,19 +491,9 @@ function BookingView({ biz, onBack }: { biz: Business; onBack: () => void }) {
               const createdBooking = data?.booking;
               const amountCents = Number(createdBooking?.amount_cents || 0);
               if (amountCents > 0 && session) {
-                const checkoutRes = await fetch('/api/checkout', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${session.access_token}`,
-                  },
-                  body: JSON.stringify({ booking_id: createdBooking.id }),
-                });
-                const checkoutData = await checkoutRes.json().catch(() => ({}));
-                if (checkoutRes.ok && checkoutData?.url) {
-                  window.location.href = checkoutData.url;
-                  return;
-                }
+                issuePaymentAccessTicket(createdBooking.id);
+                window.location.href = `/pay/${createdBooking.id}`;
+                return;
               }
               setDone(true);
             } catch (e: any) {
