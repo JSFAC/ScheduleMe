@@ -13,6 +13,24 @@ function getSupabase() {
 const PROVIDER_SIGNUP_CTX_KEY = 'sm_provider_signup_ctx_v1';
 type OAuthProvider = 'google' | 'apple';
 
+function getFirstName(value: string): string {
+  return String(value || '').trim().split(/\s+/)[0] || '';
+}
+
+function isValidFirstName(value: string): boolean {
+  const firstName = getFirstName(value);
+  return /^[A-Za-z][A-Za-z' -]{1,29}$/.test(firstName);
+}
+
+function isValidEmail(value: string): boolean {
+  return /^\S+@\S+\.\S+$/.test(String(value || '').trim());
+}
+
+function isTrustedOAuthProviderName(value: string | null | undefined): boolean {
+  const provider = String(value || '').trim().toLowerCase();
+  return provider === 'google' || provider === 'apple';
+}
+
 const SignupPage: NextPage = () => {
   const router = useRouter();
 
@@ -20,12 +38,14 @@ const SignupPage: NextPage = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
+  const [signedInProvider, setSignedInProvider] = useState<string | null>(null);
 
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
@@ -34,6 +54,27 @@ const SignupPage: NextPage = () => {
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
 
   const [autoFinalizeDone, setAutoFinalizeDone] = useState(false);
+
+  const cleanBusinessName = businessName.trim();
+  const cleanFullName = fullName.trim();
+  const cleanEmail = email.trim().toLowerCase();
+  const firstNameWarning =
+    cleanFullName && !isValidFirstName(cleanFullName)
+      ? 'Please enter a valid first name in your full name.'
+      : null;
+  const emailWarning =
+    cleanEmail && !isValidEmail(cleanEmail)
+      ? 'Please enter a valid email address.'
+      : null;
+  const passwordWarning =
+    password && password.length < 8
+      ? 'Password must be at least 8 characters.'
+      : null;
+  const confirmPasswordWarning =
+    password && confirmPassword && password !== confirmPassword
+      ? 'Passwords do not match.'
+      : null;
+  const showConfirmPassword = password.length > 0;
 
   const ensureDraft = async (opts?: { name?: string; token?: string; agreed?: boolean }) => {
     const supabase = getSupabase();
@@ -115,6 +156,7 @@ const SignupPage: NextPage = () => {
       if (!active) return;
 
       setSignedInEmail(session?.user?.email || null);
+      setSignedInProvider(String((session?.user as any)?.app_metadata?.provider || ''));
 
       if (autoFinalizeDone) return;
       const isOauthReturn = String(router.query.oauth || '') === '1';
@@ -124,16 +166,15 @@ const SignupPage: NextPage = () => {
       try {
         const raw = typeof window !== 'undefined' ? sessionStorage.getItem(PROVIDER_SIGNUP_CTX_KEY) : null;
         const ctx = raw ? JSON.parse(raw) : null;
-        const token = String(ctx?.captchaToken || '').trim();
         const agreed = !!ctx?.agree;
         const name = String(ctx?.businessName || '').trim();
 
-        if (!token || !agreed || !name) {
-          setError('Please complete business name, terms, and captcha, then continue.');
+        if (!agreed || !name) {
+          setError('Please complete business name and terms, then continue.');
           return;
         }
 
-        await ensureDraft({ name, token, agreed });
+        await ensureDraft({ name, agreed });
       } catch {
         setError('Could not finish provider setup after sign-in. Please try again.');
       }
@@ -142,9 +183,10 @@ const SignupPage: NextPage = () => {
     return () => { active = false; };
   }, [router.query.oauth, autoFinalizeDone]);
 
-  const validateGate = () => {
+  const validateGate = (opts?: { requireCaptcha?: boolean }) => {
+    const requireCaptcha = opts?.requireCaptcha ?? true;
     setError(null);
-    if (!businessName.trim()) {
+    if (!cleanBusinessName) {
       setError('Business name is required.');
       return false;
     }
@@ -152,7 +194,7 @@ const SignupPage: NextPage = () => {
       setError('You must agree to the provider terms to continue.');
       return false;
     }
-    if (siteKey && !captchaToken) {
+    if (requireCaptcha && siteKey && !captchaToken) {
       setError('Please complete the captcha.');
       return false;
     }
@@ -160,7 +202,7 @@ const SignupPage: NextPage = () => {
   };
 
   const handleOAuth = async (provider: OAuthProvider) => {
-    if (!validateGate()) return;
+    if (!validateGate({ requireCaptcha: false })) return;
 
     setLoading(true);
     setError(null);
@@ -170,9 +212,8 @@ const SignupPage: NextPage = () => {
       const supabase = getSupabase();
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(PROVIDER_SIGNUP_CTX_KEY, JSON.stringify({
-          businessName: businessName.trim(),
+          businessName: cleanBusinessName,
           agree: true,
-          captchaToken,
         }));
       }
 
@@ -191,17 +232,26 @@ const SignupPage: NextPage = () => {
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateGate()) return;
+    if (!validateGate({ requireCaptcha: true })) return;
 
-    const cleanName = fullName.trim();
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail || !/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+    if (!cleanFullName || !isValidFirstName(cleanFullName)) {
+      setError('Please enter your full name with a valid first name.');
+      return;
+    }
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
       setError('Please enter a valid email address.');
       return;
     }
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (!confirmPassword) {
+      setError('Please confirm your password.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
 
@@ -214,7 +264,7 @@ const SignupPage: NextPage = () => {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
-        options: { data: { full_name: cleanName || businessName.trim() } },
+        options: { data: { full_name: cleanFullName || cleanBusinessName } },
       });
       if (signUpError) throw signUpError;
 
@@ -224,7 +274,7 @@ const SignupPage: NextPage = () => {
         return;
       }
 
-      const ok = await ensureDraft({ agreed: true, token: captchaToken, name: businessName.trim() });
+      const ok = await ensureDraft({ agreed: true, token: captchaToken, name: cleanBusinessName });
       if (!ok) setLoading(false);
     } catch (e: any) {
       setError(e?.message || 'Could not create account.');
@@ -295,6 +345,7 @@ const SignupPage: NextPage = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
+                {firstNameWarning && <p className="mt-1.5 text-xs text-amber-300">{firstNameWarning}</p>}
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-[0.12em] font-semibold text-neutral-500 mb-1.5">Email</label>
@@ -306,6 +357,7 @@ const SignupPage: NextPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
+                {emailWarning && <p className="mt-1.5 text-xs text-amber-300">{emailWarning}</p>}
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-[0.12em] font-semibold text-neutral-500 mb-1.5">Password</label>
@@ -317,7 +369,22 @@ const SignupPage: NextPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                {passwordWarning && <p className="mt-1.5 text-xs text-amber-300">{passwordWarning}</p>}
               </div>
+              {showConfirmPassword && (
+                <div>
+                  <label className="block text-[11px] uppercase tracking-[0.12em] font-semibold text-neutral-500 mb-1.5">Confirm password</label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                  {confirmPasswordWarning && <p className="mt-1.5 text-xs text-amber-300">{confirmPasswordWarning}</p>}
+                </div>
+              )}
 
               <div className={`rounded-xl border p-4 ${agree ? 'border-neutral-700' : 'border-neutral-800'}`}>
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -387,9 +454,13 @@ const SignupPage: NextPage = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!validateGate()) return;
+                    if (!validateGate({ requireCaptcha: !isTrustedOAuthProviderName(signedInProvider) })) return;
                     setLoading(true);
-                    ensureDraft({ agreed: true, token: captchaToken, name: businessName.trim() }).finally(() => setLoading(false));
+                    ensureDraft({
+                      agreed: true,
+                      token: isTrustedOAuthProviderName(signedInProvider) ? '' : captchaToken,
+                      name: cleanBusinessName,
+                    }).finally(() => setLoading(false));
                   }}
                   disabled={loading}
                   className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg bg-accent text-white disabled:opacity-60"

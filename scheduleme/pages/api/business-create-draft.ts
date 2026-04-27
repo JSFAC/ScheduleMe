@@ -23,6 +23,11 @@ function defaultBusinessName(ownerName: string, email: string): string {
   return local ? `${local} Services` : 'New Provider';
 }
 
+function isTrustedOAuthProvider(user: unknown): boolean {
+  const provider = String((user as any)?.app_metadata?.provider || '').trim().toLowerCase();
+  return provider === 'google' || provider === 'apple';
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -33,7 +38,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { businessName, captchaToken, agree } = req.body || {};
   if (agree !== true) return res.status(400).json({ error: 'You must agree to the terms.' });
-  if (!(await requireCaptcha(req, res, captchaToken, getClientIp(req)))) return;
+  if (!isTrustedOAuthProvider(user)) {
+    if (!(await requireCaptcha(req, res, captchaToken, getClientIp(req)))) return;
+  }
 
   const supabase = getSupabase();
   const normalizedEmail = String(user.email || '').toLowerCase().trim();

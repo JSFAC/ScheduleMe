@@ -1,24 +1,42 @@
 // lib/captcha.ts — hCaptcha verification helper
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+function isLikelyIp(value: string): boolean {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return false;
+  if (trimmed === 'unknown') return false;
+  return /^[a-fA-F0-9:.]+$/.test(trimmed);
+}
+
 export async function verifyHcaptcha(token: string, ip?: string | null): Promise<boolean> {
   const secret = process.env.HCAPTCHA_SECRET;
   if (!secret) return true; // disabled unless configured
   if (!token) return false;
 
   try {
-    const body = new URLSearchParams();
-    body.set('secret', secret);
-    body.set('response', token);
-    if (ip) body.set('remoteip', ip);
+    const submit = async (remoteIp?: string | null) => {
+      const body = new URLSearchParams();
+      body.set('secret', secret);
+      body.set('response', token);
+      if (remoteIp && isLikelyIp(remoteIp)) body.set('remoteip', remoteIp);
 
-    const res = await fetch('https://hcaptcha.com/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-    const data = await res.json();
-    return data?.success === true;
+      const res = await fetch('https://hcaptcha.com/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      return res.json();
+    };
+
+    const firstAttempt = await submit(ip);
+    if (firstAttempt?.success === true) return true;
+
+    if (ip && isLikelyIp(ip)) {
+      const fallbackAttempt = await submit(null);
+      return fallbackAttempt?.success === true;
+    }
+
+    return false;
   } catch {
     return false;
   }
