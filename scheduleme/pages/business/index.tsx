@@ -3,8 +3,9 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import BusinessNav from '../../components/BusinessNav';
+import { createProviderDraft, getProviderAccessState, type ProviderAccessState } from '../../lib/providerClient';
 
 function useReveal(selector: string, delay = 90) {
   useEffect(() => {
@@ -42,7 +43,7 @@ const WHY_ITEMS = [
 
 const HOW_STEPS = [
   { step: 1, title: 'Create your profile', desc: 'Add your services, pricing, coverage area, and photos. Takes about 5 minutes.' },
-  { step: 2, title: 'Complete checklist', desc: 'Add services, media, and Stripe to unlock publish.' },
+  { step: 2, title: 'Get verified', desc: 'We review your profile so students can trust the listing before you go live.' },
   { step: 3, title: 'Receive matched leads', desc: 'When a student requests your service nearby, you get an instant alert with their details.' },
   { step: 4, title: 'Confirm and complete', desc: 'Confirm the booking, message the customer, and get paid after completion.' },
 ];
@@ -59,7 +60,7 @@ const FAQ = [
   { q: 'How are leads matched to my profile?', a: 'Requests are matched by service category, campus area, and availability so you only see relevant inquiries.' },
   { q: 'Can I set my own service area?', a: 'Yes. During onboarding you set your coverage radius. You can adjust this anytime from your dashboard.' },
   { q: 'What if a lead is bad quality?', a: 'If a request does not match your profile or looks incorrect, report it and we’ll review it quickly.' },
-  { q: 'How quickly can I go live?', a: 'As soon as your setup checklist is complete, you can publish instantly.' },
+  { q: 'How quickly will I be approved?', a: 'Most providers are reviewed and approved within 24 hours.' },
 ];
 
 const StarRating = () => (
@@ -78,6 +79,42 @@ const Business: NextPage = () => {
   useReveal('.js-test-b', 100);
   useReveal('.js-faq', 70);
   useReveal('.js-sec', 0);
+  const [providerState, setProviderState] = useState<ProviderAccessState>('loading');
+  const [providerCtaLoading, setProviderCtaLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const result = await getProviderAccessState();
+      if (!active) return;
+      setProviderState(result.state);
+    })();
+    return () => { active = false; };
+  }, []);
+
+  async function handleBecomeProvider() {
+    setProviderCtaLoading(true);
+    const result = await createProviderDraft();
+    if (result.ok) {
+      window.location.href = '/provider/dashboard';
+      return;
+    }
+    setProviderCtaLoading(false);
+  }
+
+  function renderProviderPrimaryCta(className: string, loggedOutLabel = 'Create Account') {
+    if (providerState === 'provider') {
+      return <Link href="/provider/dashboard" className={className}>Open Provider Hub</Link>;
+    }
+    if (providerState === 'consumer') {
+      return (
+        <button type="button" onClick={handleBecomeProvider} disabled={providerCtaLoading} className={`${className} disabled:opacity-60`}>
+          {providerCtaLoading ? 'Opening Provider Hub…' : 'Become a Provider'}
+        </button>
+      );
+    }
+    return <Link href="/signin?mode=signup&intent=provider" className={className}>{loggedOutLabel}</Link>;
+  }
 
   return (
     <>
@@ -113,9 +150,7 @@ const Business: NextPage = () => {
               ScheduleMe delivers campus‑matched leads that fit your service and availability. You pay only when jobs are completed — no setup fees, no lock‑in.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/provider/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
-                Join for Free →
-              </Link>
+              {renderProviderPrimaryCta('btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20', 'Create Account')}
               <a href="#how" className="inline-flex items-center justify-center px-10 py-4 rounded-xl border border-neutral-700 text-neutral-300 text-base font-semibold hover:bg-neutral-800 transition-colors">
                 See how it works
               </a>
@@ -132,7 +167,7 @@ const Business: NextPage = () => {
                 { value: '2,400+', label: 'providers joined' },
                 { value: '14', label: 'service categories' },
                 { value: '$0', label: 'to get started' },
-                { value: 'Instant', label: 'publish when ready' },
+                { value: '24 hr', label: 'approval time' },
                 { value: '4.8', label: 'provider rating' },
               ].map((s) => (
                 <li key={s.label} className="flex items-baseline gap-2 text-sm">
@@ -176,7 +211,7 @@ const Business: NextPage = () => {
             <div className="js-sec text-center mb-20">
               <span className="section-eyebrow mb-4 block">How It Works</span>
               <h2 id="how-biz-heading" className="text-4xl md:text-5xl font-bold text-white">
-                Up and running<br className="hidden md:block" /> in minutes.
+                Up and running<br className="hidden md:block" /> in 24 hours.
               </h2>
             </div>
             <ol className="relative space-y-0" role="list">
@@ -194,9 +229,7 @@ const Business: NextPage = () => {
               ))}
             </ol>
             <div className="js-sec mt-14 text-center">
-              <Link href="/provider/signup" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
-                Get Started Free →
-              </Link>
+              {renderProviderPrimaryCta('btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20', 'Create Account')}
             </div>
           </div>
         </section>
@@ -228,104 +261,19 @@ const Business: NextPage = () => {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="py-24 px-6 bg-neutral-900/30 border-y border-neutral-900" aria-labelledby="biz-pricing-heading">
-          <div className="mx-auto max-w-5xl">
-            <div className="js-sec text-center mb-12">
-              <span className="section-eyebrow mb-4 block">Pricing</span>
-              <h2 id="biz-pricing-heading" className="text-4xl md:text-5xl font-bold text-white mb-5">
-                Free to join. 12% when you earn.
-              </h2>
-              <p className="text-neutral-400 text-lg leading-relaxed max-w-2xl mx-auto">
-                No subscriptions. No monthly fees. No per-lead charges. You only pay when a customer pays you.
-              </p>
-            </div>
-
-            <div className="js-why space-y-6">
-              <div className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-7 md:p-9">
-                <p className="text-sm md:text-base text-neutral-400 leading-relaxed text-center">
-                  Founder50 note: standard platform fee is{' '}
-                  <span className="text-accent font-semibold">12%</span>, while Founder50 members are locked into{' '}
-                  <span className="text-accent font-semibold">6%</span> forever.
-                </p>
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    'No setup fees',
-                    'No monthly subscription',
-                    'No per-lead charges',
-                  ].map((item) => (
-                    <div key={item} className="rounded-xl bg-neutral-950/55 px-4 py-3 text-sm text-neutral-200 flex items-center justify-center gap-2">
-                      <span className="text-accent">✓</span>
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="rounded-3xl border border-neutral-800 bg-neutral-900/55 p-6 md:p-7">
-                  <h3 className="text-lg font-semibold text-white mb-4">What does 12% look like?</h3>
-                  <div className="space-y-3">
-                    {[
-                      { job: 'Leaky faucet repair', total: 150 },
-                      { job: 'Deep house cleaning', total: 280 },
-                      { job: 'Electrical panel work', total: 600 },
-                    ].map((example) => (
-                      <div key={example.job} className="rounded-xl bg-neutral-950/55 px-4 py-3">
-                        <p className="text-xs text-neutral-500 mb-2">{example.job}</p>
-                        <div className="space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-neutral-500">Customer pays</span>
-                            <span className="text-white font-semibold">${example.total}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-neutral-500">ScheduleMe (12%)</span>
-                            <span className="text-neutral-400">-${Math.round(example.total * 0.12)}</span>
-                          </div>
-                          <div className="h-px bg-neutral-800 my-1.5" />
-                          <div className="flex justify-between">
-                            <span className="text-neutral-300 font-semibold">You receive</span>
-                            <span className="text-accent font-bold">${Math.round(example.total * 0.88)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-neutral-800 bg-neutral-900/55 p-6 md:p-7">
-                  <h3 className="text-lg font-semibold text-white mb-4">Why providers switch</h3>
-                  <div className="rounded-2xl overflow-hidden">
-                    <div className="grid grid-cols-3 bg-neutral-900 border-b border-neutral-800">
-                      <div className="p-3 text-xs text-neutral-500 font-medium">Feature</div>
-                      <div className="p-3 text-xs text-neutral-500 font-medium text-center">Others</div>
-                      <div className="p-3 text-xs text-accent font-semibold text-center">ScheduleMe</div>
-                    </div>
-                    {[
-                      { label: 'Monthly subscription', them: true, us: false },
-                      { label: 'Per-lead fees', them: true, us: false },
-                      { label: 'Pay only when you earn', them: false, us: true },
-                      { label: 'Real-time SMS + email alerts', them: false, us: true },
-                    ].map((row, idx) => (
-                      <div key={row.label} className={`grid grid-cols-3 ${idx % 2 === 0 ? 'bg-neutral-950/35' : 'bg-neutral-950/65'}`}>
-                        <div className="p-3 text-xs text-neutral-300">{row.label}</div>
-                        <div className="p-3 text-center text-neutral-500">{row.them ? '✓' : '✕'}</div>
-                        <div className="p-3 text-center text-accent">{row.us ? '✓' : '✕'}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-                <Link href="/provider/signup" className="btn-primary text-base px-8 py-3.5 shadow-xl shadow-accent/20">
-                  Join for Free →
-                </Link>
-                <a href="#faq" className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl border border-neutral-700 text-neutral-200 text-base font-semibold hover:bg-neutral-800 transition-colors">
-                  Talk to us
-                </a>
-              </div>
-            </div>
+        {/* Pricing teaser */}
+        <section className="py-20 px-6 bg-neutral-900/30 border-y border-neutral-900" aria-labelledby="biz-pricing-teaser">
+          <div className="mx-auto max-w-3xl text-center js-sec">
+            <span className="section-eyebrow mb-4 block">Pricing</span>
+            <h2 id="biz-pricing-teaser" className="text-3xl md:text-4xl font-bold text-white mb-5">
+              Pay only for what you get
+            </h2>
+            <p className="text-neutral-400 mb-10 text-lg leading-relaxed">
+              Start free with $8 per lead, or go unlimited with Pro at $79/month.<br className="hidden md:block" /> No contracts, no hidden fees.
+            </p>
+            <Link href="/business/pricing" className="btn-primary text-base px-10 py-4 shadow-xl shadow-accent/20">
+              View Full Pricing →
+            </Link>
           </div>
         </section>
 
@@ -356,9 +304,7 @@ const Business: NextPage = () => {
             <p className="text-neutral-400 mb-10 text-lg leading-relaxed">
               Join free in 5 minutes. No credit card, no commitment.<br className="hidden md:block" /> Publish as soon as your checklist is complete.
             </p>
-            <Link href="/provider/signup" className="btn-primary text-base px-12 py-4 shadow-xl shadow-accent/20">
-              Create Your Provider Profile →
-            </Link>
+            {renderProviderPrimaryCta('btn-primary text-base px-12 py-4 shadow-xl shadow-accent/20', 'Create Account')}
           </div>
         </section>
       </main>

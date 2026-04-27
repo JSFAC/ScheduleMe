@@ -25,10 +25,13 @@ const AuthCallback: NextPage = () => {
   const router = useRouter();
 
   useEffect(() => {
+    if (!router.isReady) return;
     const supabase = getSupabase();
+    let handled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+    async function finalizeSession(session: any) {
+      if (handled || !session?.user) return;
+      handled = true;
         const email = session.user.email ?? '';
         const userId = session.user.id;
         const firstName = String(session.user.user_metadata?.first_name || '').trim();
@@ -39,36 +42,57 @@ const AuthCallback: NextPage = () => {
           String(session.user.user_metadata?.name || '').trim() ||
           fallbackFromParts;
 
+        const querySource = typeof router.query.source === 'string' ? router.query.source : '';
+        const metadataIntent = String(session.user?.user_metadata?.signup_intent || '').trim().toLowerCase();
         const source = localStorage.getItem('auth_source');
         localStorage.removeItem('auth_source');
         localStorage.removeItem('auth_intent');
 
-        if (source === 'business') {
-          // Check businesses table for this email
-          const { data: biz } = await supabase
-            .from('businesses')
-            .select('id')
-            .eq('owner_email', email)
-            .maybeSingle();
+        const isProviderSignup =
+          querySource === 'provider_signup' ||
+          metadataIntent === 'provider' ||
+          source === 'business';
 
-          if (biz) {
-            const { data: existingProfile } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', userId)
-              .maybeSingle();
-            const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
-            // Mark as business role in profiles
-            await supabase.from('profiles').upsert({
-              id: userId, email, name, role: nextRole, has_seen_welcome: true,
-            }, { onConflict: 'id', ignoreDuplicates: false });
-            router.replace('/provider/dashboard');
-          } else {
-            // Not a registered business — sign out but DO NOT delete their account
-            // Route to provider signup so they can agree to terms + complete onboarding.
-            await supabase.auth.signOut();
-            router.replace(`/provider/signup?from=oauth-login&email=${encodeURIComponent(email || '')}`);
+        if (isProviderSignup) {
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle();
+          const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
+          await supabase.from('profiles').upsert({
+            id: userId,
+            email,
+            name,
+            role: nextRole,
+            has_seen_welcome: true,
+          }, { onConflict: 'id', ignoreDuplicates: false });
+
+          const providerBusinessName = String(
+            session.user.user_metadata?.provider_business_name ||
+            session.user.user_metadata?.business_name ||
+            name ||
+            'New Provider'
+          ).trim();
+
+          const draftRes = await fetch('/api/business-create-draft', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              businessName: providerBusinessName,
+              agree: true,
+            }),
+          });
+          const draftData = await draftRes.json().catch(() => ({}));
+          if (!draftRes.ok) {
+            throw new Error(draftData?.error || 'Could not finish provider setup.');
           }
+
+          router.replace('/provider/dashboard');
+          return;
         } else {
           // Consumer flow — profiles is source of truth (trigger creates row on signup)
           // Belt+suspenders: create profile if trigger didn't fire (e.g. existing auth users)
@@ -114,15 +138,24 @@ const AuthCallback: NextPage = () => {
             }
           }
         }
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) finalizeSession(session).catch(() => {});
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session) {
+        await finalizeSession(session);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, router.isReady, router.query.source]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'transparent' }}>
-      <div className="relative h-6 w-6" aria-label="Signing in">
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+      <div className="relative h-12 w-12">
         <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
         <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
       </div>

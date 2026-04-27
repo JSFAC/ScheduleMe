@@ -40,13 +40,13 @@ function esc(value: string) {
 
 function confirmationHtml(name: string, actionLink: string) {
   return `
-    <div style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0b1020;color:#e5e7eb;border-radius:16px;">
-      <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8ea0b8;">ScheduleMe</p>
-      <h1 style="margin:0 0 10px;font-size:26px;line-height:1.2;color:#ffffff;">Confirm your account</h1>
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#c8d2e0;">Hi ${esc(name || 'there')}, tap below to verify your email and finish setting up your ScheduleMe account.</p>
-      <a href="${actionLink}" style="display:inline-block;padding:13px 22px;background:#00a38d;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;">Confirm Email</a>
-      <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#93a2b8;">If the button does not work, copy and paste this URL in your browser:</p>
-      <p style="margin:8px 0 0;font-size:12px;line-height:1.6;color:#9eb0c9;word-break:break-all;">${esc(actionLink)}</p>
+    <div style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f6f2e9;color:#1f2937;border-radius:20px;border:1px solid #d8efe7;">
+      <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#007e6d;font-weight:700;">ScheduleMe</p>
+      <h1 style="margin:0 0 10px;font-size:26px;line-height:1.2;color:#0f172a;">Confirm your account</h1>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#4b5563;">Hi ${esc(name || 'there')}, tap below to verify your email and finish setting up your ScheduleMe account.</p>
+      <a href="${actionLink}" style="display:inline-block;padding:13px 22px;background:#007e6d;color:#ffffff;text-decoration:none;border-radius:999px;font-weight:700;">Confirm Email</a>
+      <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#6b7280;">If the button does not work, copy and paste this URL in your browser:</p>
+      <p style="margin:8px 0 0;font-size:12px;line-height:1.6;color:#4b5563;word-break:break-all;">${esc(actionLink)}</p>
     </div>
   `;
 }
@@ -56,23 +56,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!(await rateLimit(req, res, { max: 6, windowMs: 15 * 60_000, keyPrefix: 'auth-email-signup' }))) return;
 
-  const { email, password, firstName, lastName, captchaToken, redirectTo } = req.body || {};
+  const { email, password, firstName, lastName, captchaToken, redirectTo, intent, businessName } = req.body || {};
 
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const normalizedFirstName = String(firstName || '').trim().slice(0, 40);
   const normalizedLastName = String(lastName || '').trim().slice(0, 40);
   const normalizedName = `${normalizedFirstName} ${normalizedLastName}`.trim().slice(0, 80);
+  const normalizedBusinessName = String(businessName || '').trim().slice(0, 60);
   const pwd = String(password || '');
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
+  const isProviderIntent = String(intent || '').trim().toLowerCase() === 'provider';
   const safeRedirectTo = typeof redirectTo === 'string' && isAllowedRedirect(redirectTo, siteUrl)
     ? redirectTo
-    : `${siteUrl}/auth/verified?source=email_signup`;
+    : `${siteUrl}/auth/callback?source=${isProviderIntent ? 'provider_signup' : 'email_signup'}`;
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ error: 'Enter a valid email address.' });
   }
-  if (!normalizedFirstName || !normalizedLastName) {
-    return res.status(400).json({ error: 'Please enter your first and last name.' });
+  if (!normalizedFirstName) {
+    return res.status(400).json({ error: 'Please enter your name.' });
   }
   if (pwd.length < 10) return res.status(400).json({ error: 'Password must be at least 10 characters.' });
 
@@ -92,6 +94,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           last_name: normalizedLastName,
           full_name: normalizedName,
           name: normalizedName,
+          signup_intent: isProviderIntent ? 'provider' : 'consumer',
+          provider_business_name: isProviderIntent && normalizedBusinessName ? normalizedBusinessName : undefined,
         },
       },
     });

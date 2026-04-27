@@ -32,6 +32,14 @@ function deriveNameFromMetadata(user: any): string {
   );
 }
 
+function deriveProviderBusinessName(user: any): string {
+  return String(
+    user?.user_metadata?.provider_business_name ||
+    user?.user_metadata?.business_name ||
+    ''
+  ).trim();
+}
+
 const VerifiedPage: NextPage = () => {
   const router = useRouter();
   const [phase, setPhase] = useState<'verifying' | 'verified' | 'error'>('verifying');
@@ -51,38 +59,52 @@ const VerifiedPage: NextPage = () => {
         const userId = session.user.id;
         const name = deriveNameFromMetadata(session.user);
 
+        const querySource = typeof router.query.source === 'string' ? router.query.source : '';
+        const metadataIntent = String(session.user?.user_metadata?.signup_intent || '').trim().toLowerCase();
         const source = localStorage.getItem('auth_source');
         localStorage.removeItem('auth_source');
         localStorage.removeItem('auth_intent');
 
         let target = '/home';
 
-        if (source === 'business') {
-          const { data: biz } = await supabase
-            .from('businesses')
-            .select('id')
-            .eq('owner_email', email)
-            .maybeSingle();
+        const isProviderSignup =
+          querySource === 'provider_signup' ||
+          metadataIntent === 'provider' ||
+          source === 'business';
 
-          if (biz) {
-            const { data: existingProfile } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', userId)
-              .maybeSingle();
-            const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
-            await supabase.from('profiles').upsert({
-              id: userId,
-              email,
-              name,
-              role: nextRole,
-              has_seen_welcome: true,
-            }, { onConflict: 'id', ignoreDuplicates: false });
-            target = '/provider/dashboard';
-          } else {
-            await supabase.auth.signOut();
-            target = '/provider/auth/login?error=not_a_business';
+        if (isProviderSignup) {
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle();
+          const nextRole = existingProfile?.role === 'admin' ? 'admin' : 'business';
+          await supabase.from('profiles').upsert({
+            id: userId,
+            email,
+            name,
+            role: nextRole,
+            has_seen_welcome: true,
+          }, { onConflict: 'id', ignoreDuplicates: false });
+
+          const businessName = deriveProviderBusinessName(session.user) || name || 'New Provider';
+          const draftRes = await fetch('/api/business-create-draft', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              businessName,
+              agree: true,
+            }),
+          });
+          const draftData = await draftRes.json().catch(() => ({}));
+          if (!draftRes.ok) {
+            throw new Error(draftData?.error || 'Could not finish provider setup.');
           }
+
+          target = '/provider/dashboard';
         } else {
           await supabase.from('profiles').upsert({
             id: userId,

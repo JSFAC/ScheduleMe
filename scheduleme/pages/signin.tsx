@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import { useState, useEffect, useRef } from 'react';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import Nav from '../components/Nav';
+import { isProviderIntent } from '../lib/providerClient';
 import { safeRedirect } from '../lib/safeRedirect';
 
 function getSupabase() {
@@ -29,11 +30,20 @@ const SignIn: NextPage = () => {
   const router = useRouter();
   const { next, admin } = router.query;
   const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const providerIntent = isProviderIntent(router.query.intent);
 
   // Default to signup tab if ?mode=signup is in the URL
   useEffect(() => {
     if (router.query.mode === 'signup') setTab('signup');
   }, [router.query.mode]);
+
+  useEffect(() => {
+    if (!router.isReady || !providerIntent) return;
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) router.replace('/provider/signup');
+    });
+  }, [router, router.isReady, providerIntent]);
   const [showEmail, setShowEmail] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -141,7 +151,7 @@ const SignIn: NextPage = () => {
 
   async function handleGoogle() {
     const supabase = getSupabase();
-    localStorage.setItem('auth_source', 'consumer');
+    localStorage.setItem('auth_source', providerIntent ? 'business' : 'consumer');
     const adminIntentRequested = admin === '1' || next === '/admin';
     const isAdminSignin = adminIntentRequested && hasValidAdminCodeSession();
     if (adminIntentRequested && !isAdminSignin) {
@@ -191,7 +201,10 @@ const SignIn: NextPage = () => {
             firstName: firstName.trim().slice(0, 40),
             lastName: lastName.trim().slice(0, 40),
             captchaToken: captchaToken || undefined,
-            redirectTo: emailRedirectTo,
+            redirectTo: providerIntent
+              ? `${window.location.origin}/auth/verified?source=provider_signup`
+              : emailRedirectTo,
+            intent: providerIntent ? 'provider' : undefined,
           }),
         });
         const payload = await response.json().catch(() => ({}));
@@ -218,6 +231,10 @@ const SignIn: NextPage = () => {
         const isAdminSignin = adminIntentRequested && hasValidAdminCodeSession();
         if (adminIntentRequested && !isAdminSignin) {
           router.push('/admin/login');
+          return;
+        }
+        if (providerIntent) {
+          router.push('/provider/signup');
           return;
         }
         const nextTarget = typeof next === 'string' ? next : '';

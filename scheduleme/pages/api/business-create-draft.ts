@@ -6,7 +6,7 @@ import { moderateText } from '../../lib/moderation';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Missing Supabase env vars');
   return createClient(url, key, { auth: { persistSession: false } });
 }
@@ -66,21 +66,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const ownerName = String(profileRow.data?.name || '').trim();
 
   const submittedName = String(businessName || '').trim();
-  if (!submittedName) return res.status(400).json({ error: 'Business name is required.' });
   const candidateName = submittedName || defaultBusinessName(ownerName, normalizedEmail);
   const moderation = await moderateText(candidateName);
   if (!moderation.ok) return res.status(400).json({ error: moderation.reason || 'Business name violates content policy' });
   const nameCheck = validateAndFilter(candidateName, { maxLength: 60, fieldName: 'Business name' });
-  if (!nameCheck.ok) {
-    return res.status(400).json({ error: 'error' in nameCheck ? nameCheck.error : 'Invalid business name' });
-  }
+  if (!nameCheck.ok) return res.status(400).json({ error: 'error' in nameCheck ? nameCheck.error : 'Invalid business name' });
   const cleanName = nameCheck.value;
 
   const ownerCandidate = ownerName || normalizedEmail.split('@')[0] || 'Provider';
   const ownerCheck = validateAndFilter(ownerCandidate, { maxLength: 60, fieldName: 'Owner name' });
-  if (!ownerCheck.ok) {
-    return res.status(400).json({ error: 'error' in ownerCheck ? ownerCheck.error : 'Invalid owner name' });
-  }
+  if (!ownerCheck.ok) return res.status(400).json({ error: 'error' in ownerCheck ? ownerCheck.error : 'Invalid owner name' });
 
   const slug = `${slugify(cleanName)}-${Date.now().toString(36)}`;
 
@@ -102,7 +97,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       owner_email: normalizedEmail,
       owner_id: user.id,
       is_onboarded: false,
-      public_visibility: false,
     })
     .select('id')
     .single();
