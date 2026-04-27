@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { setSecurityHeaders, rateLimit, requireAuth, getClientIp } from '../../lib/apiSecurity';
-import { requireCaptcha } from '../../lib/captcha';
+import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
 
@@ -23,11 +22,6 @@ function defaultBusinessName(ownerName: string, email: string): string {
   return local ? `${local} Services` : 'New Provider';
 }
 
-function isTrustedOAuthProvider(user: unknown): boolean {
-  const provider = String((user as any)?.app_metadata?.provider || '').trim().toLowerCase();
-  return provider === 'google' || provider === 'apple';
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -36,11 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAuth(req, res);
   if (!user) return;
 
-  const { businessName, captchaToken, agree } = req.body || {};
+  const { businessName, agree } = req.body || {};
   if (agree !== true) return res.status(400).json({ error: 'You must agree to the terms.' });
-  if (!isTrustedOAuthProvider(user)) {
-    if (!(await requireCaptcha(req, res, captchaToken, getClientIp(req)))) return;
-  }
 
   const supabase = getSupabase();
   const normalizedEmail = String(user.email || '').toLowerCase().trim();

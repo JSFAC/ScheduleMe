@@ -264,7 +264,10 @@ const SignupPage: NextPage = () => {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
-        options: { data: { full_name: cleanFullName || cleanBusinessName } },
+        options: {
+          data: { full_name: cleanFullName || cleanBusinessName },
+          ...(captchaToken ? { captchaToken } : {}),
+        },
       });
       if (signUpError) throw signUpError;
 
