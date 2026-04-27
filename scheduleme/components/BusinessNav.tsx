@@ -4,11 +4,11 @@ import Link from 'next/link';
 export default function BusinessNav() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800">
-      <nav className="mx-auto max-w-6xl px-4 sm:px-6 flex items-center justify-between" style={{ height: 'clamp(56px, 10vw, 72px)' }} aria-label="Provider navigation">
+      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: 'clamp(48px, 4vw, 60px)' }} aria-label="Provider navigation">
         <div className="flex-1 flex items-center min-w-0">
           <Link href="/business" className="group flex flex-col leading-none" aria-label="ScheduleMe for Providers">
-            <span className="text-xl font-black text-white transition-opacity group-hover:opacity-70" style={{ letterSpacing: '-0.03em' }}>
-              ScheduleMe
+            <span className="text-xl md:text-2xl font-black text-white transition-opacity group-hover:opacity-70" style={{ letterSpacing: '-0.03em' }}>
+              Schedule<span className="text-accent">Me</span>
             </span>
             <span className="text-[10px] font-semibold tracking-widest uppercase text-accent mt-0.5">
               for Providers
@@ -32,12 +32,12 @@ export default function BusinessNav() {
         </ul>
 
         <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3">
-          <Link href="/" className="hidden md:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
+          <Link href="/" className="hidden md:inline-flex items-center text-sm font-medium text-neutral-400 hover:text-neutral-200 transition-colors">
             Consumer site →
           </Link>
           <Link
-            href="/signin?mode=login&intent=provider"
-            className="hidden sm:inline-flex text-[11px] sm:text-sm font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors whitespace-nowrap"
+            href="/business/auth/login"
+            className="hidden sm:inline-flex items-center justify-center text-[11px] sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-neutral-900 text-neutral-100 hover:bg-neutral-800 border border-neutral-700 transition-colors whitespace-nowrap"
           >
             Log In
           </Link>

@@ -491,10 +491,57 @@ const Account: NextPage = () => {
   if (loading) return (
     <>
       <Nav />
-      <div className="min-h-screen flex items-center justify-center" style={{ background: dm ? '#0a0a0a' : '#f6f2e9' }}>
-        <div className="relative h-6 w-6">
-          <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+      <div className="min-h-screen" style={{ background: dm ? '#0a0a0a' : '#f6f2e9', paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))' }}>
+        <div className="mx-auto max-w-5xl px-6 py-6 space-y-5">
+          <div className="rounded-[28px] border px-6 py-5" style={{ background: dm ? '#121212' : '#fcfbf8', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-2xl animate-shimmer" />
+                <div className="space-y-2">
+                  <div className="h-3 w-24 rounded-full animate-shimmer" />
+                  <div className="h-6 w-40 rounded-xl animate-shimmer" />
+                  <div className="h-3 w-52 rounded-full animate-shimmer" />
+                </div>
+              </div>
+              <div className="h-11 w-36 rounded-2xl animate-shimmer" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border p-4 space-y-3" style={{ background: dm ? '#171717' : '#ffffff', borderColor: dm ? '#262626' : '#ececec' }}>
+                <div className="h-9 w-9 rounded-xl animate-shimmer" />
+                <div className="h-6 w-10 rounded-xl animate-shimmer" />
+                <div className="h-3 w-24 rounded-full animate-shimmer" />
+              </div>
+            ))}
+          </div>
+          <div className="rounded-2xl border p-1.5 flex gap-2" style={{ background: dm ? '#171717' : '#ffffff', borderColor: dm ? '#262626' : '#ececec' }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-10 flex-1 rounded-[14px] animate-shimmer" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-[1.05fr_1fr] gap-5">
+            <div className="rounded-[28px] border p-6 space-y-4" style={{ background: dm ? '#171717' : '#ffffff', borderColor: dm ? '#262626' : '#ececec' }}>
+              <div className="h-3 w-20 rounded-full animate-shimmer" />
+              <div className="h-6 w-36 rounded-xl animate-shimmer" />
+              <div className="space-y-3 pt-2">
+                {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 rounded-2xl animate-shimmer" />)}
+              </div>
+              <div className="h-12 rounded-2xl animate-shimmer" />
+            </div>
+            <div className="space-y-5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-[28px] border p-6 space-y-4" style={{ background: dm ? '#171717' : '#ffffff', borderColor: dm ? '#262626' : '#ececec' }}>
+                  <div className="h-3 w-20 rounded-full animate-shimmer" />
+                  <div className="h-6 w-32 rounded-xl animate-shimmer" />
+                  <div className="space-y-3 pt-1">
+                    <div className="h-12 rounded-2xl animate-shimmer" />
+                    <div className="h-12 rounded-2xl animate-shimmer" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </>

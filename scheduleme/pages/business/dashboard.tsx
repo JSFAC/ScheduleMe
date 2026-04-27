@@ -2427,12 +2427,20 @@ const BusinessDashboard: NextPage = () => {
             ))}
           </nav>
           <div className="px-3 py-4 border-t border-neutral-100">
-            <div className="rounded-2xl bg-white/95 shadow-[0_12px_28px_rgba(15,23,42,0.08)] overflow-hidden">
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: dm ? '#171717' : '#ffffff',
+                border: `1px solid ${dm ? '#2c2c2e' : '#e5e7eb'}`,
+                boxShadow: dm ? '0 14px 30px rgba(0,0,0,0.28)' : '0 12px 28px rgba(15,23,42,0.08)',
+              }}
+            >
               <button
                 type="button"
                 onClick={toggleDarkMode}
                 aria-label="Toggle dark mode"
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-neutral-50 transition-colors"
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors"
+                style={{ background: dm ? 'transparent' : 'transparent' }}
               >
                 <div className="flex items-center gap-3">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
@@ -2441,24 +2449,23 @@ const BusinessDashboard: NextPage = () => {
                       : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
                     }
                   </svg>
-                  <span className="text-sm font-semibold text-neutral-700">Appearance</span>
+                  <span className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#374151' }}>{dm ? 'Dark mode' : 'Light mode'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-neutral-500">{dm ? 'Dark' : 'Light'}</span>
                   <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
                     <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
                   </div>
                 </div>
               </button>
-              <Link href="/provider" className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <Link href="/provider" className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" /></svg>
-                Provider page
+                Landing page
               </Link>
-              <Link href="/home" className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <Link href="/home" className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
                 Consumer site
               </Link>
-              <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
                 Sign out
               </button>
@@ -3816,7 +3823,7 @@ const BusinessDashboard: NextPage = () => {
                 <div
                   className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between"
                   style={{
-                    background: dm ? '#131415' : '#fffdfa',
+                    background: dm ? '#131415' : '#ffffff',
                     boxShadow: dm ? 'inset 0 -1px 0 rgba(255,255,255,0.05), 0 12px 28px rgba(0,0,0,0.14)' : '0 10px 26px rgba(15,23,42,0.05)',
                   }}
                 >
@@ -3841,7 +3848,7 @@ const BusinessDashboard: NextPage = () => {
                           onClick={() => sendPreviewAction('cancel-edit')}
                           className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
                           style={{
-                            borderColor: dm ? '#6b7280' : '#c8d4ce',
+                            borderColor: dm ? '#6b7280' : '#d1d5db',
                             background: dm ? '#23262a' : '#ffffff',
                             color: dm ? '#ffffff' : '#1f2937',
                             boxShadow: dm ? '0 8px 18px rgba(0,0,0,0.24)' : '0 10px 22px rgba(15, 23, 42, 0.08)',
@@ -3861,7 +3868,7 @@ const BusinessDashboard: NextPage = () => {
                       <button
                         onClick={() => sendPreviewAction('enter-edit')}
                         className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
-                        style={{ borderColor: dm ? 'rgba(94,234,212,0.34)' : 'rgba(0,126,109,0.24)', background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.12)', color: dm ? '#d1fae5' : '#007e6d', boxShadow: dm ? '0 8px 18px rgba(0,0,0,0.22)' : '0 10px 22px rgba(15, 23, 42, 0.06)' }}
+                        style={{ borderColor: dm ? 'rgba(94,234,212,0.34)' : 'rgba(0,126,109,0.16)', background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.08)', color: dm ? '#d1fae5' : '#007e6d', boxShadow: dm ? '0 8px 18px rgba(0,0,0,0.22)' : '0 10px 22px rgba(15, 23, 42, 0.06)' }}
                       >
                         Edit mode
                       </button>
@@ -3872,7 +3879,7 @@ const BusinessDashboard: NextPage = () => {
                   <iframe
                     ref={previewFrameRef}
                     title="ScheduleMe Live Preview"
-                    src={`/biz/${encodeURIComponent(business?.slug || business?.id || 'draft')}?edit=1&from=dashboard&bid=${business?.id || ''}&embedded=1&k=${previewKey}`}
+                    src={`/biz/${encodeURIComponent(business?.slug || business?.id || 'draft')}?edit=1&from=dashboard&bid=${business?.id || ''}&embedded=1&theme=${dm ? 'dark' : 'light'}&k=${previewKey}`}
                     className="w-full rounded-[24px] border border-neutral-100 bg-white"
                     style={{ minHeight: '82vh' }}
                   />
@@ -4556,17 +4563,17 @@ const BusinessDashboard: NextPage = () => {
       )}
       <style jsx global>{`
         .provider-dashboard-shell[data-provider-theme='light'] {
-          background: #f6f1e6 !important;
+          background: #f8f6f1 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] aside,
         .provider-dashboard-shell[data-provider-theme='light'] header {
-          background: #fffdf8 !important;
-          border-color: #e9dfd1 !important;
+          background: #fffdfb !important;
+          border-color: #e5e7eb !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-white {
-          background-color: #fffdfa !important;
+          background-color: #ffffff !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-2xl,
@@ -4578,9 +4585,8 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .provider-premium-panel,
         .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card {
           position: relative;
-          background:
-            linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,252,247,0.98) 100%) !important;
-          border-color: #e7dccd !important;
+          background: #ffffff !important;
+          border-color: #e5e7eb !important;
           box-shadow:
             0 18px 46px rgba(63, 83, 74, 0.07),
             0 2px 10px rgba(63, 83, 74, 0.04) !important;
@@ -4589,8 +4595,8 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .provider-segment-shell {
           padding: 10px;
           border-radius: 22px;
-          background: rgba(255, 252, 247, 0.84);
-          border: 1px solid #e7dccd;
+          background: rgba(255, 255, 255, 0.88);
+          border: 1px solid #e5e7eb;
           box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
         }
 
@@ -4611,16 +4617,16 @@ const BusinessDashboard: NextPage = () => {
 
         .provider-dashboard-shell[data-provider-theme='light'] .provider-service-row:hover,
         .provider-dashboard-shell[data-provider-theme='light'] .provider-inline-row:hover {
-          background: rgba(246, 239, 228, 0.45);
+          background: rgba(0, 126, 109, 0.06);
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-100,
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-200 {
-          border-color: #ebe1d3 !important;
+          border-color: #e5e7eb !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-neutral-50 {
-          background-color: #f6efe4 !important;
+          background-color: rgba(0, 126, 109, 0.05) !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-900 {
@@ -4649,15 +4655,15 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] aside nav button:not(.bg-accent):hover,
         .provider-dashboard-shell[data-provider-theme='light'] aside a:hover,
         .provider-dashboard-shell[data-provider-theme='light'] aside button:hover {
-          background-color: #f4ede2 !important;
+          background-color: rgba(0, 126, 109, 0.06) !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-amber-50 {
-          background-color: #fff6e7 !important;
+          background-color: rgba(0, 126, 109, 0.06) !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .border-amber-200 {
-          border-color: #f2d39a !important;
+          border-color: rgba(0, 126, 109, 0.16) !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-emerald-50 {

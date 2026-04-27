@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .insert({
       name: cleanName,
       slug,
-      description: 'Complete setup in your dashboard to publish this profile.',
+      description: '',
       address: 'Setup in progress',
       city: 'Setup',
       zip: '00000',

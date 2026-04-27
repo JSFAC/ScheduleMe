@@ -12,6 +12,7 @@ const SignupPage: NextPage = () => {
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -77,11 +78,48 @@ const SignupPage: NextPage = () => {
                   </p>
                 </div>
 
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-5 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">Before you continue</p>
+                  <p className="text-sm text-neutral-400 leading-relaxed">
+                    Consumer and provider activity live on one ScheduleMe account. By continuing, you&apos;re asking us to create a provider draft on that same account so you can finish services, payouts, and profile details from the dashboard.
+                  </p>
+                  <label className="flex items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(e) => setAgreed(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-accent focus:ring-accent"
+                    />
+                    <span className="text-sm text-neutral-300 leading-relaxed">
+                      I understand this uses my regular ScheduleMe account and I agree to the provider{' '}
+                      <Link href="/terms" className="text-accent hover:underline">terms</Link>{' '}
+                      and{' '}
+                      <Link href="/privacy" className="text-accent hover:underline">privacy policy</Link>.
+                    </span>
+                  </label>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Link href="/signin?mode=login&intent=provider" className="w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-3 text-sm font-semibold text-white hover:bg-neutral-700 text-center transition-colors">
+                  <Link
+                    href={agreed ? "/signin?mode=login&intent=provider" : "#"}
+                    aria-disabled={!agreed}
+                    className={`w-full rounded-xl border px-4 py-3 text-sm font-semibold text-center transition-colors ${
+                      agreed
+                        ? 'border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700'
+                        : 'pointer-events-none border-neutral-800 bg-neutral-900 text-neutral-600'
+                    }`}
+                  >
                     Log in to continue
                   </Link>
-                  <Link href="/signin?mode=signup&intent=provider" className="btn-primary w-full px-4 py-3 text-sm font-semibold text-center">
+                  <Link
+                    href={agreed ? "/signin?mode=signup&intent=provider" : "#"}
+                    aria-disabled={!agreed}
+                    className={`w-full px-4 py-3 text-sm font-semibold text-center rounded-xl transition-all ${
+                      agreed
+                        ? 'btn-primary'
+                        : 'pointer-events-none border border-neutral-800 bg-neutral-900 text-neutral-600'
+                    }`}
+                  >
                     Create account
                   </Link>
                 </div>
@@ -103,11 +141,23 @@ const SignupPage: NextPage = () => {
                 <button
                   type="button"
                   onClick={handleBecomeProvider}
-                  disabled={loading}
+                  disabled={loading || !agreed}
                   className="btn-primary w-full py-3 text-sm font-bold disabled:opacity-60"
                 >
                   {loading ? 'Creating provider draft…' : 'Become a Provider'}
                 </button>
+                <label className="flex items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-950/60 px-4 py-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-accent focus:ring-accent"
+                  />
+                  <span className="text-sm text-neutral-300 leading-relaxed">
+                    I&apos;m ready to turn this account into a provider draft and continue under the provider{' '}
+                    <Link href="/terms" className="text-accent hover:underline">terms</Link>.
+                  </span>
+                </label>
               </>
             )}
 

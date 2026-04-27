@@ -217,8 +217,8 @@ export default function Nav({ variant = 'light' }: NavProps) {
         {/* Right */}
         <div className="flex-1 flex items-center justify-end gap-2">
           {!user && (
-            <Link href="/business" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
-              For Businesses
+            <Link href="/business" scroll={false} className={`hidden sm:inline-flex items-center text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
+              For Providers →
             </Link>
           )}
           {/* Dark mode toggle — only shown when signed in */}

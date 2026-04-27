@@ -178,8 +178,8 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
       </div>
       {/* Suggestion chips — clipped to chat box width, draggable, wheel-scrollable */}
       <div className="mt-3 overflow-hidden" style={{
-        maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 92%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 92%, transparent 100%)',
+        maskImage: 'linear-gradient(to right, transparent 0%, black 2%, black 96%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 2%, black 96%, transparent 100%)',
       }}>
         <div
           ref={chipsRef}
@@ -645,11 +645,66 @@ const HomePage: NextPage = () => {
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-[calc(108px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
-        <div className="border-b py-8" style={{ background: dm ? '#111' : '#0F766E' }}>
-          <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
+        <div className="border-b" style={{ background: dm ? '#111' : '#0F766E', borderColor: 'rgba(0,0,0,0.08)' }}>
+          <div className="relative mx-auto max-w-4xl px-4 sm:px-6 pt-9 pb-9">
+            <div className="flex items-center gap-10">
+              <div className="flex-1 min-w-0 max-w-lg space-y-4">
+                <div className="h-3 w-36 rounded-full animate-shimmer" />
+                <div className="h-14 w-[82%] rounded-[20px] animate-shimmer" />
+                <div className="rounded-2xl border overflow-hidden" style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.08)', background: dm ? '#111111' : '#ffffff' }}>
+                  <div className="h-10 border-b animate-shimmer" style={{ borderColor: dm ? '#262626' : '#f1f1f1' }} />
+                  <div className="h-40 animate-shimmer" />
+                </div>
+                <div className="flex gap-2 overflow-hidden">
+                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-8 w-28 rounded-full animate-shimmer shrink-0" />)}
+                </div>
+              </div>
+              <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2.5 w-[260px] shrink-0">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-2xl p-3.5 space-y-10 border" style={{ background: dm ? '#111111' : '#ffffff', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>
+                    <div className="h-8 w-8 rounded-xl animate-shimmer" />
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 rounded-xl animate-shimmer" />
+                      <div className="h-3 w-20 rounded-full animate-shimmer" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        <div className="border-b" style={{ background: dm ? '#171717' : '#ffffff', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+          <div className="flex gap-2 overflow-hidden px-6 py-3 justify-center">
+            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-11 w-40 rounded-xl animate-shimmer shrink-0" />)}
+          </div>
+        </div>
+        <div className="px-6 pt-6">
+          <div className="mx-auto max-w-6xl rounded-2xl border px-4 py-4 flex items-center justify-between" style={{ background: dm ? '#111111' : '#eef8f6', borderColor: dm ? '#262626' : '#cfe7de' }}>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl animate-shimmer" />
+              <div className="space-y-2">
+                <div className="h-4 w-40 rounded-xl animate-shimmer" />
+                <div className="h-3 w-52 rounded-full animate-shimmer" />
+              </div>
+            </div>
+            <div className="h-10 w-24 rounded-2xl animate-shimmer" />
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 py-8 space-y-10">
+          {Array.from({ length: 2 }).map((_, sectionIdx) => (
+            <div key={sectionIdx} className="space-y-4">
+              <div className="flex items-end justify-between">
+                <div className="space-y-2">
+                  <div className="h-7 w-52 rounded-xl animate-shimmer" />
+                  <div className="h-3 w-36 rounded-full animate-shimmer" />
+                </div>
+                <div className="h-4 w-20 rounded-full animate-shimmer" />
+              </div>
+              <div className="flex gap-3.5 overflow-hidden">
+                {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </>

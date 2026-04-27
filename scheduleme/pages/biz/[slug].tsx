@@ -249,6 +249,7 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
 }
 
 export default function BizPage() {
+  const DRAFT_DESCRIPTION_HINT = 'Tell students what you offer, what makes you different, and what they should expect.';
   const router = useRouter();
   const { slug } = router.query;
   const slugValue = Array.isArray(slug) ? slug[0] : slug;
@@ -260,6 +261,8 @@ export default function BizPage() {
   const previewParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('preview') : null;
   const embeddedQuery = router.query?.embedded;
   const embeddedParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('embedded') : null;
+  const themeQuery = router.query?.theme;
+  const themeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('theme') : null;
   const allowEditInBiz =
     fromQuery === 'dashboard' ||
     (Array.isArray(fromQuery) && fromQuery.includes('dashboard')) ||
@@ -274,6 +277,7 @@ export default function BizPage() {
     (Array.isArray(embeddedQuery) && embeddedQuery.includes('1')) ||
     embeddedParam === '1';
   const isDashboardEmbed = allowEditInBiz && isEmbedded;
+  const forcedTheme = Array.isArray(themeQuery) ? themeQuery[0] : (themeQuery || themeParam || null);
   const hideNav = isPreview;
   const [biz, setBiz] = useState(null);
   const [services, setServices] = useState([]);
@@ -311,7 +315,6 @@ export default function BizPage() {
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editVideo, setEditVideo] = useState<string | null>(null);
-  const [editSaving, setEditSaving] = useState(false);
   const [computedPriceTier, setComputedPriceTier] = useState<number | null>(null);
   const [editNotice, setEditNotice] = useState<string | null>(null);
   const [mediaUploading, setMediaUploading] = useState(false);
@@ -328,6 +331,12 @@ export default function BizPage() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const galleryTouchStart = useRef<{ x: number; y: number } | null>(null);
   const lightboxTouchStart = useRef<{ x: number; y: number } | null>(null);
+
+  function normalizeDraftDescription(value?: string | null) {
+    const text = String(value || '').trim();
+    if (!text || text === 'Complete setup in your dashboard to publish this profile.') return '';
+    return text;
+  }
 
   const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
   const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
@@ -388,7 +397,7 @@ export default function BizPage() {
         }
 
         setBiz(data);
-        setEditDesc(data.description || '');
+        setEditDesc(normalizeDraftDescription(data.description));
         const initialImages = [data.cover_url, ...(data.media_urls || [])].filter(Boolean) as string[];
         setEditImages(normalizeImageList(initialImages));
         setEditVideo(data.video_url || null);
@@ -575,7 +584,7 @@ export default function BizPage() {
 
   function resetEmbeddedDrafts(nextBiz: any = biz, nextServices: any[] = services) {
     if (!nextBiz) return;
-    setEditDesc(nextBiz.description || '');
+    setEditDesc(normalizeDraftDescription(nextBiz.description));
     const initialImages = [nextBiz.cover_url, ...(nextBiz.media_urls || [])].filter(Boolean) as string[];
     setEditImages(normalizeImageList(initialImages));
     setEditVideo(nextBiz.video_url || null);
@@ -639,9 +648,7 @@ export default function BizPage() {
       if (type === 'video') {
         setEditVideo(data.url);
         if (isDashboardEmbed) {
-          await saveDashboardListing({ video_url: data.url });
-          setBiz((prev: any) => prev ? { ...prev, video_url: data.url } : prev);
-          setEditNotice('Video updated.');
+          setEditNotice('Video ready to save.');
         } else {
           await submitChangeRequest({ video_url: data.url }, 'media');
           setEditNotice('Video submitted for review.');
@@ -650,9 +657,7 @@ export default function BizPage() {
         const next = normalizeImageList([...editImages, data.url]);
         setEditImages(next);
         if (isDashboardEmbed) {
-          await saveDashboardListing({ cover_url: next[0] || null, media_urls: next.slice(1) });
-          setBiz((prev: any) => prev ? { ...prev, cover_url: next[0] || null, media_urls: next.slice(1) } : prev);
-          setEditNotice('Photos updated.');
+          setEditNotice('Photos ready to save.');
         } else {
           await submitChangeRequest({ cover_url: next[0] || null, media_urls: next.slice(1) }, 'media');
           setEditNotice('Photos submitted for review.');
@@ -671,9 +676,7 @@ export default function BizPage() {
     setEditImages(normalized);
     try {
       if (isDashboardEmbed) {
-        await saveDashboardListing({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) });
-        setBiz((prev: any) => prev ? { ...prev, cover_url: normalized[0] || null, media_urls: normalized.slice(1) } : prev);
-        setEditNotice('Photos updated.');
+        setEditNotice('Photo order updated. Save changes to keep it.');
       } else {
         await submitChangeRequest({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) }, 'media');
         setEditNotice('Photos submitted for review.');
@@ -705,35 +708,13 @@ export default function BizPage() {
     setEditVideo(null);
     try {
       if (isDashboardEmbed) {
-        await saveDashboardListing({ video_url: null });
-        setBiz((prev: any) => prev ? { ...prev, video_url: null } : prev);
-        setEditNotice('Video removed.');
+        setEditNotice('Video removal ready to save.');
       } else {
         await submitChangeRequest({ video_url: null }, 'media');
         setEditNotice('Video removal submitted for review.');
       }
     } catch (e: any) {
       setMediaErr(e?.message || 'Failed to update video');
-    }
-  }
-
-  async function saveDescription() {
-    if (!biz) return;
-    setEditSaving(true);
-    try {
-      if (isDashboardEmbed) {
-        await saveDashboardListing({ description: editDesc });
-        setBiz((prev: any) => prev ? { ...prev, description: editDesc } : prev);
-        setEditNotice('Description updated.');
-      } else {
-        await submitChangeRequest({ description: editDesc }, 'profile');
-        setEditNotice('Description submitted for review.');
-      }
-    } catch (e: any) {
-      setEditNotice(e?.message || 'Failed to submit description');
-    } finally {
-      setEditSaving(false);
-      setTimeout(() => setEditNotice(null), 2500);
     }
   }
 
@@ -946,15 +927,16 @@ export default function BizPage() {
     return;
   }
 
-  const bg = dm ? '#0a0a0a' : '#f6f2e9';
+  const embedDm = isDashboardEmbed ? forcedTheme === 'dark' : dm;
+  const bg = embedDm ? '#0a0a0a' : '#f8f6f1';
   const accent = '#007e6d';
   const accentDark = '#1e554c';
-  const accentWash = dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)';
-  const accentBorder = dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.25)';
-  const card = dm ? '#1c1c1e' : '#fcfbf8';
-  const bdr = dm ? '#2c2c2e' : '#e6ded2';
-  const tx = dm ? '#f2f2f7' : '#111';
-  const mu = dm ? '#8e8e93' : '#6b7280';
+  const accentWash = embedDm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.08)';
+  const accentBorder = embedDm ? 'rgba(0,126,109,0.34)' : 'rgba(0,126,109,0.18)';
+  const card = embedDm ? '#171717' : '#ffffff';
+  const bdr = embedDm ? '#2c2c2e' : '#e5e7eb';
+  const tx = embedDm ? '#f2f2f7' : '#111827';
+  const mu = embedDm ? '#8e8e93' : '#6b7280';
 
   useEffect(() => {
     if (!biz) return;
@@ -1470,7 +1452,7 @@ export default function BizPage() {
             <div className="rounded-2xl p-4 shadow-lg mb-5 relative z-20" style={{ background: card, border: '1px solid ' + bdr }}>
               <div
                 className="relative overflow-hidden rounded-2xl"
-                style={{ background: dm ? '#101010' : '#f6f2e9', minHeight: 240 }}
+                style={{ background: embedDm ? '#101010' : '#f7f7f6', minHeight: 240 }}
                 onDragOver={(e) => {
                   if (!editMode) return;
                   e.preventDefault();
@@ -1553,15 +1535,14 @@ export default function BizPage() {
                       type="button"
                       onClick={() => imgInputRef.current?.click()}
                       className="relative h-16 w-16 rounded-xl flex-shrink-0 border border-dashed flex items-center justify-center text-center p-2"
-                      style={{ borderColor: dm ? '#2d2d2f' : '#b8ddd4', background: dm ? '#0c0c0d' : '#f5fbf8', color: tx }}
+                      style={{ borderColor: embedDm ? '#2d2d2f' : '#cfe2dc', background: embedDm ? '#0c0c0d' : '#f7faf9', color: tx }}
                       aria-label="Add photos or videos"
                     >
-                      <span
-                        className="inline-flex items-center justify-center h-9 w-9 rounded-xl text-[28px] font-medium leading-none"
-                        style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}
-                      >
-                        +
-                      </span>
+                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="#007e6d" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 7.5A2.5 2.5 0 016.5 5h11A2.5 2.5 0 0120 7.5v9a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 16.5v-9z" />
+                        <path d="M9 10.5a2.25 2.25 0 104.5 0 2.25 2.25 0 00-4.5 0z" />
+                        <path d="M8 5l1-1.5h6L16 5" />
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -1576,7 +1557,7 @@ export default function BizPage() {
                     {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
                     {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
                     {editVideo && (
-                      <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
+                      <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: embedDm ? '#0d0d0d' : '#f9fafb' }}>
                         <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>
                         <button onClick={removeVideo} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
                       </div>
@@ -1626,7 +1607,7 @@ export default function BizPage() {
               </div>
             </div>
             {ownerDisplayName ? (
-              <p className="text-sm font-semibold mb-2" style={{ color: dm ? '#d1d5db' : '#4b5563' }}>
+              <p className="text-sm font-semibold mb-2" style={{ color: embedDm ? '#d1d5db' : '#4b5563' }}>
                 {ownerDisplayName}
               </p>
             ) : null}
@@ -1638,7 +1619,7 @@ export default function BizPage() {
                 </span>
               ) : null}
               {shouldShowNewBadge({ createdAt: biz.created_at, reviewCount: biz.review_count }) && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: embedDm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: embedDm ? '#6ee7d3' : '#0f766e' }}>New</span>
               )}
               {(biz.review_count ?? 0) > 0 && biz.rating && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: mu }}>
@@ -1657,16 +1638,19 @@ export default function BizPage() {
                   onChange={(e) => setEditDesc(e.target.value)}
                   maxLength={1000}
                   rows={3}
+                  placeholder={DRAFT_DESCRIPTION_HINT}
                   className="w-full rounded-xl px-3 py-2 text-sm"
-                  style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }}
+                  style={{ border: '1px solid ' + bdr, background: embedDm ? '#0d0d0d' : '#f9fafb', color: tx }}
                 />
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-[11px]" style={{ color: mu }}>{editDesc.length}/1000</span>
-                  {isDashboardEmbed && <span className="text-[11px]" style={{ color: mu }}>Saved when you click Save changes.</span>}
+                  {isDashboardEmbed && <span className="text-[11px]" style={{ color: mu }}>Changes stay local until you save.</span>}
                 </div>
               </div>
             ) : (
-              biz.description && <p className="text-sm leading-relaxed mb-4" style={{color:mu}}>{biz.description}</p>
+              <p className="text-sm leading-relaxed mb-4" style={{ color: normalizeDraftDescription(biz.description) ? mu : (embedDm ? '#6b7280' : '#9ca3af') }}>
+                {normalizeDraftDescription(biz.description) || DRAFT_DESCRIPTION_HINT}
+              </p>
             )}
             {editNotice && (
               <div className="mb-4 text-[11px] font-semibold" style={{ color: accent }}>{editNotice}</div>
