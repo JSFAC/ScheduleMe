@@ -1,6 +1,7 @@
 // next.config.js
 // Build trigger: 1774306698953
 /** @type {import('next').NextConfig} */
+const path = require('path');
 const isProd = process.env.NODE_ENV === 'production';
 const ContentSecurityPolicy = [
   "default-src 'self'",
@@ -28,6 +29,7 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  outputFileTracingRoot: path.resolve(__dirname),
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
   reactStrictMode: true,

@@ -1,12 +1,8 @@
 // @ts-nocheck
-// pages/api/checkout.ts — Create Stripe Checkout session for booking payment
+// pages/api/checkout.ts — Legacy compatibility route for website booking payment
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
-import { getPlatformFeePercent, assertPlatformFeePercent } from '../../lib/platformFees';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,15 +26,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
 
-  // Load booking with business details
   const { data: booking } = await supabase
     .from('bookings')
-    .select('*, businesses(id, name, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until), profiles(name, email)')
+    .select('id, user_id, paid_at, status, amount_cents, stripe_payment_method_id, businesses(id, stripe_account_id, stripe_onboarded), profiles(email)')
     .eq('id', booking_id)
     .maybeSingle();
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    let canAccess = booking.user_id === user.id;
+  let canAccess = booking.user_id === user.id;
   if (!canAccess && user.email) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -69,34 +64,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const amountCents = booking.amount_cents;
   if (!amountCents || amountCents < 100)
     return res.status(400).json({ error: 'Payment amount not set for this booking. Contact the business.' });
-
-  if (booking.stripe_payment_method_id)
-    return res.status(400).json({ error: 'Card already saved for this booking.' });
-
-  const platformFeePercent = getPlatformFeePercent(biz);
-  if (!assertPlatformFeePercent(biz, platformFeePercent)) {
-    return res.status(400).json({ error: 'Platform fee mismatch. Please contact support.' });
-  }
-  const platformFeeCents = Math.round(amountCents * platformFeePercent / 100);
-
-  // DEPRECATED: Checkout is no longer used for card setup; use /api/create-setup-intent with Stripe Elements.
-  // Keeping this endpoint for backward compatibility.
-
-  // Create Stripe Checkout Session to collect & save a card (no charge yet)
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    mode: 'setup',
-    customer_creation: 'always',
-    success_url: `${siteUrl}/bookings?setup=success&booking=${booking_id}`,
-    cancel_url: `${siteUrl}/bookings?setup=cancelled&booking=${booking_id}`,
-    client_reference_id: booking_id,
-    metadata: { booking_id, business_id: biz.id, amount_cents: String(amountCents), platform_fee_cents: String(platformFeeCents), platform_fee_percent: String(platformFeePercent) },
-    setup_intent_data: {
-      metadata: { bookingId: booking_id, businessId: biz.id },
-      usage: 'off_session',
-    },
-    customer_email: (booking.profiles as any)?.email || user.email,
-  });
-
-  return res.status(200).json({ url: session.url });
+  return res.status(200).json({ url: `${siteUrl}/pay/${booking_id}` });
 }

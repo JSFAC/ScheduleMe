@@ -162,10 +162,6 @@ const PayPage: NextPage = () => {
       setErr('');
       try {
         const ticketOk = consumePaymentAccessTicket(bookingId);
-        if (!ticketOk) {
-          setErr('Payment session expired. Please return to your booking and tap Pay now again.');
-          return;
-        }
         const { data: { session } } = await getSupabase().auth.getSession();
         if (!session) { setErr('Please sign in to continue.'); return; }
         const userId = session.user?.id;
@@ -189,6 +185,10 @@ const PayPage: NextPage = () => {
           } catch {}
         }
         if (!found) throw new Error(detailError || 'Booking not found');
+        if (!ticketOk && !found?.paid_at && !(found?.status === 'confirmed' || found?.status === 'pending')) {
+          setErr('Payment session expired. Please return to your booking and tap Pay now again.');
+          return;
+        }
         if (mounted) {
           setBooking(found);
           setPaymentReady(!!found.stripe_payment_method_id);
