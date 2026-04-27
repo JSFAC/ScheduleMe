@@ -8,6 +8,7 @@ html, body {
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
+  scrollbar-gutter: stable;
 }
 
 /* styles/globals.css */

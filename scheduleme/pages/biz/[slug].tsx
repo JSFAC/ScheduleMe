@@ -360,22 +360,22 @@ export default function BizPage() {
       try {
         let data: any = null;
         if (resolvedSlug) {
-          const { data: bySlug } = await getSB()
+          let bySlugQuery = getSB()
             .from('businesses')
             .select('*')
-            .eq('slug', resolvedSlug)
-            .eq('is_onboarded', true)
-            .maybeSingle();
+            .eq('slug', resolvedSlug);
+          if (!isPreview) bySlugQuery = bySlugQuery.eq('is_onboarded', true);
+          const { data: bySlug } = await bySlugQuery.maybeSingle();
           data = bySlug;
         }
 
         if (!data && resolvedBusinessId) {
-          const { data: byId } = await getSB()
+          let byIdQuery = getSB()
             .from('businesses')
             .select('*')
-            .eq('id', resolvedBusinessId)
-            .eq('is_onboarded', true)
-            .maybeSingle();
+            .eq('id', resolvedBusinessId);
+          if (!isPreview) byIdQuery = byIdQuery.eq('is_onboarded', true);
+          const { data: byId } = await byIdQuery.maybeSingle();
           data = byId;
         }
 

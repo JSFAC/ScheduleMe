@@ -346,7 +346,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
   }
 
   // edgePad must match exactly — cards start and end here, curtains cover outside
-  const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
+  const edgePad = 'max(24px, calc((100% - 1400px) / 2))';
 
   return (
     <section className="py-2.5" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
@@ -434,12 +434,12 @@ function ReferCard() {
   }
 
   if (sent) return (
-    <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+    <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100% - 1400px) / 2))', marginRight: 'max(24px, calc((100% - 1400px) / 2))' }}>
       <p className="text-sm font-semibold text-green-800">Referral received — we'll reach out to {bizName}.</p>
     </div>
   );
   if (!open) return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5" style={{ marginLeft: 'max(24px, calc((100% - 1400px) / 2))', marginRight: 'max(24px, calc((100% - 1400px) / 2))' }}>
       <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -456,7 +456,7 @@ function ReferCard() {
     </div>
   );
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3" style={{ marginLeft: 'max(24px, calc((100% - 1400px) / 2))', marginRight: 'max(24px, calc((100% - 1400px) / 2))' }}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
@@ -757,7 +757,7 @@ const HomePage: NextPage = () => {
 
         {/* EDU Campus banner — only shown to non-verified users */}
         {eduVerified === false && showEduBanner && (
-          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
+          <div style={{ paddingLeft: 'max(24px, calc((100% - 1400px) / 2))', paddingRight: 'max(24px, calc((100% - 1400px) / 2))', paddingTop: 24 }}>
             <div
               className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl"
               style={{
@@ -805,7 +805,7 @@ const HomePage: NextPage = () => {
 
         {/* Install app banner — mobile only, not shown if already installed */}
         {showInstallBanner && (
-          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: eduVerified === false ? 8 : 12 }}>
+          <div style={{ paddingLeft: 'max(24px, calc((100% - 1400px) / 2))', paddingRight: 'max(24px, calc((100% - 1400px) / 2))', paddingTop: eduVerified === false ? 8 : 12 }}>
             <div className="rounded-2xl overflow-hidden"
               style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.08)', boxShadow: dm ? 'none' : '0 2px 12px rgba(0,0,0,0.06)' }}>
               {/* Header */}

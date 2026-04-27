@@ -997,6 +997,28 @@ const BusinessDashboard: NextPage = () => {
       window.location.origin
     );
   }
+
+  function openDashboardTab(nextTab: TabId) {
+    setTab(nextTab);
+    try {
+      window.history.replaceState(null, '', '#' + nextTab);
+    } catch {}
+  }
+
+  function handleChecklistAction(key: 'coreProfile' | 'services' | 'media' | 'stripe') {
+    if (key === 'stripe') {
+      handleStripeConnect(business?.stripe_onboarded ? 'update' : 'onboarding');
+      return;
+    }
+    if (key === 'services') {
+      openDashboardTab('services');
+      return;
+    }
+    openDashboardTab('edit');
+    setPreviewKey(Date.now());
+    setPreviewEditMode(true);
+    setTimeout(() => sendPreviewAction('enter-edit'), 120);
+  }
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
@@ -2389,12 +2411,7 @@ const BusinessDashboard: NextPage = () => {
           </div>
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {NAV.map(item => (
-              <button key={item.id} onClick={() => {
-                setTab(item.id);
-                try {
-                  window.history.replaceState(null, '', '#' + item.id);
-                } catch {}
-              }}
+              <button key={item.id} onClick={() => openDashboardTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left ${tab === item.id ? 'bg-accent text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={tab === item.id ? 2.5 : 1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.d} />
@@ -2410,7 +2427,7 @@ const BusinessDashboard: NextPage = () => {
             ))}
           </nav>
           <div className="px-3 py-4 border-t border-neutral-100">
-            <div className="rounded-2xl border border-neutral-200 bg-white/80 overflow-hidden">
+            <div className="rounded-2xl bg-white/95 shadow-[0_12px_28px_rgba(15,23,42,0.08)] overflow-hidden">
               <button
                 type="button"
                 onClick={toggleDarkMode}
@@ -2433,17 +2450,14 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
               </button>
-              <div className="h-px bg-neutral-100" />
               <Link href="/provider" className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" /></svg>
                 Provider page
               </Link>
-              <div className="h-px bg-neutral-100" />
               <Link href="/home" className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
                 Consumer site
               </Link>
-              <div className="h-px bg-neutral-100" />
               <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
                 Sign out
@@ -2699,16 +2713,14 @@ const BusinessDashboard: NextPage = () => {
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => {
-                                setTab('edit');
-                              }}
+                              onClick={() => openDashboardTab('edit')}
                               className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
                             >
                               Edit Listing
                             </button>
                             <button
                               type="button"
-                              onClick={() => setTab('bookings')}
+                              onClick={() => openDashboardTab('bookings')}
                               className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white"
                             >
                               Open Bookings
@@ -2767,9 +2779,11 @@ const BusinessDashboard: NextPage = () => {
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
                               return (
-                                <div
+                                <button
                                   key={item.key}
-                                  className="rounded-[24px] border px-4 py-4"
+                                  type="button"
+                                  onClick={() => handleChecklistAction(item.key as 'coreProfile' | 'services' | 'media' | 'stripe')}
+                                  className="rounded-[24px] border px-4 py-4 text-left transition-transform hover:-translate-y-0.5"
                                   style={{ borderColor: ok ? '#b7e5ce' : '#f2d39a', background: ok ? '#eef9f3' : '#fff6e7' }}
                                 >
                                   <div className="flex items-start justify-between gap-3">
@@ -2781,7 +2795,7 @@ const BusinessDashboard: NextPage = () => {
                                       {ok ? 'Done' : 'Needed'}
                                     </span>
                                   </div>
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
@@ -2838,7 +2852,7 @@ const BusinessDashboard: NextPage = () => {
                       Manage Stripe connection and payout details in Settings.
                     </p>
                   </div>
-                  <button type="button" onClick={() => setTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
+                  <button type="button" onClick={() => openDashboardTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
                     Open Settings
                   </button>
                 </div>
@@ -3855,17 +3869,13 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
                 <div className="p-5" key={previewKey}>
-                  {business?.slug ? (
-                    <iframe
-                      ref={previewFrameRef}
-                      title="ScheduleMe Live Preview"
-                      src={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}&embedded=1&k=${previewKey}`}
-                      className="w-full rounded-[24px] border border-neutral-100 bg-white"
-                      style={{ minHeight: '82vh' }}
-                    />
-                  ) : (
-                    <div className="p-6 text-sm text-neutral-500">Editor unavailable until your provider slug is ready.</div>
-                  )}
+                  <iframe
+                    ref={previewFrameRef}
+                    title="ScheduleMe Live Preview"
+                    src={`/biz/${encodeURIComponent(business?.slug || business?.id || 'draft')}?edit=1&from=dashboard&bid=${business?.id || ''}&embedded=1&k=${previewKey}`}
+                    className="w-full rounded-[24px] border border-neutral-100 bg-white"
+                    style={{ minHeight: '82vh' }}
+                  />
                 </div>
               </div>
             )}

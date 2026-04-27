@@ -491,7 +491,7 @@ const Account: NextPage = () => {
   if (loading) return (
     <>
       <Nav />
-      <div className="min-h-screen flex items-center justify-center" style={{ background: dm ? '#0a0a0a' : '#f9fafb' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: dm ? '#0a0a0a' : '#f6f2e9' }}>
         <div className="relative h-6 w-6">
           <div className="absolute inset-0 rounded-full border-2 border-neutral-200" />
           <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
@@ -512,7 +512,7 @@ const Account: NextPage = () => {
   const textMuted = dm ? '#6b7280' : '#9ca3af';
   const inputBg = dm ? '#2c2c2e' : 'white';
   const inputBorder = dm ? '#3a3a3c' : '#e5e7eb';
-  const pageBg = dm ? '#0a0a0a' : '#f9fafb';
+  const pageBg = dm ? '#0a0a0a' : '#f6f2e9';
 
   return (
     <>
@@ -539,7 +539,7 @@ const Account: NextPage = () => {
       <div className="min-h-screen pb-24 md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: pageBg, opacity: fadeIn ? 1 : 0, transition: 'opacity 0.4s ease' }}>
 
         {/* Header */}
-        <div className="border-b" style={{ background: dm ? '#0d0d0d' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
+        <div className="border-b" style={{ background: dm ? '#0d0d0d' : '#fcfbf8', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
           <div className="relative mx-auto max-w-5xl px-6 pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <label className="relative h-14 w-14 rounded-2xl flex-shrink-0 cursor-pointer group overflow-hidden"
