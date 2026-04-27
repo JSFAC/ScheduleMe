@@ -9,7 +9,10 @@ import { useDm } from '../lib/DarkModeContext';
 interface NavProps { variant?: 'light' | 'dark'; }
 
 function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
 }
 
 // Cache key — avoids async flash that causes the nav layout shift/shake
@@ -42,6 +45,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
   useEffect(() => {
     const supabase = getSupabase();
+    if (!supabase) return;
     // Verify cache against real session (silently, no re-render if same)
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ? {
@@ -120,9 +124,10 @@ export default function Nav({ variant = 'light' }: NavProps) {
       return;
     }
     // Check if user owns a business
-    const sbBiz = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const sbBiz = getSupabase();
+    const supabase = getSupabase();
+    if (!sbBiz || !supabase) return;
     sbBiz.from('businesses').select('id').eq('owner_email', user.email).maybeSingle().then(({data}) => setIsBiz(!!data?.id));
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     supabase.from('profiles').select('edu_verified').eq('email', user.email).maybeSingle()
       .then(({ data }) => {
         const verified = data?.edu_verified === true;
@@ -268,7 +273,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
                         <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 2.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
                         </svg>
-                        Provider Hub
+                        Dashboard
                       </Link>}
                       {!isBiz && <Link href="/provider/signup" scroll={false} onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"><svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>Become a Provider</Link>}
                       <Link href="/" scroll={false} onClick={() => setMenuOpen(false)}

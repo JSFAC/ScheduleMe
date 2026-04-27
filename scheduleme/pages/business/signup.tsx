@@ -42,7 +42,7 @@ const SignupPage: NextPage = () => {
         <title>Become a Provider — ScheduleMe</title>
         <meta
           name="description"
-          content="Use your ScheduleMe account to become a provider, create your draft, and finish setup in Provider Hub."
+          content="Use your ScheduleMe account to become a provider, create your draft, and finish setup from your dashboard."
         />
       </Head>
       <BusinessNav />
@@ -55,7 +55,7 @@ const SignupPage: NextPage = () => {
               One account. Provider role when you&apos;re ready.
             </h1>
             <p className="text-neutral-400 max-w-xl mx-auto">
-              ScheduleMe consumers and providers use the same account. When you become a provider, we create your draft and send you straight into Provider Hub to finish the checklist.
+              ScheduleMe consumers and providers use the same account. When you become a provider, we create your draft and send you straight into your dashboard to finish the checklist.
             </p>
           </div>
 
@@ -73,7 +73,7 @@ const SignupPage: NextPage = () => {
                 <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-5">
                   <h2 className="text-lg font-semibold text-white mb-2">Authenticate once, then continue</h2>
                   <p className="text-sm text-neutral-400 leading-relaxed">
-                    Sign in with your existing ScheduleMe account or create one first. After auth, we&apos;ll resume provider conversion and take you into Provider Hub.
+                    Sign in with your existing ScheduleMe account or create one first. After auth, we&apos;ll resume provider conversion and take you straight into setup.
                   </p>
                 </div>
 
@@ -96,7 +96,7 @@ const SignupPage: NextPage = () => {
                     You&apos;re signed in as <span className="font-semibold text-white">{signedInEmail}</span>.
                   </p>
                   <p className="mt-2 text-sm text-neutral-400">
-                    Becoming a provider creates your draft on this same account. You&apos;ll finish services, pricing, media, and payouts inside Provider Hub.
+                    Becoming a provider creates your draft on this same account. You&apos;ll finish services, pricing, media, and payouts from the same dashboard.
                   </p>
                 </div>
 
@@ -116,12 +116,12 @@ const SignupPage: NextPage = () => {
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5">
                   <h2 className="text-lg font-semibold text-white mb-2">Your provider profile is ready to manage</h2>
                   <p className="text-sm text-neutral-300 leading-relaxed">
-                    This account already has a provider profile. Open Provider Hub to keep working on your checklist, availability, bookings, and payouts.
+                    This account already has a provider profile. Open your dashboard to keep working on your checklist, availability, bookings, and payouts.
                   </p>
                 </div>
 
                 <Link href="/provider/dashboard" className="btn-primary w-full px-4 py-3 text-sm font-semibold text-center block">
-                  Open Provider Hub
+                  Start now
                 </Link>
               </>
             )}
@@ -131,7 +131,7 @@ const SignupPage: NextPage = () => {
               <ol className="space-y-2 text-sm text-neutral-400 list-decimal list-inside">
                 <li>Authenticate with your regular ScheduleMe account.</li>
                 <li>Create your provider draft on that same account.</li>
-                <li>Finish setup inside Provider Hub when you&apos;re ready.</li>
+                <li>Finish setup from your dashboard when you&apos;re ready.</li>
               </ol>
             </div>
           </div>

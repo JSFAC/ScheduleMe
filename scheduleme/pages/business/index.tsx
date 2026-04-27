@@ -104,12 +104,12 @@ const Business: NextPage = () => {
 
   function renderProviderPrimaryCta(className: string, loggedOutLabel = 'Create Account') {
     if (providerState === 'provider') {
-      return <Link href="/provider/dashboard" className={className}>Open Provider Hub</Link>;
+      return <Link href="/provider/dashboard" className={className}>Start now</Link>;
     }
     if (providerState === 'consumer') {
       return (
         <button type="button" onClick={handleBecomeProvider} disabled={providerCtaLoading} className={`${className} disabled:opacity-60`}>
-          {providerCtaLoading ? 'Opening Provider Hub…' : 'Become a Provider'}
+          {providerCtaLoading ? 'Starting…' : 'Become a Provider'}
         </button>
       );
     }
@@ -167,7 +167,7 @@ const Business: NextPage = () => {
                 { value: '2,400+', label: 'providers joined' },
                 { value: '14', label: 'service categories' },
                 { value: '$0', label: 'to get started' },
-                { value: '24 hr', label: 'approval time' },
+                { value: 'Instant', label: 'publish when ready' },
                 { value: '4.8', label: 'provider rating' },
               ].map((s) => (
                 <li key={s.label} className="flex items-baseline gap-2 text-sm">

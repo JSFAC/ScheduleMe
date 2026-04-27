@@ -74,7 +74,7 @@ export default function BusinessNav() {
             </>
           ) : status === 'provider' ? (
             <Link href="/provider/dashboard" className="btn-primary text-[11px] sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 whitespace-nowrap">
-              Provider Hub
+              Start now
             </Link>
           ) : (
             <button
