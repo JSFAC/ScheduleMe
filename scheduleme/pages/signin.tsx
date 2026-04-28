@@ -163,6 +163,10 @@ const SignIn: NextPage = () => {
   async function handleGoogle() {
     const supabase = getSupabase();
     localStorage.setItem('auth_source', providerIntent ? 'business' : 'consumer');
+    if (providerIntent && typeof window !== 'undefined') {
+      localStorage.setItem('auth_intent', 'provider');
+      sessionStorage.setItem('sm_provider_oauth_pending', 'true');
+    }
     const adminIntentRequested = admin === '1' || next === '/admin';
     const isAdminSignin = adminIntentRequested && hasValidAdminCodeSession();
     if (adminIntentRequested && !isAdminSignin) {
@@ -174,7 +178,10 @@ const SignIn: NextPage = () => {
     }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback`, queryParams: { prompt: 'select_account' } },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback${providerIntent ? '?source=provider_signup' : ''}`,
+        queryParams: { prompt: 'select_account' },
+      },
     });
   }
 
