@@ -23,6 +23,7 @@ interface Booking {
   id: string; service: string; status: string; created_at: string;
   scheduled_start?: string; scheduled_end?: string;
   amount_cents: number | null; paid_at: string | null;
+  consumer_confirmation_due_at?: string | null;
   user_id?: string;
   dispute_amount_cents?: number | null;
   dispute_note?: string | null;
@@ -113,6 +114,7 @@ const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text:
   confirmed:       { label: 'Confirmed',       dot: 'bg-accent',      bg: 'bg-[#eef8f5]',  text: 'text-[#0f766e]',   border: 'border-[#bfe5db]' },
   price_disputed:  { label: 'Disputed',        dot: 'bg-rose-500',    bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
   paid:            { label: 'Paid',            dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  awaiting_consumer_confirmation: { label: 'Awaiting Confirmation', dot: 'bg-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
   payment_pending: { label: 'Price Pending',   dot: 'bg-[#0f766e]',   bg: 'bg-[#f5fbf8]',  text: 'text-[#0f766e]',   border: 'border-[#cfe7de]' },
   payment_failed:  { label: 'Pmt Failed',      dot: 'bg-red-500',     bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200' },
   completed:       { label: 'Completed',       dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
@@ -381,7 +383,7 @@ function RevenueChart({ bookings, dm }: { bookings: Booking[]; dm: boolean }) {
     weekEnd.setHours(23, 59, 59, 999);
 
     const earned = bookings
-      .filter((b) => (b.status === 'paid' || b.status === 'completed') && b.amount_cents)
+      .filter((b) => b.status === 'completed' && !b.consumer_confirmation_due_at && b.amount_cents)
       .filter((b) => {
         const anchor = new Date(b.paid_at || b.created_at);
         return anchor >= weekStart && anchor <= weekEnd;
@@ -2236,19 +2238,20 @@ const BusinessDashboard: NextPage = () => {
 
   const platformFeeRate = business?.founder50 ? 0.06 : 0.12;
   const toProviderNet = (grossCents: number) => Math.max(0, Math.round(grossCents * (1 - platformFeeRate)));
-  const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid';
+  const hasHeldCompletionWindow = (b: any) => !!b.consumer_confirmation_due_at && new Date(b.consumer_confirmation_due_at).getTime() > Date.now();
+  const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid' || hasHeldCompletionWindow(b);
   // Only completed jobs count as earned payout.
   const totalCompletedGross = bookings
-    .filter(b => b.status === 'completed' && b.amount_cents)
+    .filter(b => b.status === 'completed' && !hasHeldCompletionWindow(b) && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const totalEarned = toProviderNet(totalCompletedGross);
   const totalUnreadMsgs = (Array.isArray(msgThreads) ? msgThreads : []).reduce((s: number, t: any) => s + (Number(t?.unreadCount) || 0), 0);
   const pendingCount = bookings.filter(b => isProviderPendingBooking(b)).length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
-  const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);
+  const isRevenueBooking = (b: any) => b.status === 'completed' && !hasHeldCompletionWindow(b);
   const isActiveOrCompleted = (b: any) => ['confirmed', 'payment_pending', 'price_disputed', 'paid', 'completed'].includes(b.status);
   const thisMonthGross = bookings
-    .filter(b => b.status === 'completed' && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth() && new Date(b.created_at).getFullYear() === new Date().getFullYear())
+    .filter(b => b.status === 'completed' && !hasHeldCompletionWindow(b) && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth() && new Date(b.created_at).getFullYear() === new Date().getFullYear())
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const thisMonthEarned = toProviderNet(thisMonthGross);
   // Amounts still awaiting release:
@@ -2257,7 +2260,7 @@ const BusinessDashboard: NextPage = () => {
     .filter(b => ['confirmed', 'payment_pending'].includes(b.status) && b.amount_cents && !b.paid_at)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const heldInStripeGross = bookings
-    .filter(b => b.status === 'paid' && b.amount_cents)
+    .filter(b => (b.status === 'paid' || hasHeldCompletionWindow(b)) && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const pendingPaymentAmount = toProviderNet(pendingPaymentGross);
   const heldInStripeAmount = toProviderNet(heldInStripeGross);
@@ -2803,7 +2806,7 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                           <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                             {[
-                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and contact details.' },
+                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and location details.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
                               { key: 'stripe', label: 'Stripe connected', hint: 'Connect payouts before you publish publicly.' },
@@ -3847,8 +3850,9 @@ const BusinessDashboard: NextPage = () => {
                 <div
                   className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between"
                   style={{
-                    background: dm ? '#16181b' : 'linear-gradient(180deg, #ffffff 0%, #f8fbfa 100%)',
-                    boxShadow: dm ? 'inset 0 -1px 0 rgba(255,255,255,0.06), 0 16px 34px rgba(0,0,0,0.2)' : '0 14px 34px rgba(15,23,42,0.08)',
+                    background: dm ? '#16181b' : '#ffffff',
+                    borderColor: dm ? '#2a2d31' : '#dfe9e6',
+                    boxShadow: dm ? 'inset 0 -1px 0 rgba(255,255,255,0.06), 0 16px 34px rgba(0,0,0,0.2)' : '0 16px 34px rgba(15,23,42,0.08)',
                   }}
                 >
                   <div>
@@ -3872,10 +3876,10 @@ const BusinessDashboard: NextPage = () => {
                           onClick={() => sendPreviewAction('cancel-edit')}
                           className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
                           style={{
-                            borderColor: dm ? '#6b7280' : '#cbd5e1',
+                            borderColor: dm ? '#6b7280' : '#c7d2d9',
                             background: dm ? '#2a2d31' : '#ffffff',
-                            color: dm ? '#ffffff' : '#1e293b',
-                            boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.28)' : '0 12px 26px rgba(15, 23, 42, 0.1)',
+                            color: dm ? '#ffffff' : '#334155',
+                            boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.28)' : '0 12px 26px rgba(15, 23, 42, 0.08)',
                           }}
                         >
                           Cancel
@@ -3883,7 +3887,7 @@ const BusinessDashboard: NextPage = () => {
                         <button
                           onClick={() => sendPreviewAction('save-edit')}
                           className="text-xs font-bold px-3.5 py-2 rounded-xl text-white transition-colors shadow-sm"
-                          style={{ background: '#007e6d', boxShadow: '0 14px 28px rgba(0,126,109,0.28)' }}
+                          style={{ background: '#007e6d', border: '1px solid rgba(0,126,109,0.18)', boxShadow: '0 14px 28px rgba(0,126,109,0.24)' }}
                         >
                           Save changes
                         </button>
@@ -3892,7 +3896,7 @@ const BusinessDashboard: NextPage = () => {
                       <button
                         onClick={() => sendPreviewAction('enter-edit')}
                         className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
-                        style={{ borderColor: dm ? 'rgba(94,234,212,0.5)' : 'rgba(0,126,109,0.2)', background: dm ? 'rgba(0,126,109,0.24)' : 'rgba(0,126,109,0.12)', color: dm ? '#ecfeff' : '#0f766e', boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.24)' : '0 12px 26px rgba(15, 23, 42, 0.08)' }}
+                        style={{ borderColor: dm ? 'rgba(94,234,212,0.5)' : 'rgba(0,126,109,0.24)', background: dm ? 'rgba(0,126,109,0.24)' : '#eef8f5', color: dm ? '#ecfeff' : '#0f766e', boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.24)' : '0 12px 26px rgba(15, 23, 42, 0.08)' }}
                       >
                         Edit mode
                       </button>

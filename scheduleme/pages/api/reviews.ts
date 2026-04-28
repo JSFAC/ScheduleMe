@@ -126,7 +126,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     if (booking.user_id !== user.id) return res.status(403).json({ error: 'Access denied' });
-    if (!['completed', 'paid'].includes(booking.status))
+    if (booking.status !== 'completed')
       return res.status(400).json({ error: 'Can only review completed bookings' });
 
     // Check no existing review for this booking

@@ -34,6 +34,7 @@ interface Booking {
   business_email?: string;
   amount_cents?: number;
   paid_at?: string;
+  funds_released_at?: string;
   consumer_confirmation_due_at?: string;
   completion_proof_note?: string;
   completion_proof_photo_urls?: string[];
@@ -480,13 +481,21 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
           )}
 
           {/* Consumer dispute window */}
-          {booking.status === 'completed' && booking.consumer_confirmation_due_at && new Date(booking.consumer_confirmation_due_at).getTime() > Date.now() && (
+          {['awaiting_consumer_confirmation', 'completed'].includes(booking.status) && booking.consumer_confirmation_due_at && new Date(booking.consumer_confirmation_due_at).getTime() > Date.now() && (
             <div className="mt-6 pt-5 border-t border-neutral-100">
               <div className="rounded-2xl p-4" style={{ background: '#fffbeb', border: '1px solid #fcd34d' }}>
-                <p className="text-sm font-bold text-amber-800 mb-0.5">Service auto-completed from provider proof</p>
+                <p className="text-sm font-bold text-amber-800 mb-0.5">Provider submitted completion proof</p>
                 <p className="text-xs text-amber-700 mb-3">
-                  If something is wrong, open a dispute before {new Date(booking.consumer_confirmation_due_at).toLocaleString()}.
+                  Confirm the job if it looks right, or open a dispute before {new Date(booking.consumer_confirmation_due_at).toLocaleString()}.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => confirmCompletion(booking.id)}
+                  className="mb-3 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg,#0F766E 0%,#0B5C56 100%)' }}
+                >
+                  Confirm Completion
+                </button>
                 <p className="text-sm font-bold text-amber-800 mb-2">Report issue / dispute</p>
                 <select
                   className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm mb-2 bg-white"
@@ -573,7 +582,7 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
             </div>
           )}
 
-          {/* Completed booking actions */}
+          {/* Booking actions after payment */}
           {['completed', 'paid'].includes(booking.status) && (
             <div className="mt-6 pt-5 border-t border-neutral-100 space-y-2.5">
               {!!booking.business_id && (
@@ -585,18 +594,20 @@ function DetailSheet({ booking, originRect, onClose, onCancel, onOpenDispute, on
                   Message Provider
                 </button>
               )}
-              <button
-                onClick={() => onLeaveReview(booking)}
-                disabled={booking.reviewed === true}
-                className="w-full py-3 rounded-xl text-sm font-semibold border transition-colors disabled:cursor-not-allowed disabled:opacity-55"
-                style={{
-                  background: booking.reviewed ? '#f5f5f5' : '#111111',
-                  color: booking.reviewed ? '#9ca3af' : 'white',
-                  borderColor: booking.reviewed ? '#e5e7eb' : '#111111',
-                }}
-              >
-                {booking.reviewed ? 'Review already submitted' : 'Leave a Review'}
-              </button>
+              {booking.status === 'completed' && (
+                <button
+                  onClick={() => onLeaveReview(booking)}
+                  disabled={booking.reviewed === true}
+                  className="w-full py-3 rounded-xl text-sm font-semibold border transition-colors disabled:cursor-not-allowed disabled:opacity-55"
+                  style={{
+                    background: booking.reviewed ? '#f5f5f5' : '#111111',
+                    color: booking.reviewed ? '#9ca3af' : 'white',
+                    borderColor: booking.reviewed ? '#e5e7eb' : '#111111',
+                  }}
+                >
+                  {booking.reviewed ? 'Review already submitted' : 'Leave a Review'}
+                </button>
+              )}
             </div>
           )}
 
@@ -970,6 +981,51 @@ const BookingsPage: NextPage = () => {
     }
   }
 
+  async function confirmCompletion(id: string) {
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setActionToast('Please log in again to confirm this booking.');
+        return;
+      }
+      const res = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          booking_id: id,
+          action: 'consumer_confirm_completion',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionToast(data.error || 'Could not confirm completion.');
+        return;
+      }
+      const releasedAt = data?.booking?.funds_released_at || data?.booking?.completed_at || new Date().toISOString();
+      setBookings(prev => prev.map(b => b.id === id ? {
+        ...b,
+        status: 'completed',
+        funds_released_at: releasedAt,
+        consumer_confirmation_due_at: undefined,
+      } : b));
+      setSelectedBooking(prev => prev && prev.id === id ? {
+        ...prev,
+        status: 'completed',
+        funds_released_at: releasedAt,
+        consumer_confirmation_due_at: undefined,
+      } : prev);
+      setActionToast('Completion confirmed. Provider payout is now released.');
+    } catch {
+      setActionToast('Could not confirm completion.');
+    } finally {
+      setTimeout(() => setActionToast(null), 5000);
+    }
+  }
+
   async function uploadDisputeMedia(bookingId: string, file: File): Promise<string | null> {
     try {
       const supabase = getSupabase();
@@ -1137,7 +1193,7 @@ const BookingsPage: NextPage = () => {
           void loadNearbyBusinesses();
           const skippedIds = getSkippedReviewIds();
           const unreviewed = bookingsData.find(
-            (b: any) => ['completed', 'paid'].includes(b.status) && !b.reviewed && !skippedIds.has(String(b.id))
+            (b: any) => b.status === 'completed' && !b.reviewed && !skippedIds.has(String(b.id))
           );
           if (alive && unreviewed && unreviewed.business_name) {
             setTimeout(() => setReviewTarget({

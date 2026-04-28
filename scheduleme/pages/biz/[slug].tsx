@@ -54,6 +54,21 @@ function localDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function normalizeCurrencyDigits(value: string): string {
+  return String(value || '').replace(/[^\d]/g, '').slice(0, 7);
+}
+
+function digitsToCurrencyDisplay(digits: string): string {
+  const normalized = normalizeCurrencyDigits(digits);
+  if (!normalized) return '';
+  return (Number(normalized) / 100).toFixed(2);
+}
+
+function currencyDigitsToCents(digits: string): number {
+  const normalized = normalizeCurrencyDigits(digits);
+  return normalized ? Number(normalized) : 0;
+}
+
 function buildScheduledStart(date: Date, slot: string): string | null {
   const mins = parseSlotMinutes(slot);
   if (Number.isNaN(mins)) return null;
@@ -332,7 +347,7 @@ export default function BizPage() {
   const [mediaErr, setMediaErr] = useState('');
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [svcDrafts, setSvcDrafts] = useState<Record<string, any>>({});
-  const [newSvc, setNewSvc] = useState({ name: '', price: '', duration: '60', description: '' });
+  const [newSvc, setNewSvc] = useState({ name: '', price: '', duration: '', description: '' });
   const [showNewServiceComposer, setShowNewServiceComposer] = useState(false);
   const [savingAllEdits, setSavingAllEdits] = useState(false);
   const [deletedServiceIds, setDeletedServiceIds] = useState<string[]>([]);
@@ -342,6 +357,8 @@ export default function BizPage() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const galleryTouchStart = useRef<{ x: number; y: number } | null>(null);
   const lightboxTouchStart = useRef<{ x: number; y: number } | null>(null);
+  const newServicePriceCents = currencyDigitsToCents(newSvc.price);
+  const newServicePriceTooLow = newSvc.price.length > 0 && newServicePriceCents < 500;
 
   function normalizeDraftDescription(value?: string | null) {
     const text = String(value || '').trim();
@@ -604,7 +621,7 @@ export default function BizPage() {
     setDraftServices((nextServices || []).map((svc: any) => ({ ...svc })));
     setSvcDrafts({});
     setDeletedServiceIds([]);
-    setNewSvc({ name: '', price: '', duration: '60', description: '' });
+    setNewSvc({ name: '', price: '', duration: '', description: '' });
     setShowNewServiceComposer(false);
     setMediaErr('');
     setErr('');
@@ -738,24 +755,39 @@ export default function BizPage() {
         id: s.id,
         name: s.name || '',
         description: s.description || '',
-        price: s.price_cents ? (s.price_cents / 100).toFixed(2) : '',
+        price: s.price_cents ? String(s.price_cents) : '',
         duration: s.duration_min ? String(s.duration_min) : '60',
       },
     }));
   }
 
   function updateSvcDraft(id: string, field: string, value: string) {
-    setSvcDrafts((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+    setSvcDrafts((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]:
+          field === 'price'
+            ? normalizeCurrencyDigits(value)
+            : field === 'duration'
+              ? String(value || '').replace(/[^\d]/g, '').slice(0, 4)
+              : value,
+      },
+    }));
   }
 
   async function saveService(id: string) {
     const d = svcDrafts[id];
     if (!biz || !d) return;
+    const price = currencyDigitsToCents(d.price || '');
+    const durationMin = Number.parseInt(String(d.duration || ''), 10);
+    if (!String(d.name || '').trim()) { setErr('Service name is required'); return; }
+    if (price < 500) { setErr('Service price must be at least $5.00'); return; }
+    if (!Number.isFinite(durationMin) || durationMin <= 0) { setErr('Service duration is required'); return; }
     if (isDashboardEmbed && editMode) {
-      const price = Math.round(parseFloat(d.price || '0') * 100);
       setDraftServices((prev: any[]) => prev.map((s) => (
         s.id === id
-          ? { ...s, name: d.name, description: d.description, price_cents: price, duration_min: Number(d.duration || 60) }
+          ? { ...s, name: d.name.trim(), description: d.description, price_cents: price, duration_min: durationMin }
           : s
       )));
       setSvcDrafts((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
@@ -763,17 +795,16 @@ export default function BizPage() {
     }
     const headers = await getAuthHeaders();
     if (!headers) return;
-    const price = Math.round(parseFloat(d.price || '0') * 100);
     const res = await fetch('/api/services', {
       method: 'PATCH',
       headers,
       body: JSON.stringify({
         id,
         business_id: biz.id,
-        name: d.name,
+        name: d.name.trim(),
         description: d.description,
         price_cents: price,
-        duration_min: Number(d.duration || 60),
+        duration_min: durationMin,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -806,8 +837,11 @@ export default function BizPage() {
   async function addService() {
     if (!biz) return;
     const name = newSvc.name.trim();
-    const priceCents = Math.round(parseFloat(newSvc.price || '0') * 100);
-    if (!name || !priceCents) { setErr('Add a name and price'); return; }
+    const priceCents = currencyDigitsToCents(newSvc.price);
+    const durationMin = Number.parseInt(String(newSvc.duration || ''), 10);
+    if (!name) { setErr('Add a service name'); return; }
+    if (priceCents < 500) { setErr('Minimum service price is $5.00'); return; }
+    if (!Number.isFinite(durationMin) || durationMin <= 0) { setErr('Add a service duration in minutes'); return; }
     if (isDashboardEmbed && editMode) {
       setDraftServices((prev: any[]) => [
         ...prev,
@@ -816,12 +850,12 @@ export default function BizPage() {
           name,
           description: newSvc.description || '',
           price_cents: priceCents,
-          duration_min: Number(newSvc.duration || 60),
+          duration_min: durationMin,
           sort_order: prev.length,
           requires_time: true,
         },
       ]);
-      setNewSvc({ name: '', price: '', duration: '60', description: '' });
+      setNewSvc({ name: '', price: '', duration: '', description: '' });
       setShowNewServiceComposer(false);
       return;
     }
@@ -836,14 +870,14 @@ export default function BizPage() {
         name,
         description: newSvc.description || '',
         price_cents: priceCents,
-        duration_min: Number(newSvc.duration || 60),
+        duration_min: durationMin,
         sort_order: maxOrder + 1,
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { setErr(data.error || 'Failed to add service'); return; }
     setServices((prev: any[]) => [...prev, data.service]);
-    setNewSvc({ name: '', price: '', duration: '60', description: '' });
+    setNewSvc({ name: '', price: '', duration: '', description: '' });
   }
 
   async function book() {
@@ -1735,11 +1769,16 @@ export default function BizPage() {
                             className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <input value={draft.price} onChange={(e) => updateSvcDraft(s.id, 'price', e.target.value)} placeholder="Price (e.g. 25)"
+                          <input value={digitsToCurrencyDisplay(draft.price || '')} onChange={(e) => updateSvcDraft(s.id, 'price', e.target.value)} placeholder="0.00"
+                            inputMode="numeric"
                             className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                           <input value={draft.duration} onChange={(e) => updateSvcDraft(s.id, 'duration', e.target.value)} placeholder="Minutes"
+                            inputMode="numeric"
                             className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                         </div>
+                        {draft.price && currencyDigitsToCents(draft.price) < 500 && (
+                          <p className="text-[11px] font-semibold text-red-500">Minimum service price is $5.00.</p>
+                        )}
                         <div className="flex items-center justify-between">
                           <button onClick={() => saveService(s.id)}
                             className="text-xs font-semibold px-3 py-1.5 rounded-xl"
@@ -1812,11 +1851,16 @@ export default function BizPage() {
                         className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                      <input value={newSvc.price} onChange={(e) => setNewSvc((p) => ({ ...p, price: e.target.value }))} placeholder="Price (e.g. 25)"
+                      <input value={digitsToCurrencyDisplay(newSvc.price)} onChange={(e) => setNewSvc((p) => ({ ...p, price: normalizeCurrencyDigits(e.target.value) }))} placeholder="0.00"
+                        inputMode="numeric"
                         className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
-                      <input value={newSvc.duration} onChange={(e) => setNewSvc((p) => ({ ...p, duration: e.target.value }))} placeholder="Minutes"
+                      <input value={newSvc.duration} onChange={(e) => setNewSvc((p) => ({ ...p, duration: String(e.target.value || '').replace(/[^\d]/g, '').slice(0, 4) }))} placeholder="Minutes"
+                        inputMode="numeric"
                         className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                     </div>
+                    {newServicePriceTooLow && (
+                      <p className="mt-2 text-[11px] font-semibold text-red-500">Minimum service price is $5.00.</p>
+                    )}
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-[11px]" style={{ color: mu }}>
                         {isDashboardEmbed ? 'This saves when you click Save changes.' : 'This will appear immediately on your listing.'}

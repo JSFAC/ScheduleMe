@@ -1013,14 +1013,14 @@ export function paymentNotificationBusinessHtml(opts: {
     <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
       <div style="text-align:center;margin-bottom:28px;">
         <div style="display:inline-block;width:60px;height:60px;background:${EMAIL_ACCENT_SOFT};border-radius:50%;line-height:60px;font-size:28px;margin-bottom:12px;">💳</div>
-        <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Payment received</h1>
-        <p style="margin:0;font-size:15px;color:#64748b;">A customer just paid for their booking</p>
+        <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Booking paid and secured</h1>
+        <p style="margin:0;font-size:15px;color:#64748b;">A customer just paid. Funds stay held by ScheduleMe until the booking is completed.</p>
       </div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${EMAIL_ACCENT_SOFT};border-radius:12px;margin-bottom:28px;border:1px solid ${EMAIL_BORDER};">
         <tr><td style="padding:24px;text-align:center;">
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:${EMAIL_ACCENT_DARK};text-transform:uppercase;letter-spacing:0.06em;">Your payout</p>
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:${EMAIL_ACCENT_DARK};text-transform:uppercase;letter-spacing:0.06em;">Held for completion</p>
           <p style="margin:0;font-size:36px;font-weight:800;color:${EMAIL_ACCENT_DARK};letter-spacing:-0.03em;">$${opts.payoutDollars}</p>
-          <p style="margin:4px 0 0;font-size:12px;color:${EMAIL_ACCENT};">$${opts.amountDollars} total — ${opts.platformFeePercent}% platform fee</p>
+          <p style="margin:4px 0 0;font-size:12px;color:${EMAIL_ACCENT};">Estimated provider net after ${opts.platformFeePercent}% platform fee from the $${opts.amountDollars} customer charge</p>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
@@ -1039,10 +1039,10 @@ export function paymentNotificationBusinessHtml(opts: {
           <a href="${SITE_URL}/business/dashboard" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View Dashboard →</a>
         </td></tr>
       </table>
-      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Funds will be deposited to your connected bank account within 2 business days via Stripe.</p>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Upload completion proof in your dashboard after the job is done. The customer can confirm or dispute before funds are released.</p>
     </td></tr>
   `;
-  return layout('Payment received', body, `$${opts.payoutDollars} payout incoming for ${opts.service}`);
+  return layout('Booking paid and secured', body, `$${opts.amountDollars} customer payment received for ${opts.service} — held pending completion`);
 }
 
 // ─── Payment Request — Customer ───────────────────────────────────────────────
@@ -1204,7 +1204,7 @@ export async function sendPaymentNotificationBusiness(opts: {
   amountDollars: string; platformFeePercent: number; payoutDollars: string; bookingId: string;
 }) {
   const resend = getResend();
-  return resend.emails.send({ from: FROM, to: opts.to, subject: `Payment received — $${opts.payoutDollars} payout incoming`, html: paymentNotificationBusinessHtml(opts) });
+  return resend.emails.send({ from: FROM, to: opts.to, subject: `Booking paid — $${opts.amountDollars} secured and held`, html: paymentNotificationBusinessHtml(opts) });
 }
 
 export async function sendPaymentRequestCustomer(opts: {

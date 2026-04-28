@@ -8,8 +8,6 @@ import stripe from '../../lib/stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
 
 const PROTECTION_FEE_CENTS = 99;
-const PLATFORM_FEE_PERCENT = 12;
-
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -72,8 +70,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const protectionFee = Math.max(0, toSafeInt(protection_fee_cents, PROTECTION_FEE_CENTS));
   const totalAmount = serviceAmountCents + protectionFee;
-  const applicationFee = Math.round(serviceAmountCents * PLATFORM_FEE_PERCENT / 100) + protectionFee;
-
   const supabase = getSupabase();
   const { data: business } = await supabase
     .from('businesses')
@@ -97,8 +93,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       amount: totalAmount,
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: applicationFee,
-      transfer_data: { destination: business.stripe_account_id },
       receipt_email: safeUserEmail || undefined,
       description: `${safeService} • ${business.name || 'ScheduleMe provider'}`,
       metadata: {
@@ -118,6 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         service_amount_cents: String(serviceAmountCents),
         protection_fee_cents: String(protectionFee),
         total_amount_cents: String(totalAmount),
+        hold_in_platform: 'true',
       },
     });
 

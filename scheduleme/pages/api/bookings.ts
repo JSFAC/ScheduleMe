@@ -1,12 +1,12 @@
 // pages/api/bookings.ts — SECURED + completion proof + consumer confirmation + disputes
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '../../lib/providerTrust';
 import { isAwayWindow } from '../../lib/founder50';
 import { PROTECTION_FEE_CENTS } from '../../lib/fees';
+import { refundBookingPayment, releaseHeldFundsForBooking } from '../../lib/bookingFunds';
 
 const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
 const VALID_STATUSES = [
@@ -223,6 +223,8 @@ function cleanUrlArray(value: unknown, maxItems = 8): string[] {
 
 function deriveBookingStatus(row: any): string {
   if (row?.status === 'disputed' || row?.disputed_at) return 'disputed';
+  const dueAt = row?.consumer_confirmation_due_at ? new Date(row.consumer_confirmation_due_at).getTime() : 0;
+  if (row?.status === 'completed' && dueAt > Date.now()) return 'awaiting_consumer_confirmation';
   return row?.status || 'pending';
 }
 
@@ -359,40 +361,6 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
     }
   } catch {
     // non-fatal
-  }
-}
-
-async function getPaymentIntentForBooking(bookingId: string) {
-  const query = `metadata['booking_id']:'${bookingId}' AND status:'succeeded'`;
-  const result = await stripe.paymentIntents.search({ query, limit: 1 });
-  return result.data?.[0] || null;
-}
-
-async function refundBookingIfPaid(bookingId: string, amountCents?: number) {
-  try {
-    const paymentIntent = await getPaymentIntentForBooking(bookingId);
-    if (!paymentIntent) return { refunded: false, reason: 'no_payment_found' };
-
-    const existingRefunds = await stripe.refunds.list({ payment_intent: paymentIntent.id, limit: 10 });
-    const alreadyRefunded = existingRefunds.data.reduce((sum, r) => sum + (r.amount || 0), 0);
-    const maxRefundable = Math.max(0, (paymentIntent.amount_received || paymentIntent.amount || 0) - alreadyRefunded);
-    if (maxRefundable <= 0) return { refunded: false, reason: 'already_refunded' };
-
-    const refundAmount = typeof amountCents === 'number'
-      ? Math.max(1, Math.min(maxRefundable, Math.round(amountCents)))
-      : maxRefundable;
-
-    await stripe.refunds.create({
-      payment_intent: paymentIntent.id,
-      amount: refundAmount,
-      reason: 'requested_by_customer',
-      metadata: { booking_id: bookingId },
-    });
-
-    return { refunded: true, amount_cents: refundAmount };
-  } catch (err) {
-    console.error('[bookings] refund failed', err);
-    return { refunded: false, reason: 'refund_failed' };
   }
 }
 
@@ -647,7 +615,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (action === 'consumer_confirm_completion') {
-      return res.status(400).json({ error: 'This booking flow auto-completes when provider submits proof' });
+      if (!isCustomer) return res.status(403).json({ error: 'Only customers can confirm completion' });
+      if (booking.status !== 'completed' || !booking.consumer_confirmation_due_at) {
+        return res.status(400).json({ error: 'Booking is not waiting for customer confirmation' });
+      }
+      const released = await releaseHeldFundsForBooking({
+        supabase,
+        bookingId: booking_id,
+        reason: 'consumer_confirmed_completion',
+      });
+      if (!released.ok) {
+        return res.status(400).json({ error: released.error || 'Could not release held funds' });
+      }
+      return res.status(200).json({
+        success: true,
+        booking: {
+          id: booking_id,
+          status: 'completed',
+          completed_at: released.releasedAt || new Date().toISOString(),
+          funds_released_at: released.releasedAt || null,
+        },
+      });
     }
 
     if (action === 'consumer_open_dispute') {
@@ -721,14 +709,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       let refund: any = null;
       if (resolution === 'full_refund') {
-        refund = await refundBookingIfPaid(booking_id);
+        refund = await refundBookingPayment({ supabase, bookingId: booking_id });
       }
       if (resolution === 'partial_refund') {
         const cents = Number(req.body?.partial_refund_cents);
         if (!Number.isFinite(cents) || cents <= 0) {
           return res.status(400).json({ error: 'partial_refund_cents must be a positive number' });
         }
-        refund = await refundBookingIfPaid(booking_id, cents);
+        refund = await refundBookingPayment({ supabase, bookingId: booking_id, amountCents: cents });
+      }
+      if (resolution === 'release_funds') {
+        const released = await releaseHeldFundsForBooking({
+          supabase,
+          bookingId: booking_id,
+          reason: 'admin_release_funds',
+        });
+        if (!released.ok) {
+          return res.status(400).json({ error: released.error || 'Could not release held funds' });
+        }
       }
 
       const nowIso = new Date().toISOString();
@@ -741,6 +739,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           dispute_resolution: resolution,
           dispute_resolution_notes: cleanText(req.body?.resolution_notes, 1000) || null,
           completed_at: targetStatus === 'completed' ? nowIso : null,
+          consumer_confirmation_due_at: null,
         })
         .eq('id', booking_id)
         .select('id, status, dispute_resolved_at, dispute_resolution')
@@ -766,8 +765,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let refund: { refunded: boolean; reason?: string } | null = null;
     if (status === 'cancelled' && booking.paid_at) {
-      refund = await refundBookingIfPaid(booking_id);
-    }
+        refund = await refundBookingPayment({ supabase, bookingId: booking_id });
+      }
 
     if (consumer?.email) {
       if (status === 'completed') {
@@ -878,6 +877,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
         const businessById = await buildBusinessByIdMap(supabase, data || []);
+        for (const row of data || []) {
+          const dueAt = row?.consumer_confirmation_due_at ? new Date(row.consumer_confirmation_due_at).getTime() : 0;
+          const needsAutoRelease =
+            !!dueAt &&
+            dueAt <= Date.now() &&
+            !row?.disputed_at &&
+            String(row?.status || '').toLowerCase() === 'completed';
+          if (!needsAutoRelease) continue;
+          try {
+            await releaseHeldFundsForBooking({
+              supabase,
+              bookingId: row.id,
+              reason: 'consumer_confirmation_window_expired',
+            });
+            row.status = 'completed';
+            row.consumer_confirmation_due_at = null;
+          } catch (err) {
+            console.error('[bookings] failed to auto-release held funds', row?.id, err);
+          }
+        }
+
         const bookings = (data || []).map((b: any) => ({
           ...b,
           status: deriveBookingStatus(b),
@@ -923,6 +943,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .limit(200);
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
+        for (const row of data || []) {
+          const dueAt = row?.consumer_confirmation_due_at ? new Date(row.consumer_confirmation_due_at).getTime() : 0;
+          const needsAutoRelease =
+            !!dueAt &&
+            dueAt <= Date.now() &&
+            !row?.disputed_at &&
+            String(row?.status || '').toLowerCase() === 'completed';
+          if (!needsAutoRelease) continue;
+          try {
+            await releaseHeldFundsForBooking({
+              supabase,
+              bookingId: row.id,
+              reason: 'consumer_confirmation_window_expired',
+            });
+            row.status = 'completed';
+            row.consumer_confirmation_due_at = null;
+          } catch (err) {
+            console.error('[bookings] failed to auto-release held funds', row?.id, err);
+          }
+        }
+
         const bookings = (data || []).map((row: any) => ({
           ...row,
           status: deriveBookingStatus(row),

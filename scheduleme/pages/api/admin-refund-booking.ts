@@ -1,9 +1,9 @@
 // pages/api/admin-refund-booking.ts — SECURED (admin only)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import stripe from '../../lib/stripe';
 import { setSecurityHeaders, rateLimit, isValidUuid, logAuditEvent, requireAdmin } from '../../lib/apiSecurity';
 import { PROTECTION_FEE_CENTS } from '../../lib/fees';
+import { refundBookingPayment } from '../../lib/bookingFunds';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
@@ -33,20 +33,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const serviceRefundCents = Math.max(0, Number(booking.amount_cents || 0));
-    if (serviceRefundCents > 0) {
-      await stripe.refunds.create({
-        payment_intent: booking.stripe_payment_intent_id,
-        amount: serviceRefundCents,
-        reverse_transfer: true,
-        refund_application_fee: true,
-      });
-    } else {
-      // Safety fallback for legacy records without service amount.
-      await stripe.refunds.create({
-        payment_intent: booking.stripe_payment_intent_id,
-        reverse_transfer: true,
-        refund_application_fee: true,
-      });
+    const refundResult = await refundBookingPayment({
+      supabase,
+      bookingId,
+      amountCents: serviceRefundCents > 0 ? serviceRefundCents : undefined,
+    });
+    if (!refundResult.refunded) {
+      return res.status(400).json({ error: refundResult.reason || 'Refund failed' });
     }
   } catch (err: any) {
     console.error('[admin-refund-booking]', err);
