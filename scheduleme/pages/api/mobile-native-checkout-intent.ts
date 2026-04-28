@@ -6,6 +6,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid } from '../../lib/apiSecurity';
+import { loadProviderPayoutStage } from '../../lib/providerPayoutStage';
 
 const PROTECTION_FEE_CENTS = 99;
 function getSupabase() {
@@ -84,8 +85,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (availabilityStatus && availabilityStatus !== 'open') {
     return res.status(409).json({ error: `Provider is currently ${availabilityStatus} and not accepting bookings.` });
   }
-  if (!business.stripe_onboarded || !business.stripe_account_id) {
-    return res.status(400).json({ error: "This provider can't accept payments yet." });
+  const payoutStage = await loadProviderPayoutStage(supabase, business as any);
+  if (payoutStage?.requiresStripeForNewBookings) {
+    return res.status(409).json({
+      error: 'This provider must connect Stripe before accepting additional instant bookings.',
+      code: 'provider_stripe_required',
+      provider_payout_stage: payoutStage,
+    });
   }
 
   try {

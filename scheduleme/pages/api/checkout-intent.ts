@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import stripe from '../../lib/stripe';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 import { PROTECTION_FEE_CENTS } from '../../lib/fees';
+import { loadProviderPayoutStage } from '../../lib/providerPayoutStage';
 
 function getSupabase() {
   return createClient(
@@ -82,8 +83,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq('id', business_id)
     .maybeSingle();
   if (!biz) return res.status(404).json({ error: 'Business not found' });
-  if (!biz.stripe_onboarded || !biz.stripe_account_id) {
-    return res.status(400).json({ error: 'This provider cannot accept payments yet.' });
+  const payoutStage = await loadProviderPayoutStage(supabase, biz as any);
+  if (payoutStage?.requiresStripeForNewBookings) {
+    return res.status(409).json({
+      error: 'This provider must connect Stripe before accepting additional instant bookings.',
+      code: 'provider_stripe_required',
+      provider_payout_stage: payoutStage,
+    });
   }
   if (biz.owner_id && biz.owner_id === user.id) {
     return res.status(403).json({ error: 'You cannot book your own business.' });

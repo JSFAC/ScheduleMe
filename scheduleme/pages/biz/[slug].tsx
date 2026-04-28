@@ -12,6 +12,7 @@ import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
 import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
 import { shouldShowNewBadge } from '../../lib/newBadge';
 import { isProviderPubliclyVisible } from '../../lib/providerTrust';
+import { deriveProviderPayoutStage, MANUAL_PAYOUT_BOOKING_THRESHOLD } from '../../lib/providerPayoutStage';
 
 function getSB() {
   return getSupabaseClient();
@@ -328,6 +329,7 @@ export default function BizPage() {
   const [viewerSchoolDomain, setViewerSchoolDomain] = useState<string | null>(null);
   const [viewerEmail, setViewerEmail] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  const [providerPaymentBlockReason, setProviderPaymentBlockReason] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
@@ -375,6 +377,45 @@ export default function BizPage() {
             : (bizVisibility.publicVisibility && bizVisibility.publicShowName ? biz.owner_name : '')))
     : '';
   const titleName = biz?.name || 'ScheduleMe Provider';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProviderPayoutAvailability() {
+      if (!biz?.id) {
+        if (!cancelled) setProviderPaymentBlockReason('');
+        return;
+      }
+      if (biz?.stripe_onboarded && biz?.stripe_account_id) {
+        if (!cancelled) setProviderPaymentBlockReason('');
+        return;
+      }
+      try {
+        const { count } = await getSB()
+          .from('bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('business_id', biz.id)
+          .not('paid_at', 'is', null)
+          .not('status', 'in', '(cancelled,payment_failed)');
+        if (cancelled) return;
+        const payoutStage = deriveProviderPayoutStage({
+          stripe_onboarded: biz?.stripe_onboarded,
+          stripe_account_id: biz?.stripe_account_id,
+          paidBookingsCount: count || 0,
+        });
+        setProviderPaymentBlockReason(
+          payoutStage.requiresStripeForNewBookings
+            ? `This provider has reached the ${MANUAL_PAYOUT_BOOKING_THRESHOLD}-booking manual payout limit and needs to connect Stripe before accepting new paid bookings.`
+            : ''
+        );
+      } catch {
+        if (!cancelled) setProviderPaymentBlockReason('');
+      }
+    }
+
+    loadProviderPayoutAvailability();
+    return () => { cancelled = true; };
+  }, [biz?.id, biz?.stripe_onboarded, biz?.stripe_account_id]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -901,7 +942,7 @@ export default function BizPage() {
       proposedPriceCents = parsedCents;
     }
 
-    if (!biz?.stripe_onboarded || !biz?.stripe_account_id) { setErr('This provider can’t accept payments yet.'); return; }
+    if (providerPaymentBlockReason) { setErr(providerPaymentBlockReason); return; }
     const isPaidService = !isCustom;
     if (isPaidService && !selectedSvc?.price_cents) { setErr('Please select a priced service to book.'); return; }
 
@@ -1030,7 +1071,7 @@ export default function BizPage() {
     ? Number.parseInt(customProposedPrice, 10)
     : 0;
   const customPriceTooLow = isCustom && customProposedPrice.length > 0 && (!Number.isFinite(customProposedCents) || customProposedCents < 500);
-  const providerCannotAcceptPayments = !biz?.stripe_onboarded || !biz?.stripe_account_id;
+  const providerCannotAcceptPayments = !!providerPaymentBlockReason;
   const isSelfOwnedBusiness = !!(
     (biz?.owner_id && viewerUserId && biz.owner_id === viewerUserId) ||
     (biz?.owner_email && viewerEmail && String(biz.owner_email).toLowerCase().trim() === String(viewerEmail).toLowerCase().trim())
@@ -1976,7 +2017,7 @@ export default function BizPage() {
           )}
           {providerCannotAcceptPayments && !guestNeedsAuth && (
             <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(156,163,175,0.18)' : 'rgba(156,163,175,0.16)', color: dm ? '#d1d5db' : '#4b5563', border: '1px solid ' + (dm ? '#4b5563' : '#d1d5db') }}>
-              This provider can&apos;t accept payments yet, so booking is temporarily unavailable.
+              {providerPaymentBlockReason}
             </div>
           )}
           {isSelfOwnedBusiness && (
@@ -2058,7 +2099,7 @@ export default function BizPage() {
           )}
           {providerCannotAcceptPayments && !guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              Provider can&apos;t accept payments yet.
+              {providerPaymentBlockReason}
             </p>
           )}
           {isSelfOwnedBusiness && (
@@ -2080,7 +2121,7 @@ export default function BizPage() {
           )}
           {providerCannotAcceptPayments && !guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              Provider can&apos;t accept payments yet.
+              {providerPaymentBlockReason}
             </p>
           )}
           {isSelfOwnedBusiness && (

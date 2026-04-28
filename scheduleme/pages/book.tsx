@@ -7,6 +7,7 @@ import { getSupabaseClient } from '../lib/supabaseClient';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
 import { issuePaymentAccessTicket } from '../lib/paymentAccess';
+import { deriveProviderPayoutStage } from '../lib/providerPayoutStage';
 
 function getSupabase() {
   if (typeof window === 'undefined') return null;
@@ -49,6 +50,7 @@ const BookPage: NextPage = () => {
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [providerAcceptsPayments, setProviderAcceptsPayments] = useState(true);
+  const [providerPaymentBlockReason, setProviderPaymentBlockReason] = useState<string | null>(null);
 
   useEffect(() => {
     // Load provider from query or sessionStorage
@@ -98,7 +100,10 @@ const BookPage: NextPage = () => {
       const stripeReadyFromProvider =
         provider.stripe_onboarded === true && !!provider.stripe_account_id;
       if (stripeReadyFromProvider) {
-        if (!cancelled) setProviderAcceptsPayments(true);
+        if (!cancelled) {
+          setProviderAcceptsPayments(true);
+          setProviderPaymentBlockReason(null);
+        }
         return;
       }
 
@@ -118,7 +123,24 @@ const BookPage: NextPage = () => {
         setProviderAcceptsPayments(true);
         return;
       }
-      setProviderAcceptsPayments(!!data?.stripe_onboarded && !!data?.stripe_account_id);
+      const { count } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('business_id', provider.id)
+        .not('paid_at', 'is', null)
+        .not('status', 'in', '(cancelled,payment_failed)');
+      if (cancelled) return;
+      const payoutStage = deriveProviderPayoutStage({
+        stripe_onboarded: data?.stripe_onboarded,
+        stripe_account_id: data?.stripe_account_id,
+        paidBookingsCount: Number(count || 0),
+      });
+      setProviderAcceptsPayments(payoutStage.canAcceptNewBookings);
+      setProviderPaymentBlockReason(
+        payoutStage.requiresStripeForNewBookings
+          ? `This provider needs to connect Stripe before accepting more bookings.`
+          : null
+      );
     })();
 
     return () => { cancelled = true; };
@@ -129,7 +151,7 @@ const BookPage: NextPage = () => {
     setError(null);
     try {
       if (!providerAcceptsPayments) {
-        setError('This provider can’t accept payments yet.');
+        setError(providerPaymentBlockReason || 'This provider can’t accept payments yet.');
         setLoading(false);
         return;
       }

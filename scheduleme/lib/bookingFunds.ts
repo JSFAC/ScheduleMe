@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import stripe from './stripe';
 import { getPlatformFeePercent } from './platformFees';
+import { isProviderStripeReady } from './providerPayoutStage';
 
 type BookingReleaseRow = {
   id: string;
@@ -91,10 +92,6 @@ export async function releaseHeldFundsForBooking(opts: {
   if (!booking.amount_cents || booking.amount_cents <= 0) return { ok: false, error: 'Booking has no service amount' as const };
 
   const business = booking.businesses || null;
-  if (!business?.stripe_account_id || !business?.stripe_onboarded) {
-    return { ok: false, error: 'Provider Stripe account is not ready' as const };
-  }
-
   const paymentIntent = await retrievePaymentIntentForBooking(opts.bookingId, booking.stripe_payment_intent_id);
   if (!paymentIntent || paymentIntent.status !== 'succeeded') {
     return { ok: false, error: 'Succeeded payment intent not found' as const };
@@ -105,14 +102,29 @@ export async function releaseHeldFundsForBooking(opts: {
   const providerPayoutCentsFromMeta = parseIntMeta(metadata.provider_payout_cents, 0);
   const platformFeeCentsFromMeta = parseIntMeta(metadata.platform_fee_cents, 0);
   const alreadyReleasedAt = String(metadata.funds_released_at || '').trim();
+  const manualPendingAt = String(metadata.manual_payout_pending_at || '').trim();
+  const releaseState = String(metadata.funds_release_state || '').trim();
   if (existingTransferId || alreadyReleasedAt) {
     return {
       ok: true,
       alreadyReleased: true,
+      payoutMode: 'stripe_transfer' as const,
       transferId: existingTransferId || null,
       providerPayoutCents: providerPayoutCentsFromMeta,
       platformFeeCents: platformFeeCentsFromMeta,
       releasedAt: alreadyReleasedAt || null,
+    };
+  }
+  if (releaseState === 'manual_payout_pending' || manualPendingAt) {
+    return {
+      ok: true,
+      alreadyReleased: true,
+      payoutMode: 'manual_pending' as const,
+      transferId: null,
+      providerPayoutCents: providerPayoutCentsFromMeta,
+      platformFeeCents: platformFeeCentsFromMeta,
+      releasedAt: null,
+      manualPayoutPendingAt: manualPendingAt || null,
     };
   }
 
@@ -128,6 +140,43 @@ export async function releaseHeldFundsForBooking(opts: {
   const platformFeeCents = Math.max(0, Math.round(booking.amount_cents * platformFeePercent / 100));
   const providerPayoutCents = Math.max(0, booking.amount_cents - platformFeeCents);
   const nowIso = new Date().toISOString();
+
+  if (!isProviderStripeReady(business)) {
+    await stripe.paymentIntents.update(paymentIntent.id, {
+      metadata: {
+        ...metadata,
+        booking_id: metadata.booking_id || booking.id,
+        funds_release_state: 'manual_payout_pending',
+        funds_release_reason: opts.reason,
+        manual_payout_pending_at: nowIso,
+        provider_transfer_id: '',
+        provider_payout_cents: String(providerPayoutCents),
+        platform_fee_cents: String(platformFeeCents),
+      },
+    });
+
+    await updateBookingReleaseFields(opts.supabase, booking.id, {
+      status: 'completed',
+      completed_at: booking.completed_at || nowIso,
+      consumer_confirmation_due_at: null,
+      funds_release_reason: opts.reason,
+      stripe_transfer_id: null,
+      provider_payout_cents: providerPayoutCents,
+      platform_fee_cents: platformFeeCents,
+      manual_payout_pending_at: nowIso,
+    });
+
+    return {
+      ok: true,
+      alreadyReleased: false,
+      payoutMode: 'manual_pending' as const,
+      transferId: null,
+      providerPayoutCents,
+      platformFeeCents,
+      releasedAt: null,
+      manualPayoutPendingAt: nowIso,
+    };
+  }
 
   let transferId: string | null = null;
   if (providerPayoutCents > 0) {
@@ -178,6 +227,7 @@ export async function releaseHeldFundsForBooking(opts: {
   return {
     ok: true,
     alreadyReleased: false,
+    payoutMode: 'stripe_transfer' as const,
     transferId,
     providerPayoutCents,
     platformFeeCents,

@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
 import { getTrustState, isProviderPubliclyVisible } from '../../lib/providerTrust';
+import { MANUAL_PAYOUT_BOOKING_THRESHOLD } from '../../lib/providerPayoutStage';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -39,7 +40,7 @@ function buildChecklist(business: any, servicesCount: number): Checklist {
     media: hasMedia,
     stripe: hasStripe,
     trustClear,
-    readyToPublish: hasCoreProfile && hasServices && hasMedia && hasStripe && trustClear,
+    readyToPublish: hasCoreProfile && hasServices && hasMedia && trustClear,
   };
 }
 
@@ -86,6 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       is_live: isProviderPubliclyVisible(business),
       trust_status: getTrustState(business),
       published_at: business.published_at || null,
+      stripe_required_after_paid_bookings: MANUAL_PAYOUT_BOOKING_THRESHOLD,
     });
   }
 

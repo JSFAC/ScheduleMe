@@ -7,6 +7,7 @@ import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '.
 import { isAwayWindow } from '../../lib/founder50';
 import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 import { refundBookingPayment, releaseHeldFundsForBooking } from '../../lib/bookingFunds';
+import { loadProviderPayoutStage } from '../../lib/providerPayoutStage';
 
 const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
 const VALID_STATUSES = [
@@ -432,7 +433,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data: businessRow } = await supabase
         .from('businesses')
-        .select('id, availability_status, break_until, away_start, away_end, hours, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key')
+        .select('id, availability_status, break_until, away_start, away_end, hours, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key, stripe_onboarded, stripe_account_id')
         .eq('id', business_id)
         .maybeSingle();
       if (!businessRow) return res.status(404).json({ error: 'Provider not found' });
@@ -464,6 +465,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(403).json({
           error: eligibility.message || 'EDU verification required.',
           code: eligibility.code || 'edu_verification_required',
+        });
+      }
+
+      const payoutStage = await loadProviderPayoutStage(supabase, businessRow as any);
+      if (payoutStage?.requiresStripeForNewBookings) {
+        return res.status(409).json({
+          error: `This provider needs to connect Stripe before accepting more paid bookings. They’ve already completed ${payoutStage.threshold} paid booking${payoutStage.threshold === 1 ? '' : 's'}.`,
+          code: 'provider_stripe_required',
+          provider_payout_stage: payoutStage,
         });
       }
 
@@ -634,7 +644,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: 'completed',
           completed_at: released.releasedAt || new Date().toISOString(),
           funds_released_at: released.releasedAt || null,
+          manual_payout_pending_at: released.manualPayoutPendingAt || null,
         },
+        payout_mode: released.payoutMode || 'stripe_transfer',
       });
     }
 
@@ -839,26 +851,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         let { data, error } = await supabase
           .from('bookings')
-          .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
+          .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
           .in('user_id', resolvedIds)
           .order('created_at', { ascending: false })
           .limit(100);
 
         if (error && isMissingColumnError(error)) {
-          const fallbackLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
+          const fallbackLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
           data = fallbackLegacyProof.data as any;
           error = fallbackLegacyProof.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallback = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action');
+          const fallback = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, reviewed, requires_manual_action');
           data = fallback.data as any;
           error = fallback.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
           // Final compatibility fallback for legacy schemas missing `reviewed`.
-          const fallbackNoReviewed = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
+          const fallbackNoReviewed = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
           data = fallbackNoReviewed.data as any;
           error = fallbackNoReviewed.error as any;
         }

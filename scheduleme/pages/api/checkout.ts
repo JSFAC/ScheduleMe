@@ -56,10 +56,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (booking.status !== 'confirmed' && booking.status !== 'pending') return res.status(400).json({ error: 'Booking must be pending or confirmed before payment' });
   if (booking.paid_at) return res.status(400).json({ error: 'Booking already paid' });
 
-  const biz = booking.businesses as any;
-  if (!biz?.stripe_onboarded || !biz?.stripe_account_id)
-    return res.status(400).json({ error: 'Business has not connected their bank account yet' });
-
   // Amount: use booking amount_cents if set, otherwise require it to be set
   const amountCents = booking.amount_cents;
   if (!amountCents || amountCents < 100)

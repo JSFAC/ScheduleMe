@@ -102,11 +102,6 @@ export default async function handler(req, res) {
     );
   if (!isOwner) return res.status(403).json({ error: 'Access denied' });
 
-  // Ensure business has Stripe connected
-  if (!biz?.stripe_onboarded || !biz?.stripe_account_id) {
-    return res.status(400).json({ error: 'Business has not connected their bank account yet' });
-  }
-
   // Update the amount
   const acceptsCustomerPrice = Number.isFinite(booking.customer_proposed_price_cents)
     && booking.customer_proposed_price_cents > 0

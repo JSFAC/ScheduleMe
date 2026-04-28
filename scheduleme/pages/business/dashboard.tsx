@@ -10,6 +10,7 @@ import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
 import { normalizeServiceTags, serviceTagToLabel } from '../../lib/categoryNormalization';
 import { getProviderVisibilitySettings } from '../../lib/providerTrust';
+import { deriveProviderPayoutStage, MANUAL_PAYOUT_BOOKING_THRESHOLD } from '../../lib/providerPayoutStage';
 import BrandRouteLoader from '../../components/BrandRouteLoader';
 
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
@@ -24,6 +25,8 @@ interface Booking {
   id: string; service: string; status: string; created_at: string;
   scheduled_start?: string; scheduled_end?: string;
   amount_cents: number | null; paid_at: string | null;
+  funds_released_at?: string | null;
+  manual_payout_pending_at?: string | null;
   consumer_confirmation_due_at?: string | null;
   user_id?: string;
   dispute_amount_cents?: number | null;
@@ -2260,19 +2263,32 @@ const BusinessDashboard: NextPage = () => {
   const platformFeeRate = business?.founder50 ? 0.06 : 0.12;
   const toProviderNet = (grossCents: number) => Math.max(0, Math.round(grossCents * (1 - platformFeeRate)));
   const hasHeldCompletionWindow = (b: any) => !!b.consumer_confirmation_due_at && new Date(b.consumer_confirmation_due_at).getTime() > Date.now();
+  const hasReleasedFunds = (b: any) => !!b.funds_released_at || (b.status === 'completed' && !hasHeldCompletionWindow(b) && !b.manual_payout_pending_at);
+  const isManualPayoutPendingBooking = (b: any) => b.status === 'completed' && !hasHeldCompletionWindow(b) && !b.funds_released_at && !!b.manual_payout_pending_at;
+  const paidBookingsCount = bookings.filter(b => !!b.paid_at && !['cancelled', 'payment_failed'].includes(b.status)).length;
+  const payoutStage = deriveProviderPayoutStage({
+    stripe_onboarded: business?.stripe_onboarded,
+    stripe_account_id: business?.stripe_account_id,
+    paidBookingsCount,
+    threshold: MANUAL_PAYOUT_BOOKING_THRESHOLD,
+  });
+  const manualPayoutMode = payoutStage.stage === 'manual_payout';
+  const stripeRequiredMode = payoutStage.stage === 'stripe_required';
+  const bookingReadyMode = payoutStage.stage === 'booking_ready';
+  const remainingManualBookings = payoutStage.remainingBeforeStripeRequired;
   const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid' || hasHeldCompletionWindow(b);
-  // Only completed jobs count as earned payout.
+  // Only released jobs count as earned payout.
   const totalCompletedGross = bookings
-    .filter(b => b.status === 'completed' && !hasHeldCompletionWindow(b) && b.amount_cents)
+    .filter(b => hasReleasedFunds(b) && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const totalEarned = toProviderNet(totalCompletedGross);
   const totalUnreadMsgs = (Array.isArray(msgThreads) ? msgThreads : []).reduce((s: number, t: any) => s + (Number(t?.unreadCount) || 0), 0);
   const pendingCount = bookings.filter(b => isProviderPendingBooking(b)).length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
-  const isRevenueBooking = (b: any) => b.status === 'completed' && !hasHeldCompletionWindow(b);
+  const isRevenueBooking = (b: any) => hasReleasedFunds(b);
   const isActiveOrCompleted = (b: any) => ['confirmed', 'payment_pending', 'price_disputed', 'paid', 'completed'].includes(b.status);
   const thisMonthGross = bookings
-    .filter(b => b.status === 'completed' && !hasHeldCompletionWindow(b) && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth() && new Date(b.created_at).getFullYear() === new Date().getFullYear())
+    .filter(b => hasReleasedFunds(b) && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth() && new Date(b.created_at).getFullYear() === new Date().getFullYear())
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const thisMonthEarned = toProviderNet(thisMonthGross);
   // Amounts still awaiting release:
@@ -2283,9 +2299,13 @@ const BusinessDashboard: NextPage = () => {
   const heldInStripeGross = bookings
     .filter(b => (b.status === 'paid' || hasHeldCompletionWindow(b)) && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
+  const manualPayoutPendingGross = bookings
+    .filter(b => isManualPayoutPendingBooking(b) && b.amount_cents)
+    .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const pendingPaymentAmount = toProviderNet(pendingPaymentGross);
   const heldInStripeAmount = toProviderNet(heldInStripeGross);
-  const awaitingReleaseAmount = pendingPaymentAmount + heldInStripeAmount;
+  const manualPayoutPendingAmount = toProviderNet(manualPayoutPendingGross);
+  const awaitingReleaseAmount = pendingPaymentAmount + heldInStripeAmount + manualPayoutPendingAmount;
   const stripeShowsZeroButHeld =
     !!business?.stripe_onboarded
     && !!payoutBalance
@@ -2565,23 +2585,32 @@ const BusinessDashboard: NextPage = () => {
             dm={dm}
           />
 
-                    {/* Stripe banner */}
-          {business && tab === 'overview' && !business.stripe_onboarded && (
-            <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+                    {/* Stripe / payout stage banner */}
+          {business && tab === 'overview' && (manualPayoutMode || stripeRequiredMode) && (
+            <div className={`${stripeRequiredMode ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-200'} border-b px-6 py-3`}>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
                 <div className="flex items-center gap-2.5 text-sm">
-                  <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  <span className="text-amber-800 font-semibold">Step 1/2: Connect bank & get paid</span>
+                  <svg className={`h-4 w-4 shrink-0 ${stripeRequiredMode ? 'text-amber-500' : 'text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <span className={`${stripeRequiredMode ? 'text-amber-800' : 'text-teal-800'} font-semibold`}>
+                    {stripeRequiredMode
+                      ? 'Stripe is now required to accept new paid bookings'
+                      : `${payoutStage.remainingBeforeStripeRequired} paid booking${payoutStage.remainingBeforeStripeRequired === 1 ? '' : 's'} left before Stripe is required`}
+                  </span>
                 </div>
-                <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+                <button onClick={handleStripeConnect} disabled={stripeLoading} className={`shrink-0 text-sm font-bold px-4 py-2 rounded-xl text-white transition-colors ${stripeRequiredMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'}`}>
                   {stripeLoading ? 'Loading…' : stripeCta}
                 </button>
               </div>
+              <p className={`text-xs mt-2 max-w-5xl mx-auto ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>
+                {stripeRequiredMode
+                  ? `Customers can’t place new paid bookings until you finish Stripe. Your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings were allowed in manual payout mode.`
+                  : `You can keep taking bookings now without Stripe. For your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings, ScheduleMe collects the payment and you’ll be paid out manually after the job is completed.`}
+              </p>
               {stripeConnectError && (
-                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeConnectError}</p>
+                <p className={`text-xs mt-2 max-w-5xl mx-auto ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>{stripeConnectError}</p>
               )}
               {stripeStatusMsg && !stripeConnectError && (
-                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeStatusMsg}</p>
+                <p className={`text-xs mt-2 max-w-5xl mx-auto ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>{stripeStatusMsg}</p>
               )}
             </div>
           )}
@@ -2754,6 +2783,26 @@ const BusinessDashboard: NextPage = () => {
                                   EDU verified provider: {campusLabel}
                                 </span>
                               )}
+                              {(manualPayoutMode || stripeRequiredMode || bookingReadyMode) && (
+                                <span
+                                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold"
+                                  style={{
+                                    borderColor: stripeRequiredMode ? '#fdba74' : 'rgba(0,126,109,0.18)',
+                                    background: stripeRequiredMode ? '#fff7ed' : '#f5fbf8',
+                                    color: stripeRequiredMode ? '#9a3412' : '#0f766e',
+                                  }}
+                                >
+                                  <span
+                                    className="h-1.5 w-1.5 rounded-full"
+                                    style={{ background: stripeRequiredMode ? '#f59e0b' : '#0f766e' }}
+                                  />
+                                  {bookingReadyMode
+                                    ? 'Automated payouts enabled'
+                                    : stripeRequiredMode
+                                      ? 'Stripe required for new bookings'
+                                      : `Manual payout mode · ${remainingManualBookings} booking${remainingManualBookings === 1 ? '' : 's'} until Stripe required`}
+                                </span>
+                              )}
                               {pendingCount > 0 && (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: 'rgba(0,126,109,0.18)', background: '#f5fbf8', color: '#0f766e' }}>
                                   <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -2833,24 +2882,25 @@ const BusinessDashboard: NextPage = () => {
                               { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and location details.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
-                              { key: 'stripe', label: 'Stripe connected', hint: 'Connect payouts before you publish publicly.' },
+                              { key: 'stripe', label: 'Stripe connected', hint: bookingReadyMode ? 'Automated payouts are live for new bookings.' : `Not required to publish. Required after your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.` },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
+                              const isStripeLater = item.key === 'stripe' && !ok && manualPayoutMode;
                               return (
                                 <button
                                   key={item.key}
                                   type="button"
                                   onClick={() => handleChecklistAction(item.key as 'coreProfile' | 'services' | 'media' | 'stripe')}
                                   className="rounded-[24px] border px-4 py-4 text-left transition-transform hover:-translate-y-0.5"
-                                  style={{ borderColor: ok ? '#b7e5ce' : '#f2d39a', background: ok ? '#eef9f3' : '#fff6e7' }}
+                                  style={{ borderColor: ok ? '#b7e5ce' : (isStripeLater ? '#bfe5db' : '#f2d39a'), background: ok ? '#eef9f3' : (isStripeLater ? '#f5fbf8' : '#fff6e7') }}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
-                                      <p className="font-semibold" style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</p>
-                                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : '#9a3412' }}>{item.hint}</p>
+                                      <p className="font-semibold" style={{ color: ok ? '#166534' : (isStripeLater ? '#0f766e' : '#9a3412') }}>{item.label}</p>
+                                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : (isStripeLater ? '#0f766e' : '#9a3412') }}>{item.hint}</p>
                                     </div>
-                                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : 'rgba(154,52,18,0.10)', color: ok ? '#166534' : '#9a3412' }}>
-                                      {ok ? 'Done' : 'Needed'}
+                                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : (isStripeLater ? 'rgba(15,118,110,0.10)' : 'rgba(154,52,18,0.10)'), color: ok ? '#166534' : (isStripeLater ? '#0f766e' : '#9a3412') }}>
+                                      {ok ? 'Done' : (isStripeLater ? 'Later' : 'Needed')}
                                     </span>
                                   </div>
                                 </button>
@@ -4055,7 +4105,20 @@ const BusinessDashboard: NextPage = () => {
                 <div className="space-y-5">
                   <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
-                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
+                    <p className="text-xs text-neutral-400 mb-4">
+                      {bookingReadyMode
+                        ? 'Step 2/2: Connected via Stripe. Automatic payouts are live.'
+                        : stripeRequiredMode
+                          ? `Stripe is now required before you can accept additional paid bookings.`
+                          : `Manual payout mode is active. You can take bookings now, and Stripe becomes required after ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.`}
+                    </p>
+                    {!bookingReadyMode && (
+                      <div className="mb-4 rounded-2xl border px-3.5 py-3 text-xs" style={{ borderColor: stripeRequiredMode ? '#fdba74' : '#bfe5db', background: stripeRequiredMode ? '#fff7ed' : '#f5fbf8', color: stripeRequiredMode ? '#9a3412' : '#0f766e' }}>
+                        {stripeRequiredMode
+                          ? `You’ve hit ${paidBookingsCount} paid booking${paidBookingsCount === 1 ? '' : 's'}. Connect Stripe to keep receiving new instant bookings.`
+                          : `${paidBookingsCount}/${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings completed before Stripe becomes required for new bookings.`}
+                      </div>
+                    )}
                     {business?.stripe_onboarded ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">

@@ -35,6 +35,7 @@ interface Booking {
   amount_cents?: number;
   paid_at?: string;
   funds_released_at?: string;
+  manual_payout_pending_at?: string;
   consumer_confirmation_due_at?: string;
   completion_proof_note?: string;
   completion_proof_photo_urls?: string[];
@@ -1006,19 +1007,27 @@ const BookingsPage: NextPage = () => {
         return;
       }
       const releasedAt = data?.booking?.funds_released_at || data?.booking?.completed_at || new Date().toISOString();
+      const manualPayoutPendingAt = data?.booking?.manual_payout_pending_at || undefined;
+      const payoutMode = data?.payout_mode || 'stripe_transfer';
       setBookings(prev => prev.map(b => b.id === id ? {
         ...b,
         status: 'completed',
         funds_released_at: releasedAt,
+        manual_payout_pending_at: manualPayoutPendingAt,
         consumer_confirmation_due_at: undefined,
       } : b));
       setSelectedBooking(prev => prev && prev.id === id ? {
         ...prev,
         status: 'completed',
         funds_released_at: releasedAt,
+        manual_payout_pending_at: manualPayoutPendingAt,
         consumer_confirmation_due_at: undefined,
       } : prev);
-      setActionToast('Completion confirmed. Provider payout is now released.');
+      setActionToast(
+        payoutMode === 'manual_pending'
+          ? 'Completion confirmed. Provider payout is now queued for manual release.'
+          : 'Completion confirmed. Provider payout is now released.'
+      );
     } catch {
       setActionToast('Could not confirm completion.');
     } finally {
