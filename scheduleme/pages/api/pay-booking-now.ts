@@ -288,17 +288,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         bookingId: booking.id,
       });
 
-      const isCustomService = String(booking.service || '').toLowerCase().includes('custom');
-      if (!isCustomService) {
-        await sendNotifyEmail({
-          type: 'new_booking_business',
-          to: bizEmail,
-          name: bizName || 'Your business',
-          service: booking.service || 'Service',
-          customerName: customerDisplayName || user.email || 'A customer',
-          bookingId: booking.id,
-        });
-      }
     }
 
     return res.status(200).json({ ok: true, booking_id: booking.id, payment_intent_id: pi.id });

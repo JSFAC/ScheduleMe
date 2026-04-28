@@ -6,6 +6,7 @@ import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '../../lib/providerTrust';
 import { isAwayWindow } from '../../lib/founder50';
+import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 
 const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
 const VALID_STATUSES = [
@@ -418,6 +419,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       business_id,
       user_id,
       service,
+      service_price_cents,
+      customer_proposed_price_cents,
       user_name,
       user_phone,
       user_email,
@@ -441,6 +444,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const safeAddress = typeof address === 'string' ? address.trim().slice(0, 300) : null;
     const safeNote = typeof note === 'string' ? note.trim().slice(0, 2000) : null;
     const scheduledStart = buildScheduledStart(scheduled_date, scheduled_slot, scheduled_start);
+    const upfrontServiceAmountCents =
+      typeof service_price_cents === 'number' && Number.isFinite(service_price_cents) && service_price_cents >= 0
+        ? Math.round(service_price_cents)
+        : null;
+    const proposedPriceCents =
+      typeof customer_proposed_price_cents === 'number' && Number.isFinite(customer_proposed_price_cents) && customer_proposed_price_cents >= 0
+        ? Math.round(customer_proposed_price_cents)
+        : null;
+    const isUpfrontPaidService = !!upfrontServiceAmountCents && upfrontServiceAmountCents >= 100;
 
     try {
       const supabase = getSupabase();
@@ -511,17 +523,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           user_id: resolvedUserId ?? null,
           service: service?.slice(0, 500) ?? 'General Service',
           status: 'pending',
-          requires_manual_action: true,
+          requires_manual_action: !isUpfrontPaidService,
           notes: safeNote,
           address: safeAddress,
           scheduled_start: scheduledStart,
+          amount_cents: isUpfrontPaidService ? upfrontServiceAmountCents : null,
+          protection_fee_cents: isUpfrontPaidService ? PROTECTION_FEE_CENTS : null,
+          customer_proposed_price_cents: proposedPriceCents,
         })
         .select('id, status, created_at, amount_cents, address, notes, scheduled_start')
         .single();
 
       if (error) return res.status(500).json({ error: 'Failed to create booking' });
 
-      notifyNewBooking(data.id, supabase);
+      if (!isUpfrontPaidService) {
+        notifyNewBooking(data.id, supabase);
+      }
 
       return res.status(200).json({ booking: data });
     } catch {

@@ -2187,6 +2187,8 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
+  const isCurrentlyPublished = !!business?.public_visibility;
+
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
   async function handleDeleteProviderAccount() {
     setDeleteAccountError('');
@@ -2831,14 +2833,14 @@ const BusinessDashboard: NextPage = () => {
                           <div className="mt-5 flex flex-wrap gap-2">
                             <button
                               onClick={() => handlePublish('publish')}
-                              disabled={publishLoading || !publishReady}
+                              disabled={publishLoading || !publishReady || isCurrentlyPublished}
                               className="btn-primary rounded-full px-4 py-2.5 text-sm disabled:opacity-50"
                             >
                               {publishLoading ? 'Updating…' : 'Publish Profile'}
                             </button>
                             <button
                               onClick={() => handlePublish('unpublish')}
-                              disabled={publishLoading || !business?.public_visibility}
+                              disabled={publishLoading || !isCurrentlyPublished}
                               className="rounded-full border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 disabled:opacity-50"
                             >
                               Unpublish

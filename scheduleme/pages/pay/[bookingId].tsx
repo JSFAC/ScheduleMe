@@ -214,6 +214,7 @@ const PayPage: NextPage = () => {
     ? booking.protection_fee_cents
     : PROTECTION_FEE_CENTS;
   const totalChargeCents = serviceAmountCents + protectionFeeCents;
+  const missingServiceAmount = !booking?.paid_at && serviceAmountCents < 100;
   const scheduledRaw = booking?.scheduled_at || booking?.scheduled_start || booking?.scheduled_end || null;
   const scheduledLabel = scheduledRaw
     ? new Date(scheduledRaw).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })
@@ -300,6 +301,11 @@ const PayPage: NextPage = () => {
                     <span className="font-bold text-right" style={{ color: '#007e6d' }}>${(totalChargeCents / 100).toFixed(2)}</span>
                   </div>
                 </div>
+                {missingServiceAmount && (
+                  <p className="mt-3 text-xs font-semibold" style={{ color: '#b91c1c' }}>
+                    This booking is missing its service price, so payment cannot continue until the booking is recreated.
+                  </p>
+                )}
               </div>
 
               <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
@@ -375,6 +381,10 @@ const PayPage: NextPage = () => {
                       setShowConfirm(true);
                       return;
                     }
+                    if (missingServiceAmount) {
+                      setErr('This booking is missing its service price. Please go back and create the booking again.');
+                      return;
+                    }
                     if (!paymentReady && paymentMethods.length === 0) {
                       setErr('Please save a payment method first.');
                       return;
@@ -403,7 +413,7 @@ const PayPage: NextPage = () => {
                       setPaying(false);
                     }
                   }}
-                  disabled={paying}
+                  disabled={paying || missingServiceAmount}
                   className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-70"
                   style={{ background: '#007e6d' }}>
                   {booking?.paid_at ? 'Already paid' : (paying ? 'Processing…' : `Confirm & Pay ${totalChargeCents > 0 ? `$${(totalChargeCents / 100).toFixed(2)}` : ''}`)}
