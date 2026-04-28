@@ -489,6 +489,19 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   };
 }
 
+async function getAccessTokenOrThrow(): Promise<string> {
+  const supabase = getSupabase();
+  let { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    const refreshed = await supabase.auth.refreshSession();
+    session = refreshed.data.session ?? null;
+  }
+  if (!session?.access_token) {
+    throw new Error('Your session expired. Please sign in again and retry.');
+  }
+  return session.access_token;
+}
+
 
 // ─── Floating Action Button nav for mobile ────────────────────────────────────
 function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
@@ -2170,11 +2183,10 @@ const BusinessDashboard: NextPage = () => {
     setDeleteAccountLoading(true);
     try {
       const supabase = getSupabase();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error('Not authenticated');
+      const accessToken = await getAccessTokenOrThrow();
       const res = await fetch('/api/delete-account', {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + session.access_token },
+        headers: { Authorization: 'Bearer ' + accessToken },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to delete account');

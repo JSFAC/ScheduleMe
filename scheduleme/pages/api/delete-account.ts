@@ -31,6 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await adminClient.from('businesses').delete().eq('owner_id', user.id);
     }
     if (user.email) {
+      await adminClient.from('businesses').delete().ilike('owner_email', user.email);
       await adminClient.from('users').delete().eq('email', user.email);
     }
     await adminClient.from('profiles').delete().eq('id', user.id);

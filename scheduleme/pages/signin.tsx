@@ -7,7 +7,6 @@ import { useRouter } from 'next/router';
 import { useState, useEffect, useRef } from 'react';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import Nav from '../components/Nav';
-import BusinessNav from '../components/BusinessNav';
 import { isProviderIntent } from '../lib/providerClient';
 import { safeRedirect } from '../lib/safeRedirect';
 
@@ -84,8 +83,6 @@ const SignIn: NextPage = () => {
       : undefined;
   const emailLooksReal = !email || EMAIL_PATTERN.test(email.trim());
   const providerMode = providerIntent;
-  const providerSignupMode = providerMode && tab === 'signup' && !showReset;
-  const providerLoginMode = providerMode && tab === 'login' && !showReset;
 
   useEffect(() => {
     if (!siteKey || !captchaRequired) return;
@@ -399,28 +396,28 @@ const SignIn: NextPage = () => {
         <title>{tab === 'login' ? 'Log In' : 'Sign Up'} — ScheduleMe</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      {providerMode ? <BusinessNav /> : <Nav />}
-      <div className={`min-h-screen flex items-center justify-center px-6 pt-20 pb-16 ${providerMode ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
+      <Nav />
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-6 pt-20 pb-16">
         <div className="w-full max-w-sm animate-fade-up">
           <div className="text-center mb-8">
             {providerMode && (
               <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-accent mb-3">Provider Setup</p>
             )}
-            <h1 className={`text-2xl font-bold mb-1 ${providerMode ? 'text-white' : 'text-neutral-900'}`}>
+            <h1 className="text-2xl font-bold text-neutral-900 mb-1">
               {providerMode
                 ? tab === 'login' ? PROVIDER_COPY.loginTitle : PROVIDER_COPY.signupTitle
                 : 'Welcome to ScheduleMe'}
             </h1>
-            <p className={`text-sm ${providerMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+            <p className="text-neutral-500 text-sm">
               {providerMode
                 ? tab === 'login' ? PROVIDER_COPY.loginBody : PROVIDER_COPY.signupBody
                 : 'Sign in to track your bookings and requests'}
             </p>
           </div>
 
-          <div className={`${providerMode ? 'bg-neutral-900 border-neutral-800' : 'bg-white border-neutral-200 shadow-card'} rounded-2xl border p-8`}>
+          <div className="bg-white rounded-2xl border border-neutral-200 p-8 shadow-card">
             {/* Tab switcher — always visible */}
-            <div className={`flex rounded-xl p-1 gap-1 mb-6 ${providerMode ? 'bg-neutral-950 border border-neutral-800' : 'bg-neutral-100'}`}>
+            <div className="flex rounded-xl bg-neutral-100 p-1 gap-1 mb-6">
               {(['login', 'signup'] as const).map(t => (
                 <button key={t} type="button"
                   onClick={() => {
@@ -429,8 +426,8 @@ const SignIn: NextPage = () => {
                 }}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
                     tab === t
-                      ? providerMode ? 'bg-neutral-900 text-white shadow-sm' : 'bg-white text-neutral-900 shadow-sm'
-                      : providerMode ? 'text-neutral-500 hover:text-neutral-200' : 'text-neutral-500'
+                      ? 'bg-white text-neutral-900 shadow-sm'
+                      : 'text-neutral-500'
                   }`}>
                   {t === 'login' ? 'Log In' : providerMode ? 'Create Account' : 'Sign Up'}
                 </button>
@@ -439,17 +436,13 @@ const SignIn: NextPage = () => {
 
             <div style={{ opacity: tabVisible ? 1 : 0, transform: tabVisible ? 'translateY(0)' : 'translateY(4px)', transition: 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)' }}>
             {error && (
-              <div className={`rounded-xl px-4 py-3 text-sm mb-5 ${providerMode ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-100 text-red-700'}`}>{error}</div>
+              <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 mb-5">{error}</div>
             )}
 
             {!showEmail ? (
               <div className="space-y-3">
                 <button onClick={handleGoogle}
-                  className={`w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border transition-colors text-sm font-semibold ${
-                    providerMode
-                      ? 'border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-white'
-                      : 'border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700'
-                  }`}>
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-sm font-semibold text-neutral-700">
                   <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -460,12 +453,8 @@ const SignIn: NextPage = () => {
                 </button>
 
                 <button onClick={() => setShowEmail(true)}
-                  className={`w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border transition-colors text-sm font-semibold ${
-                    providerMode
-                      ? 'border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-white'
-                      : 'border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700'
-                  }`}>
-                  <svg className={`h-5 w-5 flex-shrink-0 ${providerMode ? 'text-neutral-400' : 'text-neutral-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-sm font-semibold text-neutral-700">
+                  <svg className="h-5 w-5 flex-shrink-0 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                   </svg>
                   {tab === 'login' ? 'Continue with Email' : providerMode ? 'Create account with Email' : 'Sign up with Email'}
@@ -490,7 +479,7 @@ const SignIn: NextPage = () => {
             ) : (
               <form onSubmit={handleEmail} className="space-y-4">
                 <button type="button" onClick={() => { setShowEmail(false); setShowReset(false); setError(null); }}
-                  className={`flex items-center gap-1.5 text-sm mb-2 transition-colors ${providerMode ? 'text-neutral-500 hover:text-neutral-200' : 'text-neutral-500 hover:text-neutral-800'}`}>
+                  className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800 mb-2 transition-colors">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
                   </svg>
@@ -499,17 +488,17 @@ const SignIn: NextPage = () => {
 
                 {showReset ? (
                   <>
-                    <p className={`text-sm mb-1 ${providerMode ? 'text-neutral-400' : 'text-neutral-600'}`}>Enter your email and we&apos;ll send a reset link.</p>
+                    <p className="text-sm text-neutral-600 mb-1">Enter your email and we&apos;ll send a reset link.</p>
                     <div>
-                      <label className={`block text-sm font-medium mb-1.5 ${providerMode ? 'text-neutral-400' : 'text-neutral-700'}`}>Email</label>
-                      <input type="email" required className={`form-input ${providerMode ? 'bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600' : ''}`} placeholder="you@example.com"
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
+                      <input type="email" required className="form-input" placeholder="you@example.com"
                         value={email} onChange={e => setEmail(e.target.value)} />
                     </div>
                     <button type="submit" disabled={loading} className="btn-primary w-full py-3">
                       {loading ? 'Sending…' : 'Send Reset Email'}
                     </button>
                     <button type="button" onClick={() => setShowReset(false)}
-                      className={`w-full text-center text-xs transition-colors ${providerMode ? 'text-neutral-500 hover:text-neutral-300' : 'text-neutral-400 hover:text-neutral-600'}`}>
+                      className="w-full text-center text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
                       ← Back to log in
                     </button>
                   </>
@@ -518,42 +507,42 @@ const SignIn: NextPage = () => {
                     {tab === 'signup' && (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className={`block text-sm font-medium mb-1.5 ${providerMode ? 'text-neutral-400' : 'text-neutral-700'}`}>First name</label>
-                          <input type="text" required className={`form-input ${providerMode ? 'bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600' : ''}`} placeholder="First name"
+                          <label className="block text-sm font-medium text-neutral-700 mb-1.5">First name</label>
+                          <input type="text" required className="form-input" placeholder="First name"
                             value={firstName} onChange={e => setFirstName(e.target.value)} />
                         </div>
                         <div>
-                          <label className={`block text-sm font-medium mb-1.5 ${providerMode ? 'text-neutral-400' : 'text-neutral-700'}`}>Last name</label>
-                          <input type="text" required className={`form-input ${providerMode ? 'bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600' : ''}`} placeholder="Last name"
+                          <label className="block text-sm font-medium text-neutral-700 mb-1.5">Last name</label>
+                          <input type="text" required className="form-input" placeholder="Last name"
                             value={lastName} onChange={e => setLastName(e.target.value)} />
                         </div>
                       </div>
                     )}
                     <div>
-                      <label className={`block text-sm font-medium mb-1.5 ${providerMode ? 'text-neutral-400' : 'text-neutral-700'}`}>Email</label>
-                      <input type="email" required className={`form-input ${providerMode ? 'bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600' : ''}`} placeholder="you@example.com"
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
+                      <input type="email" required className="form-input" placeholder="you@example.com"
                         value={email} onChange={e => setEmail(e.target.value)} />
                       {tab === 'signup' && (
-                        <p className={`mt-1.5 text-xs ${emailLooksReal ? (providerMode ? 'text-neutral-500' : 'text-neutral-400') : 'text-amber-500'}`}>
+                        <p className={`mt-1.5 text-xs ${emailLooksReal ? 'text-neutral-400' : 'text-amber-500'}`}>
                           {emailLooksReal ? 'Use a real email you can access for verification and payout updates.' : 'Please enter a real email address.'}
                         </p>
                       )}
                     </div>
                     <div>
-                      <label className={`block text-sm font-medium mb-1.5 ${providerMode ? 'text-neutral-400' : 'text-neutral-700'}`}>Password</label>
-                      <input type="password" required className={`form-input ${providerMode ? 'bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600' : ''}`} placeholder="••••••••"
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Password</label>
+                      <input type="password" required className="form-input" placeholder="••••••••"
                         value={password} onChange={e => setPassword(e.target.value)} />
                       {tab === 'signup' && (
-                        <p className={`mt-1.5 text-xs ${providerMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Use at least 10 characters.</p>
+                        <p className="mt-1.5 text-xs text-neutral-400">Use at least 10 characters.</p>
                       )}
                     </div>
                     {tab === 'signup' && password.length > 0 && (
                       <div>
-                        <label className={`block text-sm font-medium mb-1.5 ${providerMode ? 'text-neutral-400' : 'text-neutral-700'}`}>Confirm password</label>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Confirm password</label>
                         <input
                           type="password"
                           required
-                          className={`form-input ${providerMode ? 'bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600' : ''}`}
+                          className="form-input"
                           placeholder="Re-enter password"
                           value={confirmPassword}
                           onChange={e => setConfirmPassword(e.target.value)}
@@ -568,10 +557,10 @@ const SignIn: NextPage = () => {
                     {captchaRequired && (
                       <div className="pt-1 flex flex-col items-start w-full">
                         <div ref={captchaRef} className="hcaptcha-shell w-full" style={{ minHeight: captchaWidgetId || captchaLoadError ? 78 : 0 }} />
-                        {!captchaWidgetId && !captchaLoadError && <p className={`mt-2 text-xs ${providerMode ? 'text-neutral-500' : 'text-neutral-500'}`}>Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
+                        {!captchaWidgetId && !captchaLoadError && <p className="mt-2 text-xs text-neutral-500">Captcha loading… If it doesn’t appear, disable ad blockers and refresh.</p>}
                         {captchaLoadError && <p className="mt-2 text-xs text-red-500">{captchaLoadError}</p>}
                         {captchaLoadError && (
-                          <p className={`mt-1 text-xs ${providerMode ? 'text-neutral-500' : 'text-neutral-500'}`}>
+                          <p className="mt-1 text-xs text-neutral-500">
                             You can still continue signup below while captcha is unavailable.
                           </p>
                         )}
@@ -583,7 +572,7 @@ const SignIn: NextPage = () => {
                     {tab === 'login' && (
                       <div className="text-center">
                         <button type="button" onClick={() => setShowReset(true)}
-                          className={`text-xs transition-colors ${providerMode ? 'text-neutral-500 hover:text-accent' : 'text-neutral-400 hover:text-accent'}`}>
+                          className="text-xs text-neutral-400 hover:text-accent transition-colors">
                           Forgot password?
                         </button>
                       </div>
@@ -595,7 +584,7 @@ const SignIn: NextPage = () => {
           </div>
             </div>
 
-          <p className={`text-center text-xs mt-5 ${providerMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
+          <p className="text-center text-xs text-neutral-400 mt-5">
             By continuing, you agree to our{' '}
             <Link href="/terms" className="hover:underline">Terms</Link> and{' '}
             <Link href="/privacy" className="hover:underline">Privacy Policy</Link>.

@@ -17,6 +17,19 @@ function getSupabase() {
   return getSupabaseClient();
 }
 
+async function getAccessTokenOrThrow() {
+  const supabase = getSupabase();
+  let { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    const refreshed = await supabase.auth.refreshSession();
+    session = refreshed.data.session ?? null;
+  }
+  if (!session?.access_token) {
+    throw new Error('Your session expired. Please sign in again and retry.');
+  }
+  return session.access_token;
+}
+
 function metadataDisplayName(user: any): string {
   const first = String(user?.user_metadata?.first_name || '').trim();
   const last = String(user?.user_metadata?.last_name || '').trim();
@@ -434,11 +447,13 @@ const Account: NextPage = () => {
 
   async function handleDeleteAccount() {
     setDeleting(true);
-    const supabase = getSupabase();
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error('Not authenticated');
-      const res = await fetch('/api/delete-account', { method: 'POST', headers: { Authorization: 'Bearer ' + session.access_token } });
+      const supabase = getSupabase();
+      const accessToken = await getAccessTokenOrThrow();
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken },
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
       await supabase.auth.signOut();
