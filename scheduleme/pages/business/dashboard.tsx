@@ -998,6 +998,16 @@ const BusinessDashboard: NextPage = () => {
       if (typeof event.data !== 'object' || event.data === null) return;
       if (event.data?.type === 'scheduleme-dashboard-preview-state') {
         setPreviewEditMode(!!event.data.editMode);
+        return;
+      }
+      if (event.data?.type === 'scheduleme-dashboard-preview-saved') {
+        if (event.data?.business) {
+          const safeBiz = normalizeBusiness(event.data.business);
+          if (safeBiz) {
+            setBusiness((prev) => prev ? { ...prev, ...safeBiz } : safeBiz);
+          }
+        }
+        refreshPublishStatus();
       }
     }
     window.addEventListener('message', onMessage);
@@ -3835,20 +3845,20 @@ const BusinessDashboard: NextPage = () => {
                 <div
                   className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between"
                   style={{
-                    background: dm ? '#131415' : '#ffffff',
-                    boxShadow: dm ? 'inset 0 -1px 0 rgba(255,255,255,0.05), 0 12px 28px rgba(0,0,0,0.14)' : '0 10px 26px rgba(15,23,42,0.05)',
+                    background: dm ? '#16181b' : 'linear-gradient(180deg, #ffffff 0%, #f8fbfa 100%)',
+                    boxShadow: dm ? 'inset 0 -1px 0 rgba(255,255,255,0.06), 0 16px 34px rgba(0,0,0,0.2)' : '0 14px 34px rgba(15,23,42,0.08)',
                   }}
                 >
                   <div>
                     <p
                       className="text-[11px] font-bold uppercase tracking-[0.14em]"
-                      style={{ color: dm ? '#5eead4' : '#007e6d' }}
+                      style={{ color: dm ? '#7ef2df' : '#007e6d' }}
                     >
                       Edit Listing
                     </p>
                     <p
                       className="text-sm font-bold mt-1"
-                      style={{ color: dm ? '#ffffff' : '#111827' }}
+                      style={{ color: dm ? '#ffffff' : '#0f172a' }}
                     >
                       Live Preview
                     </p>
@@ -3860,10 +3870,10 @@ const BusinessDashboard: NextPage = () => {
                           onClick={() => sendPreviewAction('cancel-edit')}
                           className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
                           style={{
-                            borderColor: dm ? '#6b7280' : '#d1d5db',
-                            background: dm ? '#23262a' : '#ffffff',
-                            color: dm ? '#ffffff' : '#1f2937',
-                            boxShadow: dm ? '0 8px 18px rgba(0,0,0,0.24)' : '0 10px 22px rgba(15, 23, 42, 0.08)',
+                            borderColor: dm ? '#6b7280' : '#cbd5e1',
+                            background: dm ? '#2a2d31' : '#ffffff',
+                            color: dm ? '#ffffff' : '#1e293b',
+                            boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.28)' : '0 12px 26px rgba(15, 23, 42, 0.1)',
                           }}
                         >
                           Cancel
@@ -3880,7 +3890,7 @@ const BusinessDashboard: NextPage = () => {
                       <button
                         onClick={() => sendPreviewAction('enter-edit')}
                         className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
-                        style={{ borderColor: dm ? 'rgba(94,234,212,0.34)' : 'rgba(0,126,109,0.16)', background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.08)', color: dm ? '#d1fae5' : '#007e6d', boxShadow: dm ? '0 8px 18px rgba(0,0,0,0.22)' : '0 10px 22px rgba(15, 23, 42, 0.06)' }}
+                        style={{ borderColor: dm ? 'rgba(94,234,212,0.5)' : 'rgba(0,126,109,0.2)', background: dm ? 'rgba(0,126,109,0.24)' : 'rgba(0,126,109,0.12)', color: dm ? '#ecfeff' : '#0f766e', boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.24)' : '0 12px 26px rgba(15, 23, 42, 0.08)' }}
                       >
                         Edit mode
                       </button>

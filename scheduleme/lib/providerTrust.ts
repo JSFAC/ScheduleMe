@@ -56,55 +56,9 @@ export function canUserTransactWithStudentProvider(opts: {
   business: any;
   profile: any;
 }): { ok: boolean; code?: string; message?: string } {
-  const business = opts.business || {};
-  const profile = opts.profile || {};
-
-  const isStudentProvider = business.campus_provider === true && business.edu_verified === true;
-  if (!isStudentProvider) return { ok: true };
-
-  const userEduVerified = profile.edu_verified === true;
-  if (!userEduVerified) {
-    return {
-      ok: false,
-      code: 'edu_verification_required',
-      message: 'This student provider requires .edu verification before booking or messaging.',
-    };
-  }
-
-  const userDomain =
-    normalizeDomain(profile.school_domain)
-    || normalizeDomain(profile.school_email)
-    || normalizeCampusKey(profile.campus_key);
-  const bizDomain =
-    normalizeDomain(business.school_domain)
-    || normalizeCampusKey(business.campus_key);
-
-  if (!userDomain || !bizDomain) {
-    return {
-      ok: false,
-      code: 'campus_match_required',
-      message: 'Campus verification is incomplete. Please re-verify your .edu email.',
-    };
-  }
-
-  const userNormalized = normalizeCampusKey(userDomain) || userDomain;
-  const bizNormalized = normalizeCampusKey(bizDomain) || bizDomain;
-  const userAlt = userNormalized.replace(/\.edu$/g, '');
-  const bizAlt = bizNormalized.replace(/\.edu$/g, '');
-
-  const sameCampus =
-    userNormalized === bizNormalized
-    || userNormalized === bizAlt
-    || userAlt === bizNormalized
-    || userAlt === bizAlt;
-
-  if (!sameCampus) {
-    return {
-      ok: false,
-      code: 'campus_match_required',
-      message: 'This student provider is limited to verified users at the same school.',
-    };
-  }
-
+  // Campus / .edu verification should influence discovery surfaces and what
+  // identity details are shown, not whether an otherwise visible provider can
+  // be booked or messaged. The old gate was over-blocking legitimate flows and
+  // even produced false negatives for same-campus verified accounts.
   return { ok: true };
 }

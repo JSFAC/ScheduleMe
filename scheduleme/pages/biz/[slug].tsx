@@ -15,6 +15,16 @@ function getSB() {
   return getSupabaseClient();
 }
 
+function CameraIcon({ className = 'h-6 w-6', color = '#007e6d' }: { className?: string; color?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z" />
+      <path d="M9 10.5a2.25 2.25 0 1 0 4.5 0 2.25 2.25 0 0 0-4.5 0Z" />
+      <path d="m8 5 1-1.5h6L16 5" />
+    </svg>
+  );
+}
+
 const DEFAULT_TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
 function parseSlotMinutes(slot: string): number {
@@ -312,6 +322,7 @@ export default function BizPage() {
   const [viewerEmail, setViewerEmail] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editVideo, setEditVideo] = useState<string | null>(null);
@@ -397,6 +408,7 @@ export default function BizPage() {
         }
 
         setBiz(data);
+        setEditName(String(data.name || '').trim());
         setEditDesc(normalizeDraftDescription(data.description));
         const initialImages = [data.cover_url, ...(data.media_urls || [])].filter(Boolean) as string[];
         setEditImages(normalizeImageList(initialImages));
@@ -584,6 +596,7 @@ export default function BizPage() {
 
   function resetEmbeddedDrafts(nextBiz: any = biz, nextServices: any[] = services) {
     if (!nextBiz) return;
+    setEditName(String(nextBiz.name || '').trim());
     setEditDesc(normalizeDraftDescription(nextBiz.description));
     const initialImages = [nextBiz.cover_url, ...(nextBiz.media_urls || [])].filter(Boolean) as string[];
     setEditImages(normalizeImageList(initialImages));
@@ -983,6 +996,7 @@ export default function BizPage() {
   const baseImgs = Array.from(new Set([biz.cover_url, ...(biz.media_urls || [])].filter(Boolean)))
     .filter((u) => !String(u).match(/\.(mp4|mov|webm|m4v)$/i));
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
+  const businessNamePreview = (editMode ? editName : biz?.name || '').trim() || 'Your business';
 
   const requiresTime = isCustom ? (biz?.custom_requires_time !== false) : (selectedSvc?.requires_time !== false);
   const customProposedCents = isCustom && customProposedPrice
@@ -1116,6 +1130,17 @@ export default function BizPage() {
     setErr('');
     setMediaErr('');
     try {
+      const trimmedName = editName.trim();
+      if (!trimmedName) throw new Error('Business name is required');
+
+      if (trimmedName !== String(biz.name || '').trim()) {
+        if (isDashboardEmbed) {
+          await saveDashboardListing({ name: trimmedName });
+        } else {
+          await submitChangeRequest({ name: trimmedName }, 'profile');
+        }
+      }
+
       if ((editDesc || '') !== (biz.description || '')) {
         if (isDashboardEmbed) {
           await saveDashboardListing({ description: editDesc });
@@ -1196,13 +1221,28 @@ export default function BizPage() {
       const nextServices = refreshed?.services || draftServices;
       setServices(nextServices);
       setDraftServices(nextServices.map((svc: any) => ({ ...svc })));
+      const nextBiz = {
+        ...biz,
+        name: trimmedName,
+        description: editDesc,
+        cover_url: nextImages[0] || null,
+        media_urls: nextImages.slice(1),
+        video_url: editVideo || null,
+      };
       setBiz((prev: any) => prev ? {
         ...prev,
+        name: trimmedName,
         description: editDesc,
         cover_url: nextImages[0] || null,
         media_urls: nextImages.slice(1),
         video_url: editVideo || null,
       } : prev);
+      if (isDashboardEmbed && typeof window !== 'undefined') {
+        window.parent?.postMessage(
+          { type: 'scheduleme-dashboard-preview-saved', business: nextBiz },
+          window.location.origin
+        );
+      }
       setEditMode(false);
       setDeletedServiceIds([]);
       setShowNewServiceComposer(false);
@@ -1424,7 +1464,7 @@ export default function BizPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-1" style={{ color: mu }}>Live Preview</p>
-                  <h1 className="text-xl font-bold" style={{ color: tx }}>{biz.name}</h1>
+                  <h1 className="text-xl font-bold" style={{ color: tx }}>{businessNamePreview}</h1>
                   {ownerDisplayName ? (
                     <p className="text-sm mt-1" style={{ color: mu }}>{ownerDisplayName}</p>
                   ) : null}
@@ -1538,11 +1578,7 @@ export default function BizPage() {
                       style={{ borderColor: embedDm ? '#2d2d2f' : '#cfe2dc', background: embedDm ? '#0c0c0d' : '#f7faf9', color: tx }}
                       aria-label="Add photos or videos"
                     >
-                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="#007e6d" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 7.5A2.5 2.5 0 016.5 5h11A2.5 2.5 0 0120 7.5v9a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 16.5v-9z" />
-                        <path d="M9 10.5a2.25 2.25 0 104.5 0 2.25 2.25 0 00-4.5 0z" />
-                        <path d="M8 5l1-1.5h6L16 5" />
-                      </svg>
+                      <CameraIcon />
                     </button>
                   )}
                 </div>
@@ -1603,7 +1639,23 @@ export default function BizPage() {
             </button>
             <div className="flex items-start justify-between gap-4 mb-2 pr-12">
               <div>
-                <h1 className="text-xl font-bold" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
+                {editMode ? (
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold uppercase tracking-widest" style={{ color: mu }}>
+                      Business name
+                    </label>
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      maxLength={60}
+                      placeholder="Enter your business name"
+                      className="w-full rounded-xl px-3 py-2 text-base font-bold"
+                      style={{ border: '1px solid ' + bdr, background: embedDm ? '#0d0d0d' : '#f9fafb', color: tx }}
+                    />
+                  </div>
+                ) : (
+                  <h1 className="text-xl font-bold" style={{color:tx,letterSpacing:'-0.02em'}}>{businessNamePreview}</h1>
+                )}
               </div>
             </div>
             {ownerDisplayName ? (

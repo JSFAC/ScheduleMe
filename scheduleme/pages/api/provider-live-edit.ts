@@ -10,7 +10,7 @@ function getSupabase() {
   );
 }
 
-const ALLOWED_FIELDS = new Set(['description', 'cover_url', 'media_urls', 'video_url']);
+const ALLOWED_FIELDS = new Set(['name', 'description', 'cover_url', 'media_urls', 'video_url']);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
@@ -38,8 +38,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (typeof updates.description === 'string') {
     updates.description = updates.description.slice(0, 1000);
   }
+  if (typeof updates.name === 'string') {
+    updates.name = updates.name.trim().slice(0, 60);
+  }
   if (Array.isArray(updates.media_urls)) {
     updates.media_urls = updates.media_urls.filter(Boolean).slice(0, 8);
+  }
+  if ('name' in updates && !updates.name) {
+    return res.status(400).json({ error: 'Business name is required' });
   }
 
   const supabase = getSupabase();
@@ -65,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from('businesses')
     .update(updates)
     .eq('id', business_id)
-    .select('id, description, cover_url, media_urls, video_url')
+    .select('id, name, description, cover_url, media_urls, video_url')
     .single();
 
   if (error) return res.status(500).json({ error: error.message || 'Failed to update listing' });
