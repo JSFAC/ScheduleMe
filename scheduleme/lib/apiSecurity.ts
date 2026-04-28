@@ -215,7 +215,10 @@ async function maybeSendFirstLoginWelcome(user: any) {
       .eq('id', userId)
       .maybeSingle();
 
+    const metadataIntent = String(user?.user_metadata?.signup_intent || '').trim().toLowerCase();
+
     // Provider/business accounts follow a separate onboarding and should not get consumer welcome.
+    if (metadataIntent === 'provider') return;
     if ((profile as any)?.role === 'business') return;
     if ((profile as any)?.has_seen_welcome === true) return;
 

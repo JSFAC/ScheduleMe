@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
+import { sendBusinessApplicationReceivedEmail } from '../../lib/email';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -114,6 +115,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       has_seen_welcome: true,
     }, { onConflict: 'id' });
   } catch {}
+
+  try {
+    if (process.env.RESEND_API_KEY) {
+      await sendBusinessApplicationReceivedEmail({
+        to: normalizedEmail,
+        ownerName: ownerCheck.value,
+        businessName: cleanName,
+        category: 'Other',
+        city: 'Setup in progress',
+      });
+    }
+  } catch (emailError) {
+    console.error('[business-create-draft][welcome-email]', emailError);
+  }
 
   return res.status(200).json({ success: true, businessId: insert.data.id, status: 'draft_created' });
 }
