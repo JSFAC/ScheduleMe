@@ -9,6 +9,7 @@ import { useRouter } from 'next/router';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
 import { normalizeServiceTags, serviceTagToLabel } from '../../lib/categoryNormalization';
+import { getProviderVisibilitySettings } from '../../lib/providerTrust';
 import BrandRouteLoader from '../../components/BrandRouteLoader';
 
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
@@ -515,10 +516,28 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
   const [pos, setPos] = useState({ x: 16, y: 120 });
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, bx: 0, by: 0 });
+  const positionedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const syncViewport = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    const syncViewport = () => {
+      const nextViewport = { w: window.innerWidth, h: window.innerHeight };
+      setViewport(nextViewport);
+      setPos((current) => {
+        const defaultPos = {
+          x: Math.max(10, nextViewport.w - 74),
+          y: Math.max(84, nextViewport.h - 124),
+        };
+        if (!positionedRef.current) {
+          positionedRef.current = true;
+          return defaultPos;
+        }
+        return {
+          x: Math.max(8, Math.min(nextViewport.w - 56, current.x)),
+          y: Math.max(80, Math.min(nextViewport.h - 160, current.y)),
+        };
+      });
+    };
     syncViewport();
     window.addEventListener('resize', syncViewport);
     return () => window.removeEventListener('resize', syncViewport);
@@ -599,7 +618,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         className="h-12 w-12 rounded-2xl shadow-lg flex items-center justify-center touch-none select-none"
-        style={{ background: open ? '#007e6d' : (dm ? '#171717' : 'white'), border: open ? '1px solid #007e6d' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
+        style={{ background: open ? '#007e6d' : (dm ? '#171717' : 'white'), border: open ? '1px solid #007e6d' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, boxShadow: open ? '0 18px 38px rgba(0,126,109,0.28)' : '0 18px 34px rgba(15,23,42,0.16)', cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
         {open ? (
           <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1271,10 +1290,11 @@ const BusinessDashboard: NextPage = () => {
       setEditHours(hoursToMap(safeBiz.hours));
       setMediaImages(toStringArray(safeBiz.media_urls).length ? toStringArray(safeBiz.media_urls) : (safeBiz.cover_url ? [toStringSafe(safeBiz.cover_url)] : []));
       setMediaVideo(safeBiz.video_url ? toStringSafe(safeBiz.video_url) : null);
-      setPublicVisibility(Boolean(safeBiz.public_visibility));
-      setPublicShowName(Boolean(safeBiz.public_show_name));
-      setPublicShowPhotos(Boolean(safeBiz.public_show_photos));
-      setCampusShowName(Boolean(safeBiz.campus_show_name));
+      const visibilityDefaults = getProviderVisibilitySettings(safeBiz);
+      setPublicVisibility(visibilityDefaults.publicVisibility);
+      setPublicShowName(visibilityDefaults.publicShowName);
+      setPublicShowPhotos(visibilityDefaults.publicShowPhotos);
+      setCampusShowName(visibilityDefaults.campusShowName);
       refreshPublishStatus();
 
       const authHeaders = await getAuthHeaders();
@@ -2190,6 +2210,7 @@ const BusinessDashboard: NextPage = () => {
   }
 
   const isCurrentlyPublished = !!business?.public_visibility;
+  const isPubliclyAvailableToNonStudents = publicVisibility;
 
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
   async function handleDeleteProviderAccount() {
@@ -2402,7 +2423,7 @@ const BusinessDashboard: NextPage = () => {
         </div>
       )}
       <Head><title>{business?.name || 'Dashboard'} — ScheduleMe for Providers</title></Head>
-      <div className="provider-dashboard-shell min-h-screen flex" data-provider-theme={dm ? 'dark' : 'light'} style={{ background: 'var(--section-bg, #f8fafc)' }}>
+      <div className="provider-dashboard-shell min-h-screen flex overflow-x-hidden" data-provider-theme={dm ? 'dark' : 'light'} style={{ background: 'var(--section-bg, #f8fafc)' }}>
 
         {/* Sidebar */}
         <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-neutral-100 fixed left-0 top-0 bottom-0 z-30">
@@ -2502,10 +2523,13 @@ const BusinessDashboard: NextPage = () => {
 
         <div className="flex-1 lg:ml-60 flex flex-col min-h-screen pb-20 lg:pb-0">
           {/* Mobile topbar — just the business name */}
-          <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20"
-            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+          <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20 backdrop-blur-md"
+            style={{ background: dm ? 'rgba(23,23,23,0.92)' : 'rgba(255,255,255,0.92)', borderColor: dm ? '#262626' : '#f0f0f0' }}>
             <div className="w-full flex items-center justify-between gap-3">
-              <span className="text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
+              <div className="min-w-0">
+                <span className="block truncate text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
+                <span className="block text-[11px] font-medium" style={{ color: dm ? '#a1a1aa' : '#6b7280' }}>{NAV.find(n => n.id === tab)?.label || 'Overview'}</span>
+              </div>
               <button
                 type="button"
                 onClick={toggleDarkMode}
@@ -2624,9 +2648,9 @@ const BusinessDashboard: NextPage = () => {
           )}
 
 
-          <main className="flex-1 px-6 py-7 max-w-[1320px] mx-auto w-full">
+          <main className="flex-1 px-4 py-4 sm:px-5 sm:py-6 lg:px-6 lg:py-7 max-w-[1320px] mx-auto w-full">
             {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (
-              <div className="rounded-2xl border px-5 py-4 flex items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
+              <div className="rounded-2xl border px-4 py-4 sm:px-5 flex flex-col items-start justify-between gap-4 sm:flex-row" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
                 <div>
                   <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Want to be affiliated with your campus?</p>
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
@@ -2638,7 +2662,7 @@ const BusinessDashboard: NextPage = () => {
               </div>
             )}
 
-            <div className="mb-7">
+            <div className="mb-6 sm:mb-7">
               <h1 className="text-[1.5rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f2f2f7' : '#1c1c1e' }}>{NAV.find(n => n.id === tab)?.label}</h1>
               {tab === 'overview' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Welcome back, {business?.owner_name?.split(' ')[0] || 'there'}</p>}
               {tab === 'bookings' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{bookings.length} total · {pendingCount} pending</p>}
@@ -2701,10 +2725,10 @@ const BusinessDashboard: NextPage = () => {
                   ];
                   return (
                     <div className="space-y-5">
-                      <div className="rounded-[28px] border bg-white p-6 shadow-[0_10px_30px_rgba(32,136,122,0.05)]">
+                      <div className="rounded-[24px] border bg-white p-4 shadow-[0_10px_30px_rgba(32,136,122,0.05)] sm:rounded-[28px] sm:p-6">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0">
-                            <h2 className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>
+                            <h2 className="text-[1.75rem] font-black leading-none text-neutral-900 sm:text-[2rem]" style={{ letterSpacing: '-0.04em' }}>
                               {business?.name || 'Your business'}
                             </h2>
                             <p className="mt-2 max-w-xl text-sm text-neutral-500">
@@ -2744,18 +2768,18 @@ const BusinessDashboard: NextPage = () => {
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                             <button
                               type="button"
                               onClick={() => openDashboardTab('edit')}
-                              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+                              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 w-full sm:w-auto"
                             >
                               Edit Listing
                             </button>
                             <button
                               type="button"
                               onClick={() => openDashboardTab('bookings')}
-                              className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white"
+                              className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white w-full sm:w-auto"
                             >
                               Open Bookings
                             </button>
@@ -2763,15 +2787,15 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                         {overviewMetrics.map((s) => (
-                          <div key={s.label} className="rounded-[24px] border bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
-                            <div className="h-10 w-10 rounded-2xl flex items-center justify-center mb-4" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f3f8f6' }}>
+                          <div key={s.label} className="rounded-[22px] border bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:rounded-[24px] sm:p-5" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
+                            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl sm:mb-4" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f3f8f6' }}>
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
                               </svg>
                             </div>
-                            <p className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>{s.value}</p>
+                            <p className="text-[1.6rem] font-black leading-none text-neutral-900 sm:text-[2rem]" style={{ letterSpacing: '-0.04em' }}>{s.value}</p>
                             <p className="mt-2 text-sm font-semibold text-neutral-900">{s.label}</p>
                             <p className="mt-1 text-xs text-neutral-500">{s.sub}</p>
                           </div>
@@ -2779,7 +2803,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
 
                       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.95fr]">
-                        <div className="rounded-[28px] border bg-white p-5">
+                        <div className="rounded-[24px] border bg-white p-4 sm:rounded-[28px] sm:p-5">
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Revenue</h2>
@@ -2791,8 +2815,8 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                         </div>
 
-                        <div className="provider-premium-panel rounded-[30px] border bg-white p-6">
-                          <div className="flex items-start justify-between gap-4">
+                        <div className="provider-premium-panel rounded-[24px] border bg-white p-4 sm:rounded-[30px] sm:p-6">
+                          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Publish Checklist</h2>
                               <p className="mt-1 text-xs text-neutral-500">Finish these launch blockers to publish your provider page.</p>
@@ -2833,18 +2857,18 @@ const BusinessDashboard: NextPage = () => {
                               );
                             })}
                           </div>
-                          <div className="mt-5 flex flex-wrap gap-2">
+                          <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                             <button
                               onClick={() => handlePublish('publish')}
                               disabled={publishLoading || !publishReady || isCurrentlyPublished}
-                              className="btn-primary rounded-full px-4 py-2.5 text-sm disabled:opacity-50"
+                              className="btn-primary rounded-full px-4 py-2.5 text-sm disabled:opacity-50 w-full sm:w-auto"
                             >
                               {publishLoading ? 'Updating…' : 'Publish Profile'}
                             </button>
                             <button
                               onClick={() => handlePublish('unpublish')}
                               disabled={publishLoading || !isCurrentlyPublished}
-                              className="rounded-full border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 disabled:opacity-50"
+                              className="rounded-full border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 disabled:opacity-50 w-full sm:w-auto"
                             >
                               Unpublish
                             </button>
@@ -2864,7 +2888,7 @@ const BusinessDashboard: NextPage = () => {
                     ? <div className="px-5 py-10 text-center text-neutral-400 text-sm">No bookings yet.</div>
                     : <div className="divide-y divide-neutral-50">
                         {bookings.slice(0, 4).map(b => (
-                          <div key={b.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
+                          <div key={b.id} className="px-5 py-3.5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || 'Customer'}</p>
                               <p className="text-xs text-neutral-400 mt-0.5 truncate">{b.service || 'Custom Request'} · {fmtDate(b.created_at)}</p>
@@ -2879,7 +2903,7 @@ const BusinessDashboard: NextPage = () => {
                   }
                 </div>
 
-                <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex items-center justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white' }}>
+                <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center" style={{ background: dm ? '#1c1c1e' : 'white' }}>
                   <div>
                     <p className="text-sm font-bold text-neutral-900">Payments and payouts</p>
                     <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
@@ -3846,9 +3870,9 @@ const BusinessDashboard: NextPage = () => {
             </div>
             )}
             {tab === 'edit' && (
-              <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 overflow-hidden">
+              <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 overflow-hidden sm:rounded-[30px]">
                 <div
-                  className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between"
+                  className="px-4 py-4 border-b border-neutral-100 flex flex-col items-start justify-between gap-3 sm:px-5 sm:flex-row sm:items-center"
                   style={{
                     background: dm ? '#16181b' : '#ffffff',
                     borderColor: dm ? '#2a2d31' : '#dfe9e6',
@@ -3869,12 +3893,12 @@ const BusinessDashboard: NextPage = () => {
                       Live Preview
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center">
                     {previewEditMode ? (
                       <>
                         <button
                           onClick={() => sendPreviewAction('cancel-edit')}
-                          className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
+                          className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm w-full sm:w-auto"
                           style={{
                             borderColor: dm ? '#6b7280' : '#c7d2d9',
                             background: dm ? '#2a2d31' : '#ffffff',
@@ -3886,7 +3910,7 @@ const BusinessDashboard: NextPage = () => {
                         </button>
                         <button
                           onClick={() => sendPreviewAction('save-edit')}
-                          className="text-xs font-bold px-3.5 py-2 rounded-xl text-white transition-colors shadow-sm"
+                          className="text-xs font-bold px-3.5 py-2 rounded-xl text-white transition-colors shadow-sm w-full sm:w-auto"
                           style={{ background: '#007e6d', border: '1px solid rgba(0,126,109,0.18)', boxShadow: '0 14px 28px rgba(0,126,109,0.24)' }}
                         >
                           Save changes
@@ -3895,7 +3919,7 @@ const BusinessDashboard: NextPage = () => {
                     ) : (
                       <button
                         onClick={() => sendPreviewAction('enter-edit')}
-                        className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
+                        className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm w-full sm:w-auto"
                         style={{ borderColor: dm ? 'rgba(94,234,212,0.5)' : 'rgba(0,126,109,0.24)', background: dm ? 'rgba(0,126,109,0.24)' : '#eef8f5', color: dm ? '#ecfeff' : '#0f766e', boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.24)' : '0 12px 26px rgba(15, 23, 42, 0.08)' }}
                       >
                         Edit mode
@@ -3903,13 +3927,13 @@ const BusinessDashboard: NextPage = () => {
                     )}
                   </div>
                 </div>
-                <div className="p-5" key={previewKey}>
+                <div className="p-3 sm:p-5" key={previewKey}>
                   <iframe
                     ref={previewFrameRef}
                     title="ScheduleMe Live Preview"
                     src={`/biz/${encodeURIComponent(business?.slug || business?.id || 'draft')}?edit=1&from=dashboard&bid=${business?.id || ''}&embedded=1&theme=${dm ? 'dark' : 'light'}&k=${previewKey}`}
-                    className="w-full rounded-[24px] border border-neutral-100 bg-white"
-                    style={{ minHeight: '82vh' }}
+                    className="w-full rounded-[20px] border border-neutral-100 bg-white sm:rounded-[24px]"
+                    style={{ minHeight: typeof window !== 'undefined' && window.innerWidth < 640 ? '70vh' : '82vh' }}
                   />
                 </div>
               </div>
@@ -3917,8 +3941,8 @@ const BusinessDashboard: NextPage = () => {
 
             {tab === 'settings' && (
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
-                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 lg:col-span-2">
-                  <div className="flex items-start justify-between gap-4">
+                <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6 lg:col-span-2">
+                  <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
                       <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
@@ -3926,8 +3950,8 @@ const BusinessDashboard: NextPage = () => {
                       </p>
                     </div>
                     <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                      style={{ background: publicVisibility ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: publicVisibility ? '#059669' : '#b91c1c' }}>
-                      {publicVisibility ? 'Visible on ScheduleMe' : 'Hidden from public browse'}
+                      style={{ background: isPubliclyAvailableToNonStudents ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: isPubliclyAvailableToNonStudents ? '#059669' : '#b91c1c' }}>
+                      {isPubliclyAvailableToNonStudents ? 'Available to non-students' : 'Campus-only for verified students'}
                     </div>
                   </div>
 
@@ -3960,8 +3984,8 @@ const BusinessDashboard: NextPage = () => {
                         disabled={visibilitySaving}
                       />
                       <div>
-                        <p className="font-semibold text-neutral-900">List my provider card on ScheduleMe</p>
-                        <p className="text-xs text-neutral-500">Controls whether your card appears on home, browse, and search surfaces.</p>
+                        <p className="font-semibold text-neutral-900">Available to non-students</p>
+                        <p className="text-xs text-neutral-500">Turn this off if you want to stay visible to verified students, but hidden from public home, browse, and other non-student surfaces.</p>
                       </div>
                     </label>
 
@@ -3976,7 +4000,7 @@ const BusinessDashboard: NextPage = () => {
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
                         <p className="font-semibold text-neutral-900">Show my personal name to non-students</p>
-                        <p className="text-xs text-neutral-500">Keep this off if you only want your personal name visible inside campus contexts.</p>
+                        <p className="text-xs text-neutral-500">If this is off, non-students will hit the verified-student privacy block instead of seeing your identity.</p>
                       </div>
                     </label>
 
@@ -3990,14 +4014,14 @@ const BusinessDashboard: NextPage = () => {
                         disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my photos on public cards</p>
-                        <p className="text-xs text-neutral-500">If this is off, ScheduleMe will use a simpler card presentation instead.</p>
+                        <p className="font-semibold text-neutral-900">Show my photos to non-students</p>
+                        <p className="text-xs text-neutral-500">If this is off, non-students will hit the verified-student privacy block instead of seeing your media.</p>
                       </div>
                     </label>
                   </div>
                 </div>
                 <div className="space-y-5">
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-4">Account Info</h2>
                     <div className="space-y-3">
                       {[
@@ -4006,9 +4030,9 @@ const BusinessDashboard: NextPage = () => {
                         { label: 'Status', value: business?.public_visibility ? '✓ Live on ScheduleMe' : 'Draft (not public yet)' },
                         { label: 'Rating', value: business?.rating ? business.rating + ' ★' : 'No ratings yet' },
                       ].map(r => (
-                        <div key={r.label} className="flex items-start justify-between gap-4 py-2 border-b border-neutral-50 last:border-0">
+                        <div key={r.label} className="flex flex-col items-start justify-between gap-1 py-2 border-b border-neutral-50 last:border-0 sm:flex-row sm:items-start sm:gap-4">
                           <span className="text-xs text-neutral-400 font-medium shrink-0">{r.label}</span>
-                          <span className="text-sm text-neutral-700 text-right">{r.value || '—'}</span>
+                          <span className="text-sm text-neutral-700 text-left sm:text-right">{r.value || '—'}</span>
                         </div>
                       ))}
                     </div>
@@ -4018,16 +4042,18 @@ const BusinessDashboard: NextPage = () => {
                         style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : '#f5fbf8' }}>
                         {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
                       </button>
-                      <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
-                        className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                        style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
-                        Disconnect .edu Email
-                      </button>
+                      {business?.edu_verified && (
+                        <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
+                          className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                          style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
+                          Disconnect .edu Email
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="space-y-5">
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
                     <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     {business?.stripe_onboarded ? (
@@ -4071,7 +4097,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                     )}
                   </div>
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Session</h2>
                     <p className="text-xs text-neutral-400 mb-4">Signed in as {business?.owner_email}</p>
                     <div className="grid grid-cols-1 gap-2">
@@ -4085,7 +4111,7 @@ const BusinessDashboard: NextPage = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
+                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Legal & Support</h2>
                     <p className="text-xs text-neutral-400 mb-4">Review the latest policies and contact support.</p>
                     <div className="grid grid-cols-1 gap-2">

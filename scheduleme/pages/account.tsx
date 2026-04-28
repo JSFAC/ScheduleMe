@@ -41,7 +41,7 @@ function metadataDisplayName(user: any): string {
   );
 }
 
-type Tab = 'addresses' | 'notifications' | 'security' | 'settings' | 'payments';
+type Tab = 'addresses' | 'notifications' | 'security' | 'settings' | 'payments' | 'provider';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
@@ -162,6 +162,7 @@ function AccountSaveCardForm({ onSaved, onError, dm }: { onSaved: () => void; on
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'settings', label: 'Profile', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg> },
+  { key: 'provider', label: 'Provider', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg> },
   { key: 'payments', label: 'Payments', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M21 10.5H3m18 0a1.5 1.5 0 011.5 1.5v6A1.5 1.5 0 0121 19.5H3A1.5 1.5 0 011.5 18v-6A1.5 1.5 0 013 10.5m18 0V8.25A2.25 2.25 0 0018.75 6H5.25A2.25 2.25 0 003 8.25V10.5" /></svg> },
   { key: 'addresses', label: 'Addresses', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg> },
   { key: 'notifications', label: 'Notifications', icon: <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg> },
@@ -210,6 +211,12 @@ const Account: NextPage = () => {
   const [addrLabel, setAddrLabel] = useState('');
   const [addrStreet, setAddrStreet] = useState('');
   const [addrCity, setAddrCity] = useState('');
+  const [providerBusiness, setProviderBusiness] = useState<any | null>(null);
+  const [providerLocation, setProviderLocation] = useState({ address: '', city: '', zip: '' });
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [providerSaving, setProviderSaving] = useState(false);
+  const [providerSaved, setProviderSaved] = useState(false);
+  const [providerSaveError, setProviderSaveError] = useState('');
 
   const [notifPrefs, setNotifPrefs] = useState({
     bookingConfirmed: true, statusUpdates: true, newMatches: false, promotions: false,
@@ -257,6 +264,29 @@ const Account: NextPage = () => {
       setPaymentError(e?.message || 'Failed to load payment methods');
     } finally {
       setPaymentLoading(false);
+    }
+  }
+
+  async function fetchProviderBusiness(accessToken?: string) {
+    try {
+      setProviderLoading(true);
+      const token = accessToken || await getAccessTokenOrThrow();
+      const res = await fetch('/api/provider-live-edit?mine=1', {
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to load provider profile');
+      const business = data.business || null;
+      setProviderBusiness(business);
+      setProviderLocation({
+        address: business?.address || '',
+        city: business?.city || '',
+        zip: business?.zip || '',
+      });
+    } catch {
+      setProviderBusiness(null);
+    } finally {
+      setProviderLoading(false);
     }
   }
 
@@ -339,6 +369,7 @@ const Account: NextPage = () => {
         const payload = await res.json().catch(() => ({}));
         if (res.ok && payload?.profile?.avatar_url) setAvatarUrl(payload.profile.avatar_url);
       } catch {}
+      await fetchProviderBusiness(session.access_token);
       if (u.user_metadata?.notif_prefs) setNotifPrefs(p => ({ ...p, ...u.user_metadata.notif_prefs }));
       if (u.user_metadata?.addresses) setAddresses(u.user_metadata.addresses);
       try {
@@ -501,6 +532,46 @@ const Account: NextPage = () => {
   function dismissDraft(key: string, setter: (v: boolean) => void) {
     if (typeof window !== 'undefined') localStorage.removeItem(key);
     setter(false);
+  }
+
+  async function handleSaveProviderLocation(e: React.FormEvent) {
+    e.preventDefault();
+    if (!providerBusiness?.id) return;
+    setProviderSaving(true);
+    setProviderSaved(false);
+    setProviderSaveError('');
+    try {
+      const accessToken = await getAccessTokenOrThrow();
+      const res = await fetch('/api/provider-live-edit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + accessToken,
+        },
+        body: JSON.stringify({
+          business_id: providerBusiness.id,
+          changes: {
+            address: providerLocation.address,
+            city: providerLocation.city,
+            zip: providerLocation.zip,
+          },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to save provider location');
+      setProviderBusiness((prev: any) => prev ? { ...prev, ...data.business } : data.business);
+      setProviderLocation({
+        address: data.business?.address || '',
+        city: data.business?.city || '',
+        zip: data.business?.zip || '',
+      });
+      setProviderSaved(true);
+      setTimeout(() => setProviderSaved(false), 2500);
+    } catch (err: any) {
+      setProviderSaveError(err?.message || 'Failed to save provider location');
+    } finally {
+      setProviderSaving(false);
+    }
   }
 
   if (loading) return (
@@ -687,7 +758,7 @@ const Account: NextPage = () => {
 
           {/* Tab bar */}
           <div className="rounded-2xl border p-1.5 flex gap-1 overflow-x-auto" style={{ background: cardBg, borderColor: cardBorder, scrollbarWidth: 'none' }}>
-            {TABS.map(t => (
+            {TABS.filter((t) => t.key !== 'provider' || providerBusiness || providerLoading || tab === 'provider').map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className="flex items-center gap-2 px-4 py-2 rounded-[14px] text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0"
                 style={tab === t.key
@@ -697,6 +768,98 @@ const Account: NextPage = () => {
               </button>
             ))}
           </div>
+
+          {tab === 'provider' && (
+            <div className="tab-panel grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-3">
+              <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                <span className="sm-eyebrow mb-2 block">Provider profile</span>
+                <h2 className="font-bold mb-2" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Location details</h2>
+                <p className="text-sm mb-5" style={{ color: textMuted }}>
+                  Keep your provider location accurate so the home and browse pages can place your listing correctly.
+                </p>
+                {providerLoading ? (
+                  <p className="text-sm" style={{ color: textMuted }}>Loading provider location…</p>
+                ) : !providerBusiness ? (
+                  <div className="rounded-xl border px-4 py-4 text-sm" style={{ borderColor: cardBorder, color: textMuted }}>
+                    No provider profile is linked to this account yet.
+                  </div>
+                ) : (
+                  <form onSubmit={handleSaveProviderLocation} className="space-y-4">
+                    {providerSaveError && <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">{providerSaveError}</div>}
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Business name</label>
+                      <input type="text" className="form-input" value={providerBusiness?.name || ''} disabled style={{ opacity: 0.6, cursor: 'not-allowed', background: inputBg, borderColor: inputBorder, color: textPrimary }} />
+                      <p className="text-xs mt-1" style={{ color: textMuted }}>Business name is still managed from your listing editor.</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>Street address</label>
+                      <input
+                        type="text"
+                        maxLength={160}
+                        className="form-input"
+                        placeholder="123 Main St"
+                        value={providerLocation.address}
+                        onChange={e => setProviderLocation(prev => ({ ...prev, address: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>City</label>
+                        <input
+                          type="text"
+                          maxLength={80}
+                          className="form-input"
+                          placeholder="Berkeley"
+                          value={providerLocation.city}
+                          onChange={e => setProviderLocation(prev => ({ ...prev, city: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: textMuted }}>ZIP code</label>
+                        <input
+                          type="text"
+                          maxLength={10}
+                          className="form-input"
+                          placeholder="94704"
+                          value={providerLocation.zip}
+                          onChange={e => setProviderLocation(prev => ({ ...prev, zip: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <button type="submit" disabled={providerSaving} className="btn-primary w-full py-2.5 text-sm">
+                      {providerSaved ? '✓ Saved!' : providerSaving ? 'Saving…' : 'Save Provider Location'}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                  <span className="sm-eyebrow mb-2 block">Why it matters</span>
+                  <h2 className="font-bold mb-2" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Discovery & publishing</h2>
+                  <ul className="space-y-2 text-sm" style={{ color: textMuted }}>
+                    <li>• Nearby ranking relies on real provider location details.</li>
+                    <li>• Browse and home cards work better when city and ZIP are current.</li>
+                    <li>• Publish readiness expects location details alongside your media and services.</li>
+                  </ul>
+                </div>
+                <div className="rounded-2xl border p-6" style={{ background: cardBg, borderColor: cardBorder }}>
+                  <span className="sm-eyebrow mb-2 block">Quick links</span>
+                  <h2 className="font-bold mb-4" style={{ letterSpacing: '-0.01em', color: textPrimary }}>Keep building</h2>
+                  <div className="flex flex-col gap-2">
+                    <Link href="/provider/dashboard#edit" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors" style={{ borderColor: cardBorder, color: textPrimary, background: 'transparent' }}>
+                      Edit listing
+                      <span style={{ color: textMuted }}>→</span>
+                    </Link>
+                    <Link href="/provider/dashboard#overview" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors" style={{ borderColor: cardBorder, color: textPrimary, background: 'transparent' }}>
+                      View checklist
+                      <span style={{ color: textMuted }}>→</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── ADDRESSES ── */}
           {tab === 'addresses' && (

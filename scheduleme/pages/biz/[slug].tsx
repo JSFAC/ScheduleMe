@@ -3,9 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { FaCamera } from 'react-icons/fa6';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import Nav from '../../components/Nav';
 import { useDm } from '../../lib/DarkModeContext';
+import { getProviderVisibilitySettings } from '../../lib/providerTrust';
 import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
 import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
 import { shouldShowNewBadge } from '../../lib/newBadge';
@@ -13,16 +15,6 @@ import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 function getSB() {
   return getSupabaseClient();
-}
-
-function CameraIcon({ className = 'h-6 w-6', color = '#007e6d' }: { className?: string; color?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z" />
-      <path d="M9 10.5a2.25 2.25 0 1 0 4.5 0 2.25 2.25 0 0 0-4.5 0Z" />
-      <path d="m8 5 1-1.5h6L16 5" />
-    </svg>
-  );
 }
 
 const DEFAULT_TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
@@ -368,6 +360,7 @@ export default function BizPage() {
 
   const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
   const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
+  const bizVisibility = getProviderVisibilitySettings(biz);
   const normalizeDomain = (v?: string | null) => v ? String(v).toLowerCase().trim() : null;
   const viewerDomain = normalizeDomain(viewerSchoolDomain);
   const normalizedBizKey = bizCampusKey ? bizCampusKey.replace(/[^a-z0-9.]/g, '') : null;
@@ -378,8 +371,8 @@ export default function BizPage() {
     ? (isOwnerViewing
         ? biz.owner_name
         : (viewerEduVerified && sameCampus
-            ? (biz.campus_show_name ? biz.owner_name : '')
-            : (biz.public_visibility && biz.public_show_name ? biz.owner_name : '')))
+            ? (bizVisibility.campusShowName ? biz.owner_name : '')
+            : (bizVisibility.publicVisibility && bizVisibility.publicShowName ? biz.owner_name : '')))
     : '';
   const titleName = biz?.name || 'ScheduleMe Provider';
 
@@ -1418,7 +1411,7 @@ export default function BizPage() {
           <div className="relative" style={{ height: 450, background: bg }}>
             <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 6 }}>
               <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 800 }}>
-                {imgs[galleryIdx] && (
+                {imgs[galleryIdx] ? (
                   <img
                     src={imgs[galleryIdx]}
                     alt={biz?.name || 'Provider'}
@@ -1440,18 +1433,16 @@ export default function BizPage() {
                       else goPrevImage();
                     }}
                   />
-                )}
-                {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
+                ) : (
                   <div
-                    className="absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-                    style={{
-                      background: 'rgba(0,0,0,0.55)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.18)',
-                      backdropFilter: 'blur(6px)',
-                    }}
+                    className="w-full rounded-[28px] border border-dashed flex flex-col items-center justify-center gap-3 text-center"
+                    style={{ minHeight: 320, background: dm ? '#121212' : '#f8fafc', borderColor: dm ? '#2d2d2f' : '#d9e4df', color: mu }}
                   >
-                    Founder50
+                    <FaCamera className="h-8 w-8" color="#007e6d" aria-hidden="true" />
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: tx }}>No images uploaded</p>
+                      <p className="text-xs mt-1" style={{ color: mu }}>This provider has not added cover photos yet.</p>
+                    </div>
                   </div>
                 )}
                 {imgs.length > 1 && (
@@ -1612,7 +1603,7 @@ export default function BizPage() {
                       style={{ borderColor: embedDm ? '#2d2d2f' : '#cfe2dc', background: embedDm ? '#0c0c0d' : '#f7faf9', color: tx }}
                       aria-label="Add photos or videos"
                     >
-                      <CameraIcon />
+                      <FaCamera className="h-5 w-5" color="#007e6d" aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -1704,6 +1695,11 @@ export default function BizPage() {
                   {'$'.repeat(computedPriceTier ?? biz.price_tier)}
                 </span>
               ) : null}
+              {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: embedDm ? 'rgba(82,82,91,0.35)' : 'rgba(17,24,39,0.12)', color: embedDm ? '#f3f4f6' : '#374151', border: '1px solid ' + (embedDm ? 'rgba(244,244,245,0.12)' : 'rgba(17,24,39,0.08)') }}>
+                  Founder50
+                </span>
+              )}
               {shouldShowNewBadge({ createdAt: biz.created_at, reviewCount: biz.review_count }) && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: embedDm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: embedDm ? '#6ee7d3' : '#0f766e' }}>New</span>
               )}

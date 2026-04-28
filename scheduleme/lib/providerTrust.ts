@@ -36,20 +36,54 @@ export function isProviderFlagged(row: any): boolean {
   return getTrustState(row) === 'flagged' || row?.trust_flagged === true;
 }
 
+function isLegacyApprovedProvider(row: any): boolean {
+  return !!row?.approved_at && !row?.published_at;
+}
+
+export function isCampusStudentProvider(row: any): boolean {
+  return row?.campus_provider === true && row?.edu_verified === true;
+}
+
+export function getProviderVisibilitySettings(row: any): {
+  publicVisibility: boolean;
+  publicShowName: boolean;
+  publicShowPhotos: boolean;
+  campusShowName: boolean;
+} {
+  const legacyApproved = isLegacyApprovedProvider(row);
+  const publicVisibility = row?.public_visibility === false ? legacyApproved : true;
+  const publicShowName = row?.public_show_name === false ? false : true;
+  const publicShowPhotos = row?.public_show_photos === false && row?.public_show_media !== true ? false : true;
+  const campusShowName = row?.campus_show_name === false ? false : true;
+  return {
+    publicVisibility,
+    publicShowName,
+    publicShowPhotos,
+    campusShowName,
+  };
+}
+
 export function isProviderPubliclyVisible(row: any): boolean {
   if (!row) return false;
   if (row.is_onboarded !== true) return false;
-  // Legacy compatibility:
-  // older approved providers may have public_visibility=false before the
-  // publish flow existed. Treat those as public unless/until they explicitly
-  // use the new publish toggle (published_at gets populated).
-  if (row.public_visibility === false) {
-    const legacyApproved = !!row.approved_at && !row.published_at;
-    if (!legacyApproved) return false;
-  }
+  if (!getProviderVisibilitySettings(row).publicVisibility) return false;
   if (isProviderSuspended(row)) return false;
   if (isProviderFlagged(row)) return false;
   return true;
+}
+
+export function shouldShowProviderOnNonStudentSurfaces(row: any, viewerEduVerified: boolean): boolean {
+  if (!isProviderPubliclyVisible(row)) return false;
+  if (!isCampusStudentProvider(row)) return true;
+  if (viewerEduVerified) return true;
+  return getProviderVisibilitySettings(row).publicVisibility;
+}
+
+export function shouldLockProviderPreviewForViewer(row: any, viewerEduVerified: boolean): boolean {
+  if (!isCampusStudentProvider(row)) return false;
+  if (viewerEduVerified) return false;
+  const vis = getProviderVisibilitySettings(row);
+  return !vis.publicShowName || !vis.publicShowPhotos;
 }
 
 export function canUserTransactWithStudentProvider(opts: {

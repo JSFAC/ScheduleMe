@@ -113,9 +113,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
     const el = chipsRef.current;
     if (!el) return;
     function onWheel(e: WheelEvent) {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
       e.preventDefault();
-      el!.scrollLeft += e.deltaY * 1.2;
+      el.scrollLeft += e.deltaX;
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -320,11 +320,9 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
     const el = scrollRef.current;
     if (!el) return;
     function onWheel(e: WheelEvent) {
-      // Only intercept if cursor is in the card zone (not over the curtain margins)
-      // The curtains have pointer-events:none so this fires only over cards
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
       e.preventDefault();
-      el!.scrollLeft += e.deltaY * 1.4;
+      el.scrollLeft += e.deltaX;
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);

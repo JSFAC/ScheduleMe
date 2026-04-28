@@ -6,7 +6,7 @@ import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 import { computeFounder50Status } from '../../lib/founder50';
 import { normalizeServiceTag } from '../../lib/categoryNormalization';
-import { isProviderPubliclyVisible } from '../../lib/providerTrust';
+import { shouldLockProviderPreviewForViewer, shouldShowProviderOnNonStudentSurfaces } from '../../lib/providerTrust';
 
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
@@ -41,6 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
     let isLoggedInViewer = false;
+    let viewerEduVerified = false;
     const authHeader = String(req.headers.authorization || '');
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
@@ -52,10 +53,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isLoggedInViewer = true;
             const { data: profile } = await sb
               .from('profiles')
-              .select('id')
+              .select('id, edu_verified')
               .eq('id', viewerId)
               .maybeSingle();
             if (profile?.id) isLoggedInViewer = true;
+            if (profile?.edu_verified === true) viewerEduVerified = true;
           } 
         } catch {
           // Keep public/locked behavior when token parsing fails.
@@ -128,7 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const filtered = (rows as any[]).filter((b) => isProviderPubliclyVisible(b)).map((b) => {
+    const filtered = (rows as any[]).filter((b) => shouldShowProviderOnNonStudentSurfaces(b, viewerEduVerified)).map((b) => {
       const d = haversineMiles(latNum, lngNum, b.lat, b.lng);
       const tags = (b.service_tags || []).map((t: string) => normalizeServiceTag(t)).filter(Boolean);
       const primaryTag = tags[0] || null;
@@ -139,6 +141,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const status = computeFounder50Status(b);
       const guestCoarse = !isLoggedInViewer;
       const coarseDistance = `${Math.max(0.1, Math.round(d * 10) / 10).toFixed(1)} mi away`;
+      const previewLocked = shouldLockProviderPreviewForViewer(b, viewerEduVerified);
       return {
         ...b,
         name: b.name,
@@ -153,7 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         distance_label: guestCoarse ? coarseDistance : null,
         guest_coarse_location: guestCoarse,
         map_locked_for_guest: !isLoggedInViewer,
-        preview_locked: false,
+        preview_locked: previewLocked,
         distance_miles: d,
         price_tier: priceTier,
         rating,
