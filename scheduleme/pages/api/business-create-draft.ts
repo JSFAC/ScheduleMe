@@ -7,7 +7,7 @@ import { sendBusinessApplicationReceivedEmail } from '../../lib/email';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
   if (!url || !key) throw new Error('Missing Supabase env vars');
   return createClient(url, key, { auth: { persistSession: false } });
 }
@@ -80,31 +80,64 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const slug = `${slugify(cleanName)}-${Date.now().toString(36)}`;
 
-  const insert = await supabase
-    .from('businesses')
-    .insert({
-      name: cleanName,
-      slug,
-      description: '',
-      address: 'Setup in progress',
-      city: 'Setup',
-      zip: '00000',
-      lat: null,
-      lng: null,
-      service_tags: ['other'],
-      keywords: ['other', 'provider'],
-      rating: 0,
-      owner_name: ownerCheck.value,
-      owner_email: normalizedEmail,
-      owner_id: user.id,
-      is_onboarded: false,
-    })
-    .select('id')
-    .single();
+  const baseInsert: Record<string, unknown> = {
+    name: cleanName,
+    slug,
+    description: '',
+    address: 'Setup in progress',
+    city: 'Setup',
+    zip: '00000',
+    lat: null,
+    lng: null,
+    service_tags: ['other'],
+    keywords: ['other', 'provider'],
+    rating: 0,
+    owner_name: ownerCheck.value,
+    owner_email: normalizedEmail,
+    owner_id: user.id,
+    is_onboarded: false,
+  };
 
-  if (insert.error) {
-    if (insert.error.code === '23505') return res.status(409).json({ error: 'A provider profile already exists for this account.' });
-    return res.status(500).json({ error: 'Failed to create provider draft' });
+  const payloadCandidates: Record<string, unknown>[] = [
+    {
+      ...baseInsert,
+      campus_provider: false,
+      campus_school_name: null,
+    },
+    {
+      ...baseInsert,
+      school_domain: null,
+    },
+    baseInsert,
+  ];
+
+  let insertedId: string | null = null;
+  let lastInsertError: any = null;
+
+  for (const candidate of payloadCandidates) {
+    const { data, error } = await supabase
+      .from('businesses')
+      .insert(candidate)
+      .select('id')
+      .single();
+
+    if (!error && data?.id) {
+      insertedId = data.id;
+      break;
+    }
+
+    lastInsertError = error;
+    if (error?.code === '23505') {
+      return res.status(409).json({ error: 'A provider profile already exists for this account.' });
+    }
+  }
+
+  if (!insertedId) {
+    const message =
+      (lastInsertError?.message as string | undefined) ||
+      (lastInsertError?.details as string | undefined) ||
+      'Failed to create provider draft';
+    return res.status(500).json({ error: message });
   }
 
   try {
@@ -130,5 +163,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('[business-create-draft][welcome-email]', emailError);
   }
 
-  return res.status(200).json({ success: true, businessId: insert.data.id, status: 'draft_created' });
+  return res.status(200).json({ success: true, businessId: insertedId, status: 'draft_created' });
 }
