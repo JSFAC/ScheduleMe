@@ -98,7 +98,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         result = await sendPaymentReceiptCustomer({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', scheduledAt: rest.scheduledAt, bookingId: rest.bookingId || '' });
         break;
       case 'payment_notification_business':
-        result = await sendPaymentNotificationBusiness({ to, businessName: rest.businessName || 'Your business', customerName: rest.customerName || 'A customer', service: rest.service || 'Service', amountDollars: rest.amountDollars || '0.00', platformFeePercent: rest.platformFeePercent ?? 12, payoutDollars: rest.payoutDollars || '0.00', bookingId: rest.bookingId || '' });
+        result = await sendPaymentNotificationBusiness({
+          to,
+          businessName: rest.businessName || 'Your business',
+          customerName: rest.customerName || 'A customer',
+          service: rest.service || 'Service',
+          amountDollars: rest.amountDollars || '0.00',
+          platformFeePercent: rest.platformFeePercent ?? 12,
+          payoutDollars: rest.payoutDollars || '0.00',
+          bookingId: rest.bookingId || '',
+          stripeOnboarded: rest.stripeOnboarded === true,
+          zellePayoutDetails: rest.zellePayoutDetails || '',
+        });
         break;
       case 'payment_request_customer':
         result = await sendPaymentRequestCustomer({ to, name: name || 'there', service: rest.service || 'Service', businessName: rest.businessName || 'Your provider', amountDollars: rest.amountDollars || '0.00', bookingId: rest.bookingId || '' });

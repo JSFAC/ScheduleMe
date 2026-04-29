@@ -9,12 +9,6 @@ function getResend() {
 }
 
 const SITE_URL = 'https://usescheduleme.com';
-const EMAIL_BG = '#f6f2e9';
-const EMAIL_CARD = '#ffffff';
-const EMAIL_BORDER = '#d8efe7';
-const EMAIL_ACCENT = '#007e6d';
-const EMAIL_ACCENT_DARK = '#0f766e';
-const EMAIL_ACCENT_SOFT = '#e8f6f1';
 
 // ─── Shared layout ──────────────────────────────────────────────────────────
 function layout(title: string, body: string, preheader: string = '') {
@@ -26,9 +20,9 @@ function layout(title: string, body: string, preheader: string = '') {
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background-color:${EMAIL_BG};font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;">
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;">
   ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>` : ''}
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${EMAIL_BG};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;">
     <tr><td align="center" style="padding:40px 16px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;">
 
@@ -37,7 +31,7 @@ function layout(title: string, body: string, preheader: string = '') {
           <a href="${SITE_URL}" style="text-decoration:none;">
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
               <tr>
-                <td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:10px;padding:8px 16px;">
+                <td bgcolor="#007e6d" style="background:#007e6d;border-radius:10px;padding:8px 16px;">
                   <span style="font-size:17px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">ScheduleMe</span>
                 </td>
               </tr>
@@ -46,21 +40,21 @@ function layout(title: string, body: string, preheader: string = '') {
         </td></tr>
 
         <!-- Main card -->
-        <tr><td style="background:${EMAIL_CARD};border-radius:18px;border:1px solid ${EMAIL_BORDER};overflow:hidden;">
+        <tr><td style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
           ${body}
         </td></tr>
 
         <!-- Footer -->
         <tr><td style="padding:28px 0 8px;text-align:center;">
-          <p style="margin:0 0 8px;font-size:13px;color:#7a8a96;line-height:1.6;">
+          <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;line-height:1.6;">
             You received this because you have a ScheduleMe account.
           </p>
-          <p style="margin:0;font-size:13px;color:#7a8a96;">
-            <a href="${SITE_URL}/account?tab=notifications" style="color:${EMAIL_ACCENT_DARK};text-decoration:underline;">Email preferences</a>
+          <p style="margin:0;font-size:13px;color:#94a3b8;">
+            <a href="${SITE_URL}/account?tab=notifications" style="color:#64748b;text-decoration:underline;">Email preferences</a>
             &nbsp;&middot;&nbsp;
-            <a href="${SITE_URL}" style="color:${EMAIL_ACCENT_DARK};text-decoration:underline;">usescheduleme.com</a>
+            <a href="${SITE_URL}" style="color:#64748b;text-decoration:underline;">usescheduleme.com</a>
           </p>
-          <p style="margin:16px 0 0;font-size:12px;color:#a0b1bb;">&copy; ${new Date().getFullYear()} ScheduleMe. All rights reserved.</p>
+          <p style="margin:16px 0 0;font-size:12px;color:#cbd5e1;">&copy; ${new Date().getFullYear()} ScheduleMe. All rights reserved.</p>
         </td></tr>
 
       </table>
@@ -95,8 +89,8 @@ export function bookingConfirmationHtml(opts: {
       <td style="padding:14px 20px;${i < Math.min(opts.matches.length, 3) - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
           <td style="width:36px;vertical-align:middle;">
-            <div style="width:32px;height:32px;background:${EMAIL_ACCENT_SOFT};border-radius:8px;text-align:center;line-height:32px;">
-              <span style="font-size:13px;font-weight:700;color:${EMAIL_ACCENT_DARK};">${m.name.charAt(0)}</span>
+            <div style="width:32px;height:32px;background:#e7f7f3;border-radius:8px;text-align:center;line-height:32px;">
+              <span style="font-size:13px;font-weight:700;color:#007e6d;">${m.name.charAt(0)}</span>
             </div>
           </td>
           <td style="padding-left:12px;vertical-align:middle;">
@@ -110,7 +104,7 @@ export function bookingConfirmationHtml(opts: {
     </tr>`).join('');
 
   const body = `
-    <tr><td bgcolor="${EMAIL_ACCENT_DARK}" style="background:${EMAIL_ACCENT_DARK};padding:36px 32px;text-align:center;">
+    <tr><td bgcolor="#007e6d" style="background:#007e6d;padding:36px 32px;text-align:center;">
       <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:50%;margin:0 auto 16px;text-align:center;line-height:48px;">
         <span style="font-size:22px;color:#ffffff;">&#10003;</span>
       </div>
@@ -143,7 +137,7 @@ export function bookingConfirmationHtml(opts: {
       </table>` : ''}
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
         <tr><td align="center">
-          <a href="${SITE_URL}/account" style="display:inline-block;background:${EMAIL_ACCENT};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
+            <a href="${SITE_URL}/account" style="display:inline-block;background:#007e6d;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
             View My Bookings &rarr;
           </a>
         </td></tr>
@@ -171,7 +165,7 @@ export function statusUpdateHtml(opts: {
 }) {
   const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; headline: string; message: string }> = {
     confirmed: {
-      color: EMAIL_ACCENT_DARK, bg: '#effaf6', border: '#bfe5db', icon: '&#10003;',
+      color: '#007e6d', bg: '#eef8f5', border: '#bfe5db', icon: '&#10003;',
       headline: 'Your booking has been confirmed',
       message: 'A professional has reviewed your request and confirmed the booking. They will be in touch to finalize the details.'
     },
@@ -218,7 +212,7 @@ export function statusUpdateHtml(opts: {
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr><td align="center">
-          <a href="${SITE_URL}/account" style="display:inline-block;background:${EMAIL_ACCENT};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
+          <a href="${SITE_URL}/account" style="display:inline-block;background:#007e6d;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
             View My Account &rarr;
           </a>
         </td></tr>
@@ -238,7 +232,7 @@ export function welcomeHtml(opts: { name: string }) {
   ];
 
   const body = `
-    <tr><td bgcolor="${EMAIL_ACCENT_DARK}" style="background:${EMAIL_ACCENT_DARK};padding:40px 32px;text-align:center;">
+    <tr><td bgcolor="#007e6d" style="background:#007e6d;padding:40px 32px;text-align:center;">
       <h1 style="margin:0 0 8px;font-size:23px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">You're all set, ${opts.name}</h1>
       <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.8);">Your account has been created.</p>
     </td></tr>
@@ -252,8 +246,8 @@ export function welcomeHtml(opts: { name: string }) {
         <tr><td style="padding:14px 0;${i < steps.length - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             <td style="vertical-align:top;width:32px;">
-              <div style="width:32px;height:32px;background:${EMAIL_ACCENT_SOFT};border-radius:8px;text-align:center;line-height:32px;">
-                <span style="font-size:13px;font-weight:700;color:${EMAIL_ACCENT_DARK};">${s.num}</span>
+              <div style="width:32px;height:32px;background:#e7f7f3;border-radius:8px;text-align:center;line-height:32px;">
+                <span style="font-size:13px;font-weight:700;color:#007e6d;">${s.num}</span>
               </div>
             </td>
             <td style="padding-left:14px;vertical-align:top;">
@@ -265,7 +259,7 @@ export function welcomeHtml(opts: { name: string }) {
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
         <tr><td align="center">
-          <a href="${SITE_URL}/bookings" style="display:inline-block;background:${EMAIL_ACCENT};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
+          <a href="${SITE_URL}/bookings" style="display:inline-block;background:#007e6d;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
             Find a Professional &rarr;
           </a>
         </td></tr>
@@ -284,7 +278,7 @@ export function welcomeHtml(opts: { name: string }) {
 // ─── Template: password reset ───────────────────────────────────────────────
 export function passwordResetHtml(opts: { name: string; resetUrl: string }) {
   const body = `
-    <tr><td bgcolor="${EMAIL_ACCENT_DARK}" style="background:${EMAIL_ACCENT_DARK};padding:36px 32px;text-align:center;">
+    <tr><td bgcolor="#007e6d" style="background:#007e6d;padding:36px 32px;text-align:center;">
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">Reset your password</h1>
       <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.82);">Use the secure link below to set a new password.</p>
     </td></tr>
@@ -295,7 +289,7 @@ export function passwordResetHtml(opts: { name: string; resetUrl: string }) {
       </p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
         <tr><td align="center">
-          <a href="${opts.resetUrl}" style="display:inline-block;background:${EMAIL_ACCENT};color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 30px;border-radius:10px;">
+          <a href="${opts.resetUrl}" style="display:inline-block;background:#007e6d;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 30px;border-radius:10px;">
             Reset Password →
           </a>
         </td></tr>
@@ -323,7 +317,7 @@ export function newBookingBusinessHtml(opts: {
 }) {
   const dashUrl = `${SITE_URL}/business/dashboard`;
   const body = `
-    <tr><td bgcolor="${EMAIL_ACCENT_DARK}" style="background:${EMAIL_ACCENT_DARK};padding:32px;text-align:center;">
+    <tr><td bgcolor="#007e6d" style="background:#007e6d;padding:32px;text-align:center;">
       <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#ffffff;">New booking request</h1>
       <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.8);">A customer wants to book ${opts.businessName}</p>
     </td></tr>
@@ -352,7 +346,7 @@ export function newBookingBusinessHtml(opts: {
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
         <tr><td align="center">
-          <a href="${dashUrl}" style="display:inline-block;background:${EMAIL_ACCENT};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
+          <a href="${dashUrl}" style="display:inline-block;background:#007e6d;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px;">
             View in Dashboard →
           </a>
         </td></tr>
@@ -486,7 +480,7 @@ export function reviewRequestHtml(opts: {
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">How did it go?</h1>
       <p style="margin:0 0 24px;font-size:15px;color:#64748b;">Hi ${opts.name}, your <strong style="color:#0f172a;">${opts.service}</strong> has been marked complete. Leave a quick review to help others find great pros.</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;">
           <a href="${reviewUrl}" style="display:block;padding:14px 36px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
             Leave a Review →
           </a>
@@ -760,10 +754,10 @@ export async function sendBusinessApprovalEmail(opts: {
         <tr><td style="padding:20px 24px;">
           <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">What happens next</p>
           <table role="presentation" cellpadding="0" cellspacing="0">
-            ${['Set up your account password or connect Google', 'Connect your bank via Stripe to receive payments', 'Your profile goes live — leads start arriving', 'Complete jobs and get paid (standard fee is 12%, Founder50 is 6%)'].map((step, i) => `
+            ${['Set up your account password or connect Google', 'Optionally connect Stripe for automated payouts', 'Your profile goes live — leads start arriving', 'Complete jobs and get paid (manual payouts stay available until Stripe is connected; standard fee is 12%, Founder50 is 6%)'].map((step, i) => `
             <tr>
               <td style="padding:6px 0;vertical-align:top;">
-                <span style="display:inline-block;width:22px;height:22px;background:${EMAIL_ACCENT_DARK};border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:700;color:#fff;margin-right:12px;">${i + 1}</span>
+                <span style="display:inline-block;width:22px;height:22px;background:#007e6d;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:700;color:#fff;margin-right:12px;">${i + 1}</span>
               </td>
               <td style="padding:6px 0;font-size:14px;color:#334155;">${step}</td>
             </tr>`).join('')}
@@ -771,7 +765,7 @@ export async function sendBusinessApprovalEmail(opts: {
         </td></tr>
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 16px;width:100%;max-width:360px;">
-        <tr><td bgcolor="${EMAIL_ACCENT_DARK}" style="background:${EMAIL_ACCENT_DARK};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${googleLoginUrl}" style="display:block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
             Sign In with Google →
           </a>
@@ -785,17 +779,17 @@ export async function sendBusinessApprovalEmail(opts: {
         </tr>
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px;width:100%;max-width:360px;">
-        <tr><td style="border:2px solid ${EMAIL_ACCENT_DARK};border-radius:12px;text-align:center;">
-          <a href="${passwordSetupUrl}" style="display:block;padding:14px 40px;font-size:15px;font-weight:700;color:${EMAIL_ACCENT_DARK};text-decoration:none;letter-spacing:-0.01em;">
+        <tr><td style="border:2px solid #007e6d;border-radius:12px;text-align:center;">
+          <a href="${passwordSetupUrl}" style="display:block;padding:14px 40px;font-size:15px;font-weight:700;color:#007e6d;text-decoration:none;letter-spacing:-0.01em;">
             Create a Password Instead
           </a>
         </td></tr>
       </table>
       <p style="margin:0 0 12px;font-size:12px;color:#94a3b8;text-align:center;">
-        Prefer one-tap sign-in? <a href="${opts.magicLink}" style="color:${EMAIL_ACCENT_DARK};">Use this secure link</a>.
+        Prefer one-tap sign-in? <a href="${opts.magicLink}" style="color:#007e6d;">Use this secure link</a>.
       </p>
-      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">Sign-in link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:${EMAIL_ACCENT_DARK};">${SITE_URL}/business/auth/login</a></p>
-      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Questions? Reply to this email or contact <a href="mailto:hello@usescheduleme.com" style="color:${EMAIL_ACCENT_DARK};">hello@usescheduleme.com</a></p>
+      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">Sign-in link expires in 24 hours. If it expires, visit <a href="${SITE_URL}/business/auth/login" style="color:#007e6d;">${SITE_URL}/business/auth/login</a></p>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Questions? Reply to this email or contact <a href="mailto:hello@usescheduleme.com" style="color:#007e6d;">hello@usescheduleme.com</a></p>
     </td></tr>
   `;
   return resend.emails.send({
@@ -994,7 +988,7 @@ export function paymentReceiptCustomerHtml(opts: {
         </tr>`).join('')}
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;width:100%;max-width:320px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${SITE_URL}/bookings" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View Booking →</a>
         </td></tr>
       </table>
@@ -1008,19 +1002,21 @@ export function paymentReceiptCustomerHtml(opts: {
 export function paymentNotificationBusinessHtml(opts: {
   businessName: string; customerName: string; service: string;
   amountDollars: string; platformFeePercent: number; payoutDollars: string; bookingId: string;
+  stripeOnboarded?: boolean; zellePayoutDetails?: string;
 }) {
+  const stripeOnboarded = opts.stripeOnboarded === true;
   const body = `
     <tr><td style="background:#ffffff;border-radius:16px;padding:40px;border:1px solid #e2e8f0;">
       <div style="text-align:center;margin-bottom:28px;">
-        <div style="display:inline-block;width:60px;height:60px;background:${EMAIL_ACCENT_SOFT};border-radius:50%;line-height:60px;font-size:28px;margin-bottom:12px;">💳</div>
-        <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Booking paid and secured</h1>
-        <p style="margin:0;font-size:15px;color:#64748b;">A customer just paid. Funds stay held by ScheduleMe until the booking is completed.</p>
+        <div style="display:inline-block;width:60px;height:60px;background:#e7f7f3;border-radius:50%;line-height:60px;font-size:28px;margin-bottom:12px;">💳</div>
+        <h1 style="margin:0 0 6px;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Payment received</h1>
+        <p style="margin:0;font-size:15px;color:#64748b;">${stripeOnboarded ? 'A customer just paid for their booking. Stripe will handle the payout once the job is completed.' : 'A customer just paid for their booking. ScheduleMe is holding the funds until completion because Stripe is not connected yet.'}</p>
       </div>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${EMAIL_ACCENT_SOFT};border-radius:12px;margin-bottom:28px;border:1px solid ${EMAIL_BORDER};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8f5;border-radius:12px;margin-bottom:28px;border:1px solid #bfe5db;">
         <tr><td style="padding:24px;text-align:center;">
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:${EMAIL_ACCENT_DARK};text-transform:uppercase;letter-spacing:0.06em;">Held for completion</p>
-          <p style="margin:0;font-size:36px;font-weight:800;color:${EMAIL_ACCENT_DARK};letter-spacing:-0.03em;">$${opts.payoutDollars}</p>
-          <p style="margin:4px 0 0;font-size:12px;color:${EMAIL_ACCENT};">Estimated provider net after ${opts.platformFeePercent}% platform fee from the $${opts.amountDollars} customer charge</p>
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#007e6d;text-transform:uppercase;letter-spacing:0.06em;">${stripeOnboarded ? 'Estimated payout' : 'Held for manual payout'}</p>
+          <p style="margin:0;font-size:36px;font-weight:800;color:#007e6d;letter-spacing:-0.03em;">$${opts.payoutDollars}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#0f766e;">$${opts.amountDollars} total — ${opts.platformFeePercent}% platform fee</p>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
@@ -1028,6 +1024,7 @@ export function paymentNotificationBusinessHtml(opts: {
           ['Service', opts.service],
           ['Customer', opts.customerName],
           ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+          ...(!stripeOnboarded ? [['Manual payout destination', opts.zellePayoutDetails || 'Add your Zelle email or phone in Provider Settings']] : []),
         ].map(([label, value]) => `
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#64748b;width:40%;">${label}</td>
@@ -1035,14 +1032,96 @@ export function paymentNotificationBusinessHtml(opts: {
         </tr>`).join('')}
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;width:100%;max-width:320px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${SITE_URL}/business/dashboard" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">View Dashboard →</a>
         </td></tr>
       </table>
-      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">Upload completion proof in your dashboard after the job is done. The customer can confirm or dispute before funds are released.</p>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">${stripeOnboarded ? 'Funds will be deposited to your connected bank account via Stripe after the booking is completed and cleared.' : 'Until Stripe is connected, payouts are not automated. Upload completion proof when the job is done and ScheduleMe will review the booking for manual payout.'}</p>
     </td></tr>
   `;
-  return layout('Booking paid and secured', body, `$${opts.amountDollars} customer payment received for ${opts.service} — held pending completion`);
+  return layout('Payment received', body, stripeOnboarded
+    ? `$${opts.payoutDollars} estimated payout incoming for ${opts.service}`
+    : `$${opts.payoutDollars} received and held for manual payout on ${opts.service}`);
+}
+
+export function providerCompletionAlertAdminHtml(opts: {
+  providerName: string; providerEmail: string; customerName: string; customerEmail: string;
+  service: string; bookingId: string; amountDollars: string; payoutDollars: string; platformFeePercent: number;
+  stripeOnboarded: boolean; zellePayoutDetails?: string; proofNote?: string; proofPhotoCount?: number; consumerConfirmationDueAt: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:36px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Provider marked booking complete</h1>
+      <p style="margin:0 0 18px;font-size:15px;color:#64748b;">Review this booking so payout can move quickly once the customer window closes.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${opts.stripeOnboarded ? '#eef8f5' : '#fff7ed'};border-radius:12px;margin-bottom:20px;border:1px solid ${opts.stripeOnboarded ? '#bfe5db' : '#fed7aa'};">
+        <tr><td style="padding:20px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};text-transform:uppercase;letter-spacing:0.08em;">${opts.stripeOnboarded ? 'Stripe payout path' : 'Manual payout review'}</p>
+          <p style="margin:0;font-size:28px;font-weight:800;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};">$${opts.payoutDollars}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:${opts.stripeOnboarded ? '#0f766e' : '#9a3412'};">Estimated provider net after ${opts.platformFeePercent}% fee from $${opts.amountDollars}</p>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        ${[
+          ['Provider', opts.providerName],
+          ['Provider email', opts.providerEmail],
+          ['Customer', opts.customerName || 'Unknown customer'],
+          ['Customer email', opts.customerEmail || 'Not available'],
+          ['Service', opts.service],
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+          ['Dispute / confirmation window ends', opts.consumerConfirmationDueAt],
+          ['Payout mode', opts.stripeOnboarded ? 'Automated via Stripe' : 'Manual payout required'],
+          ['Zelle details', opts.zellePayoutDetails || 'Not set'],
+          ['Proof photos', String(opts.proofPhotoCount || 0)],
+          ['Proof note', opts.proofNote || 'No note provided'],
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">If Stripe is not connected, pay this provider manually after review using the saved Zelle details above.</p>
+    </td></tr>
+  `;
+  return layout('Provider completion alert', body, `${opts.providerName} submitted completion proof for ${opts.service}`);
+}
+
+export function providerCompletionReceiptHtml(opts: {
+  providerName: string; service: string; bookingId: string; amountDollars: string; payoutDollars: string; platformFeePercent: number;
+  stripeOnboarded: boolean; zellePayoutDetails?: string; consumerConfirmationDueAt: string;
+}) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:16px;padding:36px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Completion proof received</h1>
+      <p style="margin:0 0 18px;font-size:15px;color:#64748b;">We logged your proof for ${opts.service}. The customer now has a short window to confirm or dispute the completion.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${opts.stripeOnboarded ? '#eef8f5' : '#fff7ed'};border-radius:12px;margin-bottom:20px;border:1px solid ${opts.stripeOnboarded ? '#bfe5db' : '#fed7aa'};">
+        <tr><td style="padding:20px;text-align:center;">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};text-transform:uppercase;letter-spacing:0.08em;">${opts.stripeOnboarded ? 'Estimated automated payout' : 'Estimated manual payout'}</p>
+          <p style="margin:0;font-size:30px;font-weight:800;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};">$${opts.payoutDollars}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:${opts.stripeOnboarded ? '#0f766e' : '#9a3412'};">$${opts.amountDollars} total — ${opts.platformFeePercent}% platform fee</p>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        ${[
+          ['Service', opts.service],
+          ['Booking ID', opts.bookingId.slice(0, 8).toUpperCase()],
+          ['Customer window ends', opts.consumerConfirmationDueAt],
+          ['Payout mode', opts.stripeOnboarded ? 'Automated via Stripe' : 'Manual until Stripe is connected'],
+          ...(!opts.stripeOnboarded ? [['Manual payout destination', opts.zellePayoutDetails || 'Not set']] : []),
+        ].map(([label, value]) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#64748b;width:40%;">${label}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;color:#0f172a;font-weight:500;">${value}</td>
+        </tr>`).join('')}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 16px;width:100%;max-width:320px;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
+          <a href="${SITE_URL}/provider/dashboard#settings" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">Review payout settings →</a>
+        </td></tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">${opts.stripeOnboarded ? 'Your payout will continue through Stripe once this booking clears.' : 'Until Stripe is connected, ScheduleMe pays you manually. Keep your Zelle details up to date in Provider Settings.'}</p>
+    </td></tr>
+  `;
+  return layout('Completion proof received', body, `We received completion proof for ${opts.service}`);
 }
 
 // ─── Payment Request — Customer ───────────────────────────────────────────────
@@ -1074,7 +1153,7 @@ export function paymentRequestCustomerHtml(opts: {
         </tr>`).join('')}
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;width:100%;max-width:320px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${SITE_URL}/bookings" style="display:block;padding:15px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">Pay Now →</a>
         </td></tr>
       </table>
@@ -1114,7 +1193,7 @@ export function customerProposedPriceBusinessHtml(opts: {
         </tr>`).join('')}
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;width:100%;max-width:320px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${SITE_URL}/business/dashboard" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">Review booking →</a>
         </td></tr>
       </table>
@@ -1149,7 +1228,7 @@ export function providerAcceptedCustomerPriceHtml(opts: {
         </tr>`).join('')}
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;width:100%;max-width:320px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${SITE_URL}/bookings" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">View booking →</a>
         </td></tr>
       </table>
@@ -1182,7 +1261,7 @@ export function customerAcceptedProviderPriceHtml(opts: {
         </tr>`).join('')}
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;width:100%;max-width:320px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${SITE_URL}/business/dashboard" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">View booking →</a>
         </td></tr>
       </table>
@@ -1202,9 +1281,48 @@ export async function sendPaymentReceiptCustomer(opts: {
 export async function sendPaymentNotificationBusiness(opts: {
   to: string; businessName: string; customerName: string; service: string;
   amountDollars: string; platformFeePercent: number; payoutDollars: string; bookingId: string;
+  stripeOnboarded?: boolean; zellePayoutDetails?: string;
 }) {
   const resend = getResend();
-  return resend.emails.send({ from: FROM, to: opts.to, subject: `Booking paid — $${opts.amountDollars} secured and held`, html: paymentNotificationBusinessHtml(opts) });
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: opts.stripeOnboarded === true
+      ? `Payment received — $${opts.payoutDollars} payout pending completion`
+      : `Payment received — $${opts.payoutDollars} held for manual payout`,
+    html: paymentNotificationBusinessHtml(opts),
+  });
+}
+
+export async function sendProviderCompletionAlertAdminEmail(opts: {
+  to: string | string[]; providerName: string; providerEmail: string; customerName: string; customerEmail: string;
+  service: string; bookingId: string; amountDollars: string; payoutDollars: string; platformFeePercent: number;
+  stripeOnboarded: boolean; zellePayoutDetails?: string; proofNote?: string; proofPhotoCount?: number; consumerConfirmationDueAt: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: opts.stripeOnboarded
+      ? `Completion proof submitted — ${opts.providerName}`
+      : `Manual payout review needed — ${opts.providerName}`,
+    html: providerCompletionAlertAdminHtml(opts),
+  });
+}
+
+export async function sendProviderCompletionReceiptEmail(opts: {
+  to: string; providerName: string; service: string; bookingId: string; amountDollars: string; payoutDollars: string; platformFeePercent: number;
+  stripeOnboarded: boolean; zellePayoutDetails?: string; consumerConfirmationDueAt: string;
+}) {
+  const resend = getResend();
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: opts.stripeOnboarded
+      ? `Completion proof received — Stripe payout pending review`
+      : `Completion proof received — manual payout pending review`,
+    html: providerCompletionReceiptHtml(opts),
+  });
 }
 
 export async function sendPaymentRequestCustomer(opts: {
@@ -1241,7 +1359,7 @@ export function priceDisputeSubmittedHtml(opts: {
         </tr>`).join('')}
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;width:100%;max-width:320px;">
-        <tr><td bgcolor="${EMAIL_ACCENT}" style="background:${EMAIL_ACCENT};border-radius:12px;text-align:center;">
+        <tr><td bgcolor="#007e6d" style="background:#007e6d;border-radius:12px;text-align:center;">
           <a href="${SITE_URL}/bookings" style="display:block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">View booking →</a>
         </td></tr>
       </table>

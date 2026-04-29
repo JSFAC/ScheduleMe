@@ -42,6 +42,7 @@ interface Business {
   stripe_account_id: string | null; stripe_onboarded: boolean;
   service_tags: string[]; address: string; rating: number | null; price_tier?: number | null; review_count?: number | null;
   city?: string; zip?: string; lat?: number | null; lng?: number | null;
+  zelle_payout_details?: string;
   slug?: string | null;
   hours?: any;
   availability_status?: string | null; break_until?: string | null;
@@ -103,6 +104,7 @@ function normalizeBusiness(input: any): Business | null {
     zip: cleanDraftField(input.zip, ['00000']),
     lat: input.lat == null ? null : toNumberSafe(input.lat, 0),
     lng: input.lng == null ? null : toNumberSafe(input.lng, 0),
+    zelle_payout_details: toStringSafe(input.zelle_payout_details),
     rating: input.rating == null ? null : toNumberSafe(input.rating, 0),
     price_tier: input.price_tier == null ? undefined : toNumberSafe(input.price_tier, 0),
     review_count: input.review_count == null ? undefined : toNumberSafe(input.review_count, 0),
@@ -1031,7 +1033,7 @@ const BusinessDashboard: NextPage = () => {
   const [deleteAccountError, setDeleteAccountError] = useState('');
   const [payoutBalance, setPayoutBalance] = useState<{ available: number; pending: number } | null>(null);
   const stripeSuccess = router.query.stripe === 'success';
-  const stripeCta = business?.stripe_account_id ? 'Continue Stripe setup →' : 'Connect bank & get paid →';
+  const stripeCta = business?.stripe_account_id ? 'Finish Stripe for automated payouts →' : 'Connect Stripe for automated payouts →';
   const [campusEduEmail, setCampusEduEmail] = useState('');
   const [campusCodeSent, setCampusCodeSent] = useState(false);
   const [campusBannerDismissed, setCampusBannerDismissed] = useState(false);
@@ -1119,6 +1121,7 @@ const BusinessDashboard: NextPage = () => {
   const [editAddress, setEditAddress] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
+  const [editZellePayoutDetails, setEditZellePayoutDetails] = useState('');
   const [editServices, setEditServices] = useState('');
   const [editAvailability, setEditAvailability] = useState('open');
   const [editBreakUntil, setEditBreakUntil] = useState('');
@@ -1238,6 +1241,7 @@ const BusinessDashboard: NextPage = () => {
       setEditCity(safeBiz.city || '');
       setEditZip(safeBiz.zip || '');
       setEditDesc(safeBiz.description || ''); setEditWebsite(safeBiz.website || '');
+      setEditZellePayoutDetails(safeBiz.zelle_payout_details || '');
       setEditAvailability(safeBiz.availability_status || 'open');
       setEditBreakUntil(safeBiz.break_until ? String(safeBiz.break_until).slice(0, 10) : '');
       const serviceTags = Array.isArray(safeBiz.service_tags) ? safeBiz.service_tags : [];
@@ -1369,13 +1373,13 @@ const BusinessDashboard: NextPage = () => {
         const onboarded = await refreshStripeStatus();
         if (cancelled) return;
         if (onboarded) {
-          setStripeStatusMsg('Stripe connected. You’re ready to get paid.');
+          setStripeStatusMsg('Stripe connected. Automated payouts are now live.');
           setStripePolling(false);
           return;
         }
         await new Promise(r => setTimeout(r, 3000));
       }
-      setStripeStatusMsg('Stripe setup is still processing. It can take a few minutes — refresh this page if it doesn’t update.');
+      setStripeStatusMsg('Stripe setup is still processing. Automated payouts can take a few minutes to turn on — refresh if it does not update.');
       setStripePolling(false);
       if (business?.stripe_account_id && typeof window !== 'undefined') {
         const autoKey = `sm_stripe_autocontinue_${business.id}`;
@@ -1784,7 +1788,7 @@ const BusinessDashboard: NextPage = () => {
         }
       } catch {}
       if (!data?.onboarded) {
-        setStripeStatusMsg('Stripe setup isn’t finished yet. Click “Continue Stripe setup” to complete it.');
+        setStripeStatusMsg('Stripe setup isn’t finished yet. Click the Stripe button again to finish automated payouts.');
       }
       if (router.query?.stripe) {
         const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -2061,6 +2065,7 @@ const BusinessDashboard: NextPage = () => {
           business_id: business.id,
           phone: editPhone,
           website: editWebsite,
+          zelle_payout_details: editZellePayoutDetails,
           city: editCity,
           zip: editZip,
           service_tags: tags,
@@ -2081,7 +2086,7 @@ const BusinessDashboard: NextPage = () => {
         setBusiness((b) => b ? { ...b, ...saved } : saved);
         setEditAddress(saved.address || '');
       }
-      setSettingsNotice('Settings saved. Your location now updates your provider coordinates automatically.');
+      setSettingsNotice('Settings saved. Your location, visibility, and manual payout details are up to date.');
       setSettingsSaved(true);
       setTimeout(() => setSettingsSaved(false), 2500);
     } catch (err) {
@@ -2230,6 +2235,9 @@ const BusinessDashboard: NextPage = () => {
   const totalUnreadMsgs = (Array.isArray(msgThreads) ? msgThreads : []).reduce((s: number, t: any) => s + (Number(t?.unreadCount) || 0), 0);
   const pendingCount = bookings.filter(b => isProviderPendingBooking(b)).length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
+  const manualPayoutLimit = 3;
+  const paidBookingCount = bookings.filter(b => !!b.paid_at).length;
+  const manualPayoutsRemaining = Math.max(0, manualPayoutLimit - paidBookingCount);
   const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);
   const isActiveOrCompleted = (b: any) => ['confirmed', 'payment_pending', 'price_disputed', 'paid', 'completed'].includes(b.status);
   const thisMonthGross = bookings
@@ -2320,7 +2328,7 @@ const BusinessDashboard: NextPage = () => {
     { title: 'Welcome to your dashboard', body: 'This is your provider HQ. Use the sidebar to switch between Overview, Bookings, Messages, and Settings.' },
     { title: 'Bookings & calendar', body: 'Confirm or complete bookings here. The calendar tab helps you see upcoming work at a glance.' },
     { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
-    { title: 'Settings & payouts', body: 'Update your listing, hours, and connect Stripe to get paid.' },
+    { title: 'Settings & payouts', body: 'Save your Zelle details for manual payouts on your first 3 paid bookings, then connect Stripe to keep accepting payouts automatically.' },
     { title: 'Visibility controls', body: 'In Settings, decide if you show on public browse/search or stay campus-only. You also control which details (name/photos) are visible to students vs the public, so set these before you share your listing.' },
     { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Provider landing page link.' },
   ];
@@ -2523,9 +2531,17 @@ const BusinessDashboard: NextPage = () => {
           {business && tab === 'overview' && !business.stripe_onboarded && (
             <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
-                <div className="flex items-center gap-2.5 text-sm">
-                  <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  <span className="text-amber-800 font-semibold">Step 1/2: Connect bank & get paid</span>
+                <div className="flex flex-col gap-1 text-sm max-w-3xl">
+                  <div className="flex items-center gap-2.5">
+                    <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span className="text-amber-800 font-semibold">Step 1/2: Connect Stripe for automated payouts</span>
+                  </div>
+                  <p className="text-xs text-amber-800">
+                    You can use manual payouts to your saved Zelle details for your first {manualPayoutLimit} paid bookings.
+                    {manualPayoutsRemaining > 0
+                      ? ` ${manualPayoutsRemaining} manual payout${manualPayoutsRemaining === 1 ? '' : 's'} remaining before Stripe is required.`
+                      : ' You have reached the manual payout limit, so Stripe needs to be connected before more payouts can be processed.'}
+                  </p>
                 </div>
                 <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors">
                   {stripeLoading ? 'Loading…' : stripeCta}
@@ -2789,7 +2805,7 @@ const BusinessDashboard: NextPage = () => {
                               { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and contact details.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
-                              { key: 'stripe', label: 'Stripe connected', hint: 'Connect payouts before you publish publicly.' },
+                              { key: 'stripe', label: 'Automated payouts enabled', hint: 'Optional for launch. Manual payouts to your saved Zelle details only cover the first 3 paid bookings, then Stripe is required.' },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
                               return (
@@ -2865,7 +2881,7 @@ const BusinessDashboard: NextPage = () => {
                   <div>
                     <p className="text-sm font-bold text-neutral-900">Payments and payouts</p>
                     <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                      Manage Stripe connection and payout details in Settings.
+                      Manage automated Stripe payouts or save Zelle details for manual payouts in Settings.
                     </p>
                   </div>
                   <button type="button" onClick={() => setTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
@@ -4042,6 +4058,20 @@ const BusinessDashboard: NextPage = () => {
                           style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
                         />
                       </label>
+                      <label className="text-sm md:col-span-2">
+                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Zelle payout details</span>
+                        <input
+                          type="text"
+                          value={editZellePayoutDetails}
+                          onChange={(e) => setEditZellePayoutDetails(e.target.value)}
+                          placeholder="Email or phone tied to your Zelle"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                        />
+                        <p className="mt-1 text-[11px] text-neutral-500">
+                          If Stripe is not connected yet, ScheduleMe will use this to pay you manually after the booking is completed and cleared. Manual payouts only cover your first 3 paid bookings, then Stripe is required.
+                        </p>
+                      </label>
                     </div>
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <div className="min-h-[18px] text-xs">
@@ -4055,7 +4085,7 @@ const BusinessDashboard: NextPage = () => {
                         className="rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-60"
                         style={{ background: '#007e6d' }}
                       >
-                        {settingsSaving ? 'Saving…' : 'Save Location'}
+                        {settingsSaving ? 'Saving…' : 'Save Settings'}
                       </button>
                     </div>
                   </form>
@@ -4066,6 +4096,7 @@ const BusinessDashboard: NextPage = () => {
                         { label: 'Owner', value: business?.owner_name },
                         { label: 'Email', value: business?.owner_email },
                         { label: 'Provider type', value: business?.campus_provider ? `Campus provider${business?.campus_school_name || business?.school_domain ? ` · ${business?.campus_school_name || formatCampusLabel(business?.school_domain) || business?.school_domain}` : ''}` : 'Independent provider' },
+                        { label: 'Manual payout', value: business?.zelle_payout_details || 'Not set' },
                         { label: 'Status', value: business?.public_visibility ? '✓ Live on ScheduleMe' : 'Incomplete' },
                         { label: 'Rating', value: business?.rating ? business.rating + ' ★' : 'No ratings yet' },
                       ].map(r => (
@@ -4094,19 +4125,19 @@ const BusinessDashboard: NextPage = () => {
                 <div className="space-y-5">
                   <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
-                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
+                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Stripe is connected. Automated payouts are live.' : 'Step 1/2: Accept bookings now. Connect Stripe later for automated payouts.'}</p>
                     {business?.stripe_onboarded ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          Bank account connected
+                          Automated payouts active
                         </div>
                         <button
                           type="button"
                           onClick={() => handleStripeConnect('update')}
                           disabled={stripeLoading}
                           className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
-                          Configure Stripe settings
+                          Manage Stripe payout settings
                         </button>
                         <button
                           type="button"
@@ -4114,12 +4145,20 @@ const BusinessDashboard: NextPage = () => {
                           className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
                           Disconnect Stripe
                         </button>
-                        <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts. New Stripe accounts may take up to 7 days for the first payout to arrive.</p>
+                        <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts. New Stripe accounts may take up to 7 days for the first automated payout to arrive.</p>
                         {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
                         {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
                       </div>
                     ) : (
                       <div className="space-y-3">
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] leading-5 text-amber-900">
+                          Customers can still pay now. Until Stripe is connected, ScheduleMe holds the customer funds and pays you manually after completion using the Zelle details saved in Settings. This manual payout option only covers your first {manualPayoutLimit} paid bookings.
+                        </div>
+                        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-[12px] leading-5 text-neutral-700">
+                          {manualPayoutsRemaining > 0
+                            ? `${manualPayoutsRemaining} of ${manualPayoutLimit} manual payout slots remaining before Stripe becomes required.`
+                            : `You have used all ${manualPayoutLimit} manual payout slots. Connect Stripe now so future payouts can be released.`}
+                        </div>
                         <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
                           {stripeLoading ? 'Loading…' : stripeCta}
                         </button>
@@ -4131,6 +4170,9 @@ const BusinessDashboard: NextPage = () => {
                             Disconnect Stripe
                           </button>
                         )}
+                        <p className="text-[11px] text-neutral-500">
+                          Current manual payout destination: <strong>{business?.zelle_payout_details || 'not set yet'}</strong>
+                        </p>
                         {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
                         {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
                       </div>

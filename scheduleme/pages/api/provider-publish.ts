@@ -40,7 +40,7 @@ function buildChecklist(business: any, servicesCount: number): Checklist {
     media: hasMedia,
     stripe: hasStripe,
     trustClear,
-    readyToPublish: hasCoreProfile && hasServices && hasMedia && hasStripe && trustClear,
+    readyToPublish: hasCoreProfile && hasServices && hasMedia && trustClear,
   };
 }
 

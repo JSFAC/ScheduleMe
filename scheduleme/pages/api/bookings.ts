@@ -1,13 +1,13 @@
 // pages/api/bookings.ts — SECURED + completion proof + consumer confirmation + disputes
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import stripe from '../../lib/stripe';
 import { validateAndFilter } from '../../lib/profanity';
 import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isValidUuid, isValidEmail } from '../../lib/apiSecurity';
 import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '../../lib/providerTrust';
 import { isAwayWindow } from '../../lib/founder50';
-import { PROTECTION_FEE_CENTS } from '../../lib/fees';
-import { refundBookingPayment, releaseHeldFundsForBooking } from '../../lib/bookingFunds';
-import { loadProviderPayoutStage } from '../../lib/providerPayoutStage';
+import { getPlatformFeePercent } from '../../lib/platformFees';
+import { sendProviderCompletionAlertAdminEmail, sendProviderCompletionReceiptEmail } from '../../lib/email';
 
 const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
 const VALID_STATUSES = [
@@ -224,8 +224,6 @@ function cleanUrlArray(value: unknown, maxItems = 8): string[] {
 
 function deriveBookingStatus(row: any): string {
   if (row?.status === 'disputed' || row?.disputed_at) return 'disputed';
-  const dueAt = row?.consumer_confirmation_due_at ? new Date(row.consumer_confirmation_due_at).getTime() : 0;
-  if (row?.status === 'completed' && dueAt > Date.now()) return 'awaiting_consumer_confirmation';
   return row?.status || 'pending';
 }
 
@@ -365,6 +363,40 @@ async function notifyNewBooking(bookingId: string, supabase: ReturnType<typeof g
   }
 }
 
+async function getPaymentIntentForBooking(bookingId: string) {
+  const query = `metadata['booking_id']:'${bookingId}' AND status:'succeeded'`;
+  const result = await stripe.paymentIntents.search({ query, limit: 1 });
+  return result.data?.[0] || null;
+}
+
+async function refundBookingIfPaid(bookingId: string, amountCents?: number) {
+  try {
+    const paymentIntent = await getPaymentIntentForBooking(bookingId);
+    if (!paymentIntent) return { refunded: false, reason: 'no_payment_found' };
+
+    const existingRefunds = await stripe.refunds.list({ payment_intent: paymentIntent.id, limit: 10 });
+    const alreadyRefunded = existingRefunds.data.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const maxRefundable = Math.max(0, (paymentIntent.amount_received || paymentIntent.amount || 0) - alreadyRefunded);
+    if (maxRefundable <= 0) return { refunded: false, reason: 'already_refunded' };
+
+    const refundAmount = typeof amountCents === 'number'
+      ? Math.max(1, Math.min(maxRefundable, Math.round(amountCents)))
+      : maxRefundable;
+
+    await stripe.refunds.create({
+      payment_intent: paymentIntent.id,
+      amount: refundAmount,
+      reason: 'requested_by_customer',
+      metadata: { booking_id: bookingId },
+    });
+
+    return { refunded: true, amount_cents: refundAmount };
+  } catch (err) {
+    console.error('[bookings] refund failed', err);
+    return { refunded: false, reason: 'refund_failed' };
+  }
+}
+
 async function sendStatusUpdateEmail(to: string | undefined, payload: any) {
   if (!to) return;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://usescheduleme.com';
@@ -373,6 +405,17 @@ async function sendStatusUpdateEmail(to: string | undefined, payload: any) {
     headers: { 'Content-Type': 'application/json', 'x-notify-secret': process.env.NOTIFY_SECRET || '' },
     body: JSON.stringify({ type: 'status_update', to, ...payload }),
   }).catch(() => {});
+}
+
+function getManualPayoutAlertRecipients(): string[] {
+  const raw = process.env.MANUAL_PAYOUT_ALERT_EMAILS
+    || process.env.DISPUTE_ADMIN_EMAILS
+    || process.env.ADMIN_EMAIL
+    || 'usescheduleme@gmail.com';
+  return String(raw)
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -388,8 +431,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       business_id,
       user_id,
       service,
-      service_price_cents,
-      customer_proposed_price_cents,
       user_name,
       user_phone,
       user_email,
@@ -413,15 +454,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const safeAddress = typeof address === 'string' ? address.trim().slice(0, 300) : null;
     const safeNote = typeof note === 'string' ? note.trim().slice(0, 2000) : null;
     const scheduledStart = buildScheduledStart(scheduled_date, scheduled_slot, scheduled_start);
-    const upfrontServiceAmountCents =
-      typeof service_price_cents === 'number' && Number.isFinite(service_price_cents) && service_price_cents >= 0
-        ? Math.round(service_price_cents)
-        : null;
-    const proposedPriceCents =
-      typeof customer_proposed_price_cents === 'number' && Number.isFinite(customer_proposed_price_cents) && customer_proposed_price_cents >= 0
-        ? Math.round(customer_proposed_price_cents)
-        : null;
-    const isUpfrontPaidService = !!upfrontServiceAmountCents && upfrontServiceAmountCents >= 100;
 
     try {
       const supabase = getSupabase();
@@ -433,7 +465,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data: businessRow } = await supabase
         .from('businesses')
-        .select('id, availability_status, break_until, away_start, away_end, hours, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key, stripe_onboarded, stripe_account_id')
+        .select('id, availability_status, break_until, away_start, away_end, hours, is_onboarded, public_visibility, trust_status, trust_flagged, approved_at, published_at, campus_provider, edu_verified, school_domain, campus_key')
         .eq('id', business_id)
         .maybeSingle();
       if (!businessRow) return res.status(404).json({ error: 'Provider not found' });
@@ -468,15 +500,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      const payoutStage = await loadProviderPayoutStage(supabase, businessRow as any);
-      if (payoutStage?.requiresStripeForNewBookings) {
-        return res.status(409).json({
-          error: `This provider needs to connect Stripe before accepting more paid bookings. They’ve already completed ${payoutStage.threshold} paid booking${payoutStage.threshold === 1 ? '' : 's'}.`,
-          code: 'provider_stripe_required',
-          provider_payout_stage: payoutStage,
-        });
-      }
-
       let resolvedUserId = user_id;
       if (resolvedUserId && resolvedUserId !== authUser.id) {
         return res.status(403).json({ error: 'Authenticated user does not match booking user_id' });
@@ -501,22 +524,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           user_id: resolvedUserId ?? null,
           service: service?.slice(0, 500) ?? 'General Service',
           status: 'pending',
-          requires_manual_action: !isUpfrontPaidService,
+          requires_manual_action: true,
           notes: safeNote,
           address: safeAddress,
           scheduled_start: scheduledStart,
-          amount_cents: isUpfrontPaidService ? upfrontServiceAmountCents : null,
-          protection_fee_cents: isUpfrontPaidService ? PROTECTION_FEE_CENTS : null,
-          customer_proposed_price_cents: proposedPriceCents,
         })
         .select('id, status, created_at, amount_cents, address, notes, scheduled_start')
         .single();
 
       if (error) return res.status(500).json({ error: 'Failed to create booking' });
 
-      if (!isUpfrontPaidService) {
-        notifyNewBooking(data.id, supabase);
-      }
+      notifyNewBooking(data.id, supabase);
 
       return res.status(200).json({ booking: data });
     } catch {
@@ -536,7 +554,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, business_id, user_id, paid_at, status, amount_cents, consumer_confirmation_due_at, completion_proof_submitted_at, businesses(owner_id, owner_email, name), profiles(name, email)')
+      .select('id, service, business_id, user_id, paid_at, status, amount_cents, consumer_confirmation_due_at, completion_proof_submitted_at, businesses(owner_id, owner_email, name, stripe_onboarded, zelle_payout_details, founder50), profiles(name, email)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -548,7 +566,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isBusinessOwner = ownerID === user.id || (!!ownerEmail && !!userEmail && ownerEmail === userEmail);
     const isCustomer = booking.user_id === user.id;
     const consumer = booking.profiles as any;
-    const businessName = (booking.businesses as any)?.name || 'Your provider';
+    const businessRow = (booking.businesses as any) || {};
+    const businessName = businessRow?.name || 'Your provider';
 
     if (!isBusinessOwner && !isCustomer) return res.status(403).json({ error: 'Access denied' });
 
@@ -608,6 +627,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         businessName,
       });
 
+      const platformFeePercent = getPlatformFeePercent(businessRow);
+      const amountCents = Number(booking.amount_cents || 0);
+      const amountDollars = (amountCents / 100).toFixed(2);
+      const payoutDollars = (Math.max(0, amountCents - Math.round(amountCents * platformFeePercent / 100)) / 100).toFixed(2);
+      const adminRecipients = getManualPayoutAlertRecipients();
+      const confirmationDueLabel = new Date(dueDate).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      if (process.env.RESEND_API_KEY && adminRecipients.length > 0) {
+        await sendProviderCompletionAlertAdminEmail({
+          to: adminRecipients,
+          providerName: businessName,
+          providerEmail: businessRow?.owner_email || '',
+          customerName: consumer?.name || 'Unknown customer',
+          customerEmail: consumer?.email || '',
+          service: booking.service || 'Service',
+          bookingId: booking_id,
+          amountDollars,
+          payoutDollars,
+          platformFeePercent,
+          stripeOnboarded: !!businessRow?.stripe_onboarded,
+          zellePayoutDetails: businessRow?.zelle_payout_details || '',
+          proofNote: proofNote || '',
+          proofPhotoCount: proofPhotos.length,
+          consumerConfirmationDueAt: confirmationDueLabel,
+        }).catch(() => {});
+      }
+
+      if (process.env.RESEND_API_KEY && businessRow?.owner_email) {
+        await sendProviderCompletionReceiptEmail({
+          to: businessRow.owner_email,
+          providerName: businessName,
+          service: booking.service || 'Service',
+          bookingId: booking_id,
+          amountDollars,
+          payoutDollars,
+          platformFeePercent,
+          stripeOnboarded: !!businessRow?.stripe_onboarded,
+          zellePayoutDetails: businessRow?.zelle_payout_details || '',
+          consumerConfirmationDueAt: confirmationDueLabel,
+        }).catch(() => {});
+      }
+
       if (process.env.N8N_WEBHOOK_URL) {
         fetch(process.env.N8N_WEBHOOK_URL, {
           method: 'POST',
@@ -625,29 +691,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (action === 'consumer_confirm_completion') {
-      if (!isCustomer) return res.status(403).json({ error: 'Only customers can confirm completion' });
-      if (booking.status !== 'completed' || !booking.consumer_confirmation_due_at) {
-        return res.status(400).json({ error: 'Booking is not waiting for customer confirmation' });
-      }
-      const released = await releaseHeldFundsForBooking({
-        supabase,
-        bookingId: booking_id,
-        reason: 'consumer_confirmed_completion',
-      });
-      if (!released.ok) {
-        return res.status(400).json({ error: released.error || 'Could not release held funds' });
-      }
-      return res.status(200).json({
-        success: true,
-        booking: {
-          id: booking_id,
-          status: 'completed',
-          completed_at: released.releasedAt || new Date().toISOString(),
-          funds_released_at: released.releasedAt || null,
-          manual_payout_pending_at: released.manualPayoutPendingAt || null,
-        },
-        payout_mode: released.payoutMode || 'stripe_transfer',
-      });
+      return res.status(400).json({ error: 'This booking flow auto-completes when provider submits proof' });
     }
 
     if (action === 'consumer_open_dispute') {
@@ -721,24 +765,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       let refund: any = null;
       if (resolution === 'full_refund') {
-        refund = await refundBookingPayment({ supabase, bookingId: booking_id });
+        refund = await refundBookingIfPaid(booking_id);
       }
       if (resolution === 'partial_refund') {
         const cents = Number(req.body?.partial_refund_cents);
         if (!Number.isFinite(cents) || cents <= 0) {
           return res.status(400).json({ error: 'partial_refund_cents must be a positive number' });
         }
-        refund = await refundBookingPayment({ supabase, bookingId: booking_id, amountCents: cents });
-      }
-      if (resolution === 'release_funds') {
-        const released = await releaseHeldFundsForBooking({
-          supabase,
-          bookingId: booking_id,
-          reason: 'admin_release_funds',
-        });
-        if (!released.ok) {
-          return res.status(400).json({ error: released.error || 'Could not release held funds' });
-        }
+        refund = await refundBookingIfPaid(booking_id, cents);
       }
 
       const nowIso = new Date().toISOString();
@@ -751,7 +785,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           dispute_resolution: resolution,
           dispute_resolution_notes: cleanText(req.body?.resolution_notes, 1000) || null,
           completed_at: targetStatus === 'completed' ? nowIso : null,
-          consumer_confirmation_due_at: null,
         })
         .eq('id', booking_id)
         .select('id, status, dispute_resolved_at, dispute_resolution')
@@ -777,8 +810,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let refund: { refunded: boolean; reason?: string } | null = null;
     if (status === 'cancelled' && booking.paid_at) {
-        refund = await refundBookingPayment({ supabase, bookingId: booking_id });
-      }
+      refund = await refundBookingIfPaid(booking_id);
+    }
 
     if (consumer?.email) {
       if (status === 'completed') {
@@ -851,26 +884,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         let { data, error } = await supabase
           .from('bookings')
-          .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
+          .select('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls')
           .in('user_id', resolvedIds)
           .order('created_at', { ascending: false })
           .limit(100);
 
         if (error && isMissingColumnError(error)) {
-          const fallbackLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
+          const fallbackLegacyProof = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action, consumer_confirmation_due_at, completion_proof_message, completion_proof_photos, completion_proof_created_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
           data = fallbackLegacyProof.data as any;
           error = fallbackLegacyProof.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
-          const fallback = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, reviewed, requires_manual_action');
+          const fallback = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, reviewed, requires_manual_action');
           data = fallback.data as any;
           error = fallback.error as any;
         }
 
         if (error && isMissingColumnError(error)) {
           // Final compatibility fallback for legacy schemas missing `reviewed`.
-          const fallbackNoReviewed = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, funds_released_at, manual_payout_pending_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
+          const fallbackNoReviewed = await queryByResolvedIds('id, business_id, service, status, created_at, scheduled_start, scheduled_end, address, notes, amount_cents, paid_at, requires_manual_action, consumer_confirmation_due_at, completion_proof_note, completion_proof_photo_urls, completion_proof_geo_metadata, completion_proof_submitted_at, disputed_at, dispute_reason, dispute_details, dispute_media_urls');
           data = fallbackNoReviewed.data as any;
           error = fallbackNoReviewed.error as any;
         }
@@ -889,27 +922,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
         const businessById = await buildBusinessByIdMap(supabase, data || []);
-        for (const row of data || []) {
-          const dueAt = row?.consumer_confirmation_due_at ? new Date(row.consumer_confirmation_due_at).getTime() : 0;
-          const needsAutoRelease =
-            !!dueAt &&
-            dueAt <= Date.now() &&
-            !row?.disputed_at &&
-            String(row?.status || '').toLowerCase() === 'completed';
-          if (!needsAutoRelease) continue;
-          try {
-            await releaseHeldFundsForBooking({
-              supabase,
-              bookingId: row.id,
-              reason: 'consumer_confirmation_window_expired',
-            });
-            row.status = 'completed';
-            row.consumer_confirmation_due_at = null;
-          } catch (err) {
-            console.error('[bookings] failed to auto-release held funds', row?.id, err);
-          }
-        }
-
         const bookings = (data || []).map((b: any) => ({
           ...b,
           status: deriveBookingStatus(b),
@@ -955,27 +967,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .limit(200);
 
         if (error) return res.status(500).json({ error: 'Failed to fetch bookings' });
-        for (const row of data || []) {
-          const dueAt = row?.consumer_confirmation_due_at ? new Date(row.consumer_confirmation_due_at).getTime() : 0;
-          const needsAutoRelease =
-            !!dueAt &&
-            dueAt <= Date.now() &&
-            !row?.disputed_at &&
-            String(row?.status || '').toLowerCase() === 'completed';
-          if (!needsAutoRelease) continue;
-          try {
-            await releaseHeldFundsForBooking({
-              supabase,
-              bookingId: row.id,
-              reason: 'consumer_confirmation_window_expired',
-            });
-            row.status = 'completed';
-            row.consumer_confirmation_due_at = null;
-          } catch (err) {
-            console.error('[bookings] failed to auto-release held funds', row?.id, err);
-          }
-        }
-
         const bookings = (data || []).map((row: any) => ({
           ...row,
           status: deriveBookingStatus(row),

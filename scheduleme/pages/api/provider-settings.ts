@@ -46,6 +46,10 @@ function normalizeCity(input: unknown): string {
   return String(input || '').trim().replace(/\s+/g, ' ').slice(0, 120);
 }
 
+function normalizeManualPayoutDetails(input: unknown): string {
+  return String(input || '').trim().replace(/\s+/g, ' ').slice(0, 180);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
   if (!(await rateLimit(req, res, { max: 30, windowMs: 60_000, keyPrefix: 'provider-settings' }))) return;
@@ -64,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const phone = String(req.body?.phone || '').trim().slice(0, 40);
   const website = String(req.body?.website || '').trim().slice(0, 255);
+  const zellePayoutDetails = normalizeManualPayoutDetails(req.body?.zelle_payout_details);
   const availabilityStatus = String(req.body?.availability_status || 'open').trim().toLowerCase();
   const breakUntil = req.body?.break_until ? String(req.body.break_until) : null;
   const hours = req.body?.hours ?? null;
@@ -82,6 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const payload: Record<string, any> = {
       phone: phone || null,
       website: website || null,
+      zelle_payout_details: zellePayoutDetails || null,
       city,
       zip,
       address,
@@ -101,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('businesses')
       .update(payload)
       .eq('id', businessId)
-      .select('id, phone, website, city, zip, address, lat, lng, service_tags, hours, availability_status, break_until, public_visibility, public_show_name, public_show_photos, campus_show_name')
+      .select('id, phone, website, zelle_payout_details, city, zip, address, lat, lng, service_tags, hours, availability_status, break_until, public_visibility, public_show_name, public_show_photos, campus_show_name')
       .single();
 
     if (error) return res.status(500).json({ error: error.message || 'Failed to save provider settings' });

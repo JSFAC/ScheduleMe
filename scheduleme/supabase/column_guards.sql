@@ -19,7 +19,7 @@ begin
 
   allowed_cols := case TG_TABLE_NAME
     when 'profiles' then array['name','phone','avatar_url','preferred_contact','service_radius','notifications']
-    when 'businesses' then array['phone','website','service_tags','hours','availability_status','break_until','address','description','cover_url','media_urls','video_url','calendly_url','custom_requires_time','city','zip','lat','lng','public_visibility','public_show_name','public_show_photos','campus_show_name']
+    when 'businesses' then array['phone','website','zelle_payout_details','service_tags','hours','availability_status','break_until','address','description','cover_url','media_urls','video_url','calendly_url','custom_requires_time','city','zip','lat','lng','public_visibility','public_show_name','public_show_photos','campus_show_name']
     when 'services' then array['name','description','price_cents','duration_min','sort_order','active','requires_time']
     when 'bookings' then array['status','dispute_amount_cents','dispute_note','amount_cents','scheduled_start','scheduled_end','scheduled_slot','reviewed','paid_at','customer_proposed_price_cents','provider_proposed_price_cents','price_accepted_by_customer','price_accepted_by_provider','price_accepted_at']
     when 'messages' then array['read']

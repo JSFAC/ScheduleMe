@@ -107,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (booking.business_id) {
     const primaryBiz = await supabase
       .from('businesses')
-      .select('id, name, email, owner_email, stripe_account_id, stripe_onboarded, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
+      .select('id, name, email, owner_email, stripe_account_id, stripe_onboarded, zelle_payout_details, founder50, founder50_status, last_completed_booking_at, away_start, away_end, availability_status, break_until')
       .eq('id', booking.business_id)
       .maybeSingle();
     if (!primaryBiz.error && primaryBiz.data) {
@@ -115,7 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else {
       const fallbackBiz = await supabase
         .from('businesses')
-        .select('id, name, owner_email, stripe_account_id, stripe_onboarded, founder50, founder50_status')
+        .select('id, name, owner_email, stripe_account_id, stripe_onboarded, zelle_payout_details, founder50, founder50_status')
         .eq('id', booking.business_id)
         .maybeSingle();
       if (!fallbackBiz.error && fallbackBiz.data) {
@@ -123,7 +123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else {
         const minimalBiz = await supabase
           .from('businesses')
-          .select('id, name, owner_email, stripe_account_id, stripe_onboarded')
+          .select('id, name, owner_email, stripe_account_id, stripe_onboarded, zelle_payout_details')
           .eq('id', booking.business_id)
           .maybeSingle();
         if (!minimalBiz.error && minimalBiz.data) biz = minimalBiz.data;
@@ -286,8 +286,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         platformFeePercent,
         payoutDollars: ((booking.amount_cents - platformFeeCents) / 100).toFixed(2),
         bookingId: booking.id,
+        stripeOnboarded: !!biz?.stripe_onboarded,
+        zellePayoutDetails: biz?.zelle_payout_details || '',
       });
 
+      const isCustomService = String(booking.service || '').toLowerCase().includes('custom');
+      if (!isCustomService) {
+        await sendNotifyEmail({
+          type: 'new_booking_business',
+          to: bizEmail,
+          name: bizName || 'Your business',
+          service: booking.service || 'Service',
+          customerName: customerDisplayName || user.email || 'A customer',
+          bookingId: booking.id,
+        });
+      }
     }
 
     return res.status(200).json({ ok: true, booking_id: booking.id, payment_intent_id: pi.id });
