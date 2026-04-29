@@ -44,6 +44,15 @@ interface Booking {
   dispute_details?: string;
   dispute_media_urls?: string[];
 }
+
+function mergeBusinessesPreferPrimary<T extends { id: string }>(primary: T[], secondary: T[], limit: number): T[] {
+  const merged = [...primary];
+  for (const item of secondary) {
+    if (!merged.some((existing) => existing.id === item.id)) merged.push(item);
+    if (merged.length >= limit) break;
+  }
+  return merged.slice(0, limit);
+}
 const PROTECTION_FEE_CENTS = 99;
 const REVIEW_SKIP_STORAGE_KEY = 'sm_review_skips_v1';
 const BOOKINGS_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -1067,7 +1076,7 @@ const BookingsPage: NextPage = () => {
         }
 
         if (alive && (nearby || []).length > 0) {
-          setNearbyBizList(nearby || []);
+          setNearbyBizList((prev) => mergeBusinessesPreferPrimary(nearby || [], prev, 6));
         } else if (alive && seeded.length === 0) {
           setNearbyBizList([]);
         }
@@ -1227,9 +1236,9 @@ const BookingsPage: NextPage = () => {
             {/* Stats row — white cards on blue */}
             <div className="flex gap-3 mb-6">
               {[
-                { label: 'Total', value: isGuestViewer ? '-' : String(bookings.length) },
-                { label: 'Active', value: isGuestViewer ? '-' : String(bookings.filter(b => !['completed','cancelled'].includes(b.status)).length) },
-                { label: 'Completed', value: isGuestViewer ? '-' : String(bookings.filter(b => ['completed','cancelled'].includes(b.status)).length) },
+                { label: 'Total', value: isGuestViewer ? '0' : String(bookings.length) },
+                { label: 'Active', value: isGuestViewer ? '0' : String(bookings.filter(b => !['completed','cancelled'].includes(b.status)).length) },
+                { label: 'Completed', value: isGuestViewer ? '0' : String(bookings.filter(b => ['completed','cancelled'].includes(b.status)).length) },
               ].map(s => (
                 <div key={s.label} className="flex-1 rounded-xl px-3 py-2.5 text-center" style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}>
                   <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0F766E' }}>{s.value}</p>

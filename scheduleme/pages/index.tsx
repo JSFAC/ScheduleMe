@@ -98,7 +98,8 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
       <Head>
         <title>ScheduleMe — AI-Powered Local Service Booking</title>
         <meta name="description" content="Describe your issue, get instantly triaged, and book a vetted local pro — in seconds." />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#ffffff" />
       </Head>
 
       <Nav />

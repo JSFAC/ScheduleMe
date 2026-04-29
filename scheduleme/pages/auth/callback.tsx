@@ -4,6 +4,7 @@ import type { NextPage } from 'next';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import BrandRouteLoader from '../../components/BrandRouteLoader';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 
 function getSupabase() {
@@ -267,14 +268,7 @@ const AuthCallback: NextPage = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-      <div className="relative h-12 w-12">
-        <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
-      </div>
-    </div>
-  );
+  return <BrandRouteLoader audience="consumer" message="Signing in..." />;
 };
 
 export default AuthCallback;

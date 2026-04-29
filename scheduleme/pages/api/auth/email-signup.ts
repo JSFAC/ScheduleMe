@@ -77,7 +77,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Please enter your name.' });
   }
   if (pwd.length < 10) return res.status(400).json({ error: 'Password must be at least 10 characters.' });
-
   try {
     const ip = getClientIp(req);
     if (!(await requireCaptcha(req, res, captchaToken, ip))) return;

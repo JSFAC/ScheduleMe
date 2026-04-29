@@ -23,3 +23,4 @@ for all
 to anon, authenticated
 using (auth.role() = 'service_role')
 with check (auth.role() = 'service_role');
+-- --

@@ -7,6 +7,7 @@ import { setSecurityHeaders, rateLimit, rateLimitByPrincipal, requireAuth, isVal
 import { canUserTransactWithStudentProvider, isProviderPubliclyVisible } from '../../lib/providerTrust';
 import { isAwayWindow } from '../../lib/founder50';
 import { getPlatformFeePercent } from '../../lib/platformFees';
+import { PROTECTION_FEE_CENTS } from '../../lib/fees';
 import { sendProviderCompletionAlertAdminEmail, sendProviderCompletionReceiptEmail } from '../../lib/email';
 
 const DEFAULT_CONFIRMATION_WINDOW_HOURS = 24;
@@ -554,7 +555,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, service, business_id, user_id, paid_at, status, amount_cents, consumer_confirmation_due_at, completion_proof_submitted_at, businesses(owner_id, owner_email, name, stripe_onboarded, zelle_payout_details, founder50), profiles(name, email)')
+      .select('id, service, business_id, user_id, paid_at, status, amount_cents, protection_fee_cents, consumer_confirmation_due_at, completion_proof_submitted_at, businesses(owner_id, owner_email, name, stripe_onboarded, zelle_payout_details, founder50), profiles(name, email)')
       .eq('id', booking_id)
       .maybeSingle();
 
@@ -629,8 +630,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const platformFeePercent = getPlatformFeePercent(businessRow);
       const amountCents = Number(booking.amount_cents || 0);
+      const protectionFeeCents = typeof (booking as any).protection_fee_cents === 'number'
+        ? Number((booking as any).protection_fee_cents)
+        : PROTECTION_FEE_CENTS;
       const amountDollars = (amountCents / 100).toFixed(2);
-      const payoutDollars = (Math.max(0, amountCents - Math.round(amountCents * platformFeePercent / 100)) / 100).toFixed(2);
+      const payoutDollars = (
+        Math.max(
+          0,
+          amountCents - Math.round(amountCents * platformFeePercent / 100) - protectionFeeCents
+        ) / 100
+      ).toFixed(2);
       const adminRecipients = getManualPayoutAlertRecipients();
       const confirmationDueLabel = new Date(dueDate).toLocaleString('en-US', {
         month: 'short',

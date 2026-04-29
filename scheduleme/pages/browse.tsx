@@ -389,6 +389,14 @@ const BrowsePage: NextPage = () => {
   const mapListRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const dynamicCategories = bizLoading ? ['All'] : ['All', ...Array.from(new Set(bizList.map(b => b.category).filter(Boolean))).sort()];
   const mobileViewLabel = viewMode === 'grid' ? 'Grid' : viewMode === 'list' ? 'List' : 'Map';
+  const mergeBusinessesPreferPrimary = (primary: any[], secondary: any[], limit: number) => {
+    const merged = [...primary];
+    for (const biz of secondary) {
+      if (!merged.some((existing) => existing.id === biz.id)) merged.push(biz);
+      if (merged.length >= limit) break;
+    }
+    return merged.slice(0, limit);
+  };
   const cycleMobileViewMode = () => {
     setViewMode((prev) => {
       if (prev === 'grid') return 'list';
@@ -408,7 +416,7 @@ const BrowsePage: NextPage = () => {
     setUserLng(lng);
     const real = await fetchNearbyBusinesses(lat, lng, { limit: 40, radius: currentRadius });
     if (real.length > 0) {
-      setBizList(real);
+      setBizList((prev) => mergeBusinessesPreferPrimary(real, prev, 40));
       setUsingRealData(true);
       return true;
     }
@@ -550,7 +558,7 @@ const BrowsePage: NextPage = () => {
     fetchNearbyBusinesses(userLat as number, userLng as number, { limit: 40, radius })
       .then(async (real) => {
         if (real.length > 0) {
-          setBizList(real);
+          setBizList((prev) => mergeBusinessesPreferPrimary(real, prev, 40));
           setUsingRealData(true);
           return;
         }

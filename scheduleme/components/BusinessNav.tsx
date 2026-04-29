@@ -31,7 +31,7 @@ export default function BusinessNav() {
     <>
       <div
         aria-hidden="true"
-        className="fixed left-0 right-0 z-[51] bg-neutral-950"
+        className="fixed left-0 right-0 z-[51] pointer-events-none bg-neutral-950"
         style={{ top: 0, height: 'env(safe-area-inset-top, 0px)' }}
       />
       <header

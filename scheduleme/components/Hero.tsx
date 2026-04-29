@@ -47,7 +47,7 @@ export default function Hero({
   const showMessageShell = messageShellVisible;
   const showMatchShell = matchState !== 'idle';
   const messageTargetHeight =
-    typedCount >= 36 ? 56 : typedCount >= 22 ? 48 : 38;
+    typedCount >= 56 ? 116 : typedCount >= 36 ? 88 : typedCount >= 22 ? 60 : 40;
   const matchSummaryLabel =
     matchState === 'done' ? '2 student barbers near you' : 'Matching you with student barbers...';
 

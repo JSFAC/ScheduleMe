@@ -1016,7 +1016,7 @@ export function paymentNotificationBusinessHtml(opts: {
         <tr><td style="padding:24px;text-align:center;">
           <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#007e6d;text-transform:uppercase;letter-spacing:0.06em;">${stripeOnboarded ? 'Estimated payout' : 'Held for manual payout'}</p>
           <p style="margin:0;font-size:36px;font-weight:800;color:#007e6d;letter-spacing:-0.03em;">$${opts.payoutDollars}</p>
-          <p style="margin:4px 0 0;font-size:12px;color:#0f766e;">$${opts.amountDollars} total — ${opts.platformFeePercent}% platform fee</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#0f766e;">After the ${opts.platformFeePercent}% platform fee and $0.99 protection fee from the $${opts.amountDollars} service amount</p>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
@@ -1057,7 +1057,7 @@ export function providerCompletionAlertAdminHtml(opts: {
         <tr><td style="padding:20px;text-align:center;">
           <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};text-transform:uppercase;letter-spacing:0.08em;">${opts.stripeOnboarded ? 'Stripe payout path' : 'Manual payout review'}</p>
           <p style="margin:0;font-size:28px;font-weight:800;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};">$${opts.payoutDollars}</p>
-          <p style="margin:4px 0 0;font-size:12px;color:${opts.stripeOnboarded ? '#0f766e' : '#9a3412'};">Estimated provider net after ${opts.platformFeePercent}% fee from $${opts.amountDollars}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:${opts.stripeOnboarded ? '#0f766e' : '#9a3412'};">Send amount after the ${opts.platformFeePercent}% platform fee and $0.99 protection fee from the $${opts.amountDollars} service amount</p>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
@@ -1097,7 +1097,7 @@ export function providerCompletionReceiptHtml(opts: {
         <tr><td style="padding:20px;text-align:center;">
           <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};text-transform:uppercase;letter-spacing:0.08em;">${opts.stripeOnboarded ? 'Estimated automated payout' : 'Estimated manual payout'}</p>
           <p style="margin:0;font-size:30px;font-weight:800;color:${opts.stripeOnboarded ? '#007e6d' : '#9a3412'};">$${opts.payoutDollars}</p>
-          <p style="margin:4px 0 0;font-size:12px;color:${opts.stripeOnboarded ? '#0f766e' : '#9a3412'};">$${opts.amountDollars} total — ${opts.platformFeePercent}% platform fee</p>
+          <p style="margin:4px 0 0;font-size:12px;color:${opts.stripeOnboarded ? '#0f766e' : '#9a3412'};">After the ${opts.platformFeePercent}% platform fee and $0.99 protection fee from the $${opts.amountDollars} service amount</p>
         </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">

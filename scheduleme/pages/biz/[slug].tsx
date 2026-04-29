@@ -1323,7 +1323,7 @@ export default function BizPage() {
   return (
     <>
       <Head><title>{titleName} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
-      <div style={{background:bg,minHeight:'100vh',paddingBottom: hideNav ? (isEmbedded ? 40 : 100) : 136}}>
+      <div style={{background:bg,minHeight:'100vh',paddingTop: hideNav ? 0 : 'calc(56px + env(safe-area-inset-top, 0px))', paddingBottom: hideNav ? (isEmbedded ? 40 : 100) : 136}}>
         {!hideNav && <Nav />}
         {shareOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={() => setShareOpen(false)}>
@@ -2080,49 +2080,49 @@ export default function BizPage() {
         </div>
 
         </div>
-        {!isEmbedded && <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)' }}>
+        {!isEmbedded && <div className="fixed md:hidden left-0 right-0 px-4 pt-3 z-[60]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 82px)', paddingBottom: 8, background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)' }}>
+          {guestNeedsAuth && (
+            <p className="text-center mb-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.88)' : '#6b7280' }}>
+              Booking is available after you log in and create your account.
+            </p>
+          )}
+          {providerCannotAcceptPayments && !guestNeedsAuth && (
+            <p className="text-center mb-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.88)' : '#6b7280' }}>
+              Provider can&apos;t accept payments yet.
+            </p>
+          )}
+          {isSelfOwnedBusiness && (
+            <p className="text-center mb-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.88)' : '#6b7280' }}>
+              You can&apos;t book your own business.
+            </p>
+          )}
           <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {bookingCtaLabel}
           </button>
-          {guestNeedsAuth && (
-            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              Booking is available after you log in and create your account.
-            </p>
-          )}
-          {providerCannotAcceptPayments && !guestNeedsAuth && (
-            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              Provider can&apos;t accept payments yet.
-            </p>
-          )}
-          {isSelfOwnedBusiness && (
-            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              You can&apos;t book your own business.
-            </p>
-          )}
         </div>}
         {!isEmbedded && <div className="hidden md:block fixed bottom-0 left-0 right-0 px-4 pb-4 pt-2 z-40" style={{background:dm?'linear-gradient(to top,#0a0a0a 70%,transparent)':'linear-gradient(to top,#f6f2e9 70%,transparent)'}}>
+          {guestNeedsAuth && (
+            <p className="text-center mb-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.88)' : '#6b7280' }}>
+              Booking is available after you log in and create your account.
+            </p>
+          )}
+          {providerCannotAcceptPayments && !guestNeedsAuth && (
+            <p className="text-center mb-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.88)' : '#6b7280' }}>
+              Provider can&apos;t accept payments yet.
+            </p>
+          )}
+          {isSelfOwnedBusiness && (
+            <p className="text-center mb-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.88)' : '#6b7280' }}>
+              You can&apos;t book your own business.
+            </p>
+          )}
           <button onClick={book} disabled={bookingDisabled}
             className="w-full max-w-2xl mx-auto block rounded-2xl py-4 font-bold text-white text-lg shadow-lg transition-opacity"
             style={{background: bookingDisabled ? 'rgba(156,163,175,0.45)' : `linear-gradient(135deg,${accent} 0%,${accentDark} 100%)`}}>
             {bookingCtaLabel}
           </button>
-          {guestNeedsAuth && (
-            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              Booking is available after you log in and create your account.
-            </p>
-          )}
-          {providerCannotAcceptPayments && !guestNeedsAuth && (
-            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              Provider can&apos;t accept payments yet.
-            </p>
-          )}
-          {isSelfOwnedBusiness && (
-            <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              You can&apos;t book your own business.
-            </p>
-          )}
         </div>}
         {showConfirm && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>

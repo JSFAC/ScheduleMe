@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { getUnknownFields, rateLimit, requireAuth, setSecurityHeaders } from '../../lib/apiSecurity';
+import { validateAndFilter } from '../../lib/profanity';
+import { moderateText } from '../../lib/moderation';
 
 function getSupabase() {
   return createClient(
@@ -26,7 +28,19 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lng: nu
   return null;
 }
 
-const ALLOWED_FIELDS = new Set(['name', 'description', 'cover_url', 'media_urls', 'video_url', 'address', 'city', 'zip']);
+const ALLOWED_FIELDS = new Set([
+  'name',
+  'owner_name',
+  'phone',
+  'website',
+  'description',
+  'cover_url',
+  'media_urls',
+  'video_url',
+  'address',
+  'city',
+  'zip',
+]);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setSecurityHeaders(res);
@@ -40,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   async function loadOwnedBusiness() {
     const byOwner = await supabase
       .from('businesses')
-      .select('id, owner_id, owner_email, name, description, cover_url, media_urls, video_url, address, city, zip')
+      .select('id, owner_id, owner_email, name, owner_name, phone, website, description, cover_url, media_urls, video_url, address, city, zip')
       .eq('owner_id', user.id)
       .maybeSingle();
     if (byOwner.data) return byOwner.data;
@@ -50,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const byLegacyEmail = await supabase
       .from('businesses')
-      .select('id, owner_id, owner_email, name, description, cover_url, media_urls, video_url, address, city, zip')
+      .select('id, owner_id, owner_email, name, owner_name, phone, website, description, cover_url, media_urls, video_url, address, city, zip')
       .ilike('owner_email', ownerEmail)
       .maybeSingle();
 
@@ -84,8 +98,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'No valid fields to update' });
   }
 
+  if (typeof updates.name === 'string') {
+    const moderation = await moderateText(updates.name);
+    if (!moderation.ok) return res.status(400).json({ error: moderation.reason || 'Business name violates content policy' });
+    const check = validateAndFilter(updates.name, { maxLength: 60, fieldName: 'Business name' });
+    if (!check.ok) return res.status(400).json({ error: 'error' in check ? check.error : 'Invalid business name' });
+    updates.name = check.value;
+  }
+  if (typeof updates.owner_name === 'string') {
+    const moderation = await moderateText(updates.owner_name);
+    if (!moderation.ok) return res.status(400).json({ error: moderation.reason || 'Provider name violates content policy' });
+    const check = validateAndFilter(updates.owner_name, { maxLength: 60, fieldName: 'Provider name' });
+    if (!check.ok) return res.status(400).json({ error: 'error' in check ? check.error : 'Invalid provider name' });
+    updates.owner_name = check.value;
+  }
+  if (typeof updates.phone === 'string') {
+    updates.phone = updates.phone.trim().slice(0, 40);
+  }
+  if (typeof updates.website === 'string') {
+    updates.website = updates.website.trim().slice(0, 255);
+  }
   if (typeof updates.description === 'string') {
-    updates.description = updates.description.slice(0, 1000);
+    const trimmedDescription = updates.description.trim();
+    if (trimmedDescription) {
+      const moderation = await moderateText(trimmedDescription);
+      if (!moderation.ok) return res.status(400).json({ error: moderation.reason || 'Description violates content policy' });
+      const check = validateAndFilter(trimmedDescription, { maxLength: 1000, fieldName: 'Description' });
+      if (!check.ok) return res.status(400).json({ error: 'error' in check ? check.error : 'Invalid description' });
+      updates.description = check.value;
+    } else {
+      updates.description = '';
+    }
   }
   if (typeof updates.name === 'string') {
     updates.name = updates.name.trim().slice(0, 60);
@@ -139,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from('businesses')
     .update(updates)
     .eq('id', business_id)
-    .select('id, name, description, cover_url, media_urls, video_url, address, city, zip')
+    .select('id, name, owner_name, phone, website, description, cover_url, media_urls, video_url, address, city, zip')
     .single();
 
   if (error) return res.status(500).json({ error: error.message || 'Failed to update listing' });

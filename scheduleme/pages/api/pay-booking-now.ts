@@ -284,7 +284,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         service: booking.service || 'Service',
         amountDollars,
         platformFeePercent,
-        payoutDollars: ((booking.amount_cents - platformFeeCents) / 100).toFixed(2),
+        payoutDollars: (Math.max(0, booking.amount_cents - platformFeeCents - protectionFeeCents) / 100).toFixed(2),
         bookingId: booking.id,
         stripeOnboarded: !!biz?.stripe_onboarded,
         zellePayoutDetails: biz?.zelle_payout_details || '',
