@@ -74,6 +74,19 @@ export function isProviderCampusNameVisible(row: any): boolean {
   return shouldDefaultProviderVisibilityFieldsToPublic(row);
 }
 
+export function shouldShowProviderOnNonStudentSurfaces(row: any): boolean {
+  return isProviderPubliclyVisible(row);
+}
+
+export function shouldLockProviderPreviewForViewer(opts: {
+  business: any;
+  isLoggedInViewer?: boolean;
+  viewerEduVerified?: boolean;
+}): boolean {
+  void opts;
+  return false;
+}
+
 export function canUserTransactWithStudentProvider(opts: {
   business: any;
   profile: any;
