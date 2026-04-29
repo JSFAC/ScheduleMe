@@ -51,6 +51,11 @@ interface Business {
   public_visibility?: boolean; public_show_name?: boolean; public_show_photos?: boolean; campus_show_name?: boolean;
 }
 
+function cleanDraftField(value: any, blocked: string[]): string {
+  const text = toStringSafe(value).trim();
+  return blocked.includes(text) ? '' : text;
+}
+
 function toStringSafe(v: any, fallback = ''): string {
   return typeof v === 'string' ? v : (v == null ? fallback : String(v));
 }
@@ -93,9 +98,9 @@ function normalizeBusiness(input: any): Business | null {
     stripe_account_id: input.stripe_account_id ? toStringSafe(input.stripe_account_id) : null,
     stripe_onboarded: toBooleanSafe(input.stripe_onboarded),
     service_tags: toStringArray(input.service_tags),
-    address: toStringSafe(input.address),
-    city: toStringSafe(input.city),
-    zip: toStringSafe(input.zip),
+    address: cleanDraftField(input.address, ['Setup in progress']),
+    city: cleanDraftField(input.city, ['Setup']),
+    zip: cleanDraftField(input.zip, ['00000']),
     lat: input.lat == null ? null : toNumberSafe(input.lat, 0),
     lng: input.lng == null ? null : toNumberSafe(input.lng, 0),
     rating: input.rating == null ? null : toNumberSafe(input.rating, 0),
@@ -2776,7 +2781,7 @@ const BusinessDashboard: NextPage = () => {
                               className="rounded-full px-3 py-1.5 text-[11px] font-semibold"
                               style={{ background: publishReady ? '#ecfdf5' : '#fff7ed', color: publishReady ? '#047857' : '#9a3412' }}
                             >
-                              {publishReady ? 'Ready to Publish' : 'Draft'}
+                              {publishReady ? 'Ready to Publish' : 'Incomplete'}
                             </span>
                           </div>
                           <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
@@ -2800,7 +2805,7 @@ const BusinessDashboard: NextPage = () => {
                                     <div>
                                       <p className="font-semibold" style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</p>
                                       <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : '#9a3412' }}>{item.hint}</p>
-                                      {!ok && <p className="mt-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: '#007e6d' }}>Open section →</p>}
+                                      {!ok && <p className="mt-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: '#d97706' }}>Open section →</p>}
                                     </div>
                                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : 'rgba(154,52,18,0.10)', color: ok ? '#166534' : '#9a3412' }}>
                                       {ok ? 'Done' : 'Needed'}
@@ -3991,7 +3996,7 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                       )}
                     </div>
-                    <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                       <label className="text-sm">
                         <span className="block text-xs font-semibold text-neutral-500 mb-1.5">City</span>
                         <input
@@ -4060,9 +4065,8 @@ const BusinessDashboard: NextPage = () => {
                       {[
                         { label: 'Owner', value: business?.owner_name },
                         { label: 'Email', value: business?.owner_email },
-                        { label: 'Campus', value: business?.campus_provider ? (business?.campus_school_name || formatCampusLabel(business?.school_domain) || business?.school_domain) : 'Independent provider' },
-                        { label: 'City / ZIP', value: [business?.city, business?.zip].filter(Boolean).join(', ') },
-                        { label: 'Status', value: business?.public_visibility ? '✓ Live on ScheduleMe' : 'Draft (not public yet)' },
+                        { label: 'Provider type', value: business?.campus_provider ? `Campus provider${business?.campus_school_name || business?.school_domain ? ` · ${business?.campus_school_name || formatCampusLabel(business?.school_domain) || business?.school_domain}` : ''}` : 'Independent provider' },
+                        { label: 'Status', value: business?.public_visibility ? '✓ Live on ScheduleMe' : 'Incomplete' },
                         { label: 'Rating', value: business?.rating ? business.rating + ' ★' : 'No ratings yet' },
                       ].map(r => (
                         <div key={r.label} className="flex items-start justify-between gap-4 py-2 border-b border-neutral-50 last:border-0">
@@ -4077,11 +4081,13 @@ const BusinessDashboard: NextPage = () => {
                         style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : '#f5fbf8' }}>
                         {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
                       </button>
-                      <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
-                        className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                        style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
-                        Disconnect .edu Email
-                      </button>
+                      {Boolean((business?.school_email || '').trim() || business?.edu_verified) && (
+                        <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
+                          className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                          style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
+                          Disconnect .edu Email
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -4197,7 +4203,7 @@ const BusinessDashboard: NextPage = () => {
         <div className="fixed inset-0 z-[700] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
           <div className="relative w-full max-w-md rounded-2xl p-6 border" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
             <button onClick={() => setShowDisconnectEdu(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
-            <span className="sm-eyebrow mb-2 block">Campus</span>
+            <span className="sm-eyebrow mb-2 block">Provider Type</span>
             <h2 className="font-bold mb-1" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#111' }}>Disconnect .edu Email</h2>
             <p className="text-xs mt-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
               This removes your campus verification so you can re-verify with a new school. Type <strong>confirm</strong> to continue.
@@ -4617,7 +4623,7 @@ const BusinessDashboard: NextPage = () => {
         <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
           <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
             <button onClick={() => setShowCampusModal(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
-            <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Student Provider</p>
+            <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Campus Provider</p>
             <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Link your .edu email to appear on the campus marketplace and assign this provider to that campus automatically.</p>
             {business?.edu_verified && (
               <div className="mt-3 flex items-center gap-2 text-emerald-600 text-sm font-semibold">

@@ -6,7 +6,7 @@ import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
 import { computePriceTier, averagePriceCents } from '../../lib/priceTier';
 import { computeFounder50Status } from '../../lib/founder50';
 import { normalizeServiceTag } from '../../lib/categoryNormalization';
-import { shouldLockProviderPreviewForViewer, shouldShowProviderOnNonStudentSurfaces } from '../../lib/providerTrust';
+import { isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
@@ -41,7 +41,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false } });
     let isLoggedInViewer = false;
-    let viewerEduVerified = false;
     const authHeader = String(req.headers.authorization || '');
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
@@ -53,11 +52,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isLoggedInViewer = true;
             const { data: profile } = await sb
               .from('profiles')
-              .select('id, edu_verified')
+              .select('id')
               .eq('id', viewerId)
               .maybeSingle();
             if (profile?.id) isLoggedInViewer = true;
-            if (profile?.edu_verified === true) viewerEduVerified = true;
           } 
         } catch {
           // Keep public/locked behavior when token parsing fails.
@@ -71,9 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let query = sb
       .from('businesses')
       .select(baseSelect)
-      .eq('is_onboarded', true)
-      .not('lat', 'is', null)
-      .not('lng', 'is', null);
+      .eq('is_onboarded', true);
 
     const eduOnly = String(edu_only ?? '').toLowerCase() === 'true';
     const campusOnly = String(campus_only ?? '').toLowerCase() === 'true';
@@ -100,9 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let legacyQuery = sb
         .from('businesses')
         .select(legacySelect)
-        .eq('is_onboarded', true)
-        .not('lat', 'is', null)
-        .not('lng', 'is', null);
+        .eq('is_onboarded', true);
       if (eduOnly) legacyQuery = legacyQuery.eq('edu_verified', true);
       if (campusOnly) legacyQuery = legacyQuery.or('campus_provider.eq.true,campus_provider.is.null');
       if (schoolDomain) legacyQuery = legacyQuery.eq('school_domain', schoolDomain);
@@ -130,8 +124,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const filtered = (rows as any[]).filter((b) => shouldShowProviderOnNonStudentSurfaces(b, viewerEduVerified)).map((b) => {
-      const d = haversineMiles(latNum, lngNum, b.lat, b.lng);
+    const filtered = (rows as any[]).filter((b) => isProviderPubliclyVisible(b)).map((b) => {
+      const hasCoords = Number.isFinite(Number(b.lat)) && Number.isFinite(Number(b.lng));
+      const d = hasCoords ? haversineMiles(latNum, lngNum, Number(b.lat), Number(b.lng)) : Number.POSITIVE_INFINITY;
       const tags = (b.service_tags || []).map((t: string) => normalizeServiceTag(t)).filter(Boolean);
       const primaryTag = tags[0] || null;
       const avgCents = averagePriceCents(serviceMap[b.id] || []);
@@ -140,8 +135,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const rating = reviewCount > 0 ? b.rating : null;
       const status = computeFounder50Status(b);
       const guestCoarse = !isLoggedInViewer;
-      const coarseDistance = `${Math.max(0.1, Math.round(d * 10) / 10).toFixed(1)} mi away`;
-      const previewLocked = shouldLockProviderPreviewForViewer(b, viewerEduVerified);
+      const coarseDistance = hasCoords
+        ? `${Math.max(0.1, Math.round(d * 10) / 10).toFixed(1)} mi away`
+        : 'Location coming soon';
       return {
         ...b,
         name: b.name,
@@ -151,23 +147,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         address: b.address || b.zip || null,
         cover_url: b.cover_url,
         media_urls: b.media_urls,
-        lat: guestCoarse ? null : b.lat,
-        lng: guestCoarse ? null : b.lng,
-        distance_label: guestCoarse ? coarseDistance : null,
+        lat: guestCoarse || !hasCoords ? null : b.lat,
+        lng: guestCoarse || !hasCoords ? null : b.lng,
+        distance_label: guestCoarse || !hasCoords ? coarseDistance : null,
         guest_coarse_location: guestCoarse,
         map_locked_for_guest: !isLoggedInViewer,
-        preview_locked: previewLocked,
-        distance_miles: d,
+        preview_locked: false,
+        distance_miles: hasCoords ? d : null,
         price_tier: priceTier,
         rating,
         founder50_status: b.founder50_status ?? status,
       };
     }).filter((b) => {
-      if (b.distance_miles > radiusNum) return false;
+      if (typeof b.distance_miles === 'number' && b.distance_miles > radiusNum) return false;
       if (!cat) return true;
       const tags = (b.service_tags || []).map((t: string) => normalizeServiceTag(t)).filter(Boolean);
       return tags.includes(cat);
-    }).sort((a, b) => a.distance_miles - b.distance_miles).slice(0, limitNum);
+    }).sort((a, b) => (Number(a.distance_miles ?? Number.POSITIVE_INFINITY) - Number(b.distance_miles ?? Number.POSITIVE_INFINITY))).slice(0, limitNum);
 
     return res.status(200).json({ businesses: filtered });
   } catch (err: any) {

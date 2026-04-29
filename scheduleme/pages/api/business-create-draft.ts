@@ -3,11 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
 import { validateAndFilter } from '../../lib/profanity';
 import { moderateText } from '../../lib/moderation';
-import { sendBusinessApplicationReceivedEmail } from '../../lib/email';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error('Missing Supabase env vars');
   return createClient(url, key, { auth: { persistSession: false } });
 }
@@ -71,73 +70,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const moderation = await moderateText(candidateName);
   if (!moderation.ok) return res.status(400).json({ error: moderation.reason || 'Business name violates content policy' });
   const nameCheck = validateAndFilter(candidateName, { maxLength: 60, fieldName: 'Business name' });
-  if (!nameCheck.ok) return res.status(400).json({ error: 'error' in nameCheck ? nameCheck.error : 'Invalid business name' });
+  if (!nameCheck.ok) {
+    return res.status(400).json({ error: 'error' in nameCheck ? nameCheck.error : 'Invalid business name' });
+  }
   const cleanName = nameCheck.value;
 
   const ownerCandidate = ownerName || normalizedEmail.split('@')[0] || 'Provider';
   const ownerCheck = validateAndFilter(ownerCandidate, { maxLength: 60, fieldName: 'Owner name' });
-  if (!ownerCheck.ok) return res.status(400).json({ error: 'error' in ownerCheck ? ownerCheck.error : 'Invalid owner name' });
+  if (!ownerCheck.ok) {
+    return res.status(400).json({ error: 'error' in ownerCheck ? ownerCheck.error : 'Invalid owner name' });
+  }
 
   const slug = `${slugify(cleanName)}-${Date.now().toString(36)}`;
 
-  const baseInsert: Record<string, unknown> = {
-    name: cleanName,
-    slug,
-    description: '',
-    address: 'Setup in progress',
-    city: 'Setup',
-    zip: '00000',
-    lat: null,
-    lng: null,
-    service_tags: ['other'],
-    keywords: ['other', 'provider'],
-    rating: 0,
-    owner_name: ownerCheck.value,
-    owner_email: normalizedEmail,
-    owner_id: user.id,
-    is_onboarded: false,
-  };
+  const insert = await supabase
+    .from('businesses')
+    .insert({
+      name: cleanName,
+      slug,
+      description: 'Complete setup in your dashboard to publish this profile.',
+      address: null,
+      city: null,
+      zip: null,
+      lat: null,
+      lng: null,
+      service_tags: ['other'],
+      keywords: ['other', 'provider'],
+      rating: 0,
+      owner_name: ownerCheck.value,
+      owner_email: normalizedEmail,
+      owner_id: user.id,
+      is_onboarded: false,
+      public_visibility: false,
+    })
+    .select('id')
+    .single();
 
-  const payloadCandidates: Record<string, unknown>[] = [
-    {
-      ...baseInsert,
-      campus_provider: false,
-      campus_school_name: null,
-    },
-    {
-      ...baseInsert,
-      school_domain: null,
-    },
-    baseInsert,
-  ];
-
-  let insertedId: string | null = null;
-  let lastInsertError: any = null;
-
-  for (const candidate of payloadCandidates) {
-    const { data, error } = await supabase
-      .from('businesses')
-      .insert(candidate)
-      .select('id')
-      .single();
-
-    if (!error && data?.id) {
-      insertedId = data.id;
-      break;
-    }
-
-    lastInsertError = error;
-    if (error?.code === '23505') {
-      return res.status(409).json({ error: 'A provider profile already exists for this account.' });
-    }
-  }
-
-  if (!insertedId) {
-    const message =
-      (lastInsertError?.message as string | undefined) ||
-      (lastInsertError?.details as string | undefined) ||
-      'Failed to create provider draft';
-    return res.status(500).json({ error: message });
+  if (insert.error) {
+    if (insert.error.code === '23505') return res.status(409).json({ error: 'A provider profile already exists for this account.' });
+    return res.status(500).json({ error: 'Failed to create provider draft' });
   }
 
   try {
@@ -149,19 +120,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }, { onConflict: 'id' });
   } catch {}
 
-  try {
-    if (process.env.RESEND_API_KEY) {
-      await sendBusinessApplicationReceivedEmail({
-        to: normalizedEmail,
-        ownerName: ownerCheck.value,
-        businessName: cleanName,
-        category: 'Other',
-        city: 'Setup in progress',
-      });
-    }
-  } catch (emailError) {
-    console.error('[business-create-draft][welcome-email]', emailError);
-  }
-
-  return res.status(200).json({ success: true, businessId: insertedId, status: 'draft_created' });
+  return res.status(200).json({ success: true, businessId: insert.data.id, status: 'draft_created' });
 }
