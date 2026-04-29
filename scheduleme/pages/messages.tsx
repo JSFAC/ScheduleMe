@@ -357,18 +357,41 @@ const MessagesPage: NextPage = () => {
         }}
       >
 
-        <div className={`${mobileThreadOpen ? 'hidden sm:block' : 'block'} border-b`} style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
+        <div
+          className={`${mobileThreadOpen ? 'hidden sm:block' : 'block'} border-b`}
+          style={{
+            background: guestViewer
+              ? (dm ? '#0f1117' : '#F4EFE6')
+              : 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
+            borderColor: guestViewer
+              ? (dm ? '#262626' : 'rgba(15,118,110,0.08)')
+              : 'rgba(0,0,0,0.08)',
+          }}
+        >
           <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-5 pb-4 sm:pt-7 sm:pb-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-[2rem] font-black text-white" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>Messages</h1>
-                <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                <h1
+                  className="text-[2rem] font-black"
+                  style={{ letterSpacing: '-0.03em', lineHeight: 1.1, color: guestViewer ? (dm ? '#f3f4f6' : '#171717') : 'white' }}
+                >
+                  Messages
+                </h1>
+                <p className="mt-1 text-sm" style={{ color: guestViewer ? (dm ? '#9ca3af' : '#6b7280') : 'rgba(255,255,255,0.75)' }}>
                   {totalUnread > 0 ? `${totalUnread} unread message${totalUnread !== 1 ? 's' : ''}` : 'All caught up'}
                 </p>
               </div>
               <Link href="/bookings" scroll={false}
                 className="flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl"
-                style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', color: dm ? 'rgba(255,255,255,0.9)' : '#0F766E' }}>
+                style={{
+                  background: guestViewer
+                    ? (dm ? '#171717' : 'white')
+                    : (dm ? 'rgba(255,255,255,0.14)' : 'white'),
+                  color: guestViewer
+                    ? '#0F766E'
+                    : (dm ? 'rgba(255,255,255,0.9)' : '#0F766E'),
+                  border: guestViewer ? `1px solid ${dm ? '#262626' : 'rgba(15,118,110,0.12)'}` : 'none',
+                }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                 Bookings
               </Link>
@@ -384,17 +407,22 @@ const MessagesPage: NextPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                 </svg>
               </div>
-              <h2 className="text-[1.9rem] font-black leading-tight" style={{ letterSpacing: '-0.03em', color: dm ? '#f3f4f6' : '#171717' }}>
+              <h2 className="text-[1.7rem] sm:text-[1.9rem] font-black leading-tight" style={{ letterSpacing: '-0.03em', color: dm ? '#f3f4f6' : '#171717' }}>
                 Message pros after you sign up
               </h2>
               <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                 Create an account to request services, chat with providers, and keep confirmations, updates, and proofs in one place.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                <Link href="/signin?mode=signup&next=%2Fmessages&shell=app" scroll={false} className="btn-primary px-6 py-3 text-sm">
+              <div className="mt-7 flex items-center justify-center gap-2 flex-wrap">
+                <Link href="/signin?mode=signup&next=%2Fmessages&shell=app" scroll={false} className="btn-primary px-6 py-2.5 text-sm">
                   Create account
                 </Link>
-                <Link href="/signin?mode=login&next=%2Fmessages&shell=app" scroll={false} className="btn-secondary px-6 py-3 text-sm">
+                <Link
+                  href="/signin?mode=login&next=%2Fmessages&shell=app"
+                  scroll={false}
+                  className="px-6 py-2.5 text-sm font-bold rounded-xl border"
+                  style={{ borderColor: dm ? '#475569' : '#cbd5e1', color: dm ? '#cbd5e1' : '#334155' }}
+                >
                   Log in
                 </Link>
               </div>

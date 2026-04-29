@@ -18,6 +18,11 @@ body,
   min-height: 100vh;
 }
 
+body[data-route-shell='provider'] {
+  background: #0a0a0a;
+  background-image: none;
+}
+
 /* styles/globals.css */
 @tailwind base;
 @tailwind components;

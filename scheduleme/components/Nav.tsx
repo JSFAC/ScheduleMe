@@ -463,7 +463,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 z-[200]">
-                  <div className="w-44 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
+                  <div className="w-[min(16rem,calc(100vw-1.5rem))] sm:w-44 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-neutral-50">
                       <p className="text-xs font-semibold text-neutral-700 truncate">{user.name}</p>
                       <p className="text-xs text-neutral-400 truncate">{user.email}</p>
@@ -521,7 +521,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 z-[200]">
-                  <div className="w-[min(22rem,calc(100vw-2rem))] sm:w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
+                  <div className="w-[min(16.75rem,calc(100vw-1.5rem))] sm:w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
                     <div className="p-1.5">
                       <Link href="/signin?mode=login" scroll={false} onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">

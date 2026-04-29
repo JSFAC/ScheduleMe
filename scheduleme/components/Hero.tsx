@@ -142,7 +142,10 @@ export default function Hero({
   }, []);
 
   return (
-    <section className="relative overflow-hidden pt-24 pb-20 md:pt-36 md:pb-32 md:min-h-[1240px]" style={{ background: dm ? '#0a0a0a' : 'white' }}>
+    <section
+      className="relative overflow-hidden pb-20 md:pt-36 md:pb-32 md:min-h-[1240px]"
+      style={{ background: dm ? '#0a0a0a' : 'white', paddingTop: 'calc(env(safe-area-inset-top, 0px) + 7.5rem)' }}
+    >
       {/* Subtle grid background */}
       <div
         aria-hidden="true"

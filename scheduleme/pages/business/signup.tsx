@@ -55,7 +55,10 @@ const SignupPage: NextPage = () => {
       </Head>
       <BusinessNav />
 
-      <div className="min-h-screen bg-neutral-950 pt-24 pb-20 px-4 md:px-6 relative overflow-hidden">
+      <div
+        className="min-h-[100dvh] bg-neutral-950 px-4 md:px-6 relative overflow-hidden"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5.5rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)' }}
+      >
         <div
           aria-hidden="true"
           className="absolute inset-0"

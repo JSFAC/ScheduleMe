@@ -70,6 +70,14 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
 
   useEffect(() => {
+    const providerShell = isProvider(router.asPath);
+    document.body.dataset.routeShell = providerShell ? 'provider' : 'consumer';
+    return () => {
+      delete document.body.dataset.routeShell;
+    };
+  }, [router.asPath]);
+
+  useEffect(() => {
     // Disable Next.js default scroll restoration so we control it
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
