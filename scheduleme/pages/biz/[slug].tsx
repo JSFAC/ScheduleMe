@@ -602,10 +602,24 @@ export default function BizPage() {
     }).catch(() => {}).finally(() => setLoadingSlots(false));
   }, [biz?.id]);
 
+  async function getAccessTokenOrThrow() {
+    const supabase = getSB();
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      const refreshed = await supabase.auth.refreshSession();
+      session = refreshed.data.session ?? null;
+    }
+    if (!session?.access_token) {
+      throw new Error('Invalid or expired session. Please sign in again.');
+    }
+    return session.access_token;
+  }
+
   async function getAuthHeaders() {
-    const { data: { session } } = await getSB().auth.getSession();
-    if (!session) return null;
-    return { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
+    return {
+      Authorization: `Bearer ${await getAccessTokenOrThrow()}`,
+      'Content-Type': 'application/json',
+    };
   }
 
   async function submitChangeRequest(changes: Record<string, any>, requestType?: string) {
@@ -695,7 +709,6 @@ export default function BizPage() {
         reader.readAsDataURL(file);
       });
       const headers = await getAuthHeaders();
-      if (!headers) { setMediaErr('Sign in required'); return; }
       const res = await fetch('/api/upload-media', {
         method: 'POST',
         headers,
@@ -1307,7 +1320,7 @@ export default function BizPage() {
       } : prev);
       if (isDashboardEmbed && typeof window !== 'undefined') {
         window.parent?.postMessage(
-          { type: 'scheduleme-dashboard-preview-saved', business: nextBiz },
+          { type: 'scheduleme-dashboard-preview-saved', business: nextBiz, services: nextServices },
           window.location.origin
         );
       }
@@ -1519,7 +1532,14 @@ export default function BizPage() {
         )}
         <div className="mx-auto max-w-2xl px-4" style={{ paddingTop: isEmbedded ? 20 : 0 }}>
           {isEmbedded && (
-            <div className="rounded-2xl p-4 shadow-lg mb-4" style={{ background: card, border: '1px solid ' + bdr }}>
+            <div
+              className="rounded-2xl p-4 mb-4"
+              style={{
+                background: card,
+                border: '1px solid ' + bdr,
+                boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.18)' : '0 10px 24px rgba(15,23,42,0.08)',
+              }}
+            >
               <div className="flex items-start gap-4">
                 <div className="h-24 w-24 rounded-2xl overflow-hidden shrink-0" style={{ background: dm ? '#111' : '#f3f4f6', border: '1px solid ' + bdr }}>
                   {imgs[galleryIdx] ? (
@@ -1555,7 +1575,14 @@ export default function BizPage() {
             </div>
           )}
           {isEmbedded && (
-            <div className="rounded-2xl p-4 shadow-lg mb-5 relative z-20" style={{ background: card, border: '1px solid ' + bdr }}>
+            <div
+              className="rounded-2xl p-4 mb-5 relative z-20"
+              style={{
+                background: card,
+                border: '1px solid ' + bdr,
+                boxShadow: dm ? '0 12px 28px rgba(0,0,0,0.22)' : '0 12px 28px rgba(15,23,42,0.08)',
+              }}
+            >
               <div
                 className="relative overflow-hidden rounded-2xl"
                 style={{ background: embedDm ? '#101010' : '#f7f7f6', minHeight: 240 }}

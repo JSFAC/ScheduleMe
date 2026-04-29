@@ -52,9 +52,23 @@ export function getProviderVisibilitySettings(row: any): {
 } {
   const legacyApproved = isLegacyApprovedProvider(row);
   const publicVisibility = row?.public_visibility === false ? legacyApproved : true;
-  const publicShowName = row?.public_show_name === false ? false : true;
-  const publicShowPhotos = row?.public_show_photos === false && row?.public_show_media !== true ? false : true;
-  const campusShowName = row?.campus_show_name === false ? false : true;
+  const publicShowNameExplicitFalse = row?.public_show_name === false;
+  const publicShowPhotosExplicitFalse = row?.public_show_photos === false && row?.public_show_media !== true;
+  const campusShowNameExplicitFalse = row?.campus_show_name === false;
+
+  // Legacy providers were briefly initialized with falsey visibility flags
+  // before the current privacy model was finalized. If a card is otherwise
+  // public but every identity toggle is effectively "off", treat it as an
+  // uncustomized legacy row and default back to visible-by-default.
+  const looksLikeLegacyHiddenDefaults =
+    publicVisibility &&
+    publicShowNameExplicitFalse &&
+    publicShowPhotosExplicitFalse &&
+    campusShowNameExplicitFalse;
+
+  const publicShowName = looksLikeLegacyHiddenDefaults ? true : !publicShowNameExplicitFalse;
+  const publicShowPhotos = looksLikeLegacyHiddenDefaults ? true : !publicShowPhotosExplicitFalse;
+  const campusShowName = looksLikeLegacyHiddenDefaults ? true : !campusShowNameExplicitFalse;
   return {
     publicVisibility,
     publicShowName,

@@ -106,10 +106,10 @@ function normalizeBusiness(input: any): Business | null {
     instagram: toStringSafe(input.instagram),
     school_domain: input.school_domain == null ? null : toStringSafe(input.school_domain),
     edu_verified: toBooleanSafe(input.edu_verified),
-    public_visibility: toBooleanSafe(input.public_visibility),
-    public_show_name: toBooleanSafe(input.public_show_name),
-    public_show_photos: toBooleanSafe(input.public_show_photos),
-    campus_show_name: toBooleanSafe(input.campus_show_name),
+    public_visibility: input.public_visibility === false ? false : true,
+    public_show_name: input.public_show_name === false ? false : true,
+    public_show_photos: input.public_show_photos === false ? false : true,
+    campus_show_name: input.campus_show_name === false ? false : true,
   };
 }
 
@@ -487,11 +487,9 @@ function RevenueChart({ bookings, dm }: { bookings: Booking[]; dm: boolean }) {
 }
 
 async function getAuthHeaders(): Promise<HeadersInit> {
-  const supabase = getSupabase();
-  const { data: { session } } = await supabase.auth.getSession();
   return {
     'Content-Type': 'application/json',
-    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+    'Authorization': `Bearer ${await getAccessTokenOrThrow()}`,
   };
 }
 
@@ -1025,18 +1023,31 @@ const BusinessDashboard: NextPage = () => {
         return;
       }
       if (event.data?.type === 'scheduleme-dashboard-preview-saved') {
+        let nextBusiness = business;
         if (event.data?.business) {
           const safeBiz = normalizeBusiness(event.data.business);
           if (safeBiz) {
+            nextBusiness = safeBiz;
             setBusiness((prev) => prev ? { ...prev, ...safeBiz } : safeBiz);
           }
+        }
+        if (Array.isArray(event.data?.services)) {
+          setServices(event.data.services);
+        }
+        const optimisticChecklist = buildLocalPublishChecklist(
+          nextBusiness,
+          Array.isArray(event.data?.services) ? event.data.services : services
+        );
+        if (optimisticChecklist) {
+          setPublishChecklist(optimisticChecklist);
+          setPublishReady(!!optimisticChecklist.readyToPublish);
         }
         refreshPublishStatus();
       }
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, []);
+  }, [business, services]);
 
   function sendPreviewAction(action: 'enter-edit' | 'save-edit' | 'cancel-edit') {
     previewFrameRef.current?.contentWindow?.postMessage(
@@ -1189,6 +1200,30 @@ const BusinessDashboard: NextPage = () => {
   const [publishLoading, setPublishLoading] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+
+  function buildLocalPublishChecklist(nextBusiness: any, nextServices: any[] = services) {
+    if (!nextBusiness) return null;
+    const activeServices = (nextServices || []).filter((svc: any) => svc?.active !== false);
+    const hasCoreProfile = Boolean(
+      nextBusiness?.name
+      && nextBusiness?.description
+      && (nextBusiness?.address || nextBusiness?.city || nextBusiness?.zip)
+    );
+    const hasMedia = Boolean(
+      nextBusiness?.cover_url
+      || (Array.isArray(nextBusiness?.media_urls) && nextBusiness.media_urls.length > 0)
+    );
+    const hasStripe = Boolean(nextBusiness?.stripe_onboarded && nextBusiness?.stripe_account_id);
+    return {
+      coreProfile: hasCoreProfile,
+      services: activeServices.length > 0,
+      media: hasMedia,
+      stripe: hasStripe,
+      stripeRecommended: !hasStripe,
+      trustClear: true,
+      readyToPublish: hasCoreProfile && activeServices.length > 0 && hasMedia,
+    };
+  }
 
   const HOURS_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   function hoursToMap(hours: any): Record<string, string> {
@@ -2588,24 +2623,26 @@ const BusinessDashboard: NextPage = () => {
                     {/* Stripe / payout stage banner */}
           {business && tab === 'overview' && (manualPayoutMode || stripeRequiredMode) && (
             <div className={`${stripeRequiredMode ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-200'} border-b px-6 py-3`}>
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
-                <div className="flex items-center gap-2.5 text-sm">
-                  <svg className={`h-4 w-4 shrink-0 ${stripeRequiredMode ? 'text-amber-500' : 'text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  <span className={`${stripeRequiredMode ? 'text-amber-800' : 'text-teal-800'} font-semibold`}>
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-3 max-w-5xl mx-auto">
+                <div className="min-w-0 max-w-[720px]">
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <svg className={`h-4 w-4 shrink-0 ${stripeRequiredMode ? 'text-amber-500' : 'text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span className={`${stripeRequiredMode ? 'text-amber-800' : 'text-teal-800'} font-semibold`}>
+                      {stripeRequiredMode
+                        ? 'Stripe is now required to accept new paid bookings'
+                        : `${payoutStage.remainingBeforeStripeRequired} paid booking${payoutStage.remainingBeforeStripeRequired === 1 ? '' : 's'} left before Stripe is required`}
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-0.5 leading-snug ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>
                     {stripeRequiredMode
-                      ? 'Stripe is now required to accept new paid bookings'
-                      : `${payoutStage.remainingBeforeStripeRequired} paid booking${payoutStage.remainingBeforeStripeRequired === 1 ? '' : 's'} left before Stripe is required`}
-                  </span>
+                      ? `Customers can’t place new paid bookings until you finish Stripe. Your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings were allowed in manual payout mode.`
+                      : `You can keep taking bookings now without Stripe. For your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings, ScheduleMe collects the payment and you’ll be paid out manually after the job is completed.`}
+                  </p>
                 </div>
                 <button onClick={handleStripeConnect} disabled={stripeLoading} className={`shrink-0 text-sm font-bold px-4 py-2 rounded-xl text-white transition-colors ${stripeRequiredMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'}`}>
                   {stripeLoading ? 'Loading…' : stripeCta}
                 </button>
               </div>
-              <p className={`text-xs mt-2 max-w-5xl mx-auto ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>
-                {stripeRequiredMode
-                  ? `Customers can’t place new paid bookings until you finish Stripe. Your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings were allowed in manual payout mode.`
-                  : `You can keep taking bookings now without Stripe. For your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings, ScheduleMe collects the payment and you’ll be paid out manually after the job is completed.`}
-              </p>
               {stripeConnectError && (
                 <p className={`text-xs mt-2 max-w-5xl mx-auto ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>{stripeConnectError}</p>
               )}
@@ -2685,7 +2722,7 @@ const BusinessDashboard: NextPage = () => {
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
+                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Verify .edu Email</button>
                   <button onClick={() => setCampusAffilDismissed(true)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
                 </div>
               </div>
@@ -2882,25 +2919,25 @@ const BusinessDashboard: NextPage = () => {
                               { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and location details.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
-                              { key: 'stripe', label: 'Stripe connected', hint: bookingReadyMode ? 'Automated payouts are live for new bookings.' : `Not required to publish. Required after your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.` },
+                              { key: 'stripe', label: publishChecklist?.stripe ? 'Stripe connected' : 'Stripe Not Connected', hint: bookingReadyMode ? 'Automated payouts are live for new bookings.' : `Not required to publish. Required after your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.` },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
-                              const isStripeLater = item.key === 'stripe' && !ok && manualPayoutMode;
+                              const isStripePending = item.key === 'stripe' && !ok;
                               return (
                                 <button
                                   key={item.key}
                                   type="button"
                                   onClick={() => handleChecklistAction(item.key as 'coreProfile' | 'services' | 'media' | 'stripe')}
                                   className="rounded-[24px] border px-4 py-4 text-left transition-transform hover:-translate-y-0.5"
-                                  style={{ borderColor: ok ? '#b7e5ce' : (isStripeLater ? '#bfe5db' : '#f2d39a'), background: ok ? '#eef9f3' : (isStripeLater ? '#f5fbf8' : '#fff6e7') }}
+                                  style={{ borderColor: ok ? '#b7e5ce' : '#f2d39a', background: ok ? '#eef9f3' : '#fff6e7' }}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
-                                      <p className="font-semibold" style={{ color: ok ? '#166534' : (isStripeLater ? '#0f766e' : '#9a3412') }}>{item.label}</p>
-                                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : (isStripeLater ? '#0f766e' : '#9a3412') }}>{item.hint}</p>
+                                      <p className="font-semibold" style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</p>
+                                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : '#9a3412' }}>{item.hint}</p>
                                     </div>
-                                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : (isStripeLater ? 'rgba(15,118,110,0.10)' : 'rgba(154,52,18,0.10)'), color: ok ? '#166534' : (isStripeLater ? '#0f766e' : '#9a3412') }}>
-                                      {ok ? 'Done' : (isStripeLater ? 'Later' : 'Needed')}
+                                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : 'rgba(154,52,18,0.10)', color: ok ? '#166534' : '#9a3412' }}>
+                                      {ok ? 'Done' : (isStripePending ? 'Later' : 'Needed')}
                                     </span>
                                   </div>
                                 </button>
@@ -3924,9 +3961,9 @@ const BusinessDashboard: NextPage = () => {
                 <div
                   className="px-4 py-4 border-b border-neutral-100 flex flex-col items-start justify-between gap-3 sm:px-5 sm:flex-row sm:items-center"
                   style={{
-                    background: dm ? '#16181b' : '#ffffff',
-                    borderColor: dm ? '#2a2d31' : '#dfe9e6',
-                    boxShadow: dm ? 'inset 0 -1px 0 rgba(255,255,255,0.06), 0 16px 34px rgba(0,0,0,0.2)' : '0 16px 34px rgba(15,23,42,0.08)',
+                    background: dm ? '#171b1f' : '#ffffff',
+                    borderColor: dm ? '#30363d' : '#dbe7e2',
+                    boxShadow: dm ? '0 1px 0 rgba(255,255,255,0.06)' : '0 1px 0 rgba(15,23,42,0.04)',
                   }}
                 >
                   <div>
@@ -3977,7 +4014,7 @@ const BusinessDashboard: NextPage = () => {
                     )}
                   </div>
                 </div>
-                <div className="p-3 sm:p-5" key={previewKey}>
+                <div className="p-3 sm:p-5" key={previewKey} style={{ background: dm ? '#121416' : '#f9fcfb' }}>
                   <iframe
                     ref={previewFrameRef}
                     title="ScheduleMe Live Preview"
@@ -4110,13 +4147,13 @@ const BusinessDashboard: NextPage = () => {
                         ? 'Step 2/2: Connected via Stripe. Automatic payouts are live.'
                         : stripeRequiredMode
                           ? `Stripe is now required before you can accept additional paid bookings.`
-                          : `Manual payout mode is active. You can take bookings now, and Stripe becomes required after ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.`}
+                          : `Manual payout mode is active. You can take bookings now, and Stripe becomes required after your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.`}
                     </p>
                     {!bookingReadyMode && (
                       <div className="mb-4 rounded-2xl border px-3.5 py-3 text-xs" style={{ borderColor: stripeRequiredMode ? '#fdba74' : '#bfe5db', background: stripeRequiredMode ? '#fff7ed' : '#f5fbf8', color: stripeRequiredMode ? '#9a3412' : '#0f766e' }}>
                         {stripeRequiredMode
                           ? `You’ve hit ${paidBookingsCount} paid booking${paidBookingsCount === 1 ? '' : 's'}. Connect Stripe to keep receiving new instant bookings.`
-                          : `${paidBookingsCount}/${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings completed before Stripe becomes required for new bookings.`}
+                          : `Manual payouts are enabled for your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings. ${Math.max(MANUAL_PAYOUT_BOOKING_THRESHOLD - paidBookingsCount, 0)} remaining before Stripe is required for new bookings.`}
                       </div>
                     )}
                     {business?.stripe_onboarded ? (
