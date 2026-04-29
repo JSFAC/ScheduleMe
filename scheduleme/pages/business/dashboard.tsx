@@ -4233,7 +4233,7 @@ const BusinessDashboard: NextPage = () => {
         </div>
       </div>
       {toast && (
-        <div className={`fixed top-6 right-6 z-[600] px-5 py-3 rounded-xl text-sm font-semibold shadow-xl ${toast.ok ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+        <div className={`fixed top-6 right-6 z-[600] px-5 py-3 rounded-xl text-sm font-semibold shadow-xl ${toast.ok ? 'bg-accent text-white' : 'bg-red-500 text-white'}`}>
           {toast.msg}
         </div>
       )}
@@ -4757,16 +4757,6 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card {
           position: relative;
           overflow: hidden;
-        }
-
-        .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card::before,
-        .provider-dashboard-shell[data-provider-theme='light'] .provider-premium-panel::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          border-radius: inherit;
-          background: linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0) 28%);
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .provider-service-row:hover,

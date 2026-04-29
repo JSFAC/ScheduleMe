@@ -488,7 +488,14 @@ const HomePage: NextPage = () => {
   const [usingRealData, setUsingRealData] = useState(false);
   const [dataLoading, setDataLoading] = useState(true); // true until real data or fallback loads
   const [eduVerified, setEduVerified] = useState<boolean | null>(null); // null = loading
+  const [signedIn, setSignedIn] = useState(false);
   const [showEduBanner, setShowEduBanner] = useState(true);
+  const [showEduModal, setShowEduModal] = useState(false);
+  const [eduStep, setEduStep] = useState<'email'|'code'|'done'>('email');
+  const [eduEmail, setEduEmail] = useState('');
+  const [eduCode, setEduCode] = useState('');
+  const [eduLoading, setEduLoading] = useState(false);
+  const [eduError, setEduError] = useState('');
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showReferModal, setShowReferModal] = useState(false);
@@ -559,19 +566,22 @@ const HomePage: NextPage = () => {
 
         const name = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'there';
         setUserName(String(name).split(' ')[0] || 'there');
+        setSignedIn(Boolean(session?.user));
 
         if (session?.user) {
           const { data: profile } = await supabase
-            .from('profiles').select('edu_verified').eq('id', session.user.id).maybeSingle();
+            .from('profiles').select('edu_verified, school_email').eq('id', session.user.id).maybeSingle();
           if (!alive) return;
           const verified = profile?.edu_verified ?? false;
           setEduVerified(verified);
+          setEduEmail(typeof profile?.school_email === 'string' ? profile.school_email : '');
           if (verified) {
             setShowEduBanner(false);
           } else if (typeof window !== 'undefined' && localStorage.getItem('sm_home_edu_banner_dismissed') !== '1') {
             setShowEduBanner(true);
           }
         } else {
+          setSignedIn(false);
           setEduVerified(false);
           if (typeof window !== 'undefined' && localStorage.getItem('sm_home_edu_banner_dismissed') !== '1') {
             setShowEduBanner(true);
@@ -808,9 +818,9 @@ const HomePage: NextPage = () => {
           </div>
         )}
 
-        {/* EDU Campus banner — only shown to non-verified users */}
+        {/* EDU Campus banner */}
         {eduVerified === false && showEduBanner && (
-          <div style={{ paddingLeft: 'max(24px, calc((100% - 1400px) / 2))', paddingRight: 'max(24px, calc((100% - 1400px) / 2))', paddingTop: 24 }}>
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: 24 }}>
             <div
               className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl"
               style={{
@@ -836,11 +846,27 @@ const HomePage: NextPage = () => {
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2 shrink-0">
-                <Link href="/campus" scroll={false}
-                  className="text-xs font-bold px-3.5 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
-                  style={{ background: '#0F766E', color: 'white' }}>
-                  Sign up
-                </Link>
+                {signedIn ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEduError('');
+                      setEduCode('');
+                      setEduStep('email');
+                      setShowEduModal(true);
+                    }}
+                    className="text-xs font-bold px-3.5 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
+                    style={{ background: '#0F766E', color: 'white' }}
+                  >
+                    Verify
+                  </button>
+                ) : (
+                  <Link href="/campus" scroll={false}
+                    className="text-xs font-bold px-3.5 py-2 rounded-xl whitespace-nowrap transition-all hover:opacity-80"
+                    style={{ background: '#0F766E', color: 'white' }}>
+                    Sign up
+                  </Link>
+                )}
                 <button
                   onClick={() => {
                     setShowEduBanner(false);
@@ -858,7 +884,7 @@ const HomePage: NextPage = () => {
 
         {/* Install app banner — mobile only, not shown if already installed */}
         {showInstallBanner && (
-          <div style={{ paddingLeft: 'max(24px, calc((100% - 1400px) / 2))', paddingRight: 'max(24px, calc((100% - 1400px) / 2))', paddingTop: eduVerified === false ? 8 : 12 }}>
+          <div style={{ paddingLeft: 'max(24px, calc((100vw - 1400px) / 2))', paddingRight: 'max(24px, calc((100vw - 1400px) / 2))', paddingTop: eduVerified === false ? 8 : 12 }}>
             <div className="rounded-2xl overflow-hidden"
               style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.08)', boxShadow: dm ? 'none' : '0 2px 12px rgba(0,0,0,0.06)' }}>
               {/* Header */}
@@ -960,6 +986,132 @@ const HomePage: NextPage = () => {
           })()}
           <ReferCard />
         </div>
+
+        {showEduModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+            <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+              <button onClick={() => setShowEduModal(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] mb-2" style={{ color: '#0F766E' }}>Campus</p>
+              <h2 className="text-lg font-bold" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#111827' }}>EDU Verification</h2>
+              {eduVerified === true ? (
+                <div className="flex items-center gap-3 mt-4 p-3 rounded-xl" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', border: dm ? '1px solid rgba(52,211,153,0.25)' : '1px solid #bbf7d0' }}>
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full flex-shrink-0" style={{ background: '#dcfce7' }}>
+                    <svg className="h-3.5 w-3.5" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: dm ? '#6ee7b7' : '#15803d' }}>EDU Verified</p>
+                    <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{eduEmail || 'Your .edu email is verified'}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to unlock campus features on the home page.</p>
+                  {eduStep === 'email' && (
+                    <>
+                      <input
+                        type="email"
+                        value={eduEmail}
+                        onChange={e => setEduEmail(e.target.value)}
+                        placeholder="you@school.edu"
+                        className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                        style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#111827', borderColor: dm ? '#262626' : '#e5e7eb' }}
+                      />
+                      {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                      <button
+                        disabled={!eduEmail.endsWith('.edu') || eduLoading}
+                        onClick={async () => {
+                          setEduLoading(true);
+                          setEduError('');
+                          try {
+                            const sb = getSupabase();
+                            const { data: { session } } = await sb.auth.getSession();
+                            const res = await fetch('/api/verify-edu', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${session?.access_token || ''}`,
+                              },
+                              body: JSON.stringify({ school_email: eduEmail, account_type: 'consumer' }),
+                            });
+                            const d = await res.json();
+                            if (!res.ok) {
+                              setEduError(d.error || 'Failed');
+                            } else {
+                              setEduStep('code');
+                            }
+                          } catch {
+                            setEduError('Network error');
+                          } finally {
+                            setEduLoading(false);
+                          }
+                        }}
+                        className="w-full py-2.5 rounded-xl text-sm font-bold text-white"
+                        style={{ background: eduEmail.endsWith('.edu') ? '#007e6d' : (dm ? '#2c2c2e' : '#e5e7eb'), color: eduEmail.endsWith('.edu') ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}
+                      >
+                        {eduLoading ? 'Sending…' : 'Send Verification Code'}
+                      </button>
+                    </>
+                  )}
+                  {eduStep === 'code' && (
+                    <>
+                      <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Enter the 6-digit code sent to {eduEmail}</p>
+                      <input
+                        type="text"
+                        value={eduCode}
+                        onChange={e => setEduCode(e.target.value)}
+                        placeholder="123456"
+                        maxLength={6}
+                        className="w-full px-4 py-2.5 rounded-xl border text-center text-xl font-bold tracking-[0.2em] focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                        style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#111827', borderColor: dm ? '#262626' : '#e5e7eb' }}
+                      />
+                      {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                      <button
+                        disabled={eduCode.length !== 6 || eduLoading}
+                        onClick={async () => {
+                          setEduLoading(true);
+                          setEduError('');
+                          try {
+                            const sb = getSupabase();
+                            const { data: { session } } = await sb.auth.getSession();
+                            const res = await fetch('/api/verify-edu', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${session?.access_token || ''}`,
+                              },
+                              body: JSON.stringify({ action: 'verify', code: eduCode, account_type: 'consumer' }),
+                            });
+                            const d = await res.json();
+                            if (!res.ok) {
+                              setEduError(d.error || 'Wrong code');
+                            } else {
+                              setEduVerified(true);
+                              setShowEduBanner(false);
+                              setEduStep('done');
+                              setShowEduModal(false);
+                              if (typeof window !== 'undefined') localStorage.removeItem('sm_home_edu_banner_dismissed');
+                            }
+                          } catch {
+                            setEduError('Network error');
+                          } finally {
+                            setEduLoading(false);
+                          }
+                        }}
+                        className="w-full py-2.5 rounded-xl text-sm font-bold text-white"
+                        style={{ background: eduCode.length === 6 ? '#007e6d' : (dm ? '#2c2c2e' : '#e5e7eb'), color: eduCode.length === 6 ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}
+                      >
+                        {eduLoading ? 'Verifying…' : 'Verify Code'}
+                      </button>
+                      <button onClick={() => { setEduStep('email'); setEduCode(''); setEduError(''); }} className="w-full text-xs text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>← Use a different email</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
       {showReferModal && (
