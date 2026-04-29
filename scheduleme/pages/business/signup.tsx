@@ -12,28 +12,33 @@ const SignupPage: NextPage = () => {
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     let active = true;
+
     (async () => {
       const result = await getProviderAccessState();
       if (!active) return;
       setStatus(result.state);
       setSignedInEmail(result.user?.email || null);
     })();
-    return () => { active = false; };
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleBecomeProvider() {
     setLoading(true);
     setError(null);
+
     const result = await createProviderDraft();
     if (!result.ok) {
       setError(result.error || 'Could not create provider draft.');
       setLoading(false);
       return;
     }
+
     router.replace('/provider/dashboard');
   }
 
@@ -43,24 +48,35 @@ const SignupPage: NextPage = () => {
         <title>Become a Provider — ScheduleMe</title>
         <meta
           name="description"
-          content="Use your ScheduleMe account to become a provider, create your draft, and finish setup from your dashboard."
+          content="Use your ScheduleMe account to become a provider, create your draft, and finish setup in Provider Hub."
         />
+        <meta name="theme-color" content="#0a0a0a" />
       </Head>
       <BusinessNav />
 
-      <div className="min-h-screen bg-neutral-950 pt-24 pb-20 px-4 md:px-6">
+      <div className="min-h-screen bg-neutral-950 pt-24 pb-20 px-4 md:px-6 relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)',
+            backgroundSize: '44px 44px',
+            maskImage: 'radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 100%)',
+          }}
+        />
         <div className="mx-auto max-w-2xl">
-          <div className="text-center mb-7">
+          <div className="text-center mb-7 relative">
             <span className="section-eyebrow mb-3 block">Provider Setup</span>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3" style={{ letterSpacing: '-0.02em' }}>
               One account. Provider role when you&apos;re ready.
             </h1>
             <p className="text-neutral-400 max-w-xl mx-auto">
-              ScheduleMe consumers and providers use the same account. When you become a provider, we create your draft and send you straight into your dashboard to finish the checklist.
+              ScheduleMe consumers and providers use the same account. When you become a provider, we create your draft and send you straight into Provider Hub to finish the checklist.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 md:p-7 space-y-5">
+          <div className="relative rounded-2xl border border-neutral-800 bg-neutral-900/95 p-6 md:p-7 space-y-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
             {error && <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">{error}</div>}
 
             {status === 'loading' && (
@@ -74,52 +90,15 @@ const SignupPage: NextPage = () => {
                 <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-5">
                   <h2 className="text-lg font-semibold text-white mb-2">Authenticate once, then continue</h2>
                   <p className="text-sm text-neutral-400 leading-relaxed">
-                    Sign in with your existing ScheduleMe account or create one first. After auth, we&apos;ll resume provider conversion and take you straight into setup.
+                    Sign in with your existing ScheduleMe account or create one first. After auth, we&apos;ll resume provider conversion and take you into Provider Hub.
                   </p>
-                </div>
-
-                <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-5 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">Before you continue</p>
-                  <p className="text-sm text-neutral-400 leading-relaxed">
-                    Consumer and provider activity live on one ScheduleMe account. By continuing, you&apos;re asking us to create a provider draft on that same account so you can finish services, payouts, and profile details from the dashboard.
-                  </p>
-                  <label className="flex items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={agreed}
-                      onChange={(e) => setAgreed(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-accent focus:ring-accent"
-                    />
-                    <span className="text-sm text-neutral-300 leading-relaxed">
-                      I understand this uses my regular ScheduleMe account and I agree to the provider{' '}
-                      <Link href="/terms" className="text-accent hover:underline">terms</Link>{' '}
-                      and{' '}
-                      <Link href="/privacy" className="text-accent hover:underline">privacy policy</Link>.
-                    </span>
-                  </label>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Link
-                    href={agreed ? "/signin?mode=login&intent=provider" : "#"}
-                    aria-disabled={!agreed}
-                    className={`w-full rounded-xl border px-4 py-3 text-sm font-semibold text-center transition-colors ${
-                      agreed
-                        ? 'border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700'
-                        : 'pointer-events-none border-neutral-800 bg-neutral-900 text-neutral-600'
-                    }`}
-                  >
+                  <Link href="/signin?mode=login&intent=provider" className="w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-3 text-sm font-semibold text-white hover:bg-neutral-700 text-center transition-colors">
                     Log in to continue
                   </Link>
-                  <Link
-                    href={agreed ? "/signin?mode=signup&intent=provider" : "#"}
-                    aria-disabled={!agreed}
-                    className={`w-full px-4 py-3 text-sm font-semibold text-center rounded-xl transition-all ${
-                      agreed
-                        ? 'btn-primary'
-                        : 'pointer-events-none border border-neutral-800 bg-neutral-900 text-neutral-600'
-                    }`}
-                  >
+                  <Link href="/signin?mode=signup&intent=provider" className="btn-primary w-full px-4 py-3 text-sm font-semibold text-center">
                     Create account
                   </Link>
                 </div>
@@ -134,30 +113,18 @@ const SignupPage: NextPage = () => {
                     You&apos;re signed in as <span className="font-semibold text-white">{signedInEmail}</span>.
                   </p>
                   <p className="mt-2 text-sm text-neutral-400">
-                    Becoming a provider creates your draft on this same account. You&apos;ll finish services, pricing, media, and payouts from the same dashboard.
+                    Becoming a provider creates your draft on this same account. You&apos;ll finish services, pricing, media, and payouts inside Provider Hub.
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleBecomeProvider}
-                  disabled={loading || !agreed}
+                  disabled={loading}
                   className="btn-primary w-full py-3 text-sm font-bold disabled:opacity-60"
                 >
                   {loading ? 'Creating provider draft…' : 'Become a Provider'}
                 </button>
-                <label className="flex items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-950/60 px-4 py-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={agreed}
-                    onChange={(e) => setAgreed(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-accent focus:ring-accent"
-                  />
-                  <span className="text-sm text-neutral-300 leading-relaxed">
-                    I&apos;m ready to turn this account into a provider draft and continue under the provider{' '}
-                    <Link href="/terms" className="text-accent hover:underline">terms</Link>.
-                  </span>
-                </label>
               </>
             )}
 
@@ -166,12 +133,12 @@ const SignupPage: NextPage = () => {
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5">
                   <h2 className="text-lg font-semibold text-white mb-2">Your provider profile is ready to manage</h2>
                   <p className="text-sm text-neutral-300 leading-relaxed">
-                    This account already has a provider profile. Open your dashboard to keep working on your checklist, availability, bookings, and payouts.
+                    This account already has a provider profile. Open Provider Hub to keep working on your checklist, availability, bookings, and payouts.
                   </p>
                 </div>
 
                 <Link href="/provider/dashboard" className="btn-primary w-full px-4 py-3 text-sm font-semibold text-center block">
-                  Start now
+                  Open Provider Hub
                 </Link>
               </>
             )}
@@ -181,9 +148,15 @@ const SignupPage: NextPage = () => {
               <ol className="space-y-2 text-sm text-neutral-400 list-decimal list-inside">
                 <li>Authenticate with your regular ScheduleMe account.</li>
                 <li>Create your provider draft on that same account.</li>
-                <li>Finish setup from your dashboard when you&apos;re ready.</li>
+                <li>Finish setup inside Provider Hub when you&apos;re ready.</li>
               </ol>
             </div>
+          </div>
+
+          <div className="relative mt-8 text-center">
+            <Link href="/" className="text-sm font-medium text-neutral-500 hover:text-neutral-300 transition-colors">
+              Back to consumer page →
+            </Link>
           </div>
         </div>
       </div>

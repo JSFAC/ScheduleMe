@@ -34,7 +34,7 @@ const BusinessLoginPage: NextPage = () => {
   useEffect(() => {
     if (router.query.error === 'not_a_business') {
       setError('not_a_business');
-      router.replace('/business/auth/login', undefined, { shallow: true });
+      router.replace('/provider/auth/login', undefined, { shallow: true });
     }
   }, [router.query.error, router]);
   const [success, setSuccess] = useState<string | null>(null);
@@ -117,6 +117,7 @@ const BusinessLoginPage: NextPage = () => {
         } catch {}
         router.replace('/provider/dashboard');
       } else {
+        // Not a provider account yet — send to provider signup with terms gate.
         const email = session.user.email ?? '';
         await supabase.auth.signOut();
         router.replace(`/provider/signup?from=oauth-login&email=${encodeURIComponent(email)}`);
@@ -179,13 +180,17 @@ const BusinessLoginPage: NextPage = () => {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/business/auth/set-password`,
+          redirectTo: `${window.location.origin}/provider/auth/set-password`,
           ...(captchaToken ? { captchaToken } : {}),
         });
         if (error) throw error;
         setSuccess('Check your email for a reset link.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const signInPayload: any = { email, password };
+        if (captchaToken) {
+          signInPayload.options = { captchaToken };
+        }
+        const { error } = await supabase.auth.signInWithPassword(signInPayload);
         if (error) throw error;
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) throw new Error('Authentication failed');
@@ -196,7 +201,7 @@ const BusinessLoginPage: NextPage = () => {
         if (!biz) {
           // Sign them back out — not a business account
           await supabase.auth.signOut();
-          setError('No provider account found for this email. Use your regular account to become a provider first.');
+          setError('No provider account found for this email. If you started signup, create your provider draft first.');
           setLoading(false);
           return;
         }
@@ -223,9 +228,22 @@ const BusinessLoginPage: NextPage = () => {
 
   return (
     <>
-      <Head><title>Provider Login — ScheduleMe for Providers</title></Head>
+      <Head>
+        <title>Provider Login — ScheduleMe for Providers</title>
+        <meta name="theme-color" content="#0a0a0a" />
+      </Head>
       <BusinessNav />
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-20 pb-16">
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6 pt-20 pb-16 relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)',
+            backgroundSize: '44px 44px',
+            maskImage: 'radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 100%)',
+          }}
+        />
         <div className="w-full max-w-sm">
 
           <div className="text-center mb-8">
@@ -247,7 +265,7 @@ const BusinessLoginPage: NextPage = () => {
                 <p className="font-semibold mb-1 text-red-300">No provider account found</p>
                 <p className="text-red-400 leading-relaxed">
                   {error === 'not_a_business'
-                    ? 'This email is not registered as a ScheduleMe provider. Use your existing account to become a provider instead.'
+                    ? 'This email is not registered as a ScheduleMe provider. Create your provider draft to continue.'
                     : error}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -333,7 +351,7 @@ const BusinessLoginPage: NextPage = () => {
                   Back
                 </button>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Business email</label>
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Provider email</label>
                   <input type="email" required
                     className="form-input bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-600"
                     placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
@@ -365,6 +383,11 @@ const BusinessLoginPage: NextPage = () => {
             By continuing, you agree to our{' '}
             <Link href="/terms" className="hover:text-neutral-400">Terms</Link> and{' '}
             <Link href="/privacy" className="hover:text-neutral-400">Privacy Policy</Link>.
+          </p>
+          <p className="text-center mt-4">
+            <Link href="/" className="text-sm font-medium text-neutral-500 hover:text-neutral-300 transition-colors">
+              Back to consumer page →
+            </Link>
           </p>
         </div>
       </div>
