@@ -24,6 +24,20 @@ function timeOfDay() {
   return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
+function mergeBusinessesPreferPrimary(primary: Business[], fallback: Business[], limit = 60): Business[] {
+  const seen = new Set<string>();
+  const merged: Business[] = [];
+  const add = (biz: Business) => {
+    const key = String(biz.realId || biz.id || biz.slug || '');
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(biz);
+  };
+  primary.forEach(add);
+  fallback.forEach(add);
+  return merged.slice(0, limit);
+}
+
 // PILL_STYLE is now inline-dynamic in components that have dm
 
 const AI_SUGGESTIONS: { label: string; prompt: string }[] = [
@@ -113,9 +127,9 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
     const el = chipsRef.current;
     if (!el) return;
     function onWheel(e: WheelEvent) {
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       e.preventDefault();
-      el.scrollLeft += e.deltaX;
+      el!.scrollLeft += e.deltaY * 1.2;
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -150,7 +164,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           <svg className="h-3.5 w-3.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
           </svg>
-          <span className="text-[10px] font-black text-accent uppercase tracking-[0.14em]">AI Matching</span>
+          <span className="text-[10px] font-black text-accent uppercase tracking-[0.14em]">Quick Match</span>
         </div>
         <textarea
           ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
@@ -178,8 +192,8 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
       </div>
       {/* Suggestion chips — clipped to chat box width, draggable, wheel-scrollable */}
       <div className="mt-3 overflow-hidden" style={{
-        maskImage: 'linear-gradient(to right, transparent 0%, black 2%, black 96%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 2%, black 96%, transparent 100%)',
+        maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 92%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 92%, transparent 100%)',
       }}>
         <div
           ref={chipsRef}
@@ -320,9 +334,11 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
     const el = scrollRef.current;
     if (!el) return;
     function onWheel(e: WheelEvent) {
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      // Only intercept if cursor is in the card zone (not over the curtain margins)
+      // The curtains have pointer-events:none so this fires only over cards
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       e.preventDefault();
-      el.scrollLeft += e.deltaX;
+      el!.scrollLeft += e.deltaY * 1.4;
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -344,7 +360,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
   }
 
   // edgePad must match exactly — cards start and end here, curtains cover outside
-  const edgePad = 'max(24px, calc((100% - 1400px) / 2))';
+  const edgePad = 'max(24px, calc((100vw - 1400px) / 2))';
 
   return (
     <section className="py-2.5" style={{ background: dm ? '#0a0a0a' : '#F4EFE6' }}>
@@ -432,12 +448,12 @@ function ReferCard() {
   }
 
   if (sent) return (
-    <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100% - 1400px) / 2))', marginRight: 'max(24px, calc((100% - 1400px) / 2))' }}>
+    <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <p className="text-sm font-semibold text-green-800">Referral received — we'll reach out to {bizName}.</p>
     </div>
   );
   if (!open) return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5" style={{ marginLeft: 'max(24px, calc((100% - 1400px) / 2))', marginRight: 'max(24px, calc((100% - 1400px) / 2))' }}>
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -454,7 +470,7 @@ function ReferCard() {
     </div>
   );
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3" style={{ marginLeft: 'max(24px, calc((100% - 1400px) / 2))', marginRight: 'max(24px, calc((100% - 1400px) / 2))' }}>
+    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
@@ -525,7 +541,7 @@ const HomePage: NextPage = () => {
     const mod = await import('../lib/realBusinesses');
     const real = await mod.fetchNearbyBusinesses(lat, lng, { limit: 24, radius: 25 });
     if (real.length > 0) {
-      setRealBizList(real);
+      setRealBizList((prev) => mergeBusinessesPreferPrimary(real, prev, 60));
       setUsingRealData(true);
       return true;
     }
@@ -600,7 +616,7 @@ const HomePage: NextPage = () => {
         }
 
         // Fast seed load so skeletons clear quickly even if geolocation is slow.
-        const seeded = await fetchAllBusinesses({ limit: 24 });
+        const seeded = await fetchAllBusinesses({ limit: 40 });
         if (!alive) return;
         if (seeded.length > 0) {
           setRealBizList(seeded);
@@ -630,7 +646,7 @@ const HomePage: NextPage = () => {
           // Last-resort fallback: show available providers even without location.
           const allBusinesses = await fetchAllBusinesses();
           if (allBusinesses.length > 0) {
-            setRealBizList(allBusinesses.slice(0, 24));
+            setRealBizList(allBusinesses.slice(0, 60));
             setUsingRealData(true);
           } else {
             setRealBizList([]);
@@ -653,66 +669,11 @@ const HomePage: NextPage = () => {
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-[calc(108px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
-        <div className="border-b" style={{ background: dm ? '#111' : '#0F766E', borderColor: 'rgba(0,0,0,0.08)' }}>
-          <div className="relative mx-auto max-w-4xl px-4 sm:px-6 pt-9 pb-9">
-            <div className="flex items-center gap-10">
-              <div className="flex-1 min-w-0 max-w-lg space-y-4">
-                <div className="h-3 w-36 rounded-full animate-shimmer" />
-                <div className="h-14 w-[82%] rounded-[20px] animate-shimmer" />
-                <div className="rounded-2xl border overflow-hidden" style={{ borderColor: dm ? '#262626' : 'rgba(0,0,0,0.08)', background: dm ? '#111111' : '#ffffff' }}>
-                  <div className="h-10 border-b animate-shimmer" style={{ borderColor: dm ? '#262626' : '#f1f1f1' }} />
-                  <div className="h-40 animate-shimmer" />
-                </div>
-                <div className="flex gap-2 overflow-hidden">
-                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-8 w-28 rounded-full animate-shimmer shrink-0" />)}
-                </div>
-              </div>
-              <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2.5 w-[260px] shrink-0">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="rounded-2xl p-3.5 space-y-10 border" style={{ background: dm ? '#111111' : '#ffffff', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>
-                    <div className="h-8 w-8 rounded-xl animate-shimmer" />
-                    <div className="space-y-2">
-                      <div className="h-4 w-24 rounded-xl animate-shimmer" />
-                      <div className="h-3 w-20 rounded-full animate-shimmer" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="border-b py-8" style={{ background: dm ? '#111' : '#0F766E' }}>
+          <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
         </div>
-        <div className="border-b" style={{ background: dm ? '#171717' : '#ffffff', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
-          <div className="flex gap-2 overflow-hidden px-6 py-3 justify-center">
-            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-11 w-40 rounded-xl animate-shimmer shrink-0" />)}
-          </div>
-        </div>
-        <div className="px-6 pt-6">
-          <div className="mx-auto max-w-6xl rounded-2xl border px-4 py-4 flex items-center justify-between" style={{ background: dm ? '#111111' : '#eef8f6', borderColor: dm ? '#262626' : '#cfe7de' }}>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl animate-shimmer" />
-              <div className="space-y-2">
-                <div className="h-4 w-40 rounded-xl animate-shimmer" />
-                <div className="h-3 w-52 rounded-full animate-shimmer" />
-              </div>
-            </div>
-            <div className="h-10 w-24 rounded-2xl animate-shimmer" />
-          </div>
-        </div>
-        <div className="max-w-6xl mx-auto px-6 py-8 space-y-10">
-          {Array.from({ length: 2 }).map((_, sectionIdx) => (
-            <div key={sectionIdx} className="space-y-4">
-              <div className="flex items-end justify-between">
-                <div className="space-y-2">
-                  <div className="h-7 w-52 rounded-xl animate-shimmer" />
-                  <div className="h-3 w-36 rounded-full animate-shimmer" />
-                </div>
-                <div className="h-4 w-20 rounded-full animate-shimmer" />
-              </div>
-              <div className="flex gap-3.5 overflow-hidden">
-                {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
-              </div>
-            </div>
-          ))}
+        <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     </>
@@ -1139,14 +1100,140 @@ const HomePage: NextPage = () => {
           <button disabled={!referName.trim()} onClick={() => { if (referName.trim()) setReferSent(true); }} className="w-full py-3.5 rounded-2xl font-bold text-sm" style={{ background: referName.trim() ? '#0F766E' : (dm ? '#2c2c2e' : '#e5e7eb'), color: referName.trim() ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}>Submit Referral</button>
         </>
       )}
-    </div>
-  </div>
+        </div>
+
+        {showEduModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+            <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+              <button onClick={() => setShowEduModal(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] mb-2" style={{ color: '#0F766E' }}>Campus</p>
+              <h2 className="text-lg font-bold" style={{ letterSpacing: '-0.01em', color: dm ? '#f3f4f6' : '#111827' }}>EDU Verification</h2>
+              {eduVerified === true ? (
+                <div className="flex items-center gap-3 mt-4 p-3 rounded-xl" style={{ background: dm ? 'rgba(52,211,153,0.12)' : '#f0fdf4', border: dm ? '1px solid rgba(52,211,153,0.25)' : '1px solid #bbf7d0' }}>
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full flex-shrink-0" style={{ background: '#dcfce7' }}>
+                    <svg className="h-3.5 w-3.5" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: dm ? '#6ee7b7' : '#15803d' }}>EDU Verified</p>
+                    <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>{eduEmail || 'Your .edu email is verified'}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to unlock campus features on the home page.</p>
+                  {eduStep === 'email' && (
+                    <>
+                      <input
+                        type="email"
+                        value={eduEmail}
+                        onChange={e => setEduEmail(e.target.value)}
+                        placeholder="you@school.edu"
+                        className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                        style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#111827', borderColor: dm ? '#262626' : '#e5e7eb' }}
+                      />
+                      {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                      <button
+                        disabled={!eduEmail.endsWith('.edu') || eduLoading}
+                        onClick={async () => {
+                          setEduLoading(true);
+                          setEduError('');
+                          try {
+                            const sb = getSupabase();
+                            const { data: { session } } = await sb.auth.getSession();
+                            const res = await fetch('/api/verify-edu', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${session?.access_token || ''}`,
+                              },
+                              body: JSON.stringify({ school_email: eduEmail, account_type: 'consumer' }),
+                            });
+                            const d = await res.json();
+                            if (!res.ok) {
+                              setEduError(d.error || 'Failed');
+                            } else {
+                              setEduStep('code');
+                            }
+                          } catch {
+                            setEduError('Network error');
+                          } finally {
+                            setEduLoading(false);
+                          }
+                        }}
+                        className="w-full py-2.5 rounded-xl text-sm font-bold text-white"
+                        style={{ background: eduEmail.endsWith('.edu') ? '#007e6d' : (dm ? '#2c2c2e' : '#e5e7eb'), color: eduEmail.endsWith('.edu') ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}
+                      >
+                        {eduLoading ? 'Sending…' : 'Send Verification Code'}
+                      </button>
+                    </>
+                  )}
+                  {eduStep === 'code' && (
+                    <>
+                      <p className="text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Enter the 6-digit code sent to {eduEmail}</p>
+                      <input
+                        type="text"
+                        value={eduCode}
+                        onChange={e => setEduCode(e.target.value)}
+                        placeholder="123456"
+                        maxLength={6}
+                        className="w-full px-4 py-2.5 rounded-xl border text-center text-xl font-bold tracking-[0.2em] focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                        style={{ background: dm ? '#111111' : 'white', color: dm ? '#f3f4f6' : '#111827', borderColor: dm ? '#262626' : '#e5e7eb' }}
+                      />
+                      {eduError && <p className="text-xs text-red-500">{eduError}</p>}
+                      <button
+                        disabled={eduCode.length !== 6 || eduLoading}
+                        onClick={async () => {
+                          setEduLoading(true);
+                          setEduError('');
+                          try {
+                            const sb = getSupabase();
+                            const { data: { session } } = await sb.auth.getSession();
+                            const res = await fetch('/api/verify-edu', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${session?.access_token || ''}`,
+                              },
+                              body: JSON.stringify({ action: 'verify', code: eduCode, account_type: 'consumer' }),
+                            });
+                            const d = await res.json();
+                            if (!res.ok) {
+                              setEduError(d.error || 'Wrong code');
+                            } else {
+                              setEduVerified(true);
+                              setShowEduBanner(false);
+                              setEduStep('done');
+                              setShowEduModal(false);
+                              if (typeof window !== 'undefined') localStorage.removeItem('sm_home_edu_banner_dismissed');
+                            }
+                          } catch {
+                            setEduError('Network error');
+                          } finally {
+                            setEduLoading(false);
+                          }
+                        }}
+                        className="w-full py-2.5 rounded-xl text-sm font-bold text-white"
+                        style={{ background: eduCode.length === 6 ? '#007e6d' : (dm ? '#2c2c2e' : '#e5e7eb'), color: eduCode.length === 6 ? 'white' : (dm ? '#6b7280' : '#9ca3af') }}
+                      >
+                        {eduLoading ? 'Verifying…' : 'Verify Code'}
+                      </button>
+                      <button onClick={() => { setEduStep('email'); setEduCode(''); setEduError(''); }} className="w-full text-xs text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>← Use a different email</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 )}
 {activeBiz && <BusinessProfile biz={activeBiz} onClose={() => setActiveBiz(null)} />}
       {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
       {/* Floating feedback button */}
       <button onClick={() => setShowFeedback(true)}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+88px)] md:bottom-6 right-4 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+118px)] left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:bottom-8 right-4 md:right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
         style={{ background: '#0F766E', color: 'white' }}>
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />

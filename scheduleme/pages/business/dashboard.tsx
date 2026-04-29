@@ -1064,6 +1064,7 @@ const BusinessDashboard: NextPage = () => {
   const [completeProofUploading, setCompleteProofUploading] = useState(false);
   const [actionDone, setActionDone] = useState<{ title: string; message: string } | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [routeLoaderMessage, setRouteLoaderMessage] = useState<string | null>(null);
   const didAutoTabRef = useRef(false);
 
   function showToast(msg: string, ok: boolean) {
@@ -2350,6 +2351,11 @@ const BusinessDashboard: NextPage = () => {
           <BrandRouteLoader audience="provider" message="Signing out..." />
         </div>
       )}
+      {routeLoaderMessage && (
+        <div className="fixed inset-0 z-[9999]">
+          <BrandRouteLoader audience="provider" message={routeLoaderMessage} />
+        </div>
+      )}
       {showTour && tour && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
           <div className="w-full max-w-md rounded-3xl p-6 shadow-2xl" style={{ background: dm ? '#0f1115' : 'white', border: `1px solid ${dm ? '#1f2937' : '#e5e7eb'}` }}>
@@ -2471,10 +2477,17 @@ const BusinessDashboard: NextPage = () => {
               </button>
             </div>
             <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Quick Links</p>
-            <Link href="/provider" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+            <button
+              type="button"
+              onClick={() => {
+                setRouteLoaderMessage('Opening provider landing page...');
+                router.push('/provider');
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+            >
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" /></svg>
               Provider landing page
-            </Link>
+            </button>
             <Link href="/home" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
               Open consumer app
@@ -2625,9 +2638,9 @@ const BusinessDashboard: NextPage = () => {
                   <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Want to be affiliated with your campus?</p>
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
-                  <button onClick={() => setCampusAffilDismissed(true)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
+                <div className="self-center flex items-center gap-2">
+                  <button onClick={() => setShowCampusModal(true)} className="h-9 px-4 rounded-xl text-xs font-semibold flex items-center justify-center" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
+                  <button onClick={() => setCampusAffilDismissed(true)} className="h-9 w-9 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
                 </div>
               </div>
             )}
@@ -2805,7 +2818,7 @@ const BusinessDashboard: NextPage = () => {
                               { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and contact details.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
-                              { key: 'stripe', label: 'Automated payouts enabled', hint: 'Optional for launch. Manual payouts to your saved Zelle details only cover the first 3 paid bookings, then Stripe is required.' },
+                              { key: 'stripe', label: 'Payout settings ready', hint: 'Optional for launch. Your first 3 paid bookings can be released manually to your saved Zelle details, then Stripe becomes required.' },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
                               return (
@@ -2821,7 +2834,7 @@ const BusinessDashboard: NextPage = () => {
                                     <div>
                                       <p className="font-semibold" style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</p>
                                       <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : '#9a3412' }}>{item.hint}</p>
-                                      {!ok && <p className="mt-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: '#d97706' }}>Open section →</p>}
+                                      {!ok && <p className="mt-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: '#9a3412' }}>Open section →</p>}
                                     </div>
                                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : 'rgba(154,52,18,0.10)', color: ok ? '#166534' : '#9a3412' }}>
                                       {ok ? 'Done' : 'Needed'}
@@ -4124,8 +4137,8 @@ const BusinessDashboard: NextPage = () => {
                 </div>
                 <div className="space-y-5">
                   <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
-                    <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
-                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Stripe is connected. Automated payouts are live.' : 'Step 1/2: Accept bookings now. Connect Stripe later for automated payouts.'}</p>
+                    <h2 className="text-sm font-bold text-neutral-900 mb-2">Payout settings</h2>
+                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Stripe is connected, so ScheduleMe can release payouts automatically.' : 'Accept paid bookings now. For your first 3 paid bookings, ScheduleMe can release payouts manually to the Zelle details saved in Settings.'}</p>
                     {business?.stripe_onboarded ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
@@ -4152,7 +4165,7 @@ const BusinessDashboard: NextPage = () => {
                     ) : (
                       <div className="space-y-3">
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] leading-5 text-amber-900">
-                          Customers can still pay now. Until Stripe is connected, ScheduleMe holds the customer funds and pays you manually after completion using the Zelle details saved in Settings. This manual payout option only covers your first {manualPayoutLimit} paid bookings.
+                          Customers can still pay now. ScheduleMe will hold the funds securely, then release your first {manualPayoutLimit} payouts manually after the booking is completed and the dispute window clears.
                         </div>
                         <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-[12px] leading-5 text-neutral-700">
                           {manualPayoutsRemaining > 0
@@ -4698,17 +4711,17 @@ const BusinessDashboard: NextPage = () => {
       )}
       <style jsx global>{`
         .provider-dashboard-shell[data-provider-theme='light'] {
-          background: #f6f1e6 !important;
+          background: #f7f8f5 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] aside,
         .provider-dashboard-shell[data-provider-theme='light'] header {
-          background: #fffdf8 !important;
-          border-color: #e9dfd1 !important;
+          background: #ffffff !important;
+          border-color: #e5e7eb !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-white {
-          background-color: #fffdfa !important;
+          background-color: #ffffff !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-2xl,
@@ -4721,8 +4734,8 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card {
           position: relative;
           background:
-            linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,252,247,0.98) 100%) !important;
-          border-color: #e7dccd !important;
+            linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,252,251,0.98) 100%) !important;
+          border-color: #e5ebe7 !important;
           box-shadow:
             0 18px 46px rgba(63, 83, 74, 0.07),
             0 2px 10px rgba(63, 83, 74, 0.04) !important;
@@ -4731,8 +4744,8 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .provider-segment-shell {
           padding: 10px;
           border-radius: 22px;
-          background: rgba(255, 252, 247, 0.84);
-          border: 1px solid #e7dccd;
+          background: rgba(255, 255, 255, 0.84);
+          border: 1px solid #e5ebe7;
           box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
         }
 
@@ -4743,16 +4756,16 @@ const BusinessDashboard: NextPage = () => {
 
         .provider-dashboard-shell[data-provider-theme='light'] .provider-service-row:hover,
         .provider-dashboard-shell[data-provider-theme='light'] .provider-inline-row:hover {
-          background: rgba(246, 239, 228, 0.45);
+          background: rgba(243, 244, 246, 0.82);
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-100,
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-200 {
-          border-color: #ebe1d3 !important;
+          border-color: #e5e7eb !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-neutral-50 {
-          background-color: #f6efe4 !important;
+          background-color: #f4f6f4 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-900 {
@@ -4781,7 +4794,7 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] aside nav button:not(.bg-accent):hover,
         .provider-dashboard-shell[data-provider-theme='light'] aside a:hover,
         .provider-dashboard-shell[data-provider-theme='light'] aside button:hover {
-          background-color: #f4ede2 !important;
+          background-color: #f3f4f6 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-amber-50 {

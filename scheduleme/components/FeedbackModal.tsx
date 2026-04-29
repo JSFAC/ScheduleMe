@@ -36,10 +36,16 @@ export default function FeedbackModal({ onClose }: Props) {
   const inputBorder = dm ? '#262626' : '#e5e7eb';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-      <div className="w-full max-w-md rounded-3xl shadow-2xl animate-fade-up"
-        style={{ background: bg, border: `1px solid ${border}` }}>
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto px-4 py-6 sm:py-10"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-3xl shadow-2xl animate-fade-up"
+        style={{ background: bg, border: `1px solid ${border}` }}
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {done ? (
           <div className="p-8 text-center">

@@ -50,7 +50,7 @@ export default function BusinessNav() {
           </Link>
         </div>
 
-        <ul className="hidden md:flex items-center justify-center gap-1 flex-1" role="list">
+        <ul className="hidden md:flex items-center justify-center gap-1.5 flex-1" role="list">
           {[
             { label: 'Why Join', href: '/provider#why' },
             { label: 'How It Works', href: '/provider#how' },
@@ -58,31 +58,31 @@ export default function BusinessNav() {
             { label: 'FAQ', href: '/provider#faq' },
           ].map((link) => (
             <li key={link.href}>
-              <Link href={link.href} className="px-4 py-2 text-sm text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors">
+              <Link href={link.href} className="px-4 py-2 text-sm text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-full transition-colors">
                 {link.label}
               </Link>
             </li>
           ))}
         </ul>
 
-        <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3">
-          <Link href="/" className="hidden md:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
+        <div className="flex-1 flex items-center justify-end gap-2.5 sm:gap-3">
+          <Link href="/" className="hidden md:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors pr-1">
             Consumer site →
           </Link>
           {status === 'logged_out' || status === 'loading' ? (
             <>
               <Link
                 href="/signin?mode=login&intent=provider"
-                className="text-[11px] sm:text-sm font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors whitespace-nowrap"
+                className="text-[11px] sm:text-sm font-semibold px-4 sm:px-5 py-2 rounded-full bg-neutral-800 text-neutral-200 hover:bg-neutral-700 border border-neutral-700 transition-colors whitespace-nowrap"
               >
                 Log In
               </Link>
-              <Link href="/signin?mode=signup&intent=provider" className="btn-primary text-[11px] sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 whitespace-nowrap">
+              <Link href="/signin?mode=signup&intent=provider" className="btn-primary rounded-full text-[11px] sm:text-sm px-5 sm:px-6 py-2.5 whitespace-nowrap">
                 Create Account
               </Link>
             </>
           ) : status === 'provider' ? (
-            <Link href="/provider/dashboard" className="btn-primary text-[11px] sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 whitespace-nowrap">
+            <Link href="/provider/dashboard" className="btn-primary rounded-full text-[11px] sm:text-sm px-5 sm:px-6 py-2.5 whitespace-nowrap">
               Provider Hub
             </Link>
           ) : (
@@ -90,7 +90,7 @@ export default function BusinessNav() {
               type="button"
               onClick={handleBecomeProvider}
               disabled={loading}
-              className="btn-primary text-[11px] sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 whitespace-nowrap disabled:opacity-60"
+              className="btn-primary rounded-full text-[11px] sm:text-sm px-5 sm:px-6 py-2.5 whitespace-nowrap disabled:opacity-60"
             >
               {loading ? 'Opening…' : 'Become a Provider'}
             </button>

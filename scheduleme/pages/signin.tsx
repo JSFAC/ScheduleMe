@@ -398,7 +398,7 @@ const SignIn: NextPage = () => {
     <>
       <Head>
         <title>{tab === 'login' ? 'Log In' : 'Sign Up'} — ScheduleMe</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content={providerIntent ? '#0a0a0a' : '#ffffff'} />
       </Head>
       {providerIntent ? <BusinessNav /> : <Nav />}

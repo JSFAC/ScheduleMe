@@ -50,6 +50,7 @@ const SignupPage: NextPage = () => {
           name="description"
           content="Use your ScheduleMe account to become a provider, create your draft, and finish setup in Provider Hub."
         />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#0a0a0a" />
       </Head>
       <BusinessNav />

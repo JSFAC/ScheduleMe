@@ -152,7 +152,7 @@ const Business: NextPage = () => {
       <Head>
         <title>ScheduleMe for Providers — Get More Customers, Zero Ad Spend</title>
         <meta name="description" content="Join ScheduleMe to get campus‑matched leads and manage bookings in one dashboard." />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#0a0a0a" />
       </Head>
 

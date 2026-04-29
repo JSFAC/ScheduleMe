@@ -392,7 +392,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
           WebkitBackdropFilter: navBlur,
           transition: 'background 0.15s ease',
         }}>
-      <nav className="mx-auto max-w-6xl px-6 flex items-center justify-between" style={{ height: "clamp(48px, 4vw, 60px)" }} aria-label="Main navigation">
+      <nav className="mx-auto max-w-6xl px-4 sm:px-6 flex items-center justify-between" style={{ height: "clamp(48px, 4vw, 60px)" }} aria-label="Main navigation">
 
         {/* Logo — left-anchored in flex-1 so center links never push it */}
         <div className="flex-1 flex items-center min-w-0">
@@ -463,7 +463,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 z-[200]">
-                  <div className="w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
+                  <div className="w-[min(22rem,calc(100vw-2rem))] sm:w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-neutral-50">
                       <p className="text-xs font-semibold text-neutral-700 truncate">{user.name}</p>
                       <p className="text-xs text-neutral-400 truncate">{user.email}</p>
@@ -521,7 +521,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 z-[200]">
-                  <div className="w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
+                  <div className="w-[min(22rem,calc(100vw-2rem))] sm:w-56 rounded-2xl bg-white border border-neutral-100 shadow-xl overflow-hidden">
                     <div className="p-1.5">
                       <Link href="/signin?mode=login" scroll={false} onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">

@@ -230,6 +230,7 @@ const BusinessLoginPage: NextPage = () => {
     <>
       <Head>
         <title>Provider Login — ScheduleMe for Providers</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#0a0a0a" />
       </Head>
       <BusinessNav />

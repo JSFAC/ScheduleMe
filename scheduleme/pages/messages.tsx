@@ -55,6 +55,7 @@ const MessagesPage: NextPage = () => {
   const router = useRouter();
   const { dm } = useDm();
   const [userId, setUserId] = useState<string | null>(null);
+  const [guestViewer, setGuestViewer] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
@@ -82,7 +83,12 @@ const MessagesPage: NextPage = () => {
     }
     supabaseRef.current = supabase;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.replace('/signin?next=/messages&shell=app'); return; }
+      if (!session) {
+        setGuestViewer(true);
+        setLoading(false);
+        setLoadingThreads(false);
+        return;
+      }
       setUserId(session.user.id);
       authHeadersRef.current = {
         'Content-Type': 'application/json',
@@ -234,7 +240,7 @@ const MessagesPage: NextPage = () => {
 
   const totalUnread = threads.reduce((s, t) => s + t.unreadCount, 0);
   const mobileThreadOpen = !!activeThread;
-  const lockPageScroll = !loading && threads.length > 0;
+  const lockPageScroll = !guestViewer && !loading && threads.length > 0;
   async function loadBlockState(thread: Thread | null) {
     if (!thread?.business_id || !userId) {
       setBlockedByUser(false);
@@ -371,7 +377,37 @@ const MessagesPage: NextPage = () => {
         </div>
 
         <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${mobileThreadOpen ? 'py-2 sm:py-6' : 'py-4 sm:py-6'} ${lockPageScroll ? 'h-full' : ''}`}>
-          {loading ? (
+          {guestViewer ? (
+            <div className="rounded-2xl border px-6 py-10 sm:px-8 sm:py-14 text-center" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.08)' }}>
+              <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center">
+                <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                </svg>
+              </div>
+              <h2 className="text-[1.9rem] font-black leading-tight" style={{ letterSpacing: '-0.03em', color: dm ? '#f3f4f6' : '#171717' }}>
+                Message pros after you sign up
+              </h2>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                Create an account to request services, chat with providers, and keep confirmations, updates, and proofs in one place.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Link href="/signin?mode=signup&next=%2Fmessages&shell=app" scroll={false} className="btn-primary px-6 py-3 text-sm">
+                  Create account
+                </Link>
+                <Link href="/signin?mode=login&next=%2Fmessages&shell=app" scroll={false} className="btn-secondary px-6 py-3 text-sm">
+                  Log in
+                </Link>
+              </div>
+              <div className="mt-8 rounded-2xl border px-5 py-5 text-left" style={{ background: dm ? '#111111' : '#f8fafc', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+                <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>What you unlock</p>
+                <ul className="mt-3 space-y-2 text-sm" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                  <li>Direct message threads with each provider</li>
+                  <li>Booking confirmations, completion updates, and proof photos</li>
+                  <li>One place to manage every request after you book</li>
+                </ul>
+              </div>
+            </div>
+          ) : loading ? (
             <div className="space-y-0">
               {Array.from({ length: 5 }).map((_, i) => <SkeletonThread key={i} dm={dm} />)}
             </div>
