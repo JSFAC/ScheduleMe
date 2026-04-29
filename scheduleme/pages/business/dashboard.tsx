@@ -413,7 +413,7 @@ function RevenueChart({ bookings, dm }: { bookings: Booking[]; dm: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
         <p className="text-[11px] font-medium" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>
           Each bar represents 1 completed week from the past 3 months.
         </p>
@@ -430,42 +430,44 @@ function RevenueChart({ bookings, dm }: { bookings: Booking[]; dm: boolean }) {
         </span>
       </div>
 
-      <div className="flex items-end justify-end gap-2 h-36">
-        {weekly.map((w, i) => {
-          const isHighest = i === highestIndex;
-          const isSelected = i === selectedIndex;
-          const hasRevenue = w.net > 0;
-          const opacity = isHighest ? 1 : hasRevenue ? 0.42 : 0.18;
-          return (
-            <button
-              key={`${w.label}-${i}`}
-              type="button"
-              onClick={() => setSelectedIndex(i)}
-              className="flex-1 flex flex-col items-center gap-2 group"
-              title={`${w.rangeLabel}: ${currency.format(w.net / 100)}`}
-            >
-              <div
-                className="w-full rounded-t-[12px] rounded-b-[4px] transition-all duration-200"
-                style={{
-                  height: Math.max((w.net / max) * 112, hasRevenue ? 10 : 3),
-                  background: '#007e6d',
-                  opacity: isSelected ? 1 : opacity,
-                  boxShadow: isSelected ? '0 8px 18px rgba(0,126,109,0.18)' : 'none',
-                  transform: isSelected ? 'translateY(-2px)' : 'none',
-                }}
-              />
-              <span
-                className="text-[10px] whitespace-nowrap transition-colors"
-                style={{ color: isSelected ? '#007e6d' : (dm ? '#8e8e93' : '#9ca3af'), fontWeight: isSelected ? 700 : 500 }}
+      <div className="-mx-2 overflow-x-auto pb-2 sm:mx-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex items-end justify-end gap-2 h-36 min-w-[34rem] px-2 sm:min-w-0 sm:px-0">
+          {weekly.map((w, i) => {
+            const isHighest = i === highestIndex;
+            const isSelected = i === selectedIndex;
+            const hasRevenue = w.net > 0;
+            const opacity = isHighest ? 1 : hasRevenue ? 0.42 : 0.18;
+            return (
+              <button
+                key={`${w.label}-${i}`}
+                type="button"
+                onClick={() => setSelectedIndex(i)}
+                className="flex-1 flex flex-col items-center gap-2 group min-w-[2.4rem]"
+                title={`${w.rangeLabel}: ${currency.format(w.net / 100)}`}
               >
-                {w.label}
-              </span>
-            </button>
-          );
-        })}
+                <div
+                  className="w-full rounded-t-[12px] rounded-b-[4px] transition-all duration-200"
+                  style={{
+                    height: Math.max((w.net / max) * 112, hasRevenue ? 10 : 3),
+                    background: '#007e6d',
+                    opacity: isSelected ? 1 : opacity,
+                    boxShadow: isSelected ? '0 8px 18px rgba(0,126,109,0.18)' : 'none',
+                    transform: isSelected ? 'translateY(-2px)' : 'none',
+                  }}
+                />
+                <span
+                  className="text-[10px] whitespace-nowrap transition-colors"
+                  style={{ color: isSelected ? '#007e6d' : (dm ? '#8e8e93' : '#9ca3af'), fontWeight: isSelected ? 700 : 500 }}
+                >
+                  {w.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 pt-1">
         <p className="text-[11px]" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>
           Highest-revenue week is fully opaque. Click a bar to inspect that week.
         </p>
@@ -487,44 +489,42 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 }
 
 
-// ─── Floating Action Button nav for mobile ────────────────────────────────────
-function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
-  tab: TabId; setTab: (t: TabId) => void;
-  pendingCount: number; totalUnreadMsgs: number; dm: boolean;
+// ─── Fixed mobile top-nav menu ────────────────────────────────────────────────
+function MobileTopMenu({
+  tab,
+  onSelectTab,
+  onOpenProviderPage,
+  onOpenConsumerApp,
+  onSignOut,
+  pendingCount,
+  totalUnreadMsgs,
+  dm,
+}: {
+  tab: TabId;
+  onSelectTab: (t: TabId) => void;
+  onOpenProviderPage: () => void;
+  onOpenConsumerApp: () => void;
+  onSignOut: () => void;
+  pendingCount: number;
+  totalUnreadMsgs: number;
+  dm: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [viewport, setViewport] = useState({ w: 1200, h: 900 });
-  const [pos, setPos] = useState({ x: 16, y: 120 });
-  const dragging = useRef(false);
-  const dragStart = useRef({ mx: 0, my: 0, bx: 0, by: 0 });
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const syncViewport = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
-    syncViewport();
-    window.addEventListener('resize', syncViewport);
-    return () => window.removeEventListener('resize', syncViewport);
-  }, []);
-
-  function onPointerDown(e: React.PointerEvent) {
-    dragging.current = false;
-    dragStart.current = { mx: e.clientX, my: e.clientY, bx: pos.x, by: pos.y };
-    (e.target as Element).setPointerCapture(e.pointerId);
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    const dx = e.clientX - dragStart.current.mx;
-    const dy = e.clientY - dragStart.current.my;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragging.current = true;
-    if (dragging.current) {
-      setPos({
-        x: Math.max(8, Math.min(viewport.w - 56, dragStart.current.bx + dx)),
-        y: Math.max(80, Math.min(viewport.h - 160, dragStart.current.by + dy)),
-      });
-    }
-  }
-  function onPointerUp() {
-    if (!dragging.current) setOpen(o => !o);
-  }
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (menuRef.current && target && !menuRef.current.contains(target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+    };
+  }, [open]);
 
   const navItems = [
     { id: 'overview' as TabId, label: 'Overview', icon: 'M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5' },
@@ -535,22 +535,26 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
     { id: 'settings' as TabId, label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   ];
 
+  const notificationCount = pendingCount + totalUnreadMsgs;
+
   return (
-    <div className="lg:hidden" style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999 }}>
-      {/* Dropdown menu */}
+    <div className="relative lg:hidden" ref={menuRef}>
       {open && (
-        <div className="absolute w-52 rounded-2xl shadow-2xl overflow-hidden"
+        <div
+          className="absolute right-0 top-full mt-2 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl shadow-2xl overflow-hidden"
           style={{
             background: dm ? '#171717' : 'white',
             border: `1px solid ${dm ? '#262626' : '#e5e7eb'}`,
-            ...(pos.y > viewport.h / 2 ? { bottom: '100%', marginBottom: 8 } : { top: '100%', marginTop: 8 }),
-            ...(pos.x > viewport.w / 2 ? { right: 0 } : { left: 0 }),
             animation: 'fadeUp 0.2s ease forwards',
-          }}>
+          }}
+        >
           {navItems.map(item => (
-            <button key={item.id} onClick={() => { setTab(item.id); setOpen(false); }}
+            <button
+              key={item.id}
+              onClick={() => { onSelectTab(item.id); setOpen(false); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors"
-              style={{ background: tab === item.id ? (dm ? 'rgba(10,132,255,0.15)' : '#EBF4FF') : 'transparent', color: tab === item.id ? '#007e6d' : (dm ? '#d1d5db' : '#374151') }}>
+              style={{ background: tab === item.id ? (dm ? 'rgba(0,126,109,0.18)' : '#EBF8F5') : 'transparent', color: tab === item.id ? '#007e6d' : (dm ? '#d1d5db' : '#374151') }}
+            >
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
               </svg>
@@ -564,24 +568,48 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
             </button>
           ))}
           <div style={{ height: 1, background: dm ? '#262626' : '#f0f0f0' }} />
-          <a href="/home"
+          <button
+            type="button"
+            onClick={() => { onOpenProviderPage(); setOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium"
-            style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+            style={{ color: dm ? '#9ca3af' : '#6b7280' }}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" />
+            </svg>
+            Provider landing page
+          </button>
+          <button
+            type="button"
+            onClick={() => { onOpenConsumerApp(); setOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium"
+            style={{ color: dm ? '#9ca3af' : '#6b7280' }}
+          >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" />
             </svg>
             Back to Consumer App
-          </a>
+          </button>
+          <button
+            type="button"
+            onClick={() => { onSignOut(); setOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium"
+            style={{ color: '#dc2626' }}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+            Sign out
+          </button>
         </div>
       )}
 
-      {/* FAB button */}
       <button
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        className="h-12 w-12 rounded-2xl shadow-lg flex items-center justify-center touch-none select-none"
-        style={{ background: open ? '#007e6d' : (dm ? '#171717' : 'white'), border: open ? '1px solid #007e6d' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="relative h-11 w-11 rounded-2xl shadow-sm flex items-center justify-center"
+        style={{ background: open ? '#007e6d' : (dm ? '#111111' : 'white'), border: open ? '1px solid #007e6d' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, outline: 'none', WebkitTapHighlightColor: 'transparent' }}
+      >
         {open ? (
           <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -592,10 +620,9 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
         )}
-        {/* Badge for pending items */}
-        {(pendingCount > 0 || totalUnreadMsgs > 0) && !open && (
+        {notificationCount > 0 && !open && (
           <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
-            {pendingCount + totalUnreadMsgs}
+            {notificationCount > 9 ? '9+' : notificationCount}
           </span>
         )}
       </button>
@@ -1003,14 +1030,14 @@ const BusinessDashboard: NextPage = () => {
 
   function jumpToPublishRequirement(section: 'coreProfile' | 'services' | 'media' | 'stripe') {
     if (section === 'services') {
-      setTab('services');
+      activateTab('services');
       return;
     }
     if (section === 'stripe') {
-      setTab('settings');
+      activateTab('settings');
       return;
     }
-    setTab('edit');
+    activateTab('edit');
     window.setTimeout(() => {
       sendPreviewAction('enter-edit');
       window.setTimeout(() => sendPreviewFocus(section), 180);
@@ -1145,6 +1172,12 @@ const BusinessDashboard: NextPage = () => {
   const [tourStep, setTourStep] = useState(0);
 
   const HOURS_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  function activateTab(next: TabId) {
+    setTab(next);
+    try {
+      window.history.replaceState(null, '', '#' + next);
+    } catch {}
+  }
   function hoursToMap(hours: any): Record<string, string> {
     if (!hours) return {};
     if (Array.isArray(hours)) {
@@ -1361,6 +1394,18 @@ const BusinessDashboard: NextPage = () => {
     } catch {}
     setShowTour(true);
   }, [business?.id]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const previousBackground = document.body.style.background;
+    const previousBackgroundImage = document.body.style.backgroundImage;
+    document.body.style.background = dm ? '#0a0a0a' : '#f7f8f5';
+    document.body.style.backgroundImage = 'none';
+    return () => {
+      document.body.style.background = previousBackground;
+      document.body.style.backgroundImage = previousBackgroundImage;
+    };
+  }, [dm]);
 
   useEffect(() => {
     if (!business) return;
@@ -2325,13 +2370,13 @@ const BusinessDashboard: NextPage = () => {
   const initials = (business?.name || 'B').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
   const activeCustomerId = activeMsgThread?.profiles?.id || activeMsgThread?.customer_id;
   const isCustomerBlocked = activeCustomerId ? !!blockedCustomers[activeCustomerId] : false;
-  const TOUR_STEPS = [
-    { title: 'Welcome to your dashboard', body: 'This is your provider HQ. Use the sidebar to switch between Overview, Bookings, Messages, and Settings.' },
-    { title: 'Bookings & calendar', body: 'Confirm or complete bookings here. The calendar tab helps you see upcoming work at a glance.' },
-    { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
-    { title: 'Settings & payouts', body: 'Save your Zelle details for manual payouts on your first 3 paid bookings, then connect Stripe to keep accepting payouts automatically.' },
-    { title: 'Visibility controls', body: 'In Settings, decide if you show on public browse/search or stay campus-only. You also control which details (name/photos) are visible to students vs the public, so set these before you share your listing.' },
-    { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Provider landing page link.' },
+  const TOUR_STEPS: Array<{ tab: TabId; title: string; body: string }> = [
+    { tab: 'overview', title: 'Overview at a glance', body: 'Start here to check your status, revenue, publish checklist, and recent bookings in one place.' },
+    { tab: 'bookings', title: 'Bookings workflow', body: 'Review incoming jobs, confirm or complete them, and keep your queue organized by status.' },
+    { tab: 'calendar', title: 'Calendar view', body: 'See upcoming work on a schedule so you can spot availability gaps and busy days faster.' },
+    { tab: 'messages', title: 'Customer messages', body: 'Keep each conversation, photo, and update tied to the right booking thread.' },
+    { tab: 'services', title: 'Services and pricing', body: 'Add or update your offers so students know exactly what they can book from you.' },
+    { tab: 'settings', title: 'Settings, visibility, and payouts', body: 'Finish visibility, campus verification, appearance, and payout setup before sharing your profile.' },
   ];
   const tour = TOUR_STEPS[tourStep];
 
@@ -2343,6 +2388,11 @@ const BusinessDashboard: NextPage = () => {
     }
     setShowTour(false);
   }
+
+  useEffect(() => {
+    if (!showTour || !tour) return;
+    activateTab(tour.tab);
+  }, [showTour, tourStep]);
 
   return (
     <>
@@ -2357,8 +2407,11 @@ const BusinessDashboard: NextPage = () => {
         </div>
       )}
       {showTour && tour && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
-          <div className="w-full max-w-md rounded-3xl p-6 shadow-2xl" style={{ background: dm ? '#0f1115' : 'white', border: `1px solid ${dm ? '#1f2937' : '#e5e7eb'}` }}>
+        <div className="fixed inset-x-0 top-0 z-[9999] px-4 pt-[calc(env(safe-area-inset-top,0px)+5rem)] sm:px-6 sm:pt-6 pointer-events-none">
+          <div
+            className="mx-auto w-full max-w-lg rounded-[28px] p-5 shadow-2xl pointer-events-auto"
+            style={{ background: dm ? '#0f1115' : 'white', border: `1px solid ${dm ? '#1f2937' : '#dbe3df'}` }}
+          >
             <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2" style={{ color: dm ? 'rgba(255,255,255,0.4)' : '#94a3b8' }}>
               Step {tourStep + 1} of {TOUR_STEPS.length}
             </p>
@@ -2434,12 +2487,7 @@ const BusinessDashboard: NextPage = () => {
           </div>
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {NAV.map(item => (
-              <button key={item.id} onClick={() => {
-                setTab(item.id);
-                try {
-                  window.history.replaceState(null, '', '#' + item.id);
-                } catch {}
-              }}
+              <button key={item.id} onClick={() => activateTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left ${tab === item.id ? 'bg-accent text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={tab === item.id ? 2.5 : 1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.d} />
@@ -2455,27 +2503,6 @@ const BusinessDashboard: NextPage = () => {
             ))}
           </nav>
           <div className="px-3 py-4 border-t border-neutral-100 space-y-3">
-            <div className="px-3">
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                aria-label="Toggle dark mode"
-                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors"
-              >
-                <span className="text-sm font-semibold text-neutral-700">{dm ? 'Dark mode' : 'Light mode'}</span>
-                <div className="flex items-center gap-1.5">
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
-                    {dm
-                      ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                      : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                    }
-                  </svg>
-                  <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
-                    <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
-                  </div>
-                </div>
-              </button>
-            </div>
             <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Quick Links</p>
             <button
               type="button"
@@ -2500,49 +2527,33 @@ const BusinessDashboard: NextPage = () => {
         </aside>
 
         <div className="flex-1 lg:ml-60 flex flex-col min-h-screen pb-20 lg:pb-0">
-          {/* Mobile topbar — just the business name */}
+          {/* Mobile topbar */}
           <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20"
             style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
             <div className="w-full flex items-center justify-between gap-3">
-              <span className="text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                aria-label="Toggle dark mode"
-                className="flex items-center gap-1.5 px-2 py-1 rounded-full border transition-colors"
-                style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#fff' }}
-              >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#d1fae5' : '#525252' }}>
-                  {dm
-                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                    : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                  }
-                </svg>
-                <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
-                  <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
-                </div>
-              </button>
+              <div className="min-w-0">
+                <span className="block text-base font-black truncate" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
+                <span className="block text-[11px] mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{NAV.find(n => n.id === tab)?.label}</span>
+              </div>
+              <MobileTopMenu
+                tab={tab}
+                onSelectTab={activateTab}
+                onOpenProviderPage={() => {
+                  setRouteLoaderMessage('Opening provider landing page...');
+                  router.push('/provider');
+                }}
+                onOpenConsumerApp={() => router.push('/home')}
+                onSignOut={handleSignOut}
+                pendingCount={pendingCount}
+                totalUnreadMsgs={totalUnreadMsgs}
+                dm={dm}
+              />
             </div>
           </header>
 
-          {/* Mobile bottom tab bar */}
-          {/* Mobile FAB — floating draggable nav button */}
-          <MobileFAB
-            tab={tab}
-            setTab={(t) => {
-              setTab(t);
-              try {
-                window.history.replaceState(null, '', '#' + t);
-              } catch {}
-            }}
-            pendingCount={pendingCount}
-            totalUnreadMsgs={totalUnreadMsgs}
-            dm={dm}
-          />
-
                     {/* Stripe banner */}
           {business && tab === 'overview' && !business.stripe_onboarded && (
-            <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+            <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-3">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
                 <div className="flex flex-col gap-1 text-sm max-w-3xl">
                   <div className="flex items-center gap-2.5">
@@ -2569,13 +2580,13 @@ const BusinessDashboard: NextPage = () => {
             </div>
           )}
           {business && tab === 'overview' && business.stripe_onboarded && stripeSuccess && (
-            <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3">
+            <div className="bg-emerald-50 border-b border-emerald-200 px-4 sm:px-6 py-3">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
                 <div className="flex items-center gap-2.5 text-sm">
                   <svg className="h-4 w-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   <span className="text-emerald-800 font-semibold">Step 2/2: Your profile is live.</span>
                 </div>
-                <button onClick={() => setTab('bookings')} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                <button onClick={() => activateTab('bookings')} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
                   See leads →
                 </button>
               </div>
@@ -2584,7 +2595,7 @@ const BusinessDashboard: NextPage = () => {
 
           {/* Campus verification banner */}
           {business?.school_domain && !business?.edu_verified && !campusBannerDismissed && (
-            <div className="rounded-2xl border p-4 relative" style={{ background: dm ? 'rgba(139,92,246,0.1)' : '#f5f3ff', borderColor: dm ? 'rgba(139,92,246,0.3)' : '#ddd6fe' }}>
+            <div className="mx-4 mt-4 sm:mx-6 rounded-2xl border p-4 relative" style={{ background: dm ? 'rgba(139,92,246,0.1)' : '#f5f3ff', borderColor: dm ? 'rgba(139,92,246,0.3)' : '#ddd6fe' }}>
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold mb-0.5" style={{ color: dm ? '#c4b5fd' : '#6d28d9' }}>
@@ -2595,7 +2606,7 @@ const BusinessDashboard: NextPage = () => {
                     You must use an @{business.school_domain} email address.
                   </p>
                   {!campusCodeSent ? (
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input type="email" placeholder={`you@${business.school_domain}`}
                         value={campusEduEmail} onChange={e => setCampusEduEmail(e.target.value)}
                         className="flex-1 px-3 py-2 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -2608,7 +2619,7 @@ const BusinessDashboard: NextPage = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input type="text" placeholder="6-digit code" maxLength={6}
                         value={campusCode} onChange={e => setCampusCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         className="flex-1 px-3 py-2 text-sm rounded-xl border text-center tracking-widest font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -2631,14 +2642,14 @@ const BusinessDashboard: NextPage = () => {
           )}
 
 
-          <main className="flex-1 px-6 py-7 max-w-[1320px] mx-auto w-full">
+          <main className="flex-1 px-4 sm:px-6 py-5 sm:py-7 max-w-[1320px] mx-auto w-full">
             {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (
-              <div className="rounded-2xl border px-5 py-4 flex items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
+              <div className="rounded-2xl border px-4 sm:px-5 py-4 flex flex-col sm:flex-row items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
                 <div>
                   <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Want to be affiliated with your campus?</p>
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
                 </div>
-                <div className="self-center flex items-center gap-2">
+                <div className="self-stretch sm:self-center flex items-center gap-2 w-full sm:w-auto">
                   <button onClick={() => setShowCampusModal(true)} className="h-9 px-4 rounded-xl text-xs font-semibold flex items-center justify-center" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
                   <button onClick={() => setCampusAffilDismissed(true)} className="h-9 w-9 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
                 </div>
@@ -2708,10 +2719,10 @@ const BusinessDashboard: NextPage = () => {
                   ];
                   return (
                     <div className="space-y-5">
-                      <div className="rounded-[28px] border bg-white p-6 shadow-[0_10px_30px_rgba(32,136,122,0.05)]">
+                      <div className="rounded-[28px] border bg-white p-5 sm:p-6 shadow-[0_10px_30px_rgba(32,136,122,0.05)]">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0">
-                            <h2 className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>
+                            <h2 className="text-[1.75rem] sm:text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>
                               {business?.name || 'Your business'}
                             </h2>
                             <p className="mt-2 max-w-xl text-sm text-neutral-500">
@@ -2751,20 +2762,20 @@ const BusinessDashboard: NextPage = () => {
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
                             <button
                               type="button"
                               onClick={() => {
-                                setTab('edit');
+                                activateTab('edit');
                               }}
-                              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+                              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 w-full sm:w-auto"
                             >
                               Edit Listing
                             </button>
                             <button
                               type="button"
-                              onClick={() => setTab('bookings')}
-                              className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white"
+                              onClick={() => activateTab('bookings')}
+                              className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white w-full sm:w-auto"
                             >
                               Open Bookings
                             </button>
@@ -2774,7 +2785,7 @@ const BusinessDashboard: NextPage = () => {
 
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {overviewMetrics.map((s) => (
-                          <div key={s.label} className="rounded-[24px] border bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
+                          <div key={s.label} className="rounded-[24px] border bg-white p-4 sm:p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
                             <div className="h-10 w-10 rounded-2xl flex items-center justify-center mb-4" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f3f8f6' }}>
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
@@ -2788,7 +2799,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
 
                       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.95fr]">
-                        <div className="rounded-[28px] border bg-white p-5">
+                        <div className="rounded-[28px] border bg-white p-4 sm:p-5 overflow-hidden">
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Revenue</h2>
@@ -2869,7 +2880,7 @@ const BusinessDashboard: NextPage = () => {
                 <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
                   <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
                     <h2 className="text-sm font-bold text-neutral-900">Recent Bookings</h2>
-                    <button onClick={() => setTab('bookings')} className="text-xs font-semibold text-accent hover:opacity-70 transition-opacity">View all →</button>
+                    <button onClick={() => activateTab('bookings')} className="text-xs font-semibold text-accent hover:opacity-70 transition-opacity">View all →</button>
                   </div>
                   {bookings.length === 0
                     ? <div className="px-5 py-10 text-center text-neutral-400 text-sm">No bookings yet.</div>
@@ -2897,7 +2908,7 @@ const BusinessDashboard: NextPage = () => {
                       Manage automated Stripe payouts or save Zelle details for manual payouts in Settings.
                     </p>
                   </div>
-                  <button type="button" onClick={() => setTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
+                  <button type="button" onClick={() => activateTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
                     Open Settings
                   </button>
                 </div>
@@ -3932,14 +3943,14 @@ const BusinessDashboard: NextPage = () => {
             {tab === 'settings' && (
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
                 <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 lg:col-span-2">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
                       <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
                         Provider cards appear across ScheduleMe by default. Use these controls to fine-tune how much of your identity is shown.
                       </p>
                     </div>
-                    <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                    <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto max-w-[11rem] text-center sm:text-left"
                       style={{ background: publicVisibility ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: publicVisibility ? '#059669' : '#b91c1c' }}>
                       {publicVisibility ? 'Visible on ScheduleMe' : 'Hidden from public browse'}
                     </div>
@@ -4011,6 +4022,31 @@ const BusinessDashboard: NextPage = () => {
                   </div>
                 </div>
                 <div className="space-y-5">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
+                    <h2 className="text-sm font-bold text-neutral-900 mb-2">Appearance</h2>
+                    <p className="text-xs text-neutral-500 mb-4">Choose how the provider dashboard looks on this device.</p>
+                    <button
+                      type="button"
+                      onClick={toggleDarkMode}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors"
+                    >
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-neutral-900">{dm ? 'Dark mode on' : 'Light mode on'}</p>
+                        <p className="text-[11px] text-neutral-500 mt-1">You can change this anytime from Settings.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
+                          {dm
+                            ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                            : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                          }
+                        </svg>
+                        <div className="relative h-5 w-10 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
+                          <div className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm" style={{ left: dm ? '21px' : '2px', transition: 'left 0.25s ease' }} />
+                        </div>
+                      </div>
+                    </button>
+                  </div>
                   <form onSubmit={handleSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
