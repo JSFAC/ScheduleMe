@@ -1422,7 +1422,7 @@ export default function BizPage() {
           <div className="relative" style={{ height: 450, background: bg }}>
             <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 6 }}>
               <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 800 }}>
-                {imgs[galleryIdx] && (
+                {imgs[galleryIdx] ? (
                   <img
                     src={imgs[galleryIdx]}
                     alt={biz?.name || 'Provider'}
@@ -1444,18 +1444,25 @@ export default function BizPage() {
                       else goPrevImage();
                     }}
                   />
-                )}
-                {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
+                ) : (
                   <div
-                    className="absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    className="w-full max-w-[760px] rounded-[28px] flex flex-col items-center justify-center gap-3"
                     style={{
-                      background: 'rgba(0,0,0,0.55)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.18)',
-                      backdropFilter: 'blur(6px)',
+                      minHeight: 320,
+                      background: dm ? 'rgba(16,16,16,0.95)' : '#edf1f5',
+                      border: '1px solid ' + (dm ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'),
+                      color: mu,
                     }}
                   >
-                    Founder50
+                    <div
+                      className="h-14 w-14 rounded-full flex items-center justify-center"
+                      style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }}
+                    >
+                      <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-semibold">No photos added</p>
                   </div>
                 )}
                 {imgs.length > 1 && (
@@ -1483,7 +1490,17 @@ export default function BizPage() {
               </div>
             </div>
             {!isPreview && (
-              <button onClick={()=>router.back()} className="absolute top-4 left-4 flex items-center justify-center rounded-full" style={{width:36,height:36,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(8px)'}}>
+              <button
+                onClick={()=>router.back()}
+                className="absolute left-4 flex items-center justify-center rounded-full z-20"
+                style={{
+                  top: 'calc(env(safe-area-inset-top, 0px) + 72px)',
+                  width: 36,
+                  height: 36,
+                  background: 'rgba(0,0,0,0.45)',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
               </button>
             )}
@@ -1519,6 +1536,18 @@ export default function BizPage() {
                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.19 3.66a1 1 0 00.95.69h3.848c.969 0 1.371 1.24.588 1.81l-3.113 2.262a1 1 0 00-.364 1.118l1.19 3.66c.3.922-.755 1.688-1.539 1.118L10 14.347l-3.111 2.26c-.784.57-1.838-.196-1.539-1.118l1.19-3.66a1 1 0 00-.364-1.118L3.063 9.087c-.783-.57-.38-1.81.588-1.81h3.848a1 1 0 00.95-.69l1.19-3.66z" />
                         </svg>
                         {parseFloat(biz.rating).toFixed(1)}
+                      </span>
+                    )}
+                    {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(31,41,55,0.08)',
+                          border: '1px solid ' + (dm ? 'rgba(255,255,255,0.12)' : 'rgba(31,41,55,0.16)'),
+                          color: dm ? '#f3f4f6' : '#374151',
+                        }}
+                      >
+                        Founder50
                       </span>
                     )}
                   </div>
@@ -1706,6 +1735,18 @@ export default function BizPage() {
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.19 3.66a1 1 0 00.95.69h3.848c.969 0 1.371 1.24.588 1.81l-3.113 2.262a1 1 0 00-.364 1.118l1.19 3.66c.3.922-.755 1.688-1.539 1.118L10 14.347l-3.111 2.26c-.784.57-1.838-.196-1.539-1.118l1.19-3.66a1 1 0 00-.364-1.118L3.063 9.087c-.783-.57-.38-1.81.588-1.81h3.848a1 1 0 00.95-.69l1.19-3.66z" />
                   </svg>
                   {parseFloat(biz.rating).toFixed(1)}
+                </span>
+              )}
+              {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
+                <span
+                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style={{
+                    background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(31,41,55,0.08)',
+                    border: '1px solid ' + (dm ? 'rgba(255,255,255,0.12)' : 'rgba(31,41,55,0.16)'),
+                    color: dm ? '#f3f4f6' : '#374151',
+                  }}
+                >
+                  Founder50
                 </span>
               )}
             </div>

@@ -122,19 +122,6 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
     setTimeout(() => { setThinking(false); onSubmit(q.trim()); }, 380);
   }
 
-  // Non-passive wheel on chips row
-  useEffect(() => {
-    const el = chipsRef.current;
-    if (!el) return;
-    function onWheel(e: WheelEvent) {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      e.preventDefault();
-      el!.scrollLeft += e.deltaY * 1.2;
-    }
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, []);
-
   function onChipsMouseDown(e: React.MouseEvent) {
     chipsDragRef.current = { active: true, startX: e.pageX - chipsRef.current!.offsetLeft, scrollLeft: chipsRef.current!.scrollLeft };
     if (chipsRef.current) chipsRef.current.style.cursor = 'grabbing';
@@ -202,7 +189,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           onMouseUp={onChipsMouseUp}
           onMouseLeave={onChipsMouseUp}
           className="flex gap-2 overflow-x-auto pb-0.5 select-none"
-          style={{ scrollbarWidth: 'none', cursor: 'grab' }}
+          style={{ scrollbarWidth: 'none', cursor: 'grab', touchAction: 'pan-y' }}
         >
           <span className="shrink-0 w-1 block" />
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
@@ -329,21 +316,6 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   }, [businesses]);
 
-  // Non-passive wheel listener — prevents page scroll while hovering the scroll row
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    function onWheel(e: WheelEvent) {
-      // Only intercept if cursor is in the card zone (not over the curtain margins)
-      // The curtains have pointer-events:none so this fires only over cards
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      e.preventDefault();
-      el!.scrollLeft += e.deltaY * 1.4;
-    }
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, []);
-
   function onMouseDown(e: React.MouseEvent) {
     dragRef.current = { active: true, startX: e.pageX - scrollRef.current!.offsetLeft, scrollLeft: scrollRef.current!.scrollLeft };
     if (scrollRef.current) scrollRef.current.style.cursor = 'grabbing';
@@ -397,6 +369,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
             paddingLeft: edgePad,
             paddingRight: edgePad,
             cursor: 'grab',
+            touchAction: 'pan-y',
           } as React.CSSProperties}
         >
           {isLoading
@@ -740,7 +713,7 @@ const HomePage: NextPage = () => {
 
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
-          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center' }}>
+          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center', touchAction: 'pan-y' }}>
             {categoryQuickLinks.map(cat => (
               <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"

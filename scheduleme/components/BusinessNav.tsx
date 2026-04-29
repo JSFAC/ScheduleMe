@@ -38,8 +38,8 @@ export default function BusinessNav() {
         className="fixed left-0 right-0 z-50 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800"
         style={{ top: 'env(safe-area-inset-top, 0px)' }}
       >
-      <nav className="mx-auto max-w-6xl px-4 sm:px-6 flex items-center justify-between" style={{ height: 'clamp(56px, 10vw, 72px)' }} aria-label="Provider navigation">
-        <div className="flex-1 flex items-center min-w-0">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 flex items-center justify-between gap-4" style={{ height: 'clamp(56px, 10vw, 72px)' }} aria-label="Provider navigation">
+        <div className="flex items-center min-w-0 shrink-0">
           <Link href="/provider" className="group flex flex-col leading-none" aria-label="ScheduleMe for Providers">
             <span className="text-xl font-black text-white transition-opacity group-hover:opacity-70" style={{ letterSpacing: '-0.03em' }}>
               ScheduleMe
@@ -50,7 +50,7 @@ export default function BusinessNav() {
           </Link>
         </div>
 
-        <ul className="hidden md:flex items-center justify-center gap-1.5 flex-1" role="list">
+        <ul className="hidden xl:flex items-center justify-center gap-1.5 min-w-0 flex-1" role="list">
           {[
             { label: 'Why Join', href: '/provider#why' },
             { label: 'How It Works', href: '/provider#how' },
@@ -65,8 +65,8 @@ export default function BusinessNav() {
           ))}
         </ul>
 
-        <div className="flex-1 flex items-center justify-end gap-2.5 sm:gap-3">
-          <Link href="/" className="hidden md:block text-sm text-neutral-400 hover:text-neutral-200 transition-colors pr-1">
+        <div className="flex items-center justify-end gap-2.5 sm:gap-3 shrink-0 ml-auto">
+          <Link href="/" className="hidden lg:inline-flex text-sm text-neutral-400 hover:text-neutral-200 transition-colors whitespace-nowrap">
             Consumer site →
           </Link>
           {status === 'logged_out' || status === 'loading' ? (

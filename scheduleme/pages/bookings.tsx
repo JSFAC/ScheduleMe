@@ -1501,7 +1501,7 @@ const BookingsPage: NextPage = () => {
                 See all →
               </Link>
             </div>
-            <div className="flex gap-3 overflow-x-auto px-5 pb-5 pt-3" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex gap-3 overflow-x-auto px-5 pb-5 pt-3" style={{ scrollbarWidth: 'none', touchAction: 'pan-y' }}>
               {nearbyLoading
                 ? Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="animate-shimmer rounded-xl flex-shrink-0" style={{ width: 200, height: 180 }} />
