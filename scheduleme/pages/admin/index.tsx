@@ -40,6 +40,43 @@ interface ChangeRequest {
   businesses?: { name?: string; owner_email?: string; owner_name?: string } | null;
 }
 
+interface InsightPayload {
+  headline: {
+    weeklyHaircutBookings: number;
+    monthlyHaircutGmvCents: number;
+    activeBarbersThisWeek: number;
+    averageTakeRatePct: number;
+    averageContributionMarginCents: number;
+  };
+  repeat: {
+    within30dPct: number;
+    within60dPct: number;
+    within90dPct: number;
+    cohorts: {
+      within30d: number;
+      within60d: number;
+      within90d: number;
+    };
+  };
+  retention: {
+    activeProvidersThisMonth: number;
+    activeProvidersLastMonth: number;
+    retainedFromLastMonth: number;
+    providerRetentionMoMPct: number;
+  };
+  trackingGaps: Array<{
+    key: string;
+    label: string;
+    available: boolean;
+    note: string;
+  }>;
+  notes: {
+    haircutDefinition: string;
+    contributionMargin: string;
+    monthlyHaircutGmvDollars: number;
+  };
+}
+
 interface SecurityEvent {
   id: string;
   created_at: string;
@@ -180,6 +217,14 @@ function shiftMonth(key: string, delta: number) {
 function readableMonth(key: string) {
   const [year, month] = key.split('-').map((n) => Number(n));
   return new Date(Date.UTC(year, (month || 1) - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function formatCurrency(cents: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(cents || 0)) / 100);
+}
+
+function formatPercent(value: number) {
+  return `${Number(value || 0).toFixed(1)}%`;
 }
 
 function SecurityVolumeChart({ points }: { points: SecuritySeriesPoint[] }) {
@@ -354,10 +399,12 @@ const AdminPage: NextPage = () => {
   const [errorSignalFilter, setErrorSignalFilter] = useState<'all' | 'open' | 'investigating' | 'resolved' | 'muted' | 'critical' | 'error' | 'warning' | 'info' | 'client' | 'server'>('all');
   const [issueStatusDrafts, setIssueStatusDrafts] = useState<Record<string, string>>({});
   const [updatingIssueId, setUpdatingIssueId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'businesses' | 'requests'>('businesses');
+  const [activeTab, setActiveTab] = useState<'businesses' | 'requests' | 'insight'>('businesses');
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestFilter, setRequestFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [insight, setInsight] = useState<InsightPayload | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
 
   function normalizeCampusKey(name?: string | null): string | null {
     if (!name) return null;
@@ -569,6 +616,29 @@ const AdminPage: NextPage = () => {
     }
   }, []);
 
+  const loadInsight = useCallback(async (token: string) => {
+    setInsightLoading(true);
+    try {
+      const res = await fetch('/api/admin-insights', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401 || res.status === 403) {
+        setAuthed(false);
+        setAuthToken('');
+        setAdminVerified(false);
+        setInsightLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setInsight(data.insight ?? null);
+      setAuthed(true);
+    } catch {
+      showToast('Failed to load insight metrics', false);
+    } finally {
+      setInsightLoading(false);
+    }
+  }, []);
+
   const loadCampusOptions = useCallback(async (token: string) => {
     try {
       const res = await fetch('/api/admin-businesses', { headers: { Authorization: `Bearer ${token}` } });
@@ -749,6 +819,7 @@ const AdminPage: NextPage = () => {
     await loadSecurityEvents(authToken);
     await loadErrorIssues(authToken);
     await loadRequests(authToken);
+    await loadInsight(authToken);
   }
 
   useEffect(() => {
@@ -2079,16 +2150,17 @@ const AdminPage: NextPage = () => {
           </div>
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <div className="flex gap-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1 w-fit">
-              {(['businesses', 'requests'] as const).map(tab => (
+              {(['businesses', 'requests', 'insight'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => {
                     setActiveTab(tab);
                     if (tab === 'requests' && authToken) loadRequests(authToken);
+                    if (tab === 'insight' && authToken) loadInsight(authToken);
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${activeTab === tab ? 'bg-neutral-700 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
                 >
-                  {tab === 'businesses' ? 'New providers' : 'Edit requests'}
+                  {tab === 'businesses' ? 'New providers' : tab === 'requests' ? 'Edit requests' : 'Insight'}
                   {tab === 'requests' && pendingRequests > 0 && (
                     <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingRequests}</span>
                   )}
@@ -2145,6 +2217,117 @@ const AdminPage: NextPage = () => {
               <div className="relative h-10 w-10">
                 <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
                 <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+              </div>
+            </div>
+          ) : activeTab === 'insight' && insightLoading ? (
+            <div className="flex justify-center py-20">
+              <div className="relative h-10 w-10">
+                <div className="absolute inset-0 rounded-full border-2 border-accent/20" />
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
+              </div>
+            </div>
+          ) : activeTab === 'insight' && !insight ? (
+            <div className="text-center py-20 text-neutral-500">
+              <p className="text-3xl mb-3">📉</p>
+              <p>No insight metrics available yet</p>
+            </div>
+          ) : activeTab === 'insight' ? (
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                {[
+                  { label: 'Weekly haircut bookings', value: String(insight.headline.weeklyHaircutBookings), note: 'Last 7 days' },
+                  { label: 'Monthly haircut GMV', value: formatCurrency(insight.headline.monthlyHaircutGmvCents), note: 'Current month' },
+                  { label: 'Active barbers', value: String(insight.headline.activeBarbersThisWeek), note: 'At least 1 booking this week' },
+                  { label: 'Avg take rate', value: formatPercent(insight.headline.averageTakeRatePct), note: 'Platform fee + protection fee' },
+                  { label: 'Contribution margin / booking', value: formatCurrency(insight.headline.averageContributionMarginCents), note: 'Current proxy' },
+                ].map((card) => (
+                  <div key={card.label} className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+                    <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">{card.label}</p>
+                    <p className="mt-3 text-3xl font-bold text-white">{card.value}</p>
+                    <p className="mt-2 text-sm text-neutral-400">{card.note}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-[1.2fr_0.9fr]">
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+                  <div className="flex items-center justify-between gap-4 mb-5">
+                    <div>
+                      <h2 className="text-lg font-bold text-white">Repeat booking rate</h2>
+                      <p className="text-sm text-neutral-400">Measured from each customer&apos;s first paid booking.</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {[
+                      { label: '30 days', value: insight.repeat.within30dPct, cohort: insight.repeat.cohorts.within30d },
+                      { label: '60 days', value: insight.repeat.within60dPct, cohort: insight.repeat.cohorts.within60d },
+                      { label: '90 days', value: insight.repeat.within90dPct, cohort: insight.repeat.cohorts.within90d },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                        <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">{item.label}</p>
+                        <p className="mt-2 text-2xl font-bold text-white">{formatPercent(item.value)}</p>
+                        <p className="mt-1 text-sm text-neutral-400">Eligible cohort: {item.cohort}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+                  <h2 className="text-lg font-bold text-white">Provider retention MoM</h2>
+                  <p className="mt-1 text-sm text-neutral-400">Providers with at least one paid booking last month who also booked this month.</p>
+                  <div className="mt-5 grid gap-3">
+                    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">Retention</p>
+                      <p className="mt-2 text-3xl font-bold text-white">{formatPercent(insight.retention.providerRetentionMoMPct)}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                        <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">Last month active</p>
+                        <p className="mt-2 text-2xl font-bold text-white">{insight.retention.activeProvidersLastMonth}</p>
+                      </div>
+                      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                        <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">This month active</p>
+                        <p className="mt-2 text-2xl font-bold text-white">{insight.retention.activeProvidersThisMonth}</p>
+                      </div>
+                      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                        <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">Retained</p>
+                        <p className="mt-2 text-2xl font-bold text-white">{insight.retention.retainedFromLastMonth}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+                  <h2 className="text-lg font-bold text-white">Tracking gaps</h2>
+                  <p className="mt-1 text-sm text-neutral-400">These are worth tracking, but they need first-party instrumentation beyond the Stripe dashboard.</p>
+                  <div className="mt-5 space-y-3">
+                    {insight.trackingGaps.map((gap) => (
+                      <div key={gap.key} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="font-semibold text-amber-100">{gap.label}</p>
+                          <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300">Needs instrumentation</span>
+                        </div>
+                        <p className="mt-2 text-sm text-amber-100/80">{gap.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+                  <h2 className="text-lg font-bold text-white">Metric notes</h2>
+                  <div className="mt-4 space-y-4 text-sm text-neutral-300">
+                    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">Haircut definition</p>
+                      <p className="mt-2">{insight.notes.haircutDefinition}</p>
+                    </div>
+                    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">Contribution margin</p>
+                      <p className="mt-2">{insight.notes.contributionMargin}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : activeTab === 'businesses' && filtered.length === 0 ? (

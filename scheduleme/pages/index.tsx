@@ -242,7 +242,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               </p>
               <ul className="mt-6 space-y-2.5">
                 {[
-                  'AI triage of your issue',
+                  'Quick matching based on what you need',
                   'Instant matching with local pros',
                   'Real reviews and ratings',
                   'Direct contact with providers',
