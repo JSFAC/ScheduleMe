@@ -9,8 +9,8 @@ import { useRouter } from 'next/router';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import { useDm } from '../../lib/DarkModeContext';
 import { normalizeServiceTags, serviceTagToLabel } from '../../lib/categoryNormalization';
-import { getProviderVisibilitySettings } from '../../lib/providerTrust';
-import { deriveProviderPayoutStage, MANUAL_PAYOUT_BOOKING_THRESHOLD } from '../../lib/providerPayoutStage';
+import { formatCampusLabel, normalizeDomain } from '../../lib/providerMetadata';
+import { isProviderCampusNameVisible, isProviderPublicNameVisible, isProviderPublicPhotosVisible } from '../../lib/providerTrust';
 import BrandRouteLoader from '../../components/BrandRouteLoader';
 
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
@@ -25,9 +25,6 @@ interface Booking {
   id: string; service: string; status: string; created_at: string;
   scheduled_start?: string; scheduled_end?: string;
   amount_cents: number | null; paid_at: string | null;
-  funds_released_at?: string | null;
-  manual_payout_pending_at?: string | null;
-  consumer_confirmation_due_at?: string | null;
   user_id?: string;
   dispute_amount_cents?: number | null;
   dispute_note?: string | null;
@@ -44,11 +41,13 @@ interface Business {
   phone?: string; description?: string;
   stripe_account_id: string | null; stripe_onboarded: boolean;
   service_tags: string[]; address: string; rating: number | null; price_tier?: number | null; review_count?: number | null;
+  city?: string; zip?: string; lat?: number | null; lng?: number | null;
   slug?: string | null;
   hours?: any;
   availability_status?: string | null; break_until?: string | null;
   is_onboarded: boolean; website?: string; instagram?: string;
-  school_domain?: string | null; edu_verified?: boolean;
+  school_domain?: string | null; school_email?: string | null; edu_verified?: boolean;
+  campus_provider?: boolean; campus_key?: string | null; campus_school_name?: string | null;
   public_visibility?: boolean; public_show_name?: boolean; public_show_photos?: boolean; campus_show_name?: boolean;
 }
 
@@ -95,6 +94,10 @@ function normalizeBusiness(input: any): Business | null {
     stripe_onboarded: toBooleanSafe(input.stripe_onboarded),
     service_tags: toStringArray(input.service_tags),
     address: toStringSafe(input.address),
+    city: toStringSafe(input.city),
+    zip: toStringSafe(input.zip),
+    lat: input.lat == null ? null : toNumberSafe(input.lat, 0),
+    lng: input.lng == null ? null : toNumberSafe(input.lng, 0),
     rating: input.rating == null ? null : toNumberSafe(input.rating, 0),
     price_tier: input.price_tier == null ? undefined : toNumberSafe(input.price_tier, 0),
     review_count: input.review_count == null ? undefined : toNumberSafe(input.review_count, 0),
@@ -105,11 +108,15 @@ function normalizeBusiness(input: any): Business | null {
     website: toStringSafe(input.website),
     instagram: toStringSafe(input.instagram),
     school_domain: input.school_domain == null ? null : toStringSafe(input.school_domain),
+    school_email: input.school_email == null ? null : toStringSafe(input.school_email),
     edu_verified: toBooleanSafe(input.edu_verified),
+    campus_provider: toBooleanSafe(input.campus_provider),
+    campus_key: input.campus_key == null ? null : toStringSafe(input.campus_key),
+    campus_school_name: input.campus_school_name == null ? null : toStringSafe(input.campus_school_name),
     public_visibility: input.public_visibility === false ? false : true,
-    public_show_name: input.public_show_name === false ? false : true,
-    public_show_photos: input.public_show_photos === false ? false : true,
-    campus_show_name: input.campus_show_name === false ? false : true,
+    public_show_name: isProviderPublicNameVisible(input),
+    public_show_photos: isProviderPublicPhotosVisible(input),
+    campus_show_name: isProviderCampusNameVisible(input),
   };
 }
 
@@ -118,7 +125,6 @@ const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text:
   confirmed:       { label: 'Confirmed',       dot: 'bg-accent',      bg: 'bg-[#eef8f5]',  text: 'text-[#0f766e]',   border: 'border-[#bfe5db]' },
   price_disputed:  { label: 'Disputed',        dot: 'bg-rose-500',    bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
   paid:            { label: 'Paid',            dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  awaiting_consumer_confirmation: { label: 'Awaiting Confirmation', dot: 'bg-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
   payment_pending: { label: 'Price Pending',   dot: 'bg-[#0f766e]',   bg: 'bg-[#f5fbf8]',  text: 'text-[#0f766e]',   border: 'border-[#cfe7de]' },
   payment_failed:  { label: 'Pmt Failed',      dot: 'bg-red-500',     bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200' },
   completed:       { label: 'Completed',       dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
@@ -286,28 +292,6 @@ function downloadIcsBatch(filename: string, events: { title: string; details?: s
   URL.revokeObjectURL(url);
 }
 
-function formatCampusLabel(domain?: string | null) {
-  const value = String(domain || '').trim().toLowerCase();
-  if (!value) return '';
-  const known: Record<string, string> = {
-    'ucsc.edu': 'UCSC',
-    'ucsb.edu': 'UCSB',
-    'ucsd.edu': 'UCSD',
-    'ucdavis.edu': 'UC Davis',
-    'berkeley.edu': 'UC Berkeley',
-    'ucla.edu': 'UCLA',
-    'uci.edu': 'UCI',
-    'ucmerced.edu': 'UC Merced',
-    'ucr.edu': 'UC Riverside',
-    'ucsf.edu': 'UCSF',
-    'usc.edu': 'USC',
-    'stanford.edu': 'Stanford',
-  };
-  if (known[value]) return known[value];
-  const base = value.replace(/\.edu$/, '').split('.')[0] || value;
-  return base.length <= 5 ? base.toUpperCase() : base.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
-}
-
 const DASHBOARD_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 function normalizeDashboardHours(hours: any): Array<{ day: string; time: string }> {
@@ -387,7 +371,7 @@ function RevenueChart({ bookings, dm }: { bookings: Booking[]; dm: boolean }) {
     weekEnd.setHours(23, 59, 59, 999);
 
     const earned = bookings
-      .filter((b) => b.status === 'completed' && !b.consumer_confirmation_due_at && b.amount_cents)
+      .filter((b) => (b.status === 'paid' || b.status === 'completed') && b.amount_cents)
       .filter((b) => {
         const anchor = new Date(b.paid_at || b.created_at);
         return anchor >= weekStart && anchor <= weekEnd;
@@ -487,23 +471,12 @@ function RevenueChart({ bookings, dm }: { bookings: Booking[]; dm: boolean }) {
 }
 
 async function getAuthHeaders(): Promise<HeadersInit> {
+  const supabase = getSupabase();
+  const { data: { session } } = await supabase.auth.getSession();
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${await getAccessTokenOrThrow()}`,
+    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
   };
-}
-
-async function getAccessTokenOrThrow(): Promise<string> {
-  const supabase = getSupabase();
-  let { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    const refreshed = await supabase.auth.refreshSession();
-    session = refreshed.data.session ?? null;
-  }
-  if (!session?.access_token) {
-    throw new Error('Your session expired. Please sign in again and retry.');
-  }
-  return session.access_token;
 }
 
 
@@ -517,28 +490,10 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
   const [pos, setPos] = useState({ x: 16, y: 120 });
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, bx: 0, by: 0 });
-  const positionedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const syncViewport = () => {
-      const nextViewport = { w: window.innerWidth, h: window.innerHeight };
-      setViewport(nextViewport);
-      setPos((current) => {
-        const defaultPos = {
-          x: Math.max(10, nextViewport.w - 74),
-          y: Math.max(84, nextViewport.h - 124),
-        };
-        if (!positionedRef.current) {
-          positionedRef.current = true;
-          return defaultPos;
-        }
-        return {
-          x: Math.max(8, Math.min(nextViewport.w - 56, current.x)),
-          y: Math.max(80, Math.min(nextViewport.h - 160, current.y)),
-        };
-      });
-    };
+    const syncViewport = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
     syncViewport();
     window.addEventListener('resize', syncViewport);
     return () => window.removeEventListener('resize', syncViewport);
@@ -619,7 +574,7 @@ function MobileFAB({ tab, setTab, pendingCount, totalUnreadMsgs, dm }: {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         className="h-12 w-12 rounded-2xl shadow-lg flex items-center justify-center touch-none select-none"
-        style={{ background: open ? '#007e6d' : (dm ? '#171717' : 'white'), border: open ? '1px solid #007e6d' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, boxShadow: open ? '0 18px 38px rgba(0,126,109,0.28)' : '0 18px 34px rgba(15,23,42,0.16)', cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
+        style={{ background: open ? '#007e6d' : (dm ? '#171717' : 'white'), border: open ? '1px solid #007e6d' : `1px solid ${dm ? '#262626' : '#e5e7eb'}`, cursor: 'grab', outline: 'none', WebkitTapHighlightColor: 'transparent' }}>
         {open ? (
           <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1020,34 +975,11 @@ const BusinessDashboard: NextPage = () => {
       if (typeof event.data !== 'object' || event.data === null) return;
       if (event.data?.type === 'scheduleme-dashboard-preview-state') {
         setPreviewEditMode(!!event.data.editMode);
-        return;
-      }
-      if (event.data?.type === 'scheduleme-dashboard-preview-saved') {
-        let nextBusiness = business;
-        if (event.data?.business) {
-          const safeBiz = normalizeBusiness(event.data.business);
-          if (safeBiz) {
-            nextBusiness = safeBiz;
-            setBusiness((prev) => prev ? { ...prev, ...safeBiz } : safeBiz);
-          }
-        }
-        if (Array.isArray(event.data?.services)) {
-          setServices(event.data.services);
-        }
-        const optimisticChecklist = buildLocalPublishChecklist(
-          nextBusiness,
-          Array.isArray(event.data?.services) ? event.data.services : services
-        );
-        if (optimisticChecklist) {
-          setPublishChecklist(optimisticChecklist);
-          setPublishReady(!!optimisticChecklist.readyToPublish);
-        }
-        refreshPublishStatus();
       }
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [business, services]);
+  }, []);
 
   function sendPreviewAction(action: 'enter-edit' | 'save-edit' | 'cancel-edit') {
     previewFrameRef.current?.contentWindow?.postMessage(
@@ -1055,27 +987,27 @@ const BusinessDashboard: NextPage = () => {
       window.location.origin
     );
   }
-
-  function openDashboardTab(nextTab: TabId) {
-    setTab(nextTab);
-    try {
-      window.history.replaceState(null, '', '#' + nextTab);
-    } catch {}
+  function sendPreviewFocus(section: 'coreProfile' | 'media') {
+    previewFrameRef.current?.contentWindow?.postMessage(
+      { type: 'scheduleme-dashboard-preview-action', action: 'focus-section', section },
+      window.location.origin
+    );
   }
 
-  function handleChecklistAction(key: 'coreProfile' | 'services' | 'media' | 'stripe') {
-    if (key === 'stripe') {
-      handleStripeConnect(business?.stripe_onboarded ? 'update' : 'onboarding');
+  function jumpToPublishRequirement(section: 'coreProfile' | 'services' | 'media' | 'stripe') {
+    if (section === 'services') {
+      setTab('services');
       return;
     }
-    if (key === 'services') {
-      openDashboardTab('services');
+    if (section === 'stripe') {
+      setTab('settings');
       return;
     }
-    openDashboardTab('edit');
-    setPreviewKey(Date.now());
-    setPreviewEditMode(true);
-    setTimeout(() => sendPreviewAction('enter-edit'), 120);
+    setTab('edit');
+    window.setTimeout(() => {
+      sendPreviewAction('enter-edit');
+      window.setTimeout(() => sendPreviewFocus(section), 180);
+    }, 120);
   }
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1177,6 +1109,8 @@ const BusinessDashboard: NextPage = () => {
 
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editZip, setEditZip] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
@@ -1200,30 +1134,6 @@ const BusinessDashboard: NextPage = () => {
   const [publishLoading, setPublishLoading] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
-
-  function buildLocalPublishChecklist(nextBusiness: any, nextServices: any[] = services) {
-    if (!nextBusiness) return null;
-    const activeServices = (nextServices || []).filter((svc: any) => svc?.active !== false);
-    const hasCoreProfile = Boolean(
-      nextBusiness?.name
-      && nextBusiness?.description
-      && (nextBusiness?.address || nextBusiness?.city || nextBusiness?.zip)
-    );
-    const hasMedia = Boolean(
-      nextBusiness?.cover_url
-      || (Array.isArray(nextBusiness?.media_urls) && nextBusiness.media_urls.length > 0)
-    );
-    const hasStripe = Boolean(nextBusiness?.stripe_onboarded && nextBusiness?.stripe_account_id);
-    return {
-      coreProfile: hasCoreProfile,
-      services: activeServices.length > 0,
-      media: hasMedia,
-      stripe: hasStripe,
-      stripeRecommended: !hasStripe,
-      trustClear: true,
-      readyToPublish: hasCoreProfile && activeServices.length > 0 && hasMedia,
-    };
-  }
 
   const HOURS_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   function hoursToMap(hours: any): Record<string, string> {
@@ -1320,6 +1230,8 @@ const BusinessDashboard: NextPage = () => {
       setBusiness(safeBiz);
       loadBlockedCustomers(safeBiz.id);
       setEditName(safeBiz.name || ''); setEditPhone(safeBiz.phone || ''); setEditAddress(safeBiz.address || '');
+      setEditCity(safeBiz.city || '');
+      setEditZip(safeBiz.zip || '');
       setEditDesc(safeBiz.description || ''); setEditWebsite(safeBiz.website || '');
       setEditAvailability(safeBiz.availability_status || 'open');
       setEditBreakUntil(safeBiz.break_until ? String(safeBiz.break_until).slice(0, 10) : '');
@@ -1328,11 +1240,10 @@ const BusinessDashboard: NextPage = () => {
       setEditHours(hoursToMap(safeBiz.hours));
       setMediaImages(toStringArray(safeBiz.media_urls).length ? toStringArray(safeBiz.media_urls) : (safeBiz.cover_url ? [toStringSafe(safeBiz.cover_url)] : []));
       setMediaVideo(safeBiz.video_url ? toStringSafe(safeBiz.video_url) : null);
-      const visibilityDefaults = getProviderVisibilitySettings(safeBiz);
-      setPublicVisibility(visibilityDefaults.publicVisibility);
-      setPublicShowName(visibilityDefaults.publicShowName);
-      setPublicShowPhotos(visibilityDefaults.publicShowPhotos);
-      setCampusShowName(visibilityDefaults.campusShowName);
+      setPublicVisibility(Boolean(safeBiz.public_visibility));
+      setPublicShowName(Boolean(safeBiz.public_show_name));
+      setPublicShowPhotos(Boolean(safeBiz.public_show_photos));
+      setCampusShowName(Boolean(safeBiz.campus_show_name));
       refreshPublishStatus();
 
       const authHeaders = await getAuthHeaders();
@@ -1888,15 +1799,19 @@ const BusinessDashboard: NextPage = () => {
     setCampusSending(true); setCampusVerifyError(''); setCampusVerifySuccess('');
     try {
       const headers = await getAuthHeaders();
+      const normalizedEmail = normalizeDomain(campusEduEmail)?.includes('.edu')
+        ? String(campusEduEmail).trim().toLowerCase()
+        : String(campusEduEmail).trim();
       const res = await fetch('/api/verify-edu', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ school_email: campusEduEmail, account_type: 'business', business_id: business?.id || null }),
+        body: JSON.stringify({ school_email: normalizedEmail, account_type: 'business', business_id: business?.id || null }),
       });
       const data = await res.json();
       if (!res.ok) { setCampusVerifyError(data.error || 'Failed to send code'); return; }
       setCampusCodeSent(true);
-      setCampusVerifySuccess(data.message || `Code sent to ${campusEduEmail}`);
+      setCampusEduEmail(normalizedEmail);
+      setCampusVerifySuccess(data.message || `Code sent to ${normalizedEmail}`);
     } catch { setCampusVerifyError('Something went wrong.'); }
     finally { setCampusSending(false); }
   }
@@ -1912,7 +1827,23 @@ const BusinessDashboard: NextPage = () => {
       });
       const data = await res.json();
       if (!res.ok) { setCampusVerifyError(data.error); return; }
-      setBusiness(b => b ? { ...b, edu_verified: true } : b);
+      setBusiness(b => b ? {
+        ...b,
+        edu_verified: true,
+        school_email: campusEduEmail,
+        school_domain: data.school_domain || normalizeDomain(campusEduEmail),
+        campus_provider: data.campus_provider !== false,
+        campus_key: data.campus_key || b.campus_key,
+        campus_school_name: data.campus_school_name || b.campus_school_name,
+        public_show_name: true,
+        public_show_photos: true,
+        campus_show_name: true,
+      } : b);
+      setCampusShowName(true);
+      setPublicShowName(true);
+      setPublicShowPhotos(true);
+      setShowCampusModal(false);
+      showToast('Campus verification complete. Your provider is now tagged to that campus.', true);
     } catch { setCampusVerifyError('Something went wrong.'); }
     finally { setCampusVerifying(false); }
   }
@@ -2116,56 +2047,43 @@ const BusinessDashboard: NextPage = () => {
     setSettingsSaving(true); setSettingsError(''); setSettingsNotice('');
     const tags = normalizeServiceTags(editServices.split(',').map(s => s.trim()).filter(Boolean));
 
-    // Auto-approve low-risk fields
     const breakUntilIso = editBreakUntil ? new Date(editBreakUntil + 'T23:59:59').toISOString() : null;
-    const { error } = await getSupabase().from('businesses').update({
-      phone: editPhone,
-      website: editWebsite,
-      service_tags: tags,
-      hours: mapToHoursArray(editHours),
-      availability_status: editAvailability,
-      break_until: breakUntilIso,
-      public_visibility: publicVisibility,
-      public_show_name: publicShowName,
-      public_show_photos: publicShowPhotos,
-    }).eq('id', business.id);
-    if (error) { setSettingsSaving(false); setSettingsError(error.message); return; }
+    try {
+      const res = await fetch('/api/provider-settings', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({
+          business_id: business.id,
+          phone: editPhone,
+          website: editWebsite,
+          city: editCity,
+          zip: editZip,
+          service_tags: tags,
+          hours: mapToHoursArray(editHours),
+          availability_status: editAvailability,
+          break_until: breakUntilIso,
+          public_visibility: publicVisibility,
+          public_show_name: publicShowName,
+          public_show_photos: publicShowPhotos,
+          campus_show_name: campusShowName,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to save settings');
 
-    // Queue high-risk fields for approval
-    const changes: Record<string, any> = {};
-    if ((editAddress || '') !== (business.address || '')) changes.address = editAddress;
-    if ((editDesc || '') !== (business.description || '')) changes.description = editDesc;
-
-    if (Object.keys(changes).length > 0) {
-      try {
-        const h = await getAuthHeaders();
-        const res = await fetch('/api/business-change-requests', {
-          method: 'POST',
-          headers: h,
-          body: JSON.stringify({ business_id: business.id, changes, request_type: 'profile' }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to submit change request');
-        setSettingsNotice('Changes submitted for approval. We will review within 24 hours.');
-      } catch (err) {
-        setSettingsError(err instanceof Error ? err.message : 'Failed to submit change request');
+      const saved = normalizeBusiness({ ...business, ...(data.business || {}) });
+      if (saved) {
+        setBusiness((b) => b ? { ...b, ...saved } : saved);
+        setEditAddress(saved.address || '');
       }
+      setSettingsNotice('Settings saved. Your location now updates your provider coordinates automatically.');
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2500);
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Failed to save settings');
+    } finally {
+      setSettingsSaving(false);
     }
-
-    setSettingsSaving(false);
-    setBusiness(b => b ? {
-      ...b,
-      phone: editPhone,
-      website: editWebsite,
-      service_tags: tags,
-      hours: mapToHoursArray(editHours),
-      availability_status: editAvailability,
-      break_until: breakUntilIso,
-      public_visibility: publicVisibility,
-      public_show_name: publicShowName,
-      public_show_photos: publicShowPhotos,
-    } : b);
-    setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
   }
 
   async function persistVisibility(nextVisibility: boolean, nextShowName: boolean, nextShowPhotos: boolean, nextCampusShowName: boolean) {
@@ -2233,8 +2151,11 @@ const BusinessDashboard: NextPage = () => {
         return;
       }
       if (action === 'publish') {
-        setBusiness((b: any) => b ? { ...b, is_onboarded: true, public_visibility: true } : b);
+        setBusiness((b: any) => b ? { ...b, is_onboarded: true, public_visibility: true, public_show_name: true, public_show_photos: true, campus_show_name: true } : b);
         setPublicVisibility(true);
+        setPublicShowName(true);
+        setPublicShowPhotos(true);
+        setCampusShowName(true);
         showToast('Profile published and now bookable.', true);
       } else {
         setBusiness((b: any) => b ? { ...b, public_visibility: false } : b);
@@ -2247,19 +2168,17 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
-  const isCurrentlyPublished = !!business?.public_visibility;
-  const isPubliclyAvailableToNonStudents = publicVisibility;
-
   async function handleSignOut() { await getSupabase().auth.signOut(); router.push('/business/auth/login'); }
   async function handleDeleteProviderAccount() {
     setDeleteAccountError('');
     setDeleteAccountLoading(true);
     try {
       const supabase = getSupabase();
-      const accessToken = await getAccessTokenOrThrow();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
       const res = await fetch('/api/delete-account', {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + accessToken },
+        headers: { Authorization: 'Bearer ' + session.access_token },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to delete account');
@@ -2297,33 +2216,19 @@ const BusinessDashboard: NextPage = () => {
 
   const platformFeeRate = business?.founder50 ? 0.06 : 0.12;
   const toProviderNet = (grossCents: number) => Math.max(0, Math.round(grossCents * (1 - platformFeeRate)));
-  const hasHeldCompletionWindow = (b: any) => !!b.consumer_confirmation_due_at && new Date(b.consumer_confirmation_due_at).getTime() > Date.now();
-  const hasReleasedFunds = (b: any) => !!b.funds_released_at || (b.status === 'completed' && !hasHeldCompletionWindow(b) && !b.manual_payout_pending_at);
-  const isManualPayoutPendingBooking = (b: any) => b.status === 'completed' && !hasHeldCompletionWindow(b) && !b.funds_released_at && !!b.manual_payout_pending_at;
-  const paidBookingsCount = bookings.filter(b => !!b.paid_at && !['cancelled', 'payment_failed'].includes(b.status)).length;
-  const payoutStage = deriveProviderPayoutStage({
-    stripe_onboarded: business?.stripe_onboarded,
-    stripe_account_id: business?.stripe_account_id,
-    paidBookingsCount,
-    threshold: MANUAL_PAYOUT_BOOKING_THRESHOLD,
-  });
-  const manualPayoutMode = payoutStage.stage === 'manual_payout';
-  const stripeRequiredMode = payoutStage.stage === 'stripe_required';
-  const bookingReadyMode = payoutStage.stage === 'booking_ready';
-  const remainingManualBookings = payoutStage.remainingBeforeStripeRequired;
-  const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid' || hasHeldCompletionWindow(b);
-  // Only released jobs count as earned payout.
+  const isProviderPendingBooking = (b: any) => b.status === 'pending' || b.status === 'paid';
+  // Only completed jobs count as earned payout.
   const totalCompletedGross = bookings
-    .filter(b => hasReleasedFunds(b) && b.amount_cents)
+    .filter(b => b.status === 'completed' && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const totalEarned = toProviderNet(totalCompletedGross);
   const totalUnreadMsgs = (Array.isArray(msgThreads) ? msgThreads : []).reduce((s: number, t: any) => s + (Number(t?.unreadCount) || 0), 0);
   const pendingCount = bookings.filter(b => isProviderPendingBooking(b)).length;
   const completedCount = bookings.filter(b => b.status === 'completed').length;
-  const isRevenueBooking = (b: any) => hasReleasedFunds(b);
+  const isRevenueBooking = (b: any) => (b.status === 'paid' || b.status === 'completed' || !!b.paid_at);
   const isActiveOrCompleted = (b: any) => ['confirmed', 'payment_pending', 'price_disputed', 'paid', 'completed'].includes(b.status);
   const thisMonthGross = bookings
-    .filter(b => hasReleasedFunds(b) && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth() && new Date(b.created_at).getFullYear() === new Date().getFullYear())
+    .filter(b => b.status === 'completed' && b.amount_cents && new Date(b.created_at).getMonth() === new Date().getMonth() && new Date(b.created_at).getFullYear() === new Date().getFullYear())
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const thisMonthEarned = toProviderNet(thisMonthGross);
   // Amounts still awaiting release:
@@ -2332,15 +2237,11 @@ const BusinessDashboard: NextPage = () => {
     .filter(b => ['confirmed', 'payment_pending'].includes(b.status) && b.amount_cents && !b.paid_at)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const heldInStripeGross = bookings
-    .filter(b => (b.status === 'paid' || hasHeldCompletionWindow(b)) && b.amount_cents)
-    .reduce((s, b) => s + (b.amount_cents || 0), 0);
-  const manualPayoutPendingGross = bookings
-    .filter(b => isManualPayoutPendingBooking(b) && b.amount_cents)
+    .filter(b => b.status === 'paid' && b.amount_cents)
     .reduce((s, b) => s + (b.amount_cents || 0), 0);
   const pendingPaymentAmount = toProviderNet(pendingPaymentGross);
   const heldInStripeAmount = toProviderNet(heldInStripeGross);
-  const manualPayoutPendingAmount = toProviderNet(manualPayoutPendingGross);
-  const awaitingReleaseAmount = pendingPaymentAmount + heldInStripeAmount + manualPayoutPendingAmount;
+  const awaitingReleaseAmount = pendingPaymentAmount + heldInStripeAmount;
   const stripeShowsZeroButHeld =
     !!business?.stripe_onboarded
     && !!payoutBalance
@@ -2416,7 +2317,7 @@ const BusinessDashboard: NextPage = () => {
     { title: 'Messages', body: 'Chat with customers, share photos, and keep everything in one place.' },
     { title: 'Settings & payouts', body: 'Update your listing, hours, and connect Stripe to get paid.' },
     { title: 'Visibility controls', body: 'In Settings, decide if you show on public browse/search or stay campus-only. You also control which details (name/photos) are visible to students vs the public, so set these before you share your listing.' },
-    { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, then jump back from the provider page whenever you need it.' },
+    { title: 'Switch views fast', body: 'Use the Consumer site link in the left sidebar to preview the customer experience, and return via the Provider landing page link.' },
   ];
   const tour = TOUR_STEPS[tourStep];
 
@@ -2478,7 +2379,7 @@ const BusinessDashboard: NextPage = () => {
         </div>
       )}
       <Head><title>{business?.name || 'Dashboard'} — ScheduleMe for Providers</title></Head>
-      <div className="provider-dashboard-shell min-h-screen flex overflow-x-hidden" data-provider-theme={dm ? 'dark' : 'light'} style={{ background: 'var(--section-bg, #f8fafc)' }}>
+      <div className="provider-dashboard-shell min-h-screen flex" data-provider-theme={dm ? 'dark' : 'light'} style={{ background: 'var(--section-bg, #f8fafc)' }}>
 
         {/* Sidebar */}
         <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-neutral-100 fixed left-0 top-0 bottom-0 z-30">
@@ -2514,7 +2415,12 @@ const BusinessDashboard: NextPage = () => {
           </div>
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {NAV.map(item => (
-              <button key={item.id} onClick={() => openDashboardTab(item.id)}
+              <button key={item.id} onClick={() => {
+                setTab(item.id);
+                try {
+                  window.history.replaceState(null, '', '#' + item.id);
+                } catch {}
+              }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left ${tab === item.id ? 'bg-accent text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={tab === item.id ? 2.5 : 1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.d} />
@@ -2529,62 +2435,50 @@ const BusinessDashboard: NextPage = () => {
               </button>
             ))}
           </nav>
-          <div className="px-3 py-4 border-t border-neutral-100">
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{
-                background: dm ? '#171717' : '#ffffff',
-                border: `1px solid ${dm ? '#2c2c2e' : '#e5e7eb'}`,
-                boxShadow: dm ? '0 14px 30px rgba(0,0,0,0.28)' : '0 12px 28px rgba(15,23,42,0.08)',
-              }}
-            >
+          <div className="px-3 py-4 border-t border-neutral-100 space-y-3">
+            <div className="px-3">
               <button
                 type="button"
                 onClick={toggleDarkMode}
                 aria-label="Toggle dark mode"
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors"
-                style={{ background: dm ? 'transparent' : 'transparent' }}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
+                <span className="text-sm font-semibold text-neutral-700">{dm ? 'Dark mode' : 'Light mode'}</span>
+                <div className="flex items-center gap-1.5">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
                     {dm
                       ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
                       : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
                     }
                   </svg>
-                  <span className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#374151' }}>{dm ? 'Dark mode' : 'Light mode'}</span>
-                </div>
-                <div className="flex items-center gap-2">
                   <div className="relative h-4 w-8 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
                     <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm" style={{ left: dm ? '17px' : '2px', transition: 'left 0.25s ease' }} />
                   </div>
                 </div>
               </button>
-              <Link href="/provider" className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>
-                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" /></svg>
-                Landing page
-              </Link>
-              <Link href="/home" className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>
-                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
-                Consumer site
-              </Link>
-              <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors" style={{ color: dm ? '#d1d5db' : '#6b7280' }}>
-                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
-                Sign out
-              </button>
             </div>
+            <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Quick Links</p>
+            <Link href="/provider" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l8.25-8.25L19.5 12M5.25 9.75v9a.75.75 0 00.75.75h3.75v-5.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25H18a.75.75 0 00.75-.75v-9" /></svg>
+              Provider landing page
+            </Link>
+            <Link href="/home" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+              Open consumer app
+            </Link>
+            <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+              Sign out
+            </button>
           </div>
         </aside>
 
         <div className="flex-1 lg:ml-60 flex flex-col min-h-screen pb-20 lg:pb-0">
           {/* Mobile topbar — just the business name */}
-          <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20 backdrop-blur-md"
-            style={{ background: dm ? 'rgba(23,23,23,0.92)' : 'rgba(255,255,255,0.92)', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+          <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20"
+            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
             <div className="w-full flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <span className="block truncate text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
-                <span className="block text-[11px] font-medium" style={{ color: dm ? '#a1a1aa' : '#6b7280' }}>{NAV.find(n => n.id === tab)?.label || 'Overview'}</span>
-              </div>
+              <span className="text-base font-black" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
               <button
                 type="button"
                 onClick={toggleDarkMode}
@@ -2620,34 +2514,23 @@ const BusinessDashboard: NextPage = () => {
             dm={dm}
           />
 
-                    {/* Stripe / payout stage banner */}
-          {business && tab === 'overview' && (manualPayoutMode || stripeRequiredMode) && (
-            <div className={`${stripeRequiredMode ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-200'} border-b px-6 py-3`}>
-              <div className="flex flex-col sm:flex-row items-start justify-between gap-3 max-w-5xl mx-auto">
-                <div className="min-w-0 max-w-[720px]">
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <svg className={`h-4 w-4 shrink-0 ${stripeRequiredMode ? 'text-amber-500' : 'text-teal-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    <span className={`${stripeRequiredMode ? 'text-amber-800' : 'text-teal-800'} font-semibold`}>
-                      {stripeRequiredMode
-                        ? 'Stripe is now required to accept new paid bookings'
-                        : `${payoutStage.remainingBeforeStripeRequired} paid booking${payoutStage.remainingBeforeStripeRequired === 1 ? '' : 's'} left before Stripe is required`}
-                    </span>
-                  </div>
-                  <p className={`text-xs mt-0.5 leading-snug ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>
-                    {stripeRequiredMode
-                      ? `Customers can’t place new paid bookings until you finish Stripe. Your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings were allowed in manual payout mode.`
-                      : `You can keep taking bookings now without Stripe. For your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings, ScheduleMe collects the payment and you’ll be paid out manually after the job is completed.`}
-                  </p>
+                    {/* Stripe banner */}
+          {business && tab === 'overview' && !business.stripe_onboarded && (
+            <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
+                <div className="flex items-center gap-2.5 text-sm">
+                  <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <span className="text-amber-800 font-semibold">Step 1/2: Connect bank & get paid</span>
                 </div>
-                <button onClick={handleStripeConnect} disabled={stripeLoading} className={`shrink-0 text-sm font-bold px-4 py-2 rounded-xl text-white transition-colors ${stripeRequiredMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'}`}>
+                <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors">
                   {stripeLoading ? 'Loading…' : stripeCta}
                 </button>
               </div>
               {stripeConnectError && (
-                <p className={`text-xs mt-2 max-w-5xl mx-auto ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>{stripeConnectError}</p>
+                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeConnectError}</p>
               )}
               {stripeStatusMsg && !stripeConnectError && (
-                <p className={`text-xs mt-2 max-w-5xl mx-auto ${stripeRequiredMode ? 'text-amber-700' : 'text-teal-700'}`}>{stripeStatusMsg}</p>
+                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeStatusMsg}</p>
               )}
             </div>
           )}
@@ -2714,21 +2597,21 @@ const BusinessDashboard: NextPage = () => {
           )}
 
 
-          <main className="flex-1 px-4 py-4 sm:px-5 sm:py-6 lg:px-6 lg:py-7 max-w-[1320px] mx-auto w-full">
+          <main className="flex-1 px-6 py-7 max-w-[1320px] mx-auto w-full">
             {tab === 'overview' && !business?.school_domain && !business?.edu_verified && !campusAffilDismissed && (
-              <div className="rounded-2xl border px-4 py-4 sm:px-5 flex flex-col items-start justify-between gap-4 sm:flex-row" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
+              <div className="rounded-2xl border px-5 py-4 flex items-start justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : '#e5e7eb' }}>
                 <div>
                   <p className="text-sm font-bold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Want to be affiliated with your campus?</p>
                   <p className="text-xs mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>Link your .edu email to appear on the campus marketplace.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Verify .edu Email</button>
+                  <button onClick={() => setShowCampusModal(true)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#007e6d', color: 'white' }}>Add .edu</button>
                   <button onClick={() => setCampusAffilDismissed(true)} className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
                 </div>
               </div>
             )}
 
-            <div className="mb-6 sm:mb-7">
+            <div className="mb-7">
               <h1 className="text-[1.5rem] font-black" style={{ letterSpacing: '-0.025em', color: dm ? '#f2f2f7' : '#1c1c1e' }}>{NAV.find(n => n.id === tab)?.label}</h1>
               {tab === 'overview' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>Welcome back, {business?.owner_name?.split(' ')[0] || 'there'}</p>}
               {tab === 'bookings' && <p className="text-sm mt-0.5" style={{ color: dm ? '#8e8e93' : '#9ca3af' }}>{bookings.length} total · {pendingCount} pending</p>}
@@ -2791,10 +2674,10 @@ const BusinessDashboard: NextPage = () => {
                   ];
                   return (
                     <div className="space-y-5">
-                      <div className="rounded-[24px] border bg-white p-4 shadow-[0_10px_30px_rgba(32,136,122,0.05)] sm:rounded-[28px] sm:p-6">
+                      <div className="rounded-[28px] border bg-white p-6 shadow-[0_10px_30px_rgba(32,136,122,0.05)]">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0">
-                            <h2 className="text-[1.75rem] font-black leading-none text-neutral-900 sm:text-[2rem]" style={{ letterSpacing: '-0.04em' }}>
+                            <h2 className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>
                               {business?.name || 'Your business'}
                             </h2>
                             <p className="mt-2 max-w-xl text-sm text-neutral-500">
@@ -2820,26 +2703,6 @@ const BusinessDashboard: NextPage = () => {
                                   EDU verified provider: {campusLabel}
                                 </span>
                               )}
-                              {(manualPayoutMode || stripeRequiredMode || bookingReadyMode) && (
-                                <span
-                                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold"
-                                  style={{
-                                    borderColor: stripeRequiredMode ? '#fdba74' : 'rgba(0,126,109,0.18)',
-                                    background: stripeRequiredMode ? '#fff7ed' : '#f5fbf8',
-                                    color: stripeRequiredMode ? '#9a3412' : '#0f766e',
-                                  }}
-                                >
-                                  <span
-                                    className="h-1.5 w-1.5 rounded-full"
-                                    style={{ background: stripeRequiredMode ? '#f59e0b' : '#0f766e' }}
-                                  />
-                                  {bookingReadyMode
-                                    ? 'Automated payouts enabled'
-                                    : stripeRequiredMode
-                                      ? 'Stripe required for new bookings'
-                                      : `Manual payout mode · ${remainingManualBookings} booking${remainingManualBookings === 1 ? '' : 's'} until Stripe required`}
-                                </span>
-                              )}
                               {pendingCount > 0 && (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: 'rgba(0,126,109,0.18)', background: '#f5fbf8', color: '#0f766e' }}>
                                   <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -2854,18 +2717,20 @@ const BusinessDashboard: NextPage = () => {
                               )}
                             </div>
                           </div>
-                          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+                          <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => openDashboardTab('edit')}
-                              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 w-full sm:w-auto"
+                              onClick={() => {
+                                setTab('edit');
+                              }}
+                              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
                             >
                               Edit Listing
                             </button>
                             <button
                               type="button"
-                              onClick={() => openDashboardTab('bookings')}
-                              className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white w-full sm:w-auto"
+                              onClick={() => setTab('bookings')}
+                              className="btn-primary rounded-full px-4 py-2 text-sm font-semibold text-white"
                             >
                               Open Bookings
                             </button>
@@ -2873,15 +2738,15 @@ const BusinessDashboard: NextPage = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {overviewMetrics.map((s) => (
-                          <div key={s.label} className="rounded-[22px] border bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:rounded-[24px] sm:p-5" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
-                            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl sm:mb-4" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f3f8f6' }}>
+                          <div key={s.label} className="rounded-[24px] border bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
+                            <div className="h-10 w-10 rounded-2xl flex items-center justify-center mb-4" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f3f8f6' }}>
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
                               </svg>
                             </div>
-                            <p className="text-[1.6rem] font-black leading-none text-neutral-900 sm:text-[2rem]" style={{ letterSpacing: '-0.04em' }}>{s.value}</p>
+                            <p className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>{s.value}</p>
                             <p className="mt-2 text-sm font-semibold text-neutral-900">{s.label}</p>
                             <p className="mt-1 text-xs text-neutral-500">{s.sub}</p>
                           </div>
@@ -2889,7 +2754,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
 
                       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.95fr]">
-                        <div className="rounded-[24px] border bg-white p-4 sm:rounded-[28px] sm:p-5">
+                        <div className="rounded-[28px] border bg-white p-5">
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Revenue</h2>
@@ -2901,8 +2766,8 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                         </div>
 
-                        <div className="provider-premium-panel rounded-[24px] border bg-white p-4 sm:rounded-[30px] sm:p-6">
-                          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                        <div className="provider-premium-panel rounded-[30px] border bg-white p-6">
+                          <div className="flex items-start justify-between gap-4">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Publish Checklist</h2>
                               <p className="mt-1 text-xs text-neutral-500">Finish these launch blockers to publish your provider page.</p>
@@ -2916,46 +2781,47 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                           <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                             {[
-                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and location details.' },
+                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and contact details.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
-                              { key: 'stripe', label: publishChecklist?.stripe ? 'Stripe connected' : 'Stripe Not Connected', hint: bookingReadyMode ? 'Automated payouts are live for new bookings.' : `Not required to publish. Required after your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.` },
+                              { key: 'stripe', label: 'Stripe connected', hint: 'Connect payouts before you publish publicly.' },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
-                              const isStripePending = item.key === 'stripe' && !ok;
                               return (
                                 <button
                                   key={item.key}
                                   type="button"
-                                  onClick={() => handleChecklistAction(item.key as 'coreProfile' | 'services' | 'media' | 'stripe')}
-                                  className="rounded-[24px] border px-4 py-4 text-left transition-transform hover:-translate-y-0.5"
+                                  onClick={() => !ok && jumpToPublishRequirement(item.key as 'coreProfile' | 'services' | 'media' | 'stripe')}
+                                  className="rounded-[24px] border px-4 py-4 text-left transition-transform hover:-translate-y-0.5 disabled:cursor-default"
+                                  disabled={ok}
                                   style={{ borderColor: ok ? '#b7e5ce' : '#f2d39a', background: ok ? '#eef9f3' : '#fff6e7' }}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
                                       <p className="font-semibold" style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</p>
                                       <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : '#9a3412' }}>{item.hint}</p>
+                                      {!ok && <p className="mt-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: '#007e6d' }}>Open section →</p>}
                                     </div>
                                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : 'rgba(154,52,18,0.10)', color: ok ? '#166534' : '#9a3412' }}>
-                                      {ok ? 'Done' : (isStripePending ? 'Later' : 'Needed')}
+                                      {ok ? 'Done' : 'Needed'}
                                     </span>
                                   </div>
                                 </button>
                               );
                             })}
                           </div>
-                          <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                          <div className="mt-5 flex flex-wrap gap-2">
                             <button
                               onClick={() => handlePublish('publish')}
-                              disabled={publishLoading || !publishReady || isCurrentlyPublished}
-                              className="btn-primary rounded-full px-4 py-2.5 text-sm disabled:opacity-50 w-full sm:w-auto"
+                              disabled={publishLoading || !publishReady}
+                              className="btn-primary rounded-full px-4 py-2.5 text-sm disabled:opacity-50"
                             >
                               {publishLoading ? 'Updating…' : 'Publish Profile'}
                             </button>
                             <button
                               onClick={() => handlePublish('unpublish')}
-                              disabled={publishLoading || !isCurrentlyPublished}
-                              className="rounded-full border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 disabled:opacity-50 w-full sm:w-auto"
+                              disabled={publishLoading || !business?.public_visibility}
+                              className="rounded-full border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 disabled:opacity-50"
                             >
                               Unpublish
                             </button>
@@ -2975,7 +2841,7 @@ const BusinessDashboard: NextPage = () => {
                     ? <div className="px-5 py-10 text-center text-neutral-400 text-sm">No bookings yet.</div>
                     : <div className="divide-y divide-neutral-50">
                         {bookings.slice(0, 4).map(b => (
-                          <div key={b.id} className="px-5 py-3.5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+                          <div key={b.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || 'Customer'}</p>
                               <p className="text-xs text-neutral-400 mt-0.5 truncate">{b.service || 'Custom Request'} · {fmtDate(b.created_at)}</p>
@@ -2990,14 +2856,14 @@ const BusinessDashboard: NextPage = () => {
                   }
                 </div>
 
-                <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center" style={{ background: dm ? '#1c1c1e' : 'white' }}>
+                <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex items-center justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white' }}>
                   <div>
                     <p className="text-sm font-bold text-neutral-900">Payments and payouts</p>
                     <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                       Manage Stripe connection and payout details in Settings.
                     </p>
                   </div>
-                  <button type="button" onClick={() => openDashboardTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
+                  <button type="button" onClick={() => setTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
                     Open Settings
                   </button>
                 </div>
@@ -3957,48 +3823,47 @@ const BusinessDashboard: NextPage = () => {
             </div>
             )}
             {tab === 'edit' && (
-              <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 overflow-hidden sm:rounded-[30px]">
+              <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 overflow-hidden">
                 <div
-                  className="px-4 py-4 border-b border-neutral-100 flex flex-col items-start justify-between gap-3 sm:px-5 sm:flex-row sm:items-center"
+                  className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between"
                   style={{
-                    background: dm ? '#171b1f' : '#ffffff',
-                    borderColor: dm ? '#30363d' : '#dbe7e2',
-                    boxShadow: dm ? '0 1px 0 rgba(255,255,255,0.06)' : '0 1px 0 rgba(15,23,42,0.04)',
+                    background: dm ? '#131415' : '#fffdfa',
+                    boxShadow: dm ? 'inset 0 -1px 0 rgba(255,255,255,0.05), 0 12px 28px rgba(0,0,0,0.14)' : '0 10px 26px rgba(15,23,42,0.05)',
                   }}
                 >
                   <div>
                     <p
                       className="text-[11px] font-bold uppercase tracking-[0.14em]"
-                      style={{ color: dm ? '#7ef2df' : '#007e6d' }}
+                      style={{ color: dm ? '#5eead4' : '#007e6d' }}
                     >
                       Edit Listing
                     </p>
                     <p
                       className="text-sm font-bold mt-1"
-                      style={{ color: dm ? '#ffffff' : '#0f172a' }}
+                      style={{ color: dm ? '#ffffff' : '#111827' }}
                     >
                       Live Preview
                     </p>
                   </div>
-                  <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center">
+                  <div className="flex items-center gap-2">
                     {previewEditMode ? (
                       <>
                         <button
                           onClick={() => sendPreviewAction('cancel-edit')}
-                          className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm w-full sm:w-auto"
+                          className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
                           style={{
-                            borderColor: dm ? '#6b7280' : '#c7d2d9',
-                            background: dm ? '#2a2d31' : '#ffffff',
-                            color: dm ? '#ffffff' : '#334155',
-                            boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.28)' : '0 12px 26px rgba(15, 23, 42, 0.08)',
+                            borderColor: dm ? '#6b7280' : '#c8d4ce',
+                            background: dm ? '#23262a' : '#ffffff',
+                            color: dm ? '#ffffff' : '#1f2937',
+                            boxShadow: dm ? '0 8px 18px rgba(0,0,0,0.24)' : '0 10px 22px rgba(15, 23, 42, 0.08)',
                           }}
                         >
                           Cancel
                         </button>
                         <button
                           onClick={() => sendPreviewAction('save-edit')}
-                          className="text-xs font-bold px-3.5 py-2 rounded-xl text-white transition-colors shadow-sm w-full sm:w-auto"
-                          style={{ background: '#007e6d', border: '1px solid rgba(0,126,109,0.18)', boxShadow: '0 14px 28px rgba(0,126,109,0.24)' }}
+                          className="text-xs font-bold px-3.5 py-2 rounded-xl text-white transition-colors shadow-sm"
+                          style={{ background: '#007e6d', boxShadow: '0 14px 28px rgba(0,126,109,0.28)' }}
                         >
                           Save changes
                         </button>
@@ -4006,30 +3871,34 @@ const BusinessDashboard: NextPage = () => {
                     ) : (
                       <button
                         onClick={() => sendPreviewAction('enter-edit')}
-                        className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm w-full sm:w-auto"
-                        style={{ borderColor: dm ? 'rgba(94,234,212,0.5)' : 'rgba(0,126,109,0.24)', background: dm ? 'rgba(0,126,109,0.24)' : '#eef8f5', color: dm ? '#ecfeff' : '#0f766e', boxShadow: dm ? '0 10px 22px rgba(0,0,0,0.24)' : '0 12px 26px rgba(15, 23, 42, 0.08)' }}
+                        className="text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors shadow-sm"
+                        style={{ borderColor: dm ? 'rgba(94,234,212,0.34)' : 'rgba(0,126,109,0.24)', background: dm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.12)', color: dm ? '#d1fae5' : '#007e6d', boxShadow: dm ? '0 8px 18px rgba(0,0,0,0.22)' : '0 10px 22px rgba(15, 23, 42, 0.06)' }}
                       >
                         Edit mode
                       </button>
                     )}
                   </div>
                 </div>
-                <div className="p-3 sm:p-5" key={previewKey} style={{ background: dm ? '#121416' : '#f9fcfb' }}>
-                  <iframe
-                    ref={previewFrameRef}
-                    title="ScheduleMe Live Preview"
-                    src={`/biz/${encodeURIComponent(business?.slug || business?.id || 'draft')}?edit=1&from=dashboard&bid=${business?.id || ''}&embedded=1&theme=${dm ? 'dark' : 'light'}&k=${previewKey}`}
-                    className="w-full rounded-[20px] border border-neutral-100 bg-white sm:rounded-[24px]"
-                    style={{ minHeight: typeof window !== 'undefined' && window.innerWidth < 640 ? '70vh' : '82vh' }}
-                  />
+                <div className="p-5" key={previewKey}>
+                  {business?.slug ? (
+                    <iframe
+                      ref={previewFrameRef}
+                      title="ScheduleMe Live Preview"
+                      src={`/biz/${encodeURIComponent(business.slug)}?edit=1&from=dashboard&bid=${business.id}&embedded=1&k=${previewKey}`}
+                      className="w-full rounded-[24px] border border-neutral-100 bg-white"
+                      style={{ minHeight: '82vh' }}
+                    />
+                  ) : (
+                    <div className="p-6 text-sm text-neutral-500">Editor unavailable until your provider slug is ready.</div>
+                  )}
                 </div>
               </div>
             )}
 
             {tab === 'settings' && (
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
-                <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6 lg:col-span-2">
-                  <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 lg:col-span-2">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
                       <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
@@ -4037,8 +3906,8 @@ const BusinessDashboard: NextPage = () => {
                       </p>
                     </div>
                     <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                      style={{ background: isPubliclyAvailableToNonStudents ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: isPubliclyAvailableToNonStudents ? '#059669' : '#b91c1c' }}>
-                      {isPubliclyAvailableToNonStudents ? 'Available to non-students' : 'Campus-only for verified students'}
+                      style={{ background: publicVisibility ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: publicVisibility ? '#059669' : '#b91c1c' }}>
+                      {publicVisibility ? 'Visible on ScheduleMe' : 'Hidden from public browse'}
                     </div>
                   </div>
 
@@ -4071,8 +3940,8 @@ const BusinessDashboard: NextPage = () => {
                         disabled={visibilitySaving}
                       />
                       <div>
-                        <p className="font-semibold text-neutral-900">Available to non-students</p>
-                        <p className="text-xs text-neutral-500">Turn this off if you want to stay visible to verified students, but hidden from public home, browse, and other non-student surfaces.</p>
+                        <p className="font-semibold text-neutral-900">List my provider card on ScheduleMe</p>
+                        <p className="text-xs text-neutral-500">Controls whether your card appears on home, browse, and search surfaces.</p>
                       </div>
                     </label>
 
@@ -4087,7 +3956,7 @@ const BusinessDashboard: NextPage = () => {
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
                         <p className="font-semibold text-neutral-900">Show my personal name to non-students</p>
-                        <p className="text-xs text-neutral-500">If this is off, non-students will hit the verified-student privacy block instead of seeing your identity.</p>
+                        <p className="text-xs text-neutral-500">Keep this off if you only want your personal name visible inside campus contexts.</p>
                       </div>
                     </label>
 
@@ -4101,25 +3970,104 @@ const BusinessDashboard: NextPage = () => {
                         disabled={!publicVisibility || visibilitySaving}
                       />
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my photos to non-students</p>
-                        <p className="text-xs text-neutral-500">If this is off, non-students will hit the verified-student privacy block instead of seeing your media.</p>
+                        <p className="font-semibold text-neutral-900">Show my photos on public cards</p>
+                        <p className="text-xs text-neutral-500">If this is off, ScheduleMe will use a simpler card presentation instead.</p>
                       </div>
                     </label>
                   </div>
                 </div>
                 <div className="space-y-5">
-                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
+                  <form onSubmit={handleSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-sm font-bold text-neutral-900">Location & Contact</h2>
+                        <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
+                          Set your city and ZIP. ScheduleMe will derive your provider coordinates from the ZIP code you enter.
+                        </p>
+                      </div>
+                      {business?.lat != null && business?.lng != null && (
+                        <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: 'rgba(0,126,109,0.10)', color: '#007e6d' }}>
+                          Coordinates ready
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <label className="text-sm">
+                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">City</span>
+                        <input
+                          type="text"
+                          value={editCity}
+                          onChange={(e) => setEditCity(e.target.value)}
+                          placeholder="Santa Cruz"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                        />
+                      </label>
+                      <label className="text-sm">
+                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">ZIP Code</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={editZip}
+                          onChange={(e) => setEditZip(e.target.value.replace(/[^\d-]/g, '').slice(0, 10))}
+                          placeholder="95060"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                        />
+                      </label>
+                      <label className="text-sm">
+                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Phone</span>
+                        <input
+                          type="text"
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          placeholder="(555) 555-5555"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                        />
+                      </label>
+                      <label className="text-sm">
+                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Website</span>
+                        <input
+                          type="text"
+                          value={editWebsite}
+                          onChange={(e) => setEditWebsite(e.target.value)}
+                          placeholder="https://"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <div className="min-h-[18px] text-xs">
+                        {settingsError ? <span className="text-red-500">{settingsError}</span> : null}
+                        {!settingsError && settingsNotice ? <span style={{ color: '#007e6d' }}>{settingsNotice}</span> : null}
+                        {!settingsError && !settingsNotice && settingsSaved ? <span style={{ color: '#007e6d' }}>Saved.</span> : null}
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={settingsSaving}
+                        className="rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-60"
+                        style={{ background: '#007e6d' }}
+                      >
+                        {settingsSaving ? 'Saving…' : 'Save Location'}
+                      </button>
+                    </div>
+                  </form>
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-4">Account Info</h2>
                     <div className="space-y-3">
                       {[
                         { label: 'Owner', value: business?.owner_name },
                         { label: 'Email', value: business?.owner_email },
+                        { label: 'Campus', value: business?.campus_provider ? (business?.campus_school_name || formatCampusLabel(business?.school_domain) || business?.school_domain) : 'Independent provider' },
+                        { label: 'City / ZIP', value: [business?.city, business?.zip].filter(Boolean).join(', ') },
                         { label: 'Status', value: business?.public_visibility ? '✓ Live on ScheduleMe' : 'Draft (not public yet)' },
                         { label: 'Rating', value: business?.rating ? business.rating + ' ★' : 'No ratings yet' },
                       ].map(r => (
-                        <div key={r.label} className="flex flex-col items-start justify-between gap-1 py-2 border-b border-neutral-50 last:border-0 sm:flex-row sm:items-start sm:gap-4">
+                        <div key={r.label} className="flex items-start justify-between gap-4 py-2 border-b border-neutral-50 last:border-0">
                           <span className="text-xs text-neutral-400 font-medium shrink-0">{r.label}</span>
-                          <span className="text-sm text-neutral-700 text-left sm:text-right">{r.value || '—'}</span>
+                          <span className="text-sm text-neutral-700 text-right">{r.value || '—'}</span>
                         </div>
                       ))}
                     </div>
@@ -4129,33 +4077,18 @@ const BusinessDashboard: NextPage = () => {
                         style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : '#f5fbf8' }}>
                         {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
                       </button>
-                      {business?.edu_verified && (
-                        <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
-                          className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                          style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
-                          Disconnect .edu Email
-                        </button>
-                      )}
+                      <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold border"
+                        style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
+                        Disconnect .edu Email
+                      </button>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-5">
-                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payment Account</h2>
-                    <p className="text-xs text-neutral-400 mb-4">
-                      {bookingReadyMode
-                        ? 'Step 2/2: Connected via Stripe. Automatic payouts are live.'
-                        : stripeRequiredMode
-                          ? `Stripe is now required before you can accept additional paid bookings.`
-                          : `Manual payout mode is active. You can take bookings now, and Stripe becomes required after your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings.`}
-                    </p>
-                    {!bookingReadyMode && (
-                      <div className="mb-4 rounded-2xl border px-3.5 py-3 text-xs" style={{ borderColor: stripeRequiredMode ? '#fdba74' : '#bfe5db', background: stripeRequiredMode ? '#fff7ed' : '#f5fbf8', color: stripeRequiredMode ? '#9a3412' : '#0f766e' }}>
-                        {stripeRequiredMode
-                          ? `You’ve hit ${paidBookingsCount} paid booking${paidBookingsCount === 1 ? '' : 's'}. Connect Stripe to keep receiving new instant bookings.`
-                          : `Manual payouts are enabled for your first ${MANUAL_PAYOUT_BOOKING_THRESHOLD} paid bookings. ${Math.max(MANUAL_PAYOUT_BOOKING_THRESHOLD - paidBookingsCount, 0)} remaining before Stripe is required for new bookings.`}
-                      </div>
-                    )}
+                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Step 2/2: Connected via Stripe. Payouts live.' : 'Step 1/2: Connect bank & get paid.'}</p>
                     {business?.stripe_onboarded ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
@@ -4197,7 +4130,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                     )}
                   </div>
-                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Session</h2>
                     <p className="text-xs text-neutral-400 mb-4">Signed in as {business?.owner_email}</p>
                     <div className="grid grid-cols-1 gap-2">
@@ -4211,7 +4144,7 @@ const BusinessDashboard: NextPage = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="provider-premium-panel bg-white rounded-[24px] border border-neutral-100 p-4 sm:rounded-[30px] sm:p-6">
+                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Legal & Support</h2>
                     <p className="text-xs text-neutral-400 mb-4">Review the latest policies and contact support.</p>
                     <div className="grid grid-cols-1 gap-2">
@@ -4685,11 +4618,11 @@ const BusinessDashboard: NextPage = () => {
           <div className="w-full max-w-md rounded-2xl border p-6 relative" style={{ background: dm ? '#141414' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
             <button onClick={() => setShowCampusModal(false)} className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center" style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d4d4d8' : '#6b7280' }}>×</button>
             <p className="text-sm font-semibold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>Student Provider</p>
-            <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Link your .edu email to appear on the campus marketplace.</p>
+            <p className="text-xs mt-0.5" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Link your .edu email to appear on the campus marketplace and assign this provider to that campus automatically.</p>
             {business?.edu_verified && (
               <div className="mt-3 flex items-center gap-2 text-emerald-600 text-sm font-semibold">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                Verified
+                Verified for {business?.campus_school_name || formatCampusLabel(business?.school_domain) || business?.school_domain}
               </div>
             )}
             {!business?.edu_verified && (
@@ -4704,7 +4637,7 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-xs" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Enter the 6-digit code sent to {campusEduEmail}</p>
                     <div className="flex gap-2">
                       <input type="text" value={campusCode} onChange={e => setCampusCode(e.target.value)} placeholder="123456" maxLength={6} className="flex-1 text-xs px-3 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-accent text-center tracking-widest font-bold" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }} />
-                      <button type="button" disabled={campusCode.length !== 6 || campusSending} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#007e6d' : '#9ca3af' }}>{campusSending ? 'Verifying…' : 'Verify'}</button>
+                      <button type="button" disabled={campusCode.length !== 6 || campusVerifying} onClick={handleCampusVerify} className="text-xs px-3 py-2 rounded-lg font-bold text-white shrink-0" style={{ background: campusCode.length === 6 ? '#007e6d' : '#9ca3af' }}>{campusVerifying ? 'Verifying…' : 'Verify'}</button>
                     </div>
                     {campusVerifyError && <p className="text-xs text-red-500">{campusVerifyError}</p>}
                     <button type="button" onClick={() => setCampusCodeSent(false)} className="text-xs" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>← Use different email</button>
@@ -4717,17 +4650,17 @@ const BusinessDashboard: NextPage = () => {
       )}
       <style jsx global>{`
         .provider-dashboard-shell[data-provider-theme='light'] {
-          background: #f8f6f1 !important;
+          background: #f6f1e6 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] aside,
         .provider-dashboard-shell[data-provider-theme='light'] header {
-          background: #fffdfb !important;
-          border-color: #e5e7eb !important;
+          background: #fffdf8 !important;
+          border-color: #e9dfd1 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-white {
-          background-color: #ffffff !important;
+          background-color: #fffdfa !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-2xl,
@@ -4739,8 +4672,9 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .provider-premium-panel,
         .provider-dashboard-shell[data-provider-theme='light'] .provider-list-card {
           position: relative;
-          background: #ffffff !important;
-          border-color: #e5e7eb !important;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,252,247,0.98) 100%) !important;
+          border-color: #e7dccd !important;
           box-shadow:
             0 18px 46px rgba(63, 83, 74, 0.07),
             0 2px 10px rgba(63, 83, 74, 0.04) !important;
@@ -4749,8 +4683,8 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .provider-segment-shell {
           padding: 10px;
           border-radius: 22px;
-          background: rgba(255, 255, 255, 0.88);
-          border: 1px solid #e5e7eb;
+          background: rgba(255, 252, 247, 0.84);
+          border: 1px solid #e7dccd;
           box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
         }
 
@@ -4761,16 +4695,16 @@ const BusinessDashboard: NextPage = () => {
 
         .provider-dashboard-shell[data-provider-theme='light'] .provider-service-row:hover,
         .provider-dashboard-shell[data-provider-theme='light'] .provider-inline-row:hover {
-          background: rgba(0, 126, 109, 0.06);
+          background: rgba(246, 239, 228, 0.45);
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-100,
         .provider-dashboard-shell[data-provider-theme='light'] .border-neutral-200 {
-          border-color: #e5e7eb !important;
+          border-color: #ebe1d3 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-neutral-50 {
-          background-color: rgba(0, 126, 109, 0.05) !important;
+          background-color: #f6efe4 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .text-neutral-900 {
@@ -4799,15 +4733,15 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] aside nav button:not(.bg-accent):hover,
         .provider-dashboard-shell[data-provider-theme='light'] aside a:hover,
         .provider-dashboard-shell[data-provider-theme='light'] aside button:hover {
-          background-color: rgba(0, 126, 109, 0.06) !important;
+          background-color: #f4ede2 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-amber-50 {
-          background-color: rgba(0, 126, 109, 0.06) !important;
+          background-color: #fff6e7 !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .border-amber-200 {
-          border-color: rgba(0, 126, 109, 0.16) !important;
+          border-color: #f2d39a !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .bg-emerald-50 {

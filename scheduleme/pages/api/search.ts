@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit } from '../../lib/apiSecurity';
-import { getProviderVisibilitySettings, shouldLockProviderPreviewForViewer, shouldShowProviderOnNonStudentSurfaces } from '../../lib/providerTrust';
+import { isProviderPublicNameVisible, isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 export interface BusinessResult {
   id: string; name: string; slug: string | null; description: string | null;
@@ -38,21 +38,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabase = getSupabase();
-    let viewerEduVerified = false;
-    const authHeader = String(req.headers.authorization || '');
-    if (authHeader.startsWith('Bearer ')) {
-      const token = authHeader.slice(7).trim();
-      if (token) {
-        try {
-          const { data: authData } = await supabase.auth.getUser(token);
-          const viewerId = authData?.user?.id;
-          if (viewerId) {
-            const { data: profile } = await supabase.from('profiles').select('edu_verified').eq('id', viewerId).maybeSingle();
-            if (profile?.edu_verified === true) viewerEduVerified = true;
-          }
-        } catch {}
-      }
-    }
     const { data, error } = await supabase.rpc('search_businesses_geo', {
       p_lat: lat, p_lng: lng,
       p_service: service ?? null,
@@ -77,22 +62,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const filtered = rows.filter(r => {
       const vis = visMap.get(r.id);
       if (!vis) return false;
-      return shouldShowProviderOnNonStudentSurfaces(vis, viewerEduVerified);
+      return isProviderPubliclyVisible(vis);
     });
     const mapped = filtered.map(r => {
       const vis = visMap.get(r.id);
-      const visibility = getProviderVisibilitySettings(vis);
-      const previewLocked = shouldLockProviderPreviewForViewer(vis, viewerEduVerified);
-      const address = previewLocked ? (vis?.zip || vis?.address || r.address) : r.address;
-      return {
-        ...r,
-        name: previewLocked ? 'Student provider' : r.name,
-        description: previewLocked ? 'Private until student verification' : r.description,
-        address,
-        preview_locked: previewLocked,
-        public_show_name: visibility.publicShowName,
-        public_show_photos: visibility.publicShowPhotos,
-      };
+      const showName = isProviderPublicNameVisible(vis);
+      const address = showName ? r.address : (vis?.zip || vis?.address || r.address);
+      return { ...r, name: r.name, address };
     });
 
     return res.status(200).json({ data: mapped });

@@ -26,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       school_email: null,
       school_domain: null,
       school_name: null,
+      campus_key: null,
       edu_code: null,
       edu_code_expires_at: null,
     }).eq('id', user.id);
@@ -35,6 +36,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       edu_verified: false,
       school_email: null,
       school_domain: null,
+      campus_provider: false,
+      campus_key: null,
+      campus_school_name: null,
       edu_code: null,
       edu_code_expires_at: null,
     }).eq('owner_id', user.id);

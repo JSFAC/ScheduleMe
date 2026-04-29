@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { setSecurityHeaders, rateLimit, requireAuth, isValidEmail } from '../../lib/apiSecurity';
+import { formatCampusLabel, inferCampusMetadataFromEmail } from '../../lib/providerMetadata';
 
 function getSupabase() {
   return createClient(
@@ -23,6 +24,8 @@ async function syncOwnedBusinessesEdu(
     edu_verified: boolean;
     school_domain: string | null;
     school_email: string | null;
+    campus_key?: string | null;
+    campus_school_name?: string | null;
     clearCodes?: boolean;
   }
 ) {
@@ -30,6 +33,12 @@ async function syncOwnedBusinessesEdu(
     edu_verified: opts.edu_verified,
     school_domain: opts.school_domain,
     school_email: opts.school_email,
+    campus_provider: opts.edu_verified ? true : false,
+    campus_key: opts.edu_verified ? (opts.campus_key ?? null) : null,
+    campus_school_name: opts.edu_verified ? (opts.campus_school_name ?? null) : null,
+    campus_show_name: true,
+    public_show_name: true,
+    public_show_photos: true,
   };
   if (opts.clearCodes) {
     payload.edu_code = null;
@@ -55,6 +64,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         edu_verified: false,
         school_email: null,
         school_name: null,
+        school_domain: null,
+        campus_key: null,
         edu_code: null,
         edu_code_expires_at: null,
       })
@@ -63,6 +74,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       edu_verified: false,
       school_domain: null,
       school_email: null,
+      campus_key: null,
+      campus_school_name: null,
       clearCodes: true,
     });
     return res.status(200).json({ success: true, message: 'EDU verification removed.' });
@@ -79,18 +92,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!profile?.edu_code) return res.status(400).json({ error: 'No pending verification. Request a new code.' });
     if (new Date(profile.edu_code_expires_at) < new Date()) return res.status(400).json({ error: 'Code expired. Request a new one.' });
     if (profile.edu_code !== code.trim()) return res.status(400).json({ error: 'Incorrect code. Try again.' });
-    const domain = extractDomain(profile.school_email);
+    const campus = inferCampusMetadataFromEmail(profile.school_email);
     await supabase
       .from('profiles')
-      .update({ edu_verified: true, school_name: domain, school_domain: domain, edu_code: null, edu_code_expires_at: null })
+      .update({
+        edu_verified: true,
+        school_name: campus.campusSchoolName || formatCampusLabel(campus.schoolDomain),
+        school_domain: campus.schoolDomain,
+        campus_key: campus.campusKey,
+        edu_code: null,
+        edu_code_expires_at: null,
+      })
       .eq('id', user.id);
     await syncOwnedBusinessesEdu(supabase, user.id, {
       edu_verified: true,
-      school_domain: domain || null,
-      school_email: profile.school_email || null,
+      school_domain: campus.schoolDomain || null,
+      school_email: campus.schoolEmail || null,
+      campus_key: campus.campusKey || null,
+      campus_school_name: campus.campusSchoolName || null,
       clearCodes: true,
     });
-    return res.status(200).json({ success: true, school_domain: domain });
+    return res.status(200).json({
+      success: true,
+      school_domain: campus.schoolDomain,
+      campus_key: campus.campusKey,
+      campus_school_name: campus.campusSchoolName,
+      campus_provider: true,
+    });
   }
 
   // ─── STEP 1: Send verification code ──────────────────────────────────────
@@ -112,17 +140,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : 'This .edu email is already linked to another user account.',
     });
   }
-  const submittedDomain = extractDomain(normalizedSchoolEmail);
+  const campus = inferCampusMetadataFromEmail(normalizedSchoolEmail);
   const verifyCode = generate6DigitCode();
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   await supabase
     .from('profiles')
-    .update({ school_email: normalizedSchoolEmail, school_domain: submittedDomain, edu_code: verifyCode, edu_code_expires_at: expiresAt })
+    .update({
+      school_email: normalizedSchoolEmail,
+      school_domain: campus.schoolDomain,
+      school_name: campus.campusSchoolName,
+      campus_key: campus.campusKey,
+      edu_code: verifyCode,
+      edu_code_expires_at: expiresAt,
+    })
     .eq('id', user.id);
   await syncOwnedBusinessesEdu(supabase, user.id, {
     edu_verified: false,
-    school_domain: submittedDomain || null,
+    school_domain: campus.schoolDomain || null,
     school_email: normalizedSchoolEmail,
+    campus_key: campus.campusKey || null,
+    campus_school_name: campus.campusSchoolName || null,
     clearCodes: true,
   });
   await sendVerificationEmail(normalizedSchoolEmail, verifyCode, getResend());
@@ -138,7 +175,7 @@ async function sendVerificationEmail(to: string, code: string, resend: Resend) {
 <html>
 <body style="font-family:Inter,-apple-system,sans-serif;background:#f8fafc;margin:0;padding:40px 16px;">
   <div style="max-width:480px;margin:0 auto;background:white;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-    <div bgcolor="#1d4ed8" style="background:#1d4ed8;padding:28px 32px;text-align:center;">
+    <div bgcolor="#007e6d" style="background:#007e6d;padding:28px 32px;text-align:center;">
       <p style="margin:0;font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:0.1em;text-transform:uppercase;">ScheduleMe Campus</p>
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:white;">Verify your .edu email</h1>
     </div>

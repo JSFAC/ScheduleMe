@@ -3,16 +3,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { FaCamera } from 'react-icons/fa6';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 import Nav from '../../components/Nav';
 import { useDm } from '../../lib/DarkModeContext';
-import { getProviderVisibilitySettings } from '../../lib/providerTrust';
 import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
 import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
 import { shouldShowNewBadge } from '../../lib/newBadge';
-import { isProviderPubliclyVisible } from '../../lib/providerTrust';
-import { deriveProviderPayoutStage, MANUAL_PAYOUT_BOOKING_THRESHOLD } from '../../lib/providerPayoutStage';
+import { isProviderCampusNameVisible, isProviderPublicNameVisible, isProviderPubliclyVisible } from '../../lib/providerTrust';
 
 function getSB() {
   return getSupabaseClient();
@@ -45,21 +42,6 @@ function localDateKey(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
-}
-
-function normalizeCurrencyDigits(value: string): string {
-  return String(value || '').replace(/[^\d]/g, '').slice(0, 7);
-}
-
-function digitsToCurrencyDisplay(digits: string): string {
-  const normalized = normalizeCurrencyDigits(digits);
-  if (!normalized) return '';
-  return (Number(normalized) / 100).toFixed(2);
-}
-
-function currencyDigitsToCents(digits: string): number {
-  const normalized = normalizeCurrencyDigits(digits);
-  return normalized ? Number(normalized) : 0;
 }
 
 function buildScheduledStart(date: Date, slot: string): string | null {
@@ -267,7 +249,6 @@ function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected
 }
 
 export default function BizPage() {
-  const DRAFT_DESCRIPTION_HINT = 'Tell students what you offer, what makes you different, and what they should expect.';
   const router = useRouter();
   const { slug } = router.query;
   const slugValue = Array.isArray(slug) ? slug[0] : slug;
@@ -279,8 +260,6 @@ export default function BizPage() {
   const previewParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('preview') : null;
   const embeddedQuery = router.query?.embedded;
   const embeddedParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('embedded') : null;
-  const themeQuery = router.query?.theme;
-  const themeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('theme') : null;
   const allowEditInBiz =
     fromQuery === 'dashboard' ||
     (Array.isArray(fromQuery) && fromQuery.includes('dashboard')) ||
@@ -295,7 +274,6 @@ export default function BizPage() {
     (Array.isArray(embeddedQuery) && embeddedQuery.includes('1')) ||
     embeddedParam === '1';
   const isDashboardEmbed = allowEditInBiz && isEmbedded;
-  const forcedTheme = Array.isArray(themeQuery) ? themeQuery[0] : (themeQuery || themeParam || null);
   const hideNav = isPreview;
   const [biz, setBiz] = useState(null);
   const [services, setServices] = useState([]);
@@ -329,40 +307,36 @@ export default function BizPage() {
   const [viewerSchoolDomain, setViewerSchoolDomain] = useState<string | null>(null);
   const [viewerEmail, setViewerEmail] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
-  const [providerPaymentBlockReason, setProviderPaymentBlockReason] = useState('');
   const [editMode, setEditMode] = useState(false);
-  const [editName, setEditName] = useState('');
+  const [editBizName, setEditBizName] = useState('');
+  const [editOwnerName, setEditOwnerName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editVideo, setEditVideo] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
   const [computedPriceTier, setComputedPriceTier] = useState<number | null>(null);
   const [editNotice, setEditNotice] = useState<string | null>(null);
   const [mediaUploading, setMediaUploading] = useState(false);
   const [mediaErr, setMediaErr] = useState('');
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [svcDrafts, setSvcDrafts] = useState<Record<string, any>>({});
-  const [newSvc, setNewSvc] = useState({ name: '', price: '', duration: '', description: '' });
+  const [newSvc, setNewSvc] = useState({ name: '', price: '', duration: '60', description: '' });
   const [showNewServiceComposer, setShowNewServiceComposer] = useState(false);
   const [savingAllEdits, setSavingAllEdits] = useState(false);
   const [deletedServiceIds, setDeletedServiceIds] = useState<string[]>([]);
   const imgInputRef = useRef<HTMLInputElement | null>(null);
   const vidInputRef = useRef<HTMLInputElement | null>(null);
+  const coreProfileSectionRef = useRef<HTMLDivElement | null>(null);
+  const mediaSectionRef = useRef<HTMLDivElement | null>(null);
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const galleryTouchStart = useRef<{ x: number; y: number } | null>(null);
   const lightboxTouchStart = useRef<{ x: number; y: number } | null>(null);
-  const newServicePriceCents = currencyDigitsToCents(newSvc.price);
-  const newServicePriceTooLow = newSvc.price.length > 0 && newServicePriceCents < 500;
-
-  function normalizeDraftDescription(value?: string | null) {
-    const text = String(value || '').trim();
-    if (!text || text === 'Complete setup in your dashboard to publish this profile.') return '';
-    return text;
-  }
 
   const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
   const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
-  const bizVisibility = getProviderVisibilitySettings(biz);
   const normalizeDomain = (v?: string | null) => v ? String(v).toLowerCase().trim() : null;
   const viewerDomain = normalizeDomain(viewerSchoolDomain);
   const normalizedBizKey = bizCampusKey ? bizCampusKey.replace(/[^a-z0-9.]/g, '') : null;
@@ -373,49 +347,10 @@ export default function BizPage() {
     ? (isOwnerViewing
         ? biz.owner_name
         : (viewerEduVerified && sameCampus
-            ? (bizVisibility.campusShowName ? biz.owner_name : '')
-            : (bizVisibility.publicVisibility && bizVisibility.publicShowName ? biz.owner_name : '')))
+            ? (isProviderCampusNameVisible(biz) ? biz.owner_name : '')
+            : (isProviderPublicNameVisible(biz) ? biz.owner_name : '')))
     : '';
   const titleName = biz?.name || 'ScheduleMe Provider';
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadProviderPayoutAvailability() {
-      if (!biz?.id) {
-        if (!cancelled) setProviderPaymentBlockReason('');
-        return;
-      }
-      if (biz?.stripe_onboarded && biz?.stripe_account_id) {
-        if (!cancelled) setProviderPaymentBlockReason('');
-        return;
-      }
-      try {
-        const { count } = await getSB()
-          .from('bookings')
-          .select('id', { count: 'exact', head: true })
-          .eq('business_id', biz.id)
-          .not('paid_at', 'is', null)
-          .not('status', 'in', '(cancelled,payment_failed)');
-        if (cancelled) return;
-        const payoutStage = deriveProviderPayoutStage({
-          stripe_onboarded: biz?.stripe_onboarded,
-          stripe_account_id: biz?.stripe_account_id,
-          paidBookingsCount: count || 0,
-        });
-        setProviderPaymentBlockReason(
-          payoutStage.requiresStripeForNewBookings
-            ? `This provider has reached the ${MANUAL_PAYOUT_BOOKING_THRESHOLD}-booking manual payout limit and needs to connect Stripe before accepting new paid bookings.`
-            : ''
-        );
-      } catch {
-        if (!cancelled) setProviderPaymentBlockReason('');
-      }
-    }
-
-    loadProviderPayoutAvailability();
-    return () => { cancelled = true; };
-  }, [biz?.id, biz?.stripe_onboarded, biz?.stripe_account_id]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -431,22 +366,22 @@ export default function BizPage() {
       try {
         let data: any = null;
         if (resolvedSlug) {
-          let bySlugQuery = getSB()
+          const { data: bySlug } = await getSB()
             .from('businesses')
             .select('*')
-            .eq('slug', resolvedSlug);
-          if (!isPreview) bySlugQuery = bySlugQuery.eq('is_onboarded', true);
-          const { data: bySlug } = await bySlugQuery.maybeSingle();
+            .eq('slug', resolvedSlug)
+            .eq('is_onboarded', true)
+            .maybeSingle();
           data = bySlug;
         }
 
         if (!data && resolvedBusinessId) {
-          let byIdQuery = getSB()
+          const { data: byId } = await getSB()
             .from('businesses')
             .select('*')
-            .eq('id', resolvedBusinessId);
-          if (!isPreview) byIdQuery = byIdQuery.eq('is_onboarded', true);
-          const { data: byId } = await byIdQuery.maybeSingle();
+            .eq('id', resolvedBusinessId)
+            .eq('is_onboarded', true)
+            .maybeSingle();
           data = byId;
         }
 
@@ -459,8 +394,7 @@ export default function BizPage() {
         }
 
         setBiz(data);
-        setEditName(String(data.name || '').trim());
-        setEditDesc(normalizeDraftDescription(data.description));
+        setEditDesc(data.description || '');
         const initialImages = [data.cover_url, ...(data.media_urls || [])].filter(Boolean) as string[];
         setEditImages(normalizeImageList(initialImages));
         setEditVideo(data.video_url || null);
@@ -556,6 +490,23 @@ export default function BizPage() {
         setEditMode(true);
         return;
       }
+      if (event.data.action === 'focus-section') {
+        const section = event.data.section;
+        if (section === 'coreProfile') {
+          setEditMode(true);
+          window.requestAnimationFrame(() => {
+            coreProfileSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+          return;
+        }
+        if (section === 'media') {
+          setEditMode(true);
+          window.requestAnimationFrame(() => {
+            mediaSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+          return;
+        }
+      }
       if (event.data.action === 'cancel-edit') {
         await cancelEmbeddedEditing();
         return;
@@ -602,24 +553,10 @@ export default function BizPage() {
     }).catch(() => {}).finally(() => setLoadingSlots(false));
   }, [biz?.id]);
 
-  async function getAccessTokenOrThrow() {
-    const supabase = getSB();
-    let { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      const refreshed = await supabase.auth.refreshSession();
-      session = refreshed.data.session ?? null;
-    }
-    if (!session?.access_token) {
-      throw new Error('Invalid or expired session. Please sign in again.');
-    }
-    return session.access_token;
-  }
-
   async function getAuthHeaders() {
-    return {
-      Authorization: `Bearer ${await getAccessTokenOrThrow()}`,
-      'Content-Type': 'application/json',
-    };
+    const { data: { session } } = await getSB().auth.getSession();
+    if (!session) return null;
+    return { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
   }
 
   async function submitChangeRequest(changes: Record<string, any>, requestType?: string) {
@@ -661,15 +598,18 @@ export default function BizPage() {
 
   function resetEmbeddedDrafts(nextBiz: any = biz, nextServices: any[] = services) {
     if (!nextBiz) return;
-    setEditName(String(nextBiz.name || '').trim());
-    setEditDesc(normalizeDraftDescription(nextBiz.description));
+    setEditBizName(nextBiz.name || '');
+    setEditOwnerName(nextBiz.owner_name || '');
+    setEditPhone(nextBiz.phone || '');
+    setEditWebsite(nextBiz.website || '');
+    setEditDesc(nextBiz.description || '');
     const initialImages = [nextBiz.cover_url, ...(nextBiz.media_urls || [])].filter(Boolean) as string[];
     setEditImages(normalizeImageList(initialImages));
     setEditVideo(nextBiz.video_url || null);
     setDraftServices((nextServices || []).map((svc: any) => ({ ...svc })));
     setSvcDrafts({});
     setDeletedServiceIds([]);
-    setNewSvc({ name: '', price: '', duration: '', description: '' });
+    setNewSvc({ name: '', price: '', duration: '60', description: '' });
     setShowNewServiceComposer(false);
     setMediaErr('');
     setErr('');
@@ -709,6 +649,7 @@ export default function BizPage() {
         reader.readAsDataURL(file);
       });
       const headers = await getAuthHeaders();
+      if (!headers) { setMediaErr('Sign in required'); return; }
       const res = await fetch('/api/upload-media', {
         method: 'POST',
         headers,
@@ -725,7 +666,9 @@ export default function BizPage() {
       if (type === 'video') {
         setEditVideo(data.url);
         if (isDashboardEmbed) {
-          setEditNotice('Video ready to save.');
+          await saveDashboardListing({ video_url: data.url });
+          setBiz((prev: any) => prev ? { ...prev, video_url: data.url } : prev);
+          setEditNotice('Video updated.');
         } else {
           await submitChangeRequest({ video_url: data.url }, 'media');
           setEditNotice('Video submitted for review.');
@@ -734,7 +677,9 @@ export default function BizPage() {
         const next = normalizeImageList([...editImages, data.url]);
         setEditImages(next);
         if (isDashboardEmbed) {
-          setEditNotice('Photos ready to save.');
+          await saveDashboardListing({ cover_url: next[0] || null, media_urls: next.slice(1) });
+          setBiz((prev: any) => prev ? { ...prev, cover_url: next[0] || null, media_urls: next.slice(1) } : prev);
+          setEditNotice('Photos updated.');
         } else {
           await submitChangeRequest({ cover_url: next[0] || null, media_urls: next.slice(1) }, 'media');
           setEditNotice('Photos submitted for review.');
@@ -753,7 +698,9 @@ export default function BizPage() {
     setEditImages(normalized);
     try {
       if (isDashboardEmbed) {
-        setEditNotice('Photo order updated. Save changes to keep it.');
+        await saveDashboardListing({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) });
+        setBiz((prev: any) => prev ? { ...prev, cover_url: normalized[0] || null, media_urls: normalized.slice(1) } : prev);
+        setEditNotice('Photos updated.');
       } else {
         await submitChangeRequest({ cover_url: normalized[0] || null, media_urls: normalized.slice(1) }, 'media');
         setEditNotice('Photos submitted for review.');
@@ -785,13 +732,35 @@ export default function BizPage() {
     setEditVideo(null);
     try {
       if (isDashboardEmbed) {
-        setEditNotice('Video removal ready to save.');
+        await saveDashboardListing({ video_url: null });
+        setBiz((prev: any) => prev ? { ...prev, video_url: null } : prev);
+        setEditNotice('Video removed.');
       } else {
         await submitChangeRequest({ video_url: null }, 'media');
         setEditNotice('Video removal submitted for review.');
       }
     } catch (e: any) {
       setMediaErr(e?.message || 'Failed to update video');
+    }
+  }
+
+  async function saveDescription() {
+    if (!biz) return;
+    setEditSaving(true);
+    try {
+      if (isDashboardEmbed) {
+        await saveDashboardListing({ description: editDesc });
+        setBiz((prev: any) => prev ? { ...prev, description: editDesc } : prev);
+        setEditNotice('Description updated.');
+      } else {
+        await submitChangeRequest({ description: editDesc }, 'profile');
+        setEditNotice('Description submitted for review.');
+      }
+    } catch (e: any) {
+      setEditNotice(e?.message || 'Failed to submit description');
+    } finally {
+      setEditSaving(false);
+      setTimeout(() => setEditNotice(null), 2500);
     }
   }
 
@@ -802,39 +771,24 @@ export default function BizPage() {
         id: s.id,
         name: s.name || '',
         description: s.description || '',
-        price: s.price_cents ? String(s.price_cents) : '',
+        price: s.price_cents ? (s.price_cents / 100).toFixed(2) : '',
         duration: s.duration_min ? String(s.duration_min) : '60',
       },
     }));
   }
 
   function updateSvcDraft(id: string, field: string, value: string) {
-    setSvcDrafts((prev) => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        [field]:
-          field === 'price'
-            ? normalizeCurrencyDigits(value)
-            : field === 'duration'
-              ? String(value || '').replace(/[^\d]/g, '').slice(0, 4)
-              : value,
-      },
-    }));
+    setSvcDrafts((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   }
 
   async function saveService(id: string) {
     const d = svcDrafts[id];
     if (!biz || !d) return;
-    const price = currencyDigitsToCents(d.price || '');
-    const durationMin = Number.parseInt(String(d.duration || ''), 10);
-    if (!String(d.name || '').trim()) { setErr('Service name is required'); return; }
-    if (price < 500) { setErr('Service price must be at least $5.00'); return; }
-    if (!Number.isFinite(durationMin) || durationMin <= 0) { setErr('Service duration is required'); return; }
     if (isDashboardEmbed && editMode) {
+      const price = Math.round(parseFloat(d.price || '0') * 100);
       setDraftServices((prev: any[]) => prev.map((s) => (
         s.id === id
-          ? { ...s, name: d.name.trim(), description: d.description, price_cents: price, duration_min: durationMin }
+          ? { ...s, name: d.name, description: d.description, price_cents: price, duration_min: Number(d.duration || 60) }
           : s
       )));
       setSvcDrafts((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
@@ -842,16 +796,17 @@ export default function BizPage() {
     }
     const headers = await getAuthHeaders();
     if (!headers) return;
+    const price = Math.round(parseFloat(d.price || '0') * 100);
     const res = await fetch('/api/services', {
       method: 'PATCH',
       headers,
       body: JSON.stringify({
         id,
         business_id: biz.id,
-        name: d.name.trim(),
+        name: d.name,
         description: d.description,
         price_cents: price,
-        duration_min: durationMin,
+        duration_min: Number(d.duration || 60),
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -884,11 +839,8 @@ export default function BizPage() {
   async function addService() {
     if (!biz) return;
     const name = newSvc.name.trim();
-    const priceCents = currencyDigitsToCents(newSvc.price);
-    const durationMin = Number.parseInt(String(newSvc.duration || ''), 10);
-    if (!name) { setErr('Add a service name'); return; }
-    if (priceCents < 500) { setErr('Minimum service price is $5.00'); return; }
-    if (!Number.isFinite(durationMin) || durationMin <= 0) { setErr('Add a service duration in minutes'); return; }
+    const priceCents = Math.round(parseFloat(newSvc.price || '0') * 100);
+    if (!name || !priceCents) { setErr('Add a name and price'); return; }
     if (isDashboardEmbed && editMode) {
       setDraftServices((prev: any[]) => [
         ...prev,
@@ -897,12 +849,12 @@ export default function BizPage() {
           name,
           description: newSvc.description || '',
           price_cents: priceCents,
-          duration_min: durationMin,
+          duration_min: Number(newSvc.duration || 60),
           sort_order: prev.length,
           requires_time: true,
         },
       ]);
-      setNewSvc({ name: '', price: '', duration: '', description: '' });
+      setNewSvc({ name: '', price: '', duration: '60', description: '' });
       setShowNewServiceComposer(false);
       return;
     }
@@ -917,14 +869,14 @@ export default function BizPage() {
         name,
         description: newSvc.description || '',
         price_cents: priceCents,
-        duration_min: durationMin,
+        duration_min: Number(newSvc.duration || 60),
         sort_order: maxOrder + 1,
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { setErr(data.error || 'Failed to add service'); return; }
     setServices((prev: any[]) => [...prev, data.service]);
-    setNewSvc({ name: '', price: '', duration: '', description: '' });
+    setNewSvc({ name: '', price: '', duration: '60', description: '' });
   }
 
   async function book() {
@@ -955,7 +907,7 @@ export default function BizPage() {
       proposedPriceCents = parsedCents;
     }
 
-    if (providerPaymentBlockReason) { setErr(providerPaymentBlockReason); return; }
+    if (!biz?.stripe_onboarded || !biz?.stripe_account_id) { setErr('This provider can’t accept payments yet.'); return; }
     const isPaidService = !isCustom;
     if (isPaidService && !selectedSvc?.price_cents) { setErr('Please select a priced service to book.'); return; }
 
@@ -1021,16 +973,15 @@ export default function BizPage() {
     return;
   }
 
-  const embedDm = isDashboardEmbed ? forcedTheme === 'dark' : dm;
-  const bg = embedDm ? '#0a0a0a' : '#f8f6f1';
+  const bg = dm ? '#0a0a0a' : '#f6f2e9';
   const accent = '#007e6d';
   const accentDark = '#1e554c';
-  const accentWash = embedDm ? 'rgba(0,126,109,0.18)' : 'rgba(0,126,109,0.08)';
-  const accentBorder = embedDm ? 'rgba(0,126,109,0.34)' : 'rgba(0,126,109,0.18)';
-  const card = embedDm ? '#171717' : '#ffffff';
-  const bdr = embedDm ? '#2c2c2e' : '#e5e7eb';
-  const tx = embedDm ? '#f2f2f7' : '#111827';
-  const mu = embedDm ? '#8e8e93' : '#6b7280';
+  const accentWash = dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)';
+  const accentBorder = dm ? 'rgba(0,126,109,0.35)' : 'rgba(0,126,109,0.25)';
+  const card = dm ? '#1c1c1e' : '#fcfbf8';
+  const bdr = dm ? '#2c2c2e' : '#e6ded2';
+  const tx = dm ? '#f2f2f7' : '#111';
+  const mu = dm ? '#8e8e93' : '#6b7280';
 
   useEffect(() => {
     if (!biz) return;
@@ -1077,14 +1028,13 @@ export default function BizPage() {
   const baseImgs = Array.from(new Set([biz.cover_url, ...(biz.media_urls || [])].filter(Boolean)))
     .filter((u) => !String(u).match(/\.(mp4|mov|webm|m4v)$/i));
   const imgs = editMode ? (editImages.length ? editImages : baseImgs) : baseImgs;
-  const businessNamePreview = (editMode ? editName : biz?.name || '').trim() || 'Your business';
 
   const requiresTime = isCustom ? (biz?.custom_requires_time !== false) : (selectedSvc?.requires_time !== false);
   const customProposedCents = isCustom && customProposedPrice
     ? Number.parseInt(customProposedPrice, 10)
     : 0;
   const customPriceTooLow = isCustom && customProposedPrice.length > 0 && (!Number.isFinite(customProposedCents) || customProposedCents < 500);
-  const providerCannotAcceptPayments = !!providerPaymentBlockReason;
+  const providerCannotAcceptPayments = !biz?.stripe_onboarded || !biz?.stripe_account_id;
   const isSelfOwnedBusiness = !!(
     (biz?.owner_id && viewerUserId && biz.owner_id === viewerUserId) ||
     (biz?.owner_email && viewerEmail && String(biz.owner_email).toLowerCase().trim() === String(viewerEmail).toLowerCase().trim())
@@ -1211,14 +1161,32 @@ export default function BizPage() {
     setErr('');
     setMediaErr('');
     try {
-      const trimmedName = editName.trim();
-      if (!trimmedName) throw new Error('Business name is required');
+      const trimmedName = editBizName.trim();
+      const trimmedOwnerName = editOwnerName.trim();
+      const trimmedPhone = editPhone.trim();
+      const trimmedWebsite = editWebsite.trim();
 
-      if (trimmedName !== String(biz.name || '').trim()) {
+      const coreProfileChanged =
+        trimmedName !== String(biz.name || '').trim() ||
+        trimmedOwnerName !== String(biz.owner_name || '').trim() ||
+        trimmedPhone !== String(biz.phone || '').trim() ||
+        trimmedWebsite !== String(biz.website || '').trim();
+
+      if (coreProfileChanged) {
         if (isDashboardEmbed) {
-          await saveDashboardListing({ name: trimmedName });
+          await saveDashboardListing({
+            name: trimmedName,
+            owner_name: trimmedOwnerName,
+            phone: trimmedPhone,
+            website: trimmedWebsite,
+          });
         } else {
-          await submitChangeRequest({ name: trimmedName }, 'profile');
+          await submitChangeRequest({
+            name: trimmedName,
+            owner_name: trimmedOwnerName,
+            phone: trimmedPhone,
+            website: trimmedWebsite,
+          }, 'profile');
         }
       }
 
@@ -1302,28 +1270,17 @@ export default function BizPage() {
       const nextServices = refreshed?.services || draftServices;
       setServices(nextServices);
       setDraftServices(nextServices.map((svc: any) => ({ ...svc })));
-      const nextBiz = {
-        ...biz,
-        name: trimmedName,
-        description: editDesc,
-        cover_url: nextImages[0] || null,
-        media_urls: nextImages.slice(1),
-        video_url: editVideo || null,
-      };
       setBiz((prev: any) => prev ? {
         ...prev,
         name: trimmedName,
+        owner_name: trimmedOwnerName,
+        phone: trimmedPhone,
+        website: trimmedWebsite,
         description: editDesc,
         cover_url: nextImages[0] || null,
         media_urls: nextImages.slice(1),
         video_url: editVideo || null,
       } : prev);
-      if (isDashboardEmbed && typeof window !== 'undefined') {
-        window.parent?.postMessage(
-          { type: 'scheduleme-dashboard-preview-saved', business: nextBiz, services: nextServices },
-          window.location.origin
-        );
-      }
       setEditMode(false);
       setDeletedServiceIds([]);
       setShowNewServiceComposer(false);
@@ -1465,7 +1422,7 @@ export default function BizPage() {
           <div className="relative" style={{ height: 450, background: bg }}>
             <div className="relative h-full w-full mx-auto flex items-center justify-center" style={{ maxWidth: 980, paddingTop: 26, paddingBottom: 6 }}>
               <div className="relative flex items-center justify-center w-full" style={{ maxWidth: 800 }}>
-                {imgs[galleryIdx] ? (
+                {imgs[galleryIdx] && (
                   <img
                     src={imgs[galleryIdx]}
                     alt={biz?.name || 'Provider'}
@@ -1487,16 +1444,18 @@ export default function BizPage() {
                       else goPrevImage();
                     }}
                   />
-                ) : (
+                )}
+                {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
                   <div
-                    className="w-full rounded-[28px] border border-dashed flex flex-col items-center justify-center gap-3 text-center"
-                    style={{ minHeight: 320, background: dm ? '#121212' : '#f8fafc', borderColor: dm ? '#2d2d2f' : '#d9e4df', color: mu }}
+                    className="absolute right-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    style={{
+                      background: 'rgba(0,0,0,0.55)',
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      backdropFilter: 'blur(6px)',
+                    }}
                   >
-                    <FaCamera className="h-8 w-8" color="#007e6d" aria-hidden="true" />
-                    <div>
-                      <p className="text-sm font-bold" style={{ color: tx }}>No images uploaded</p>
-                      <p className="text-xs mt-1" style={{ color: mu }}>This provider has not added cover photos yet.</p>
-                    </div>
+                    Founder50
                   </div>
                 )}
                 {imgs.length > 1 && (
@@ -1532,14 +1491,7 @@ export default function BizPage() {
         )}
         <div className="mx-auto max-w-2xl px-4" style={{ paddingTop: isEmbedded ? 20 : 0 }}>
           {isEmbedded && (
-            <div
-              className="rounded-2xl p-4 mb-4"
-              style={{
-                background: card,
-                border: '1px solid ' + bdr,
-                boxShadow: dm ? '0 10px 24px rgba(0,0,0,0.18)' : '0 10px 24px rgba(15,23,42,0.08)',
-              }}
-            >
+            <div className="rounded-2xl p-4 shadow-lg mb-4" style={{ background: card, border: '1px solid ' + bdr }}>
               <div className="flex items-start gap-4">
                 <div className="h-24 w-24 rounded-2xl overflow-hidden shrink-0" style={{ background: dm ? '#111' : '#f3f4f6', border: '1px solid ' + bdr }}>
                   {imgs[galleryIdx] ? (
@@ -1550,7 +1502,7 @@ export default function BizPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-1" style={{ color: mu }}>Live Preview</p>
-                  <h1 className="text-xl font-bold" style={{ color: tx }}>{businessNamePreview}</h1>
+                  <h1 className="text-xl font-bold" style={{ color: tx }}>{biz.name}</h1>
                   {ownerDisplayName ? (
                     <p className="text-sm mt-1" style={{ color: mu }}>{ownerDisplayName}</p>
                   ) : null}
@@ -1575,17 +1527,10 @@ export default function BizPage() {
             </div>
           )}
           {isEmbedded && (
-            <div
-              className="rounded-2xl p-4 mb-5 relative z-20"
-              style={{
-                background: card,
-                border: '1px solid ' + bdr,
-                boxShadow: dm ? '0 12px 28px rgba(0,0,0,0.22)' : '0 12px 28px rgba(15,23,42,0.08)',
-              }}
-            >
+            <div className="rounded-2xl p-4 shadow-lg mb-5 relative z-20" style={{ background: card, border: '1px solid ' + bdr }}>
               <div
                 className="relative overflow-hidden rounded-2xl"
-                style={{ background: embedDm ? '#101010' : '#f7f7f6', minHeight: 240 }}
+                style={{ background: dm ? '#101010' : '#f6f2e9', minHeight: 240 }}
                 onDragOver={(e) => {
                   if (!editMode) return;
                   e.preventDefault();
@@ -1668,10 +1613,15 @@ export default function BizPage() {
                       type="button"
                       onClick={() => imgInputRef.current?.click()}
                       className="relative h-16 w-16 rounded-xl flex-shrink-0 border border-dashed flex items-center justify-center text-center p-2"
-                      style={{ borderColor: embedDm ? '#2d2d2f' : '#cfe2dc', background: embedDm ? '#0c0c0d' : '#f7faf9', color: tx }}
+                      style={{ borderColor: dm ? '#2d2d2f' : '#b8ddd4', background: dm ? '#0c0c0d' : '#f5fbf8', color: tx }}
                       aria-label="Add photos or videos"
                     >
-                      <FaCamera className="h-5 w-5" color="#007e6d" aria-hidden="true" />
+                      <span
+                        className="inline-flex items-center justify-center h-9 w-9 rounded-xl text-[28px] font-medium leading-none"
+                        style={{ background: dm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: '#007e6d' }}
+                      >
+                        +
+                      </span>
                     </button>
                   )}
                 </div>
@@ -1686,7 +1636,7 @@ export default function BizPage() {
                     {mediaErr && <p className="text-xs text-red-500 mb-2">{mediaErr}</p>}
                     {mediaUploading && <p className="text-xs mb-2" style={{ color: mu }}>Uploading…</p>}
                     {editVideo && (
-                      <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: embedDm ? '#0d0d0d' : '#f9fafb' }}>
+                      <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb' }}>
                         <p className="text-xs font-semibold" style={{ color: tx }}>Video added</p>
                         <button onClick={removeVideo} className="text-xs font-semibold" style={{ color: '#ef4444' }}>Remove</button>
                       </div>
@@ -1732,27 +1682,11 @@ export default function BizPage() {
             </button>
             <div className="flex items-start justify-between gap-4 mb-2 pr-12">
               <div>
-                {editMode ? (
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold uppercase tracking-widest" style={{ color: mu }}>
-                      Business name
-                    </label>
-                    <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      maxLength={60}
-                      placeholder="Enter your business name"
-                      className="w-full rounded-xl px-3 py-2 text-base font-bold"
-                      style={{ border: '1px solid ' + bdr, background: embedDm ? '#0d0d0d' : '#f9fafb', color: tx }}
-                    />
-                  </div>
-                ) : (
-                  <h1 className="text-xl font-bold" style={{color:tx,letterSpacing:'-0.02em'}}>{businessNamePreview}</h1>
-                )}
+                <h1 className="text-xl font-bold" style={{color:tx,letterSpacing:'-0.02em'}}>{biz.name}</h1>
               </div>
             </div>
             {ownerDisplayName ? (
-              <p className="text-sm font-semibold mb-2" style={{ color: embedDm ? '#d1d5db' : '#4b5563' }}>
+              <p className="text-sm font-semibold mb-2" style={{ color: dm ? '#d1d5db' : '#4b5563' }}>
                 {ownerDisplayName}
               </p>
             ) : null}
@@ -1763,13 +1697,8 @@ export default function BizPage() {
                   {'$'.repeat(computedPriceTier ?? biz.price_tier)}
                 </span>
               ) : null}
-              {(biz as any).founder50 && !['paused','revoked'].includes(String((biz as any).founder50_status || '')) && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: embedDm ? 'rgba(82,82,91,0.35)' : 'rgba(17,24,39,0.12)', color: embedDm ? '#f3f4f6' : '#374151', border: '1px solid ' + (embedDm ? 'rgba(244,244,245,0.12)' : 'rgba(17,24,39,0.08)') }}>
-                  Founder50
-                </span>
-              )}
               {shouldShowNewBadge({ createdAt: biz.created_at, reviewCount: biz.review_count }) && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: embedDm ? 'rgba(0,126,109,0.2)' : 'rgba(0,126,109,0.12)', color: embedDm ? '#6ee7d3' : '#0f766e' }}>New</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{background:dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
               )}
               {(biz.review_count ?? 0) > 0 && biz.rating && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: mu }}>
@@ -1781,26 +1710,74 @@ export default function BizPage() {
               )}
             </div>
             {editMode ? (
-              <div className="mb-4">
-                <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Description</label>
-                <textarea
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  maxLength={1000}
-                  rows={3}
-                  placeholder={DRAFT_DESCRIPTION_HINT}
-                  className="w-full rounded-xl px-3 py-2 text-sm"
-                  style={{ border: '1px solid ' + bdr, background: embedDm ? '#0d0d0d' : '#f9fafb', color: tx }}
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-[11px]" style={{ color: mu }}>{editDesc.length}/1000</span>
-                  {isDashboardEmbed && <span className="text-[11px]" style={{ color: mu }}>Changes stay local until you save.</span>}
+              <>
+                <div ref={coreProfileSectionRef} className="mb-5 rounded-2xl p-4" style={{ background: dm ? '#0d0d0d' : '#f9fafb', border: '1px solid ' + bdr }}>
+                  <div className="mb-3">
+                    <p className="text-sm font-bold" style={{ color: tx }}>Core profile fields</p>
+                    <p className="text-xs mt-1" style={{ color: mu }}>These details complete the publish checklist and appear on your provider page.</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Business name</label>
+                      <input
+                        value={editBizName}
+                        onChange={(e) => setEditBizName(e.target.value)}
+                        maxLength={60}
+                        className="w-full rounded-xl px-3 py-2 text-sm"
+                        style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Provider name</label>
+                      <input
+                        value={editOwnerName}
+                        onChange={(e) => setEditOwnerName(e.target.value)}
+                        maxLength={60}
+                        className="w-full rounded-xl px-3 py-2 text-sm"
+                        style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Phone</label>
+                      <input
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        maxLength={40}
+                        className="w-full rounded-xl px-3 py-2 text-sm"
+                        style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Website</label>
+                      <input
+                        value={editWebsite}
+                        onChange={(e) => setEditWebsite(e.target.value)}
+                        maxLength={255}
+                        placeholder="https://your-site.com"
+                        className="w-full rounded-xl px-3 py-2 text-sm"
+                        style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+                <div className="mb-4">
+                  <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Description</label>
+                  <textarea
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    maxLength={1000}
+                    rows={3}
+                    className="w-full rounded-xl px-3 py-2 text-sm"
+                    style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }}
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[11px]" style={{ color: mu }}>{editDesc.length}/1000</span>
+                    {isDashboardEmbed && <span className="text-[11px]" style={{ color: mu }}>Saved when you click Save changes.</span>}
+                  </div>
+                </div>
+              </>
             ) : (
-              <p className="text-sm leading-relaxed mb-4" style={{ color: normalizeDraftDescription(biz.description) ? mu : (embedDm ? '#6b7280' : '#9ca3af') }}>
-                {normalizeDraftDescription(biz.description) || DRAFT_DESCRIPTION_HINT}
-              </p>
+              biz.description && <p className="text-sm leading-relaxed mb-4" style={{color:mu}}>{biz.description}</p>
             )}
             {editNotice && (
               <div className="mb-4 text-[11px] font-semibold" style={{ color: accent }}>{editNotice}</div>
@@ -1833,16 +1810,11 @@ export default function BizPage() {
                             className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <input value={digitsToCurrencyDisplay(draft.price || '')} onChange={(e) => updateSvcDraft(s.id, 'price', e.target.value)} placeholder="0.00"
-                            inputMode="numeric"
+                          <input value={draft.price} onChange={(e) => updateSvcDraft(s.id, 'price', e.target.value)} placeholder="Price (e.g. 25)"
                             className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                           <input value={draft.duration} onChange={(e) => updateSvcDraft(s.id, 'duration', e.target.value)} placeholder="Minutes"
-                            inputMode="numeric"
                             className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                         </div>
-                        {draft.price && currencyDigitsToCents(draft.price) < 500 && (
-                          <p className="text-[11px] font-semibold text-red-500">Minimum service price is $5.00.</p>
-                        )}
                         <div className="flex items-center justify-between">
                           <button onClick={() => saveService(s.id)}
                             className="text-xs font-semibold px-3 py-1.5 rounded-xl"
@@ -1915,16 +1887,11 @@ export default function BizPage() {
                         className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                      <input value={digitsToCurrencyDisplay(newSvc.price)} onChange={(e) => setNewSvc((p) => ({ ...p, price: normalizeCurrencyDigits(e.target.value) }))} placeholder="0.00"
-                        inputMode="numeric"
+                      <input value={newSvc.price} onChange={(e) => setNewSvc((p) => ({ ...p, price: e.target.value }))} placeholder="Price (e.g. 25)"
                         className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
-                      <input value={newSvc.duration} onChange={(e) => setNewSvc((p) => ({ ...p, duration: String(e.target.value || '').replace(/[^\d]/g, '').slice(0, 4) }))} placeholder="Minutes"
-                        inputMode="numeric"
+                      <input value={newSvc.duration} onChange={(e) => setNewSvc((p) => ({ ...p, duration: e.target.value }))} placeholder="Minutes"
                         className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: '1px solid ' + bdr, background: dm ? '#0d0d0d' : '#f9fafb', color: tx }} />
                     </div>
-                    {newServicePriceTooLow && (
-                      <p className="mt-2 text-[11px] font-semibold text-red-500">Minimum service price is $5.00.</p>
-                    )}
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-[11px]" style={{ color: mu }}>
                         {isDashboardEmbed ? 'This saves when you click Save changes.' : 'This will appear immediately on your listing.'}
@@ -2044,7 +2011,7 @@ export default function BizPage() {
           )}
           {providerCannotAcceptPayments && !guestNeedsAuth && (
             <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(156,163,175,0.18)' : 'rgba(156,163,175,0.16)', color: dm ? '#d1d5db' : '#4b5563', border: '1px solid ' + (dm ? '#4b5563' : '#d1d5db') }}>
-              {providerPaymentBlockReason}
+              This provider can&apos;t accept payments yet, so booking is temporarily unavailable.
             </div>
           )}
           {isSelfOwnedBusiness && (
@@ -2126,7 +2093,7 @@ export default function BizPage() {
           )}
           {providerCannotAcceptPayments && !guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              {providerPaymentBlockReason}
+              Provider can&apos;t accept payments yet.
             </p>
           )}
           {isSelfOwnedBusiness && (
@@ -2148,7 +2115,7 @@ export default function BizPage() {
           )}
           {providerCannotAcceptPayments && !guestNeedsAuth && (
             <p className="text-center mt-2 text-xs font-semibold" style={{ color: dm ? 'rgba(209,213,219,0.85)' : '#6b7280' }}>
-              {providerPaymentBlockReason}
+              Provider can&apos;t accept payments yet.
             </p>
           )}
           {isSelfOwnedBusiness && (

@@ -36,77 +36,50 @@ export function isProviderFlagged(row: any): boolean {
   return getTrustState(row) === 'flagged' || row?.trust_flagged === true;
 }
 
-function isLegacyApprovedProvider(row: any): boolean {
-  return !!row?.approved_at && !row?.published_at;
-}
-
-export function isCampusStudentProvider(row: any): boolean {
-  return row?.campus_provider === true && row?.edu_verified === true;
-}
-
-export function getProviderVisibilitySettings(row: any): {
-  publicVisibility: boolean;
-  publicShowName: boolean;
-  publicShowPhotos: boolean;
-  campusShowName: boolean;
-} {
-  const legacyApproved = isLegacyApprovedProvider(row);
-  const publicVisibility = row?.public_visibility === false ? legacyApproved : true;
-  const publicShowNameExplicitFalse = row?.public_show_name === false;
-  const publicShowPhotosExplicitFalse = row?.public_show_photos === false && row?.public_show_media !== true;
-  const campusShowNameExplicitFalse = row?.campus_show_name === false;
-
-  // Legacy providers were briefly initialized with falsey visibility flags
-  // before the current privacy model was finalized. If a card is otherwise
-  // public but every identity toggle is effectively "off", treat it as an
-  // uncustomized legacy row and default back to visible-by-default.
-  const looksLikeLegacyHiddenDefaults =
-    publicVisibility &&
-    publicShowNameExplicitFalse &&
-    publicShowPhotosExplicitFalse &&
-    campusShowNameExplicitFalse;
-
-  const publicShowName = looksLikeLegacyHiddenDefaults ? true : !publicShowNameExplicitFalse;
-  const publicShowPhotos = looksLikeLegacyHiddenDefaults ? true : !publicShowPhotosExplicitFalse;
-  const campusShowName = looksLikeLegacyHiddenDefaults ? true : !campusShowNameExplicitFalse;
-  return {
-    publicVisibility,
-    publicShowName,
-    publicShowPhotos,
-    campusShowName,
-  };
-}
-
 export function isProviderPubliclyVisible(row: any): boolean {
   if (!row) return false;
   if (row.is_onboarded !== true) return false;
-  if (!getProviderVisibilitySettings(row).publicVisibility) return false;
+  // Legacy compatibility:
+  // older approved providers may have public_visibility=false before the
+  // publish flow existed. Treat those as public unless/until they explicitly
+  // use the new publish toggle (published_at gets populated).
+  if (row.public_visibility === false) {
+    const legacyApproved = !!row.approved_at && !row.published_at;
+    if (!legacyApproved) return false;
+  }
   if (isProviderSuspended(row)) return false;
   if (isProviderFlagged(row)) return false;
   return true;
 }
 
-export function shouldShowProviderOnNonStudentSurfaces(row: any, viewerEduVerified: boolean): boolean {
-  if (!isProviderPubliclyVisible(row)) return false;
-  if (!isCampusStudentProvider(row)) return true;
-  if (viewerEduVerified) return true;
-  return getProviderVisibilitySettings(row).publicVisibility;
+export function shouldDefaultProviderVisibilityFieldsToPublic(row: any): boolean {
+  if (!row) return false;
+  return row.is_onboarded === true || !!row.approved_at || !!row.published_at;
 }
 
-export function shouldLockProviderPreviewForViewer(row: any, viewerEduVerified: boolean): boolean {
-  if (!isCampusStudentProvider(row)) return false;
-  if (viewerEduVerified) return false;
-  const vis = getProviderVisibilitySettings(row);
-  return !vis.publicShowName || !vis.publicShowPhotos;
+export function isProviderPublicNameVisible(row: any): boolean {
+  if (!isProviderPubliclyVisible(row)) return false;
+  if (row?.public_show_name === true) return true;
+  return shouldDefaultProviderVisibilityFieldsToPublic(row);
+}
+
+export function isProviderPublicPhotosVisible(row: any): boolean {
+  if (!isProviderPubliclyVisible(row)) return false;
+  if (row?.public_show_photos === true) return true;
+  return shouldDefaultProviderVisibilityFieldsToPublic(row);
+}
+
+export function isProviderCampusNameVisible(row: any): boolean {
+  if (row?.campus_show_name === true) return true;
+  return shouldDefaultProviderVisibilityFieldsToPublic(row);
 }
 
 export function canUserTransactWithStudentProvider(opts: {
   business: any;
   profile: any;
 }): { ok: boolean; code?: string; message?: string } {
-  // Campus / .edu verification should influence discovery surfaces and what
-  // identity details are shown, not whether an otherwise visible provider can
-  // be booked or messaged. The old gate was over-blocking legitimate flows and
-  // even produced false negatives for same-campus verified accounts.
+  // Legacy/default behavior: campus providers should remain visible and
+  // bookable/messageable without requiring EDU-specific gating.
+  void opts;
   return { ok: true };
 }

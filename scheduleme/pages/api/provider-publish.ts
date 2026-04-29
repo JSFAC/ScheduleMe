@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { setSecurityHeaders, rateLimit, requireAuth } from '../../lib/apiSecurity';
 import { getTrustState, isProviderPubliclyVisible } from '../../lib/providerTrust';
-import { MANUAL_PAYOUT_BOOKING_THRESHOLD } from '../../lib/providerPayoutStage';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -23,8 +22,9 @@ type Checklist = {
 function buildChecklist(business: any, servicesCount: number): Checklist {
   const hasCoreProfile = Boolean(
     business?.name
+    && business?.owner_name
     && business?.description
-    && (business?.address || business?.city || business?.zip)
+    && (business?.phone || business?.website)
   );
   const hasMedia = Boolean(
     business?.cover_url
@@ -40,7 +40,7 @@ function buildChecklist(business: any, servicesCount: number): Checklist {
     media: hasMedia,
     stripe: hasStripe,
     trustClear,
-    readyToPublish: hasCoreProfile && hasServices && hasMedia && trustClear,
+    readyToPublish: hasCoreProfile && hasServices && hasMedia && hasStripe && trustClear,
   };
 }
 
@@ -87,7 +87,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       is_live: isProviderPubliclyVisible(business),
       trust_status: getTrustState(business),
       published_at: business.published_at || null,
-      stripe_required_after_paid_bookings: MANUAL_PAYOUT_BOOKING_THRESHOLD,
     });
   }
 
@@ -108,6 +107,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const payload: Record<string, any> = {
       is_onboarded: true,
       public_visibility: true,
+      public_show_name: true,
+      public_show_photos: true,
+      campus_show_name: true,
       published_at: business.published_at || new Date().toISOString(),
     };
     const trustState = getTrustState(business);
