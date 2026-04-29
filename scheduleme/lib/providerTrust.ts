@@ -74,16 +74,19 @@ export function isProviderCampusNameVisible(row: any): boolean {
   return shouldDefaultProviderVisibilityFieldsToPublic(row);
 }
 
-export function shouldShowProviderOnNonStudentSurfaces(row: any): boolean {
+export function shouldShowProviderOnNonStudentSurfaces(row: any, viewerEduVerified?: boolean): boolean {
+  void viewerEduVerified;
   return isProviderPubliclyVisible(row);
 }
 
-export function shouldLockProviderPreviewForViewer(opts: {
-  business: any;
-  isLoggedInViewer?: boolean;
-  viewerEduVerified?: boolean;
-}): boolean {
-  void opts;
+export function shouldLockProviderPreviewForViewer(
+  business: any,
+  viewerEduVerified?: boolean,
+  isLoggedInViewer?: boolean
+): boolean {
+  void business;
+  void viewerEduVerified;
+  void isLoggedInViewer;
   return false;
 }
 
