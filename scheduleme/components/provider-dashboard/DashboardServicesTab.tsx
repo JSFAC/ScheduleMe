@@ -75,14 +75,6 @@ export default function DashboardServicesTab(props) {
               <div>
                 <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>
                 <div className="flex items-center overflow-hidden rounded-2xl border" style={{ background: dashboardFieldBg, color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + dashboardFieldBorder }}>
-                  <button
-                    type="button"
-                    onClick={() => setSvcDuration((prev) => String(Math.max(5, Number(prev || 60) - 5)))}
-                    className="flex h-[50px] w-11 items-center justify-center text-lg font-bold transition-colors"
-                    style={{ color: dm ? '#d4d4d8' : '#4b5563', background: dm ? '#1b1b1d' : '#f9fafb' }}
-                  >
-                    -
-                  </button>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -92,18 +84,10 @@ export default function DashboardServicesTab(props) {
                     className="h-[50px] flex-1 bg-transparent px-3 text-center text-sm outline-none"
                     style={{ color: dm ? '#f2f2f7' : '#111' }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setSvcDuration((prev) => String(Math.max(5, Number(prev || 0) + 5)))}
-                    className="flex h-[50px] w-11 items-center justify-center text-lg font-bold transition-colors"
-                    style={{ color: dm ? '#d4d4d8' : '#4b5563', background: dm ? '#1b1b1d' : '#f9fafb' }}
-                  >
-                    +
-                  </button>
                 </div>
               </div>
             </div>
-            <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
+            <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#17181a' : '#f5fbf8' }}>
               Requires exact time
               <ProviderSwitch checked={svcRequiresTime} onChange={setSvcRequiresTime} dm={dm} />
             </label>
@@ -131,7 +115,7 @@ export default function DashboardServicesTab(props) {
                   <button
                     onClick={() => handleUpdateService(svc.id, { requires_time: svc.requires_time === false ? true : false })}
                     className="text-[11px] font-bold px-3 py-1.5 rounded-full border"
-                    style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}
+                    style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#17181a' : '#f5fbf8' }}
                     title={svc.requires_time === false ? 'Enable exact time' : 'Disable exact time'}
                   >
                     {svc.requires_time === false ? 'Enable time' : 'No time'}
@@ -149,7 +133,7 @@ export default function DashboardServicesTab(props) {
           <h3 className="font-bold text-base mb-4" style={{ color: dm ? '#f2f2f7' : '#111' }}>Availability</h3>
           <div className="grid grid-cols-3 gap-2 mb-5">
             {[
-              { key: 'open', label: 'Open', activeBg: '#007e6d', activeColor: '#fff', border: '#bfe5db', color: '#0f766e' },
+              { key: 'open', label: 'Open', activeBg: '#007e6d', activeColor: '#fff', border: dm ? 'rgba(45,212,191,0.26)' : '#bfe5db', color: '#0f766e' },
               { key: 'busy', label: 'Busy', activeBg: dm ? 'rgba(217,119,6,0.16)' : '#fff7ed', activeColor: dm ? '#e8b468' : '#b45309', border: dm ? 'rgba(217,119,6,0.32)' : '#f4d9c7', color: dm ? '#e8b468' : '#b45309' },
               { key: 'closed', label: 'Closed', activeBg: dm ? 'rgba(239,68,68,0.16)' : '#fff7f7', activeColor: dm ? '#fca5a5' : '#b42318', border: dm ? 'rgba(248,113,113,0.30)' : '#f3d0d0', color: dm ? '#fca5a5' : '#b42318' },
             ].map((option) => (

@@ -1121,11 +1121,7 @@ const BusinessDashboard: NextPage = () => {
 
   function jumpToPublishRequirement(section: 'coreProfile' | 'services' | 'media' | 'stripe') {
     if (section === 'services') {
-      if ((services || []).length > 0) {
-        activateTab('settings');
-      } else {
-        activateTab('services');
-      }
+      activateTab('services');
       return;
     }
     if (section === 'stripe') {
@@ -2375,6 +2371,40 @@ const BusinessDashboard: NextPage = () => {
       setTimeout(() => setSettingsSaved(false), 2500);
     } catch (err) {
       setSettingsError(err instanceof Error ? err.message : 'Failed to save settings');
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
+  async function handleSavePayoutSettings(e: React.FormEvent) {
+    e.preventDefault(); if (!business) return;
+    setSettingsSaving(true); setSettingsError(''); setSettingsNotice('');
+    try {
+      const res = await fetch('/api/provider-settings', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({
+          business_id: business.id,
+          zelle_payout_details: editZellePayoutDetails,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to save payout settings');
+
+      const saved = normalizeBusiness({ ...business, ...(data.business || {}) });
+      if (saved) {
+        setBusiness((b) => b ? { ...b, ...saved } : saved);
+        setEditAvailability(saved.availability_status === 'setup_required' ? 'closed' : (saved.availability_status || 'open'));
+      }
+      setSettingsNotice(
+        data?.business?.availability_status === 'setup_required'
+          ? 'Payout details saved. Add Stripe or Zelle before your provider status can show as open.'
+          : 'Payout details saved.'
+      );
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2500);
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Failed to save payout settings');
     } finally {
       setSettingsSaving(false);
     }
@@ -3885,7 +3915,7 @@ const BusinessDashboard: NextPage = () => {
                     }}
                     onOpenStripeFallback={handleHostedStripeConnect}
                     onRefreshStripeStatus={refreshStripeStatus}
-                    onSaveSettings={handleSaveSettings}
+                    onSaveSettings={handleSavePayoutSettings}
                     onStripeConnect={handleStripeConnect}
                     onZelleChange={setEditZellePayoutDetails}
                     requestStripeClientSecret={requestStripeClientSecret}

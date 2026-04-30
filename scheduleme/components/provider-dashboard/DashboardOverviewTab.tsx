@@ -76,13 +76,20 @@ export default function DashboardOverviewTab({
   return (
     <div className="space-y-5">
       <div className="space-y-5">
-        <div className="rounded-[28px] border bg-white p-5 sm:p-6 shadow-[0_10px_30px_rgba(32,136,122,0.05)]">
+        <div
+          className="rounded-[28px] border p-5 sm:p-6"
+          style={{
+            background: dm ? '#1c1c1e' : '#ffffff',
+            borderColor: dm ? '#3a3a3c' : '#ebe1d3',
+            boxShadow: dm ? 'none' : '0 10px 30px rgba(32,136,122,0.05)',
+          }}
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <h2 className="text-[1.75rem] sm:text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>
+              <h2 className="text-[1.75rem] sm:text-[2rem] font-black leading-none" style={{ letterSpacing: '-0.04em', color: dm ? '#f5f5f5' : '#171717' }}>
                 {business?.name || 'Your business'}
               </h2>
-              <p className="mt-2 max-w-xl text-sm text-neutral-500">
+              <p className="mt-2 max-w-xl text-sm" style={{ color: dm ? '#a1a1aa' : '#737373' }}>
                 Run your bookings, messages, services, and payouts from one place.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -120,13 +127,18 @@ export default function DashboardOverviewTab({
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-              <button
-                type="button"
-                onClick={() => activateTab('edit')}
-                className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 w-full sm:w-auto"
-              >
-                Edit Listing
-              </button>
+                <button
+                  type="button"
+                  onClick={() => activateTab('edit')}
+                  className="rounded-full border px-4 py-2 text-sm font-semibold transition-colors w-full sm:w-auto"
+                  style={{
+                    borderColor: dm ? '#303236' : '#e5e7eb',
+                    background: dm ? '#17181a' : '#ffffff',
+                    color: dm ? '#f3f4f6' : '#374151',
+                  }}
+                >
+                  Edit Listing
+                </button>
               <button
                 type="button"
                 onClick={() => activateTab('bookings')}
@@ -140,25 +152,33 @@ export default function DashboardOverviewTab({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {overviewMetrics.map((s) => (
-            <div key={s.label} className="rounded-[24px] border bg-white p-4 sm:p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]" style={{ borderColor: dm ? '#2c2c2e' : '#ebe1d3' }}>
+            <div
+              key={s.label}
+              className="rounded-[24px] border p-4 sm:p-5"
+              style={{
+                background: dm ? '#1c1c1e' : '#ffffff',
+                borderColor: dm ? '#2c2c2e' : '#ebe1d3',
+                boxShadow: dm ? 'none' : '0 8px 24px rgba(15,23,42,0.04)',
+              }}
+            >
               <div className="h-10 w-10 rounded-2xl flex items-center justify-center mb-4" style={{ background: dm ? 'rgba(255,255,255,0.06)' : '#f3f8f6' }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: s.color }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
                 </svg>
               </div>
-              <p className="text-[2rem] font-black leading-none text-neutral-900" style={{ letterSpacing: '-0.04em' }}>{s.value}</p>
-              <p className="mt-2 text-sm font-semibold text-neutral-900">{s.label}</p>
-              <p className="mt-1 text-xs text-neutral-500">{s.sub}</p>
+              <p className="text-[2rem] font-black leading-none" style={{ letterSpacing: '-0.04em', color: dm ? '#f5f5f5' : '#171717' }}>{s.value}</p>
+              <p className="mt-2 text-sm font-semibold" style={{ color: dm ? '#f5f5f5' : '#171717' }}>{s.label}</p>
+              <p className="mt-1 text-xs" style={{ color: dm ? '#a1a1aa' : '#737373' }}>{s.sub}</p>
             </div>
           ))}
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.95fr]">
-          <div className="rounded-[28px] border bg-white p-4 sm:p-5 overflow-hidden" style={{ borderColor: dm ? '#2f3034' : '#ebe1d3' }}>
+          <div className="rounded-[28px] border p-4 sm:p-5 overflow-hidden" style={{ background: dm ? '#1c1c1e' : '#ffffff', borderColor: dm ? '#3a3a3c' : '#ebe1d3' }}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-neutral-900">Revenue</h2>
-                <p className="mt-1 text-xs text-neutral-500">Weekly revenue across your past 3 months.</p>
+                <h2 className="text-base font-bold" style={{ color: dm ? '#f5f5f5' : '#171717' }}>Revenue</h2>
+                <p className="mt-1 text-xs" style={{ color: dm ? '#a1a1aa' : '#737373' }}>Weekly revenue across your past 3 months.</p>
               </div>
             </div>
             <div className="mt-5">
@@ -240,22 +260,22 @@ export default function DashboardOverviewTab({
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden" style={{ borderColor: dm ? '#2f3034' : '#f5f5f5' }}>
+      <div className="rounded-2xl border overflow-hidden" style={{ background: dm ? '#1c1c1e' : '#ffffff', borderColor: dm ? '#2f3034' : '#f5f5f5' }}>
         <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between" style={{ borderColor: dm ? '#2f3034' : '#f5f5f5' }}>
-          <h2 className="text-sm font-bold text-neutral-900">Recent Bookings</h2>
+          <h2 className="text-sm font-bold" style={{ color: dm ? '#f5f5f5' : '#171717' }}>Recent Bookings</h2>
           <button onClick={() => activateTab('bookings')} className="text-xs font-semibold text-accent hover:opacity-70 transition-opacity">View all →</button>
         </div>
         {bookings.length === 0
-          ? <div className="px-5 py-10 text-center text-neutral-400 text-sm">No bookings yet.</div>
+          ? <div className="px-5 py-10 text-center text-sm" style={{ color: dm ? '#71717a' : '#a3a3a3' }}>No bookings yet.</div>
           : <div className="divide-y divide-neutral-50">
               {bookings.slice(0, 4).map((b) => (
                 <div key={b.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-neutral-900 truncate">{b.profiles?.name || 'Customer'}</p>
-                    <p className="text-xs text-neutral-400 mt-0.5 truncate">{b.service || 'Custom Request'} · {fmtDate(b.created_at)}</p>
+                    <p className="text-sm font-semibold truncate" style={{ color: dm ? '#f5f5f5' : '#171717' }}>{b.profiles?.name || 'Customer'}</p>
+                    <p className="text-xs mt-0.5 truncate" style={{ color: dm ? '#a1a1aa' : '#a3a3a3' }}>{b.service || 'Custom Request'} · {fmtDate(b.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    {b.amount_cents ? <span className="text-sm font-bold text-neutral-700">{fmt(b.amount_cents)}</span> : null}
+                    {b.amount_cents ? <span className="text-sm font-bold" style={{ color: dm ? '#e4e4e7' : '#404040' }}>{fmt(b.amount_cents)}</span> : null}
                     <StatusBadgeComponent status={b.status} />
                   </div>
                 </div>
@@ -266,7 +286,7 @@ export default function DashboardOverviewTab({
 
       <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex items-center justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2f3034' : '#f5f5f5' }}>
         <div>
-          <p className="text-sm font-bold text-neutral-900">Payments and payouts</p>
+          <p className="text-sm font-bold" style={{ color: dm ? '#f5f5f5' : '#171717' }}>Payments and payouts</p>
           <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
             Manage automated Stripe payouts or save Zelle details for manual payouts in Settings.
           </p>
