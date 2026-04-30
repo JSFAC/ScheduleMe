@@ -311,6 +311,8 @@ export default function BizPage() {
   const [editMode, setEditMode] = useState(false);
   const [editBizName, setEditBizName] = useState('');
   const [editOwnerName, setEditOwnerName] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editZip, setEditZip] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -395,6 +397,8 @@ export default function BizPage() {
 
         setBiz(data);
         setEditDesc(data.description || '');
+        setEditCity(data.city || '');
+        setEditZip(data.zip || '');
         const initialImages = [data.cover_url, ...(data.media_urls || [])].filter(Boolean) as string[];
         setEditImages(normalizeImageList(initialImages));
         setEditVideo(data.video_url || null);
@@ -600,6 +604,8 @@ export default function BizPage() {
     if (!nextBiz) return;
     setEditBizName(nextBiz.name || '');
     setEditOwnerName(nextBiz.owner_name || '');
+    setEditCity(nextBiz.city || '');
+    setEditZip(nextBiz.zip || '');
     setEditWebsite(nextBiz.website || '');
     setEditDesc(nextBiz.description || '');
     const initialImages = [nextBiz.cover_url, ...(nextBiz.media_urls || [])].filter(Boolean) as string[];
@@ -1162,11 +1168,15 @@ export default function BizPage() {
     try {
       const trimmedName = editBizName.trim();
       const trimmedOwnerName = editOwnerName.trim();
+      const trimmedCity = editCity.trim();
+      const trimmedZip = editZip.trim();
       const trimmedWebsite = editWebsite.trim();
 
       const coreProfileChanged =
         trimmedName !== String(biz.name || '').trim() ||
         trimmedOwnerName !== String(biz.owner_name || '').trim() ||
+        trimmedCity !== String(biz.city || '').trim() ||
+        trimmedZip !== String(biz.zip || '').trim() ||
         trimmedWebsite !== String(biz.website || '').trim();
 
       if (coreProfileChanged) {
@@ -1174,12 +1184,16 @@ export default function BizPage() {
           await saveDashboardListing({
             name: trimmedName,
             owner_name: trimmedOwnerName,
+            city: trimmedCity,
+            zip: trimmedZip,
             website: trimmedWebsite,
           });
         } else {
           await submitChangeRequest({
             name: trimmedName,
             owner_name: trimmedOwnerName,
+            city: trimmedCity,
+            zip: trimmedZip,
             website: trimmedWebsite,
           }, 'profile');
         }
@@ -1269,6 +1283,8 @@ export default function BizPage() {
         ...prev,
         name: trimmedName,
         owner_name: trimmedOwnerName,
+        city: trimmedCity,
+        zip: trimmedZip,
         website: trimmedWebsite,
         description: editDesc,
         cover_url: nextImages[0] || null,
@@ -1768,6 +1784,26 @@ export default function BizPage() {
                         value={editOwnerName}
                         onChange={(e) => setEditOwnerName(e.target.value)}
                         maxLength={60}
+                        className="w-full rounded-xl px-3 py-2 text-sm"
+                        style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>City</label>
+                      <input
+                        value={editCity}
+                        onChange={(e) => setEditCity(e.target.value)}
+                        maxLength={80}
+                        className="w-full rounded-xl px-3 py-2 text-sm"
+                        style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>ZIP code</label>
+                      <input
+                        value={editZip}
+                        onChange={(e) => setEditZip(e.target.value.replace(/[^\d-]/g, '').slice(0, 10))}
+                        inputMode="numeric"
                         className="w-full rounded-xl px-3 py-2 text-sm"
                         style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
                       />
