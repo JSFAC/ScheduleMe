@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Nav from '../components/Nav';
 import { useDm } from '../lib/DarkModeContext';
+import SeoHead from '../components/SeoHead';
 
 const SUPPORT_EMAIL = 'usescheduleme@gmail.com';
 const LAST_UPDATED = 'April 11, 2026';
@@ -45,9 +46,12 @@ const SupportPage: NextPage = () => {
 
   return (
     <>
+      <SeoHead
+        title="Support — ScheduleMe"
+        description="Contact ScheduleMe support for booking, account, provider, payment, and marketplace help."
+        path="/support"
+      />
       <Head>
-        <title>Support — ScheduleMe</title>
-        <meta name="description" content="ScheduleMe support page with direct contact information and support request form for app and website users." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav />

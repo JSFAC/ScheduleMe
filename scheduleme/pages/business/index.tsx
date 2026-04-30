@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import BusinessNav from '../../components/BusinessNav';
 import { createProviderDraft, getProviderAccessState, type ProviderAccessState } from '../../lib/providerClient';
+import SeoHead from '../../components/SeoHead';
+import { SITE_NAME, SITE_URL, canonicalUrl } from '../../lib/siteMeta';
 
 function useScrollReveal(
   selector: string,
@@ -149,9 +151,44 @@ const Business: NextPage = () => {
 
   return (
     <>
+      <SeoHead
+        title="ScheduleMe for Providers — Build a Public Service Profile and Get Booked"
+        description="Create your ScheduleMe provider page, publish your services, set hours, and receive campus-matched and local customer bookings."
+        path="/provider"
+        canonical={canonicalUrl('/provider')}
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            name: 'ScheduleMe provider marketplace',
+            serviceType: 'Provider lead generation and booking software',
+            provider: {
+              '@type': 'Organization',
+              name: SITE_NAME,
+              url: SITE_URL,
+            },
+            audience: {
+              '@type': 'BusinessAudience',
+              audienceType: 'Local service providers',
+            },
+            areaServed: 'United States',
+            description: 'ScheduleMe helps service providers build public profile pages, set availability, receive leads, and manage bookings.',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: FAQ.map((faq) => ({
+              '@type': 'Question',
+              name: faq.q,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.a,
+              },
+            })),
+          },
+        ]}
+      />
       <Head>
-        <title>ScheduleMe for Providers — Get More Customers, Zero Ad Spend</title>
-        <meta name="description" content="Join ScheduleMe to get campus‑matched leads and manage bookings in one dashboard." />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#0a0a0a" />
       </Head>

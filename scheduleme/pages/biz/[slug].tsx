@@ -11,6 +11,8 @@ import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
 import { shouldShowNewBadge } from '../../lib/newBadge';
 import { isProviderCampusNameVisible, isProviderPublicNameVisible, isProviderPubliclyVisible } from '../../lib/providerTrust';
 import { hasProviderPayoutSetup } from '../../lib/providerPayoutStage';
+import SeoHead from '../../components/SeoHead';
+import { SITE_NAME, SITE_URL, canonicalUrl } from '../../lib/siteMeta';
 
 function getSB() {
   return getSupabaseClient();
@@ -189,6 +191,33 @@ function getSlotsForDate(hoursInput: HourEntry[] | Record<string, string> | unde
   return slots.length ? slots : DEFAULT_TIME_SLOTS;
 }
 
+function buildOpeningHoursSpecification(hoursInput: HourEntry[] | Record<string, string> | undefined) {
+  const specs = normalizeHours(hoursInput)
+    .map((entry) => {
+      const rawTime = String(entry?.time || '').trim();
+      const lower = rawTime.toLowerCase();
+      if (!entry?.day || !rawTime || lower.includes('closed') || lower === 'by appointment') return null;
+      const parts = rawTime.split(/\s*(?:–|—|-|\bto\b)\s*/i).map((part) => part.trim()).filter(Boolean);
+      if (parts.length < 2) return null;
+      const open = parseTimeTokenToMinutes(parts[0]);
+      const close = parseTimeTokenToMinutes(parts[1]);
+      if (open == null || close == null || close <= open) return null;
+      const days = String(entry.day)
+        .split(/[,&/]/)
+        .map((token) => normalizeDayNameToken(token))
+        .filter((token) => FULL_DAY_NAMES.includes(token));
+      if (!days.length) return null;
+      return {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: days,
+        opens: `${String(Math.floor(open / 60)).padStart(2, '0')}:${String(open % 60).padStart(2, '0')}`,
+        closes: `${String(Math.floor(close / 60)).padStart(2, '0')}:${String(close % 60).padStart(2, '0')}`,
+      };
+    })
+    .filter(Boolean);
+  return specs.length ? specs : undefined;
+}
+
 function MiniCalendar({ selected, onSelect, bookedDates, hours, dm }: { selected: Date | null; onSelect: (d: Date) => void; bookedDates?: Set<string>; hours?: HourEntry[] | Record<string, string>; dm: boolean; }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [vm, setVm] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -361,6 +390,55 @@ export default function BizPage() {
             : (isProviderPublicNameVisible(biz) ? biz.owner_name : '')))
     : '';
   const titleName = biz?.name || 'ScheduleMe Provider';
+  const currentPath = typeof slugValue === 'string' ? `/biz/${encodeURIComponent(slugValue)}` : '/browse';
+  const pageTitle = biz?.name
+    ? `${biz.name}${biz?.city ? ` in ${biz.city}` : ''} — ScheduleMe`
+    : `${titleName} — ScheduleMe`;
+  const pageDescription = biz
+    ? [
+        biz.description || `Book services with ${biz.name} on ScheduleMe.`,
+        biz.city ? `Serving ${biz.city}` : '',
+        Array.isArray(biz.service_tags) && biz.service_tags.length ? `Services: ${biz.service_tags.slice(0, 3).join(', ')}` : '',
+      ].filter(Boolean).join(' ')
+    : 'Book local services with public provider pages on ScheduleMe.';
+  const visibleImages = [biz?.cover_url, ...(Array.isArray(biz?.media_urls) ? biz.media_urls : [])].filter(Boolean);
+  const providerJsonLd = biz ? [{
+    '@context': 'https://schema.org',
+    '@type': 'ProfessionalService',
+    name: biz.name,
+    description: biz.description || undefined,
+    url: canonicalUrl(currentPath),
+    image: visibleImages.slice(0, 3),
+    areaServed: biz.city ? { '@type': 'City', name: biz.city } : undefined,
+    address: biz.city || biz.zip ? {
+      '@type': 'PostalAddress',
+      addressLocality: biz.city || undefined,
+      postalCode: biz.zip || undefined,
+      addressCountry: 'US',
+    } : undefined,
+    openingHoursSpecification: buildOpeningHoursSpecification(biz.hours),
+    knowsAbout: Array.isArray(biz.service_tags) ? biz.service_tags : undefined,
+    makesOffer: services.map((service: any) => ({
+      '@type': 'Offer',
+      itemOffered: {
+        '@type': 'Service',
+        name: service.name,
+        description: service.description || undefined,
+      },
+      price: typeof service.price_cents === 'number' ? (service.price_cents / 100).toFixed(2) : undefined,
+      priceCurrency: 'USD',
+    })),
+    aggregateRating: reviews.length ? {
+      '@type': 'AggregateRating',
+      ratingValue: Number((reviews.reduce((sum, review: any) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)),
+      reviewCount: reviews.length,
+    } : undefined,
+    provider: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+  }] : [];
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -1375,7 +1453,17 @@ export default function BizPage() {
 
   return (
     <>
-      <Head><title>{titleName} — ScheduleMe</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
+      <SeoHead
+        title={pageTitle}
+        description={pageDescription}
+        path={currentPath}
+        canonical={canonicalUrl(currentPath)}
+        image={visibleImages[0] || undefined}
+        type="profile"
+        robots={isPreview || isEmbedded || !biz ? 'noindex,nofollow' : 'index,follow'}
+        jsonLd={providerJsonLd}
+      />
+      <Head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" /></Head>
       <div style={{background:bg,minHeight:'100vh',paddingTop: hideNav ? 0 : 'calc(56px + env(safe-area-inset-top, 0px))', paddingBottom: hideNav ? (isEmbedded ? 40 : 100) : 136}}>
         {!hideNav && <Nav />}
         {shareOpen && (

@@ -3,6 +3,7 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Nav from '../components/Nav';
+import SeoHead from '../components/SeoHead';
 
 const LAST_UPDATED = 'April 9, 2026';
 const COMPANY = 'ScheduleMe';
@@ -148,9 +149,12 @@ const sections = [
 
 const Privacy: NextPage = () => (
   <>
+    <SeoHead
+      title="Privacy Policy — ScheduleMe"
+      description="Read ScheduleMe's privacy policy to understand how account, booking, payment, and support data is collected and used."
+      path="/privacy"
+    />
     <Head>
-      <title>Privacy Policy — ScheduleMe</title>
-      <meta name="description" content="ScheduleMe Privacy Policy — how we collect, use, and protect your information." />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
     </Head>
 

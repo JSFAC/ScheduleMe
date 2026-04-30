@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Nav from '../components/Nav';
+import SeoHead from '../components/SeoHead';
 import { useDm } from '../lib/DarkModeContext';
 import BusinessProfile from '../components/BusinessProfile';
 import type { Business } from '../lib/mockBusinesses';
@@ -14,6 +15,7 @@ import { SkeletonCard, SkeletonBrowseCard } from '../components/SkeletonCard';
 import { fetchAllBusinesses, fetchNearbyBusinesses } from '../lib/realBusinesses';
 import { shouldShowNewBadge } from '../lib/newBadge';
 import { formatPriceTierLabel } from '../lib/priceTierLabel';
+import { SITE_NAME, SITE_URL } from '../lib/siteMeta';
 
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!);
@@ -597,7 +599,27 @@ const BrowsePage: NextPage = () => {
 
   if (loading) return (
     <>
-      <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
+      <SeoHead
+        title="Browse Local Service Providers — ScheduleMe"
+        description="Browse ScheduleMe providers by category, ratings, distance, and availability to find local help near you."
+        path="/browse"
+        type="website"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: 'ScheduleMe provider browse',
+            url: `${SITE_URL}/browse`,
+            description: 'Public marketplace page for browsing local and campus-focused service providers on ScheduleMe.',
+            isPartOf: {
+              '@type': 'WebSite',
+              name: SITE_NAME,
+              url: SITE_URL,
+            },
+          },
+        ]}
+      />
+      <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /></Head>
       <Nav />
       <div className="min-h-screen pb-[calc(68px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -629,9 +651,29 @@ const BrowsePage: NextPage = () => {
 
   return (
     <>
+      <SeoHead
+        title="Browse Local Service Providers — ScheduleMe"
+        description="Browse ScheduleMe providers by category, ratings, distance, and availability to find local help near you."
+        path="/browse"
+        type="website"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: 'ScheduleMe provider browse',
+            url: `${SITE_URL}/browse`,
+            description: 'Public marketplace page for browsing local and campus-focused service providers on ScheduleMe.',
+            isPartOf: {
+              '@type': 'WebSite',
+              name: SITE_NAME,
+              url: SITE_URL,
+            },
+          },
+        ]}
+      />
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-        <title>Browse — ScheduleMe</title></Head>
+      </Head>
 
       <div className="min-h-screen pb-[calc(68px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
         <Nav />

@@ -3,6 +3,7 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Nav from '../components/Nav';
+import SeoHead from '../components/SeoHead';
 
 const LAST_UPDATED = 'April 9, 2026';
 const COMPANY = 'ScheduleMe';
@@ -97,9 +98,12 @@ const sections = [
 
 const Terms: NextPage = () => (
   <>
+    <SeoHead
+      title="Terms of Service — ScheduleMe"
+      description="Read the ScheduleMe terms of service for consumers and providers using the marketplace, payments, and booking tools."
+      path="/terms"
+    />
     <Head>
-      <title>Terms of Service — ScheduleMe</title>
-      <meta name="description" content="ScheduleMe Terms of Service — the rules and agreements governing your use of our platform." />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
     </Head>
 

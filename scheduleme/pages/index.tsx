@@ -8,7 +8,9 @@ import { useDm } from '../lib/DarkModeContext';
 import Nav from '../components/Nav';
 import Hero from '../components/Hero';
 import cms from '../cms_content.json';
-import FaqAccordion from '../components/FaqAccordion';
+import FaqAccordion, { FAQS } from '../components/FaqAccordion';
+import SeoHead from '../components/SeoHead';
+import { SITE_NAME, SITE_URL } from '../lib/siteMeta';
 
 interface Feature { icon: string; title: string; description: string; }
 interface DemoStep { step: number; title: string; description: string; }
@@ -95,9 +97,57 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
 
   return (
     <>
+      <SeoHead
+        title="ScheduleMe — Local Service Booking for Campus and Nearby Pros"
+        description="Find local service providers, browse campus and nearby pros, and book help in one place with ScheduleMe."
+        path="/"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            name: SITE_NAME,
+            url: SITE_URL,
+            email: 'usescheduleme@gmail.com',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: SITE_NAME,
+            url: SITE_URL,
+            potentialAction: {
+              '@type': 'SearchAction',
+              target: `${SITE_URL}/browse?q={search_term_string}`,
+              'query-input': 'required name=search_term_string',
+            },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            serviceType: 'Local service booking marketplace',
+            name: 'ScheduleMe consumer marketplace',
+            provider: {
+              '@type': 'Organization',
+              name: SITE_NAME,
+              url: SITE_URL,
+            },
+            areaServed: 'United States',
+            description: 'ScheduleMe helps people discover, message, and book local service providers, including campus and nearby pros.',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: FAQS.map((faq) => ({
+              '@type': 'Question',
+              name: faq.q,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.a,
+              },
+            })),
+          },
+        ]}
+      />
       <Head>
-        <title>ScheduleMe — AI-Powered Local Service Booking</title>
-        <meta name="description" content="Describe your issue, get instantly triaged, and book a vetted local pro — in seconds." />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#ffffff" />
       </Head>

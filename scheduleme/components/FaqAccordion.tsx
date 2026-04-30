@@ -1,7 +1,7 @@
 // components/FaqAccordion.tsx
 import { useState } from 'react';
 
-const FAQS = [
+export const FAQS = [
   {
     q: 'Is ScheduleMe free to use?',
     a: 'Yes — completely free for customers. Describe what you need, see matching campus pros, and book. No phone calls required.',
