@@ -361,47 +361,67 @@ const MessagesPage: NextPage = () => {
           className={`${mobileThreadOpen ? 'hidden sm:block' : 'block'} border-b`}
           style={{
             background: guestViewer
-              ? (dm ? '#0f1117' : '#F4EFE6')
+              ? 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)'
               : 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
             borderColor: guestViewer
-              ? (dm ? '#262626' : 'rgba(15,118,110,0.08)')
+              ? 'rgba(0,0,0,0.08)'
               : 'rgba(0,0,0,0.08)',
           }}
         >
           <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-5 pb-4 sm:pt-7 sm:pb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-4 mb-6">
               <div>
+                <p
+                  className="text-[10px] font-black uppercase tracking-[0.14em] mb-1.5"
+                  style={{ color: 'rgba(255,255,255,0.65)' }}
+                >
+                  Your activity
+                </p>
                 <h1
                   className="text-[2rem] font-black"
-                  style={{ letterSpacing: '-0.03em', lineHeight: 1.1, color: guestViewer ? (dm ? '#f3f4f6' : '#171717') : 'white' }}
+                  style={{ letterSpacing: '-0.03em', lineHeight: 1.1, color: 'white' }}
                 >
                   Messages
                 </h1>
-                <p className="mt-1 text-sm" style={{ color: guestViewer ? (dm ? '#9ca3af' : '#6b7280') : 'rgba(255,255,255,0.75)' }}>
-                  {totalUnread > 0 ? `${totalUnread} unread message${totalUnread !== 1 ? 's' : ''}` : 'All caught up'}
+                <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  {guestViewer ? 'Message providers and keep booking updates in one place' : (totalUnread > 0 ? `${totalUnread} unread message${totalUnread !== 1 ? 's' : ''}` : 'All caught up')}
                 </p>
               </div>
               <Link href="/bookings" scroll={false}
-                className="flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl"
+                className="shrink-0 flex items-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl mt-1"
                 style={{
-                  background: guestViewer
-                    ? (dm ? '#171717' : 'white')
-                    : (dm ? 'rgba(255,255,255,0.14)' : 'white'),
-                  color: guestViewer
-                    ? '#0F766E'
-                    : (dm ? 'rgba(255,255,255,0.9)' : '#0F766E'),
-                  border: guestViewer ? `1px solid ${dm ? '#262626' : 'rgba(15,118,110,0.12)'}` : 'none',
+                  background: dm ? 'rgba(255,255,255,0.14)' : 'white',
+                  color: dm ? 'rgba(255,255,255,0.9)' : '#0F766E',
+                  border: '1px solid rgba(255,255,255,0.3)',
                 }}>
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                 Bookings
               </Link>
             </div>
+            {guestViewer && (
+              <div className="flex gap-3">
+                {[
+                  { label: 'Total', value: '0' },
+                  { label: 'Unread', value: '0' },
+                  { label: 'Requests', value: '0' },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="flex-1 rounded-xl px-3 py-2.5 text-center"
+                    style={{ background: dm ? 'rgba(255,255,255,0.14)' : 'white', border: dm ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)' }}
+                  >
+                    <p className="text-2xl font-black" style={{ letterSpacing: '-0.025em', color: dm ? 'white' : '#0F766E' }}>{stat.value}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide mt-0.5" style={{ color: dm ? 'rgba(255,255,255,0.7)' : undefined }}>{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${mobileThreadOpen ? 'py-2 sm:py-6' : 'py-4 sm:py-6'} ${lockPageScroll ? 'h-full' : ''}`}>
           {guestViewer ? (
-            <div className="rounded-2xl border px-6 py-10 sm:px-8 sm:py-14 text-center" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.08)' }}>
+            <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(15,118,110,0.08)' }}>
               <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center">
                 <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
@@ -425,14 +445,6 @@ const MessagesPage: NextPage = () => {
                 >
                   Log in
                 </Link>
-              </div>
-              <div className="mt-8 rounded-2xl border px-5 py-5 text-left" style={{ background: dm ? '#111111' : '#f8fafc', borderColor: dm ? '#262626' : '#e5e7eb' }}>
-                <p className="text-sm font-bold" style={{ color: dm ? '#f3f4f6' : '#171717' }}>What you unlock</p>
-                <ul className="mt-3 space-y-2 text-sm" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                  <li>Direct message threads with each provider</li>
-                  <li>Booking confirmations, completion updates, and proof photos</li>
-                  <li>One place to manage every request after you book</li>
-                </ul>
               </div>
             </div>
           ) : loading ? (

@@ -2247,6 +2247,14 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
+  useEffect(() => {
+    if (!showTour) return;
+    const tourTabs: TabId[] = ['overview', 'bookings', 'calendar', 'messages', 'services', 'settings'];
+    const nextTab = tourTabs[tourStep];
+    if (!nextTab) return;
+    activateTab(nextTab);
+  }, [showTour, tourStep]);
+
   if (loading) {
     return <BrandRouteLoader audience="provider" />;
   }
@@ -2388,11 +2396,6 @@ const BusinessDashboard: NextPage = () => {
     }
     setShowTour(false);
   }
-
-  useEffect(() => {
-    if (!showTour || !tour) return;
-    activateTab(tour.tab);
-  }, [showTour, tourStep]);
 
   return (
     <>
