@@ -79,6 +79,12 @@ function getOpenStatus(hours: { day: string; time: string }[]): { open: boolean;
   return { open: true, label: 'Open' };
 }
 
+function getBusinessStatus(biz: any): { open: boolean; label: string } {
+  if (biz?.availability_status === 'setup_required') return { open: false, label: 'Setup required' };
+  if (biz?.available === false) return { open: false, label: 'Closed' };
+  return getOpenStatus(biz?.hours || []);
+}
+
 function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }: {
   businesses: Business[]; selected: string | null; onSelect: (id: string) => void; dm?: boolean; userLat?: number | null; userLng?: number | null;
 }) {
@@ -230,7 +236,7 @@ function MapPlaceholder({ businesses, selected, onSelect, dm, userLat, userLng }
 function BizCard({ biz, onClick, dm, index = 0, href }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const cardBg = dm ? '#1c1c1e' : 'white';
-  const status = getOpenStatus(biz.hours);
+  const status = getBusinessStatus(biz);
   const isLocked = biz.preview_locked === true;
   const hasCover = !!biz.coverUrl && biz.coverUrl !== TRANSPARENT_PIXEL;
   const displayName = biz.name || biz.category || 'Provider';
@@ -771,7 +777,7 @@ const BrowsePage: NextPage = () => {
               ) : (
                 <div className="space-y-2.5 animate-fade-up" style={{ animationDuration: '0.3s' }}>
                   {paginated.map(biz => {
-                    const listStatus = getOpenStatus(biz.hours);
+                    const listStatus = getBusinessStatus(biz);
                     return (
                     <button key={biz.id} onClick={() => { if (biz.preview_locked) return; if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }}
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"

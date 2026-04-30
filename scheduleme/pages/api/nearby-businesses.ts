@@ -63,8 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos, trust_status, trust_flagged, approved_at, published_at, created_at';
-    const legacySelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, approved_at, published_at, created_at';
+    const baseSelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, website, instagram, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, public_show_name, public_show_photos, trust_status, trust_flagged, approved_at, published_at, created_at, stripe_onboarded, stripe_account_id, zelle_payout_details';
+    const legacySelect = 'id, name, slug, description, address, zip, lat, lng, service_tags, cover_url, media_urls, website, instagram, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, approved_at, published_at, created_at, stripe_onboarded, stripe_account_id, zelle_payout_details';
 
     let query = sb
       .from('businesses')
@@ -142,8 +142,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ...b,
         name: b.name,
         description: b.description,
-        phone: b.phone,
         website: b.website,
+        instagram: b.instagram,
         address: b.address || b.zip || null,
         cover_url: b.cover_url,
         media_urls: b.media_urls,

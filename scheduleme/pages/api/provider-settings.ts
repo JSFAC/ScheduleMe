@@ -66,10 +66,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!city) return res.status(400).json({ error: 'City is required' });
   if (!/^\d{5}(?:-\d{4})?$/.test(zip)) return res.status(400).json({ error: 'Valid ZIP code required' });
 
-  const phone = String(req.body?.phone || '').trim().slice(0, 40);
-  const website = String(req.body?.website || '').trim().slice(0, 255);
   const zellePayoutDetails = normalizeManualPayoutDetails(req.body?.zelle_payout_details);
-  const availabilityStatus = String(req.body?.availability_status || 'open').trim().toLowerCase();
+  const requestedAvailabilityStatus = String(req.body?.availability_status || 'open').trim().toLowerCase();
   const breakUntil = req.body?.break_until ? String(req.body.break_until) : null;
   const hours = req.body?.hours ?? null;
   const serviceTags = Array.isArray(req.body?.service_tags)
@@ -84,9 +82,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const business = await loadOwnedBusiness(supabase, user, businessId);
     if (!business) return res.status(404).json({ error: 'Provider profile not found' });
 
+    const stripeReady = Boolean((business as any)?.stripe_onboarded && (business as any)?.stripe_account_id);
+    const payoutConfigured = stripeReady || !!zellePayoutDetails;
+    const availabilityStatus = requestedAvailabilityStatus === 'open' && !payoutConfigured
+      ? 'setup_required'
+      : (requestedAvailabilityStatus || 'open');
+
     const payload: Record<string, any> = {
-      phone: phone || null,
-      website: website || null,
       zelle_payout_details: zellePayoutDetails || null,
       city,
       zip,
@@ -107,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('businesses')
       .update(payload)
       .eq('id', businessId)
-      .select('id, phone, website, zelle_payout_details, city, zip, address, lat, lng, service_tags, hours, availability_status, break_until, public_visibility, public_show_name, public_show_photos, campus_show_name')
+      .select('id, website, instagram, zelle_payout_details, city, zip, address, lat, lng, service_tags, hours, availability_status, break_until, public_visibility, public_show_name, public_show_photos, campus_show_name, stripe_onboarded, stripe_account_id')
       .single();
 
     if (error) return res.status(500).json({ error: error.message || 'Failed to save provider settings' });

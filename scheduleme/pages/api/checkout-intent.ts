@@ -79,11 +79,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: biz } = await supabase
     .from('businesses')
-    .select('id, name, stripe_account_id, stripe_onboarded, owner_id')
+    .select('id, name, stripe_account_id, stripe_onboarded, zelle_payout_details, owner_id')
     .eq('id', business_id)
     .maybeSingle();
   if (!biz) return res.status(404).json({ error: 'Business not found' });
   const payoutStage = await loadProviderPayoutStage(supabase, biz as any);
+  if (payoutStage?.stage === 'payout_setup_required') {
+    return res.status(409).json({
+      error: 'This provider needs to set up Stripe or Zelle before accepting bookings.',
+      code: 'provider_payout_setup_required',
+      provider_payout_stage: payoutStage,
+    });
+  }
   if (payoutStage?.requiresStripeForNewBookings) {
     return res.status(409).json({
       error: 'This provider must connect Stripe before accepting additional instant bookings.',

@@ -1276,7 +1276,7 @@ const BusinessDashboard: NextPage = () => {
       setEditZip(safeBiz.zip || '');
       setEditDesc(safeBiz.description || ''); setEditWebsite(safeBiz.website || '');
       setEditZellePayoutDetails(safeBiz.zelle_payout_details || '');
-      setEditAvailability(safeBiz.availability_status || 'open');
+      setEditAvailability(safeBiz.availability_status === 'setup_required' ? 'closed' : (safeBiz.availability_status || 'open'));
       setEditBreakUntil(safeBiz.break_until ? String(safeBiz.break_until).slice(0, 10) : '');
       const serviceTags = Array.isArray(safeBiz.service_tags) ? safeBiz.service_tags : [];
       setEditServices(serviceTags.map((tag: string) => serviceTagToLabel(tag)).join(', '));
@@ -2109,8 +2109,6 @@ const BusinessDashboard: NextPage = () => {
         headers: await getAuthHeaders(),
         body: JSON.stringify({
           business_id: business.id,
-          phone: editPhone,
-          website: editWebsite,
           zelle_payout_details: editZellePayoutDetails,
           city: editCity,
           zip: editZip,
@@ -2131,8 +2129,13 @@ const BusinessDashboard: NextPage = () => {
       if (saved) {
         setBusiness((b) => b ? { ...b, ...saved } : saved);
         setEditAddress(saved.address || '');
+        setEditAvailability(saved.availability_status === 'setup_required' ? 'closed' : (saved.availability_status || 'open'));
       }
-      setSettingsNotice('Settings saved. Your location, visibility, and manual payout details are up to date.');
+      setSettingsNotice(
+        data?.business?.availability_status === 'setup_required'
+          ? 'Settings saved. Add Stripe or Zelle before your provider status can show as open.'
+          : 'Settings saved. Your location, visibility, and manual payout details are up to date.'
+      );
       setSettingsSaved(true);
       setTimeout(() => setSettingsSaved(false), 2500);
     } catch (err) {
@@ -2686,12 +2689,17 @@ const BusinessDashboard: NextPage = () => {
               <div className="space-y-5">
                 {(() => {
                   const platformFeeLabel = business?.founder50 ? 'after 6% platform fee (Founder50)' : 'after 12% platform fee';
-                  const availabilityLabel = business?.availability_status === 'busy'
+                  const payoutSetupMissing = !business?.stripe_onboarded && !String(business?.zelle_payout_details || '').trim();
+                  const availabilityLabel = payoutSetupMissing || business?.availability_status === 'setup_required'
+                    ? 'Payout setup required'
+                    : business?.availability_status === 'busy'
                     ? 'Busy'
                     : business?.availability_status === 'closed'
                       ? 'Closed'
                       : 'Open';
-                  const availabilityTone = business?.availability_status === 'busy'
+                  const availabilityTone = payoutSetupMissing || business?.availability_status === 'setup_required'
+                    ? { bg: '#fff7ed', border: '#fed7aa', text: '#c2410c', dot: '#f59e0b' }
+                    : business?.availability_status === 'busy'
                     ? { bg: '#fff7ed', border: '#fdba74', text: '#c2410c', dot: '#f59e0b' }
                     : business?.availability_status === 'closed'
                       ? { bg: '#fff1f2', border: '#fda4af', text: '#be123c', dot: '#fb7185' }
@@ -2835,7 +2843,7 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                           <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                             {[
-                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, description, and contact details.' },
+                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, provider name, and description.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
                               { key: 'stripe', label: 'Payout settings ready', hint: 'Optional for launch. Your first 3 paid bookings can be released manually to your saved Zelle details, then Stripe becomes required.' },
@@ -3950,7 +3958,7 @@ const BusinessDashboard: NextPage = () => {
             )}
 
             {tab === 'settings' && (
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
+              <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
                 <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 lg:col-span-2">
                   <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                     <div>
@@ -4059,9 +4067,9 @@ const BusinessDashboard: NextPage = () => {
                   <form onSubmit={handleSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-sm font-bold text-neutral-900">Location & Contact</h2>
+                        <h2 className="text-sm font-bold text-neutral-900">Location & Payout</h2>
                         <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
-                          Set your city and ZIP. ScheduleMe will derive your provider coordinates from the ZIP code you enter.
+                          Set your city and ZIP, then add Zelle if you want manual payouts before Stripe.
                         </p>
                       </div>
                       {business?.lat != null && business?.lng != null && (
@@ -4090,28 +4098,6 @@ const BusinessDashboard: NextPage = () => {
                           value={editZip}
                           onChange={(e) => setEditZip(e.target.value.replace(/[^\d-]/g, '').slice(0, 10))}
                           placeholder="95060"
-                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
-                        />
-                      </label>
-                      <label className="text-sm">
-                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Phone</span>
-                        <input
-                          type="text"
-                          value={editPhone}
-                          onChange={(e) => setEditPhone(e.target.value)}
-                          placeholder="(555) 555-5555"
-                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
-                        />
-                      </label>
-                      <label className="text-sm">
-                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Website</span>
-                        <input
-                          type="text"
-                          value={editWebsite}
-                          onChange={(e) => setEditWebsite(e.target.value)}
-                          placeholder="https://"
                           className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                           style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
                         />

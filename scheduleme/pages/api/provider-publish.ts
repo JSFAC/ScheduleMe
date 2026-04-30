@@ -24,7 +24,6 @@ function buildChecklist(business: any, servicesCount: number): Checklist {
     business?.name
     && business?.owner_name
     && business?.description
-    && (business?.phone || business?.website)
   );
   const hasMedia = Boolean(
     business?.cover_url

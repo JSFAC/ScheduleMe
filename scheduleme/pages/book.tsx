@@ -115,7 +115,7 @@ const BookPage: NextPage = () => {
 
       const { data, error } = await supabase
         .from('businesses')
-        .select('stripe_onboarded, stripe_account_id')
+        .select('stripe_onboarded, stripe_account_id, zelle_payout_details')
         .eq('id', provider.id)
         .maybeSingle();
       if (cancelled) return;
@@ -133,13 +133,16 @@ const BookPage: NextPage = () => {
       const payoutStage = deriveProviderPayoutStage({
         stripe_onboarded: data?.stripe_onboarded,
         stripe_account_id: data?.stripe_account_id,
+        zelle_payout_details: data?.zelle_payout_details,
         paidBookingsCount: Number(count || 0),
       });
       setProviderAcceptsPayments(payoutStage.canAcceptNewBookings);
       setProviderPaymentBlockReason(
-        payoutStage.requiresStripeForNewBookings
-          ? `This provider needs to connect Stripe before accepting more bookings.`
-          : null
+        payoutStage.stage === 'payout_setup_required'
+          ? 'This provider needs to set up Stripe or Zelle before accepting bookings.'
+          : payoutStage.requiresStripeForNewBookings
+            ? 'This provider needs to connect Stripe before accepting more bookings.'
+            : null
       );
     })();
 

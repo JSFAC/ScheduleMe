@@ -74,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = getSupabase();
   const { data: business } = await supabase
     .from('businesses')
-    .select('id, name, stripe_account_id, stripe_onboarded, availability_status')
+    .select('id, name, stripe_account_id, stripe_onboarded, zelle_payout_details, availability_status')
     .eq('id', business_id)
     .maybeSingle();
 
@@ -86,6 +86,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(409).json({ error: `Provider is currently ${availabilityStatus} and not accepting bookings.` });
   }
   const payoutStage = await loadProviderPayoutStage(supabase, business as any);
+  if (payoutStage?.stage === 'payout_setup_required') {
+    return res.status(409).json({
+      error: 'This provider needs to set up Stripe or Zelle before accepting bookings.',
+      code: 'provider_payout_setup_required',
+      provider_payout_stage: payoutStage,
+    });
+  }
   if (payoutStage?.requiresStripeForNewBookings) {
     return res.status(409).json({
       error: 'This provider must connect Stripe before accepting additional instant bookings.',

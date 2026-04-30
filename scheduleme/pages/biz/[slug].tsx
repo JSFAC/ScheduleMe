@@ -10,6 +10,7 @@ import { averagePriceCents, computePriceTier } from '../../lib/priceTier';
 import { issuePaymentAccessTicket } from '../../lib/paymentAccess';
 import { shouldShowNewBadge } from '../../lib/newBadge';
 import { isProviderCampusNameVisible, isProviderPublicNameVisible, isProviderPubliclyVisible } from '../../lib/providerTrust';
+import { hasProviderPayoutSetup } from '../../lib/providerPayoutStage';
 
 function getSB() {
   return getSupabaseClient();
@@ -310,7 +311,6 @@ export default function BizPage() {
   const [editMode, setEditMode] = useState(false);
   const [editBizName, setEditBizName] = useState('');
   const [editOwnerName, setEditOwnerName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -600,7 +600,6 @@ export default function BizPage() {
     if (!nextBiz) return;
     setEditBizName(nextBiz.name || '');
     setEditOwnerName(nextBiz.owner_name || '');
-    setEditPhone(nextBiz.phone || '');
     setEditWebsite(nextBiz.website || '');
     setEditDesc(nextBiz.description || '');
     const initialImages = [nextBiz.cover_url, ...(nextBiz.media_urls || [])].filter(Boolean) as string[];
@@ -1034,7 +1033,7 @@ export default function BizPage() {
     ? Number.parseInt(customProposedPrice, 10)
     : 0;
   const customPriceTooLow = isCustom && customProposedPrice.length > 0 && (!Number.isFinite(customProposedCents) || customProposedCents < 500);
-  const providerCannotAcceptPayments = !biz?.stripe_onboarded || !biz?.stripe_account_id;
+  const providerCannotAcceptPayments = !hasProviderPayoutSetup(biz);
   const isSelfOwnedBusiness = !!(
     (biz?.owner_id && viewerUserId && biz.owner_id === viewerUserId) ||
     (biz?.owner_email && viewerEmail && String(biz.owner_email).toLowerCase().trim() === String(viewerEmail).toLowerCase().trim())
@@ -1163,13 +1162,11 @@ export default function BizPage() {
     try {
       const trimmedName = editBizName.trim();
       const trimmedOwnerName = editOwnerName.trim();
-      const trimmedPhone = editPhone.trim();
       const trimmedWebsite = editWebsite.trim();
 
       const coreProfileChanged =
         trimmedName !== String(biz.name || '').trim() ||
         trimmedOwnerName !== String(biz.owner_name || '').trim() ||
-        trimmedPhone !== String(biz.phone || '').trim() ||
         trimmedWebsite !== String(biz.website || '').trim();
 
       if (coreProfileChanged) {
@@ -1177,14 +1174,12 @@ export default function BizPage() {
           await saveDashboardListing({
             name: trimmedName,
             owner_name: trimmedOwnerName,
-            phone: trimmedPhone,
             website: trimmedWebsite,
           });
         } else {
           await submitChangeRequest({
             name: trimmedName,
             owner_name: trimmedOwnerName,
-            phone: trimmedPhone,
             website: trimmedWebsite,
           }, 'profile');
         }
@@ -1274,7 +1269,6 @@ export default function BizPage() {
         ...prev,
         name: trimmedName,
         owner_name: trimmedOwnerName,
-        phone: trimmedPhone,
         website: trimmedWebsite,
         description: editDesc,
         cover_url: nextImages[0] || null,
@@ -1755,7 +1749,7 @@ export default function BizPage() {
                 <div ref={coreProfileSectionRef} className="mb-5 rounded-2xl p-4" style={{ background: dm ? '#0d0d0d' : '#f9fafb', border: '1px solid ' + bdr }}>
                   <div className="mb-3">
                     <p className="text-sm font-bold" style={{ color: tx }}>Core profile fields</p>
-                    <p className="text-xs mt-1" style={{ color: mu }}>These details complete the publish checklist and appear on your provider page.</p>
+                    <p className="text-xs mt-1" style={{ color: mu }}>These details complete the publish checklist and shape how your provider page appears.</p>
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div className="md:col-span-2">
@@ -1779,17 +1773,7 @@ export default function BizPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Phone</label>
-                      <input
-                        value={editPhone}
-                        onChange={(e) => setEditPhone(e.target.value)}
-                        maxLength={40}
-                        className="w-full rounded-xl px-3 py-2 text-sm"
-                        style={{ border: '1px solid ' + bdr, background: dm ? '#050505' : '#ffffff', color: tx }}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Website</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: mu }}>Site</label>
                       <input
                         value={editWebsite}
                         onChange={(e) => setEditWebsite(e.target.value)}
@@ -1827,9 +1811,16 @@ export default function BizPage() {
               <button onClick={isPreview ? undefined : shareBusiness} className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:isPreview?0.6:1}} disabled={isPreview}>Share</button>
               {biz.website && (
                 isPreview ? (
-                  <span className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:0.6}}>Website</span>
+                  <span className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:0.6}}>Site</span>
                 ) : (
-                  <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Website</a>
+                  <a href={biz.website.startsWith('http')?biz.website:'https://'+biz.website} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Site</a>
+                )
+              )}
+              {biz.instagram && (
+                isPreview ? (
+                  <span className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent,opacity:0.6}}>Instagram</span>
+                ) : (
+                  <a href={biz.instagram.startsWith('http') ? biz.instagram : `https://instagram.com/${String(biz.instagram).replace(/^@/, '')}`} target="_blank" rel="noreferrer" className="text-sm font-medium px-3 py-1.5 rounded-xl" style={{background:accentWash,border:'1px solid '+accentBorder,color:accent}}>Instagram</a>
                 )
               )}
             </div>
@@ -2052,7 +2043,7 @@ export default function BizPage() {
           )}
           {providerCannotAcceptPayments && !guestNeedsAuth && (
             <div className="mb-3 text-xs font-semibold px-3 py-2 rounded-xl" style={{ background: dm ? 'rgba(156,163,175,0.18)' : 'rgba(156,163,175,0.16)', color: dm ? '#d1d5db' : '#4b5563', border: '1px solid ' + (dm ? '#4b5563' : '#d1d5db') }}>
-              This provider can&apos;t accept payments yet, so booking is temporarily unavailable.
+              This provider needs Stripe or Zelle set up before booking can open.
             </div>
           )}
           {isSelfOwnedBusiness && (

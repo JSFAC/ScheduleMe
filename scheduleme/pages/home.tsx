@@ -258,8 +258,10 @@ function BizCard({ biz, onClick, dm, index = 0 }: { biz: Business; onClick: () =
                 <span className="text-[10px] font-bold" style={{ color: dm ? '#86efac' : '#047857' }}>Open</span>
               </div>
             : <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: dm ? 'rgba(38,38,38,0.9)' : 'rgba(0,0,0,0.5)', border: dm ? '1px solid rgba(255,255,255,0.12)' : 'none', backdropFilter: 'blur(4px)' }}>
-                <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                <span className="text-[10px] font-bold" style={{ color: dm ? '#d1d5db' : 'rgba(255,255,255,0.85)' }}>Booked</span>
+                <span className={`h-1.5 w-1.5 rounded-full ${biz.availability_status === 'setup_required' ? 'bg-amber-400' : 'bg-neutral-400'}`} />
+                <span className="text-[10px] font-bold" style={{ color: dm ? '#d1d5db' : 'rgba(255,255,255,0.85)' }}>
+                  {biz.availability_status === 'setup_required' ? 'Setup required' : 'Booked'}
+                </span>
               </div>
           }
         </div>

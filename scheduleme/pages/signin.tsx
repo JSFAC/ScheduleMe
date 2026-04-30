@@ -432,7 +432,7 @@ const SignIn: NextPage = () => {
             </p>
           </div>
 
-          <div className={`rounded-2xl border p-8 ${cardBg} ${providerIntent ? 'shadow-[0_24px_80px_rgba(0,0,0,0.42)]' : 'shadow-card'}`}>
+          <div className={`rounded-2xl border p-8 ${cardBg} ${providerIntent ? 'shadow-[0_14px_42px_rgba(0,0,0,0.24)]' : 'shadow-card'}`}>
             {/* Tab switcher — always visible */}
             <div className={`flex rounded-xl p-1 gap-1 mb-6 ${tabShellBg}`}>
               {(['login', 'signup'] as const).map(t => (

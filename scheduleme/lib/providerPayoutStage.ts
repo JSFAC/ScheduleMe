@@ -5,9 +5,10 @@ export const MANUAL_PAYOUT_BOOKING_THRESHOLD = 3;
 type StripeShape = {
   stripe_onboarded?: boolean | null;
   stripe_account_id?: string | null;
+  zelle_payout_details?: string | null;
 };
 
-export type ProviderPayoutStage = 'manual_payout' | 'stripe_required' | 'booking_ready';
+export type ProviderPayoutStage = 'manual_payout' | 'stripe_required' | 'booking_ready' | 'payout_setup_required';
 
 export type ProviderPayoutStageInfo = {
   stage: ProviderPayoutStage;
@@ -17,21 +18,32 @@ export type ProviderPayoutStageInfo = {
   requiresStripeForNewBookings: boolean;
   canAcceptNewBookings: boolean;
   stripeReady: boolean;
+  manualPayoutReady: boolean;
 };
 
 export function isProviderStripeReady(provider?: StripeShape | null): boolean {
   return !!provider?.stripe_onboarded && !!provider?.stripe_account_id;
 }
 
+export function hasProviderManualPayoutDetails(provider?: StripeShape | null): boolean {
+  return String(provider?.zelle_payout_details || '').trim().length > 0;
+}
+
+export function hasProviderPayoutSetup(provider?: StripeShape | null): boolean {
+  return isProviderStripeReady(provider) || hasProviderManualPayoutDetails(provider);
+}
+
 export function deriveProviderPayoutStage(input: {
   stripe_onboarded?: boolean | null;
   stripe_account_id?: string | null;
+  zelle_payout_details?: string | null;
   paidBookingsCount?: number | null;
   threshold?: number;
 }): ProviderPayoutStageInfo {
   const threshold = Math.max(1, Math.round(Number(input.threshold || MANUAL_PAYOUT_BOOKING_THRESHOLD)));
   const paidBookingsCount = Math.max(0, Math.round(Number(input.paidBookingsCount || 0)));
   const stripeReady = isProviderStripeReady(input);
+  const manualPayoutReady = hasProviderManualPayoutDetails(input);
 
   if (stripeReady) {
     return {
@@ -42,6 +54,20 @@ export function deriveProviderPayoutStage(input: {
       requiresStripeForNewBookings: false,
       canAcceptNewBookings: true,
       stripeReady,
+      manualPayoutReady,
+    };
+  }
+
+  if (!manualPayoutReady) {
+    return {
+      stage: 'payout_setup_required',
+      threshold,
+      paidBookingsCount,
+      remainingBeforeStripeRequired: threshold,
+      requiresStripeForNewBookings: false,
+      canAcceptNewBookings: false,
+      stripeReady,
+      manualPayoutReady,
     };
   }
 
@@ -56,6 +82,7 @@ export function deriveProviderPayoutStage(input: {
     requiresStripeForNewBookings,
     canAcceptNewBookings: !requiresStripeForNewBookings,
     stripeReady,
+    manualPayoutReady,
   };
 }
 
@@ -83,6 +110,7 @@ export async function loadProviderPayoutStage(
   return deriveProviderPayoutStage({
     stripe_onboarded: business.stripe_onboarded,
     stripe_account_id: business.stripe_account_id,
+    zelle_payout_details: business.zelle_payout_details,
     paidBookingsCount,
   });
 }

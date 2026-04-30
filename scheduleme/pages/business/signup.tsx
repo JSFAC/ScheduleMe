@@ -80,7 +80,7 @@ const SignupPage: NextPage = () => {
             </p>
           </div>
 
-          <div className="relative rounded-2xl border border-neutral-800 bg-neutral-900/95 p-6 md:p-7 space-y-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
+          <div className="relative rounded-2xl border border-neutral-800 bg-neutral-900/95 p-6 md:p-7 space-y-5 shadow-[0_14px_42px_rgba(0,0,0,0.24)]">
             {error && <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">{error}</div>}
 
             {status === 'loading' && (

@@ -7,6 +7,7 @@ import { getSupabaseClient } from './supabaseClient';
 import type { Business } from './mockBusinesses';
 import { normalizeServiceTag, serviceTagToLabel } from './categoryNormalization';
 import { isProviderPubliclyVisible } from './providerTrust';
+import { hasProviderPayoutSetup } from './providerPayoutStage';
 
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
@@ -44,7 +45,11 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
   const availability = b.availability_status ?? 'open';
   const breakUntil = b.break_until ? new Date(b.break_until) : null;
   const breakActive = availability === 'break' && breakUntil && !Number.isNaN(breakUntil.getTime()) && breakUntil.getTime() > Date.now();
-  const effectiveAvailability = breakActive ? 'break' : (availability === 'break' ? 'open' : availability);
+  const payoutConfigured = hasProviderPayoutSetup(b);
+  const normalizedAvailability = breakActive ? 'break' : (availability === 'break' ? 'open' : availability);
+  const effectiveAvailability = !payoutConfigured && normalizedAvailability === 'open'
+    ? 'setup_required'
+    : normalizedAvailability;
   const mediaUrls = Array.isArray(b.media_urls) && b.media_urls.length > 0 ? b.media_urls : [];
   const cover = getCover(b.cover_url, mediaUrls);
   const allImages = mediaUrls.length > 0 ? mediaUrls : (cover && cover !== TRANSPARENT_PIXEL ? [cover] : []);
@@ -66,7 +71,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     independent: b.campus_provider !== true,
     founder50: !!b.founder50,
     founder50_status: b.founder50_status ?? null,
-    available: effectiveAvailability !== 'closed' && effectiveAvailability !== 'break',
+    available: effectiveAvailability !== 'closed' && effectiveAvailability !== 'break' && effectiveAvailability !== 'setup_required',
     distance: dist,
     reviews: b.review_count ?? 0,
     rating: (b.review_count ?? 0) > 0 ? (typeof b.rating === 'number' ? b.rating : parseFloat(b.rating)) : null,
@@ -75,7 +80,7 @@ function mapBusiness(b: any, distanceMiles?: number): Business {
     break_until: breakUntil ? breakUntil.toISOString() : null,
     coverUrl: previewLocked ? TRANSPARENT_PIXEL : cover,
     allImages: previewLocked ? [] : allImages,
-    phone: previewLocked ? '' : (b.phone || ''),
+    phone: '',
     website: previewLocked ? '' : (b.website || ''),
     instagram: b.instagram || '',
     calendly_url: b.calendly_url || '',
@@ -150,7 +155,7 @@ export async function fetchNearbyBusinesses(
       const normalizedCategory = opts.category ? normalizeServiceTag(opts.category) : '';
       const { data: rawRows } = await supabase
       .from('businesses')
-      .select('id, name, slug, description, address, city, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, approved_at, published_at, created_at')
+      .select('id, name, slug, description, address, city, zip, lat, lng, service_tags, cover_url, media_urls, website, instagram, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, approved_at, published_at, created_at, stripe_onboarded, stripe_account_id, zelle_payout_details')
       .eq('is_onboarded', true)
       .not('lat', 'is', null)
       .not('lng', 'is', null)
@@ -206,7 +211,7 @@ export async function fetchAllBusinesses(
     const supabase = getSupabaseClient();
     const { data: rows } = await supabase
       .from('businesses')
-      .select('id, name, slug, description, address, city, zip, lat, lng, service_tags, cover_url, media_urls, phone, website, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, approved_at, published_at, created_at')
+      .select('id, name, slug, description, address, city, zip, lat, lng, service_tags, cover_url, media_urls, website, instagram, calendly_url, rating, review_count, price_tier, availability_status, break_until, is_onboarded, edu_verified, campus_provider, school_domain, founder50, founder50_status, last_completed_booking_at, away_start, away_end, public_visibility, trust_status, trust_flagged, approved_at, published_at, created_at, stripe_onboarded, stripe_account_id, zelle_payout_details')
       .eq('is_onboarded', true)
       .order('last_completed_booking_at', { ascending: false, nullsFirst: false })
       .limit(opts.limit ?? 40);

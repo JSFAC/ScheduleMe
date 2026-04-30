@@ -31,7 +31,6 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lng: nu
 const ALLOWED_FIELDS = new Set([
   'name',
   'owner_name',
-  'phone',
   'website',
   'description',
   'cover_url',
@@ -51,10 +50,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getSupabase();
 
-  async function loadOwnedBusiness() {
+async function loadOwnedBusiness() {
     const byOwner = await supabase
       .from('businesses')
-      .select('id, owner_id, owner_email, name, owner_name, phone, website, description, cover_url, media_urls, video_url, address, city, zip')
+      .select('id, owner_id, owner_email, name, owner_name, website, instagram, description, cover_url, media_urls, video_url, address, city, zip')
       .eq('owner_id', user.id)
       .maybeSingle();
     if (byOwner.data) return byOwner.data;
@@ -64,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const byLegacyEmail = await supabase
       .from('businesses')
-      .select('id, owner_id, owner_email, name, owner_name, phone, website, description, cover_url, media_urls, video_url, address, city, zip')
+      .select('id, owner_id, owner_email, name, owner_name, website, instagram, description, cover_url, media_urls, video_url, address, city, zip')
       .ilike('owner_email', ownerEmail)
       .maybeSingle();
 
@@ -111,9 +110,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const check = validateAndFilter(updates.owner_name, { maxLength: 60, fieldName: 'Provider name' });
     if (!check.ok) return res.status(400).json({ error: 'error' in check ? check.error : 'Invalid provider name' });
     updates.owner_name = check.value;
-  }
-  if (typeof updates.phone === 'string') {
-    updates.phone = updates.phone.trim().slice(0, 40);
   }
   if (typeof updates.website === 'string') {
     updates.website = updates.website.trim().slice(0, 255);
@@ -182,7 +178,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from('businesses')
     .update(updates)
     .eq('id', business_id)
-    .select('id, name, owner_name, phone, website, description, cover_url, media_urls, video_url, address, city, zip')
+    .select('id, name, owner_name, website, instagram, description, cover_url, media_urls, video_url, address, city, zip')
     .single();
 
   if (error) return res.status(500).json({ error: error.message || 'Failed to update listing' });
