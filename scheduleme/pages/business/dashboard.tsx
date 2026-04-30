@@ -138,6 +138,129 @@ const STATUS_CFG: Record<string, { label: string; dot: string; bg: string; text:
   cancelled:       { label: 'Cancelled',       dot: 'bg-neutral-400', bg: 'bg-neutral-100',text: 'text-neutral-500', border: 'border-neutral-200' },
 };
 
+const PROVIDER_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hour24 = Math.floor(index / 2);
+  const minute = index % 2 === 0 ? '00' : '30';
+  const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return {
+    value: index,
+    label: `${hour12}:${minute} ${meridiem}`,
+  };
+});
+
+const DEFAULT_HOUR_START = PROVIDER_TIME_OPTIONS[18].label;
+const DEFAULT_HOUR_END = PROVIDER_TIME_OPTIONS[34].label;
+
+function getTimeIndex(label: string) {
+  const match = PROVIDER_TIME_OPTIONS.find((option) => option.label === label);
+  return match ? match.value : -1;
+}
+
+function normalizeTimeLabel(label: string) {
+  const cleaned = toStringSafe(label).trim().toUpperCase().replace(/\s+/g, ' ');
+  if (!cleaned) return '';
+  const direct = PROVIDER_TIME_OPTIONS.find((option) => option.label.toUpperCase() === cleaned);
+  if (direct) return direct.label;
+
+  const simple = cleaned.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  if (!simple) return '';
+  const hour = Number(simple[1]);
+  const minute = simple[2] === '30' ? '30' : '00';
+  if (!Number.isFinite(hour) || hour < 1 || hour > 12) return '';
+  return `${hour}:${minute} ${simple[3]}`;
+}
+
+function parseDayHoursConfig(value: string) {
+  const normalized = toStringSafe(value).trim();
+  const lowered = normalized.toLowerCase();
+  if (!normalized || lowered === 'closed') {
+    return {
+      enabled: false,
+      useSpecificHours: false,
+      start: DEFAULT_HOUR_START,
+      end: DEFAULT_HOUR_END,
+    };
+  }
+  if (lowered === '24 hours' || lowered === 'by appointment') {
+    return {
+      enabled: true,
+      useSpecificHours: false,
+      start: DEFAULT_HOUR_START,
+      end: DEFAULT_HOUR_END,
+    };
+  }
+
+  const parts = normalized.split(' - ');
+  const parsedStart = normalizeTimeLabel(parts[0] || '');
+  const parsedEnd = normalizeTimeLabel(parts[1] || '');
+  const startIndex = getTimeIndex(parsedStart);
+  const endIndex = getTimeIndex(parsedEnd);
+  if (parsedStart && parsedEnd && startIndex >= 0 && endIndex > startIndex) {
+    return {
+      enabled: true,
+      useSpecificHours: true,
+      start: parsedStart,
+      end: parsedEnd,
+    };
+  }
+
+  return {
+    enabled: true,
+    useSpecificHours: false,
+    start: DEFAULT_HOUR_START,
+    end: DEFAULT_HOUR_END,
+  };
+}
+
+function buildDayHoursValue(config: { enabled: boolean; useSpecificHours: boolean; start: string; end: string }) {
+  if (!config.enabled) return '';
+  if (!config.useSpecificHours) return '24 hours';
+  return `${config.start} - ${config.end}`;
+}
+
+function ProviderSwitch({
+  checked,
+  onChange,
+  disabled = false,
+  dm = false,
+  size = 'md',
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  dm?: boolean;
+  size?: 'sm' | 'md';
+}) {
+  const shellSize = size === 'sm' ? 'h-6 w-11' : 'h-7 w-12';
+  const knobSize = size === 'sm' ? 'h-4 w-4 top-1' : 'h-5 w-5 top-1';
+  const knobLeft = size === 'sm' ? (checked ? '26px' : '4px') : (checked ? '27px' : '4px');
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className={`relative shrink-0 rounded-full transition-all ${shellSize} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      style={{
+        background: checked
+          ? '#007e6d'
+          : (dm ? '#2f3136' : '#d1d5db'),
+        boxShadow: checked
+          ? '0 0 0 1px rgba(0,126,109,0.24), 0 8px 18px rgba(0,126,109,0.24)'
+          : `inset 0 0 0 1px ${dm ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.08)'}`,
+      }}
+    >
+      <span
+        className={`absolute rounded-full bg-white shadow-sm transition-all ${knobSize}`}
+        style={{ left: knobLeft }}
+      />
+    </button>
+  );
+}
+
 const NAV: { id: TabId; label: string; d: string }[] = [
   { id: 'overview',  label: 'Overview',  d: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
   { id: 'bookings',  label: 'Bookings',  d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
@@ -1176,6 +1299,17 @@ const BusinessDashboard: NextPage = () => {
   const [tourStep, setTourStep] = useState(0);
 
   const HOURS_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dashboardBorder = dm ? '#2f3136' : '#f0f0f0';
+  const dashboardFieldBg = dm ? '#232326' : '#ffffff';
+  const dashboardFieldBorder = dm ? '#3a3a3f' : '#e5e7eb';
+  const dashboardMutedBg = dm ? '#141416' : '#f5fbf8';
+  const warningTextColor = dm ? '#e8b468' : '#b45309';
+  const warningBorderColor = dm ? 'rgba(217,119,6,0.35)' : '#f4d9c7';
+  const warningBgColor = dm ? 'rgba(217,119,6,0.10)' : '#fff7ed';
+  const dangerBgColor = dm ? 'rgba(127,29,29,0.18)' : '#fef2f2';
+  const dangerBorderColor = dm ? 'rgba(248,113,113,0.28)' : '#fecaca';
+  const dangerTextColor = dm ? '#fca5a5' : '#dc2626';
+
   function activateTab(next: TabId) {
     setTab(next);
     try {
@@ -1195,8 +1329,64 @@ const BusinessDashboard: NextPage = () => {
   }
   function mapToHoursArray(map: Record<string, string>): { day: string; time: string }[] {
     return HOURS_DAYS
-      .map(day => (map[day] ? { day, time: map[day] } : null))
+      .map(day => {
+        const value = toStringSafe(map[day]).trim();
+        if (!value || value.toLowerCase() === 'closed') return null;
+        return { day, time: value };
+      })
       .filter(Boolean) as { day: string; time: string }[];
+  }
+
+  function updateEditHours(day: string, nextValue: string) {
+    setEditHours((prev) => {
+      const next = { ...prev };
+      const clean = toStringSafe(nextValue).trim();
+      if (!clean || clean.toLowerCase() === 'closed') {
+        delete next[day];
+      } else {
+        next[day] = clean;
+      }
+      return next;
+    });
+  }
+
+  function toggleDayOpen(day: string, nextOpen: boolean) {
+    if (!nextOpen) {
+      updateEditHours(day, '');
+      return;
+    }
+    const current = parseDayHoursConfig(editHours[day] || '');
+    updateEditHours(day, buildDayHoursValue({ ...current, enabled: true }));
+  }
+
+  function toggleDaySpecificHours(day: string, nextSpecific: boolean) {
+    const current = parseDayHoursConfig(editHours[day] || '');
+    updateEditHours(day, buildDayHoursValue({ ...current, enabled: true, useSpecificHours: nextSpecific }));
+  }
+
+  function setDayTime(day: string, field: 'start' | 'end', nextLabel: string) {
+    const current = parseDayHoursConfig(editHours[day] || '');
+    const start = field === 'start' ? nextLabel : current.start;
+    const startIndex = getTimeIndex(start);
+    const currentEnd = field === 'end' ? nextLabel : current.end;
+    let end = currentEnd;
+    const endIndex = getTimeIndex(end);
+
+    if (field === 'start' && endIndex <= startIndex) {
+      const fallbackEnd = PROVIDER_TIME_OPTIONS[Math.min(startIndex + 2, PROVIDER_TIME_OPTIONS.length - 1)];
+      end = fallbackEnd.label;
+    }
+    if (field === 'end' && endIndex <= startIndex) {
+      return;
+    }
+
+    updateEditHours(day, buildDayHoursValue({
+      ...current,
+      enabled: true,
+      useSpecificHours: true,
+      start,
+      end,
+    }));
   }
 
   async function refreshPublishStatus() {
@@ -2601,29 +2791,40 @@ const BusinessDashboard: NextPage = () => {
 
                     {/* Stripe banner */}
           {business && tab === 'overview' && !business.stripe_onboarded && (
-            <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-3">
+            <div
+              className="border-b px-4 sm:px-6 py-3"
+              style={{
+                background: dm ? 'rgba(217,119,6,0.10)' : '#fffbeb',
+                borderColor: dm ? 'rgba(217,119,6,0.24)' : '#fde4b3',
+              }}
+            >
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-5xl mx-auto">
                 <div className="flex flex-col gap-1 text-sm max-w-3xl">
                   <div className="flex items-center gap-2.5">
-                    <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    <span className="text-amber-800 font-semibold">Step 1/2: Connect Stripe for automated payouts</span>
+                    <svg className="h-4 w-4 shrink-0" style={{ color: warningTextColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span className="font-semibold" style={{ color: warningTextColor }}>Step 1/2: Connect Stripe for automated payouts</span>
                   </div>
-                  <p className="text-xs text-amber-800">
+                  <p className="text-xs" style={{ color: warningTextColor }}>
                     You can use manual payouts to your saved Zelle details for your first {manualPayoutLimit} paid bookings.
                     {manualPayoutsRemaining > 0
                       ? ` ${manualPayoutsRemaining} manual payout${manualPayoutsRemaining === 1 ? '' : 's'} remaining before Stripe is required.`
                       : ' You have reached the manual payout limit, so Stripe needs to be connected before more payouts can be processed.'}
                   </p>
                 </div>
-                <button onClick={handleStripeConnect} disabled={stripeLoading} className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+                <button
+                  onClick={handleStripeConnect}
+                  disabled={stripeLoading}
+                  className="shrink-0 text-sm font-bold px-4 py-2 rounded-xl text-white transition-colors"
+                  style={{ background: dm ? '#d97706' : '#f59e0b' }}
+                >
                   {stripeLoading ? 'Loading…' : stripeCta}
                 </button>
               </div>
               {stripeConnectError && (
-                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeConnectError}</p>
+                <p className="text-xs mt-2 max-w-5xl mx-auto" style={{ color: warningTextColor }}>{stripeConnectError}</p>
               )}
               {stripeStatusMsg && !stripeConnectError && (
-                <p className="text-xs text-amber-700 mt-2 max-w-5xl mx-auto">{stripeStatusMsg}</p>
+                <p className="text-xs mt-2 max-w-5xl mx-auto" style={{ color: warningTextColor }}>{stripeStatusMsg}</p>
               )}
             </div>
           )}
@@ -2892,16 +3093,19 @@ const BusinessDashboard: NextPage = () => {
                                   onClick={() => !ok && jumpToPublishRequirement(item.key as 'coreProfile' | 'services' | 'media' | 'stripe')}
                                   className="rounded-[24px] border px-4 py-4 text-left transition-transform hover:-translate-y-0.5 disabled:cursor-default"
                                   disabled={ok}
-                                  style={{ borderColor: ok ? '#b7e5ce' : '#f2d39a', background: ok ? '#eef9f3' : '#fff6e7' }}
+                                  style={{
+                                    borderColor: ok ? (dm ? 'rgba(16,185,129,0.28)' : '#b7e5ce') : warningBorderColor,
+                                    background: ok ? (dm ? 'rgba(16,185,129,0.10)' : '#eef9f3') : (dm ? 'rgba(217,119,6,0.10)' : '#fff6e7'),
+                                  }}
                                   data-checklist-order={index}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
-                                      <p className="font-semibold" style={{ color: ok ? '#166534' : '#9a3412' }}>{item.label}</p>
-                                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? '#3f6f58' : '#9a3412' }}>{item.hint}</p>
-                                      {!ok && <p className="mt-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: '#9a3412' }}>Open section →</p>}
+                                      <p className="font-semibold" style={{ color: ok ? (dm ? '#8ef0d7' : '#166534') : warningTextColor }}>{item.label}</p>
+                                      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: ok ? (dm ? '#bbf7e6' : '#3f6f58') : warningTextColor }}>{item.hint}</p>
+                                      {!ok && <p className="mt-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: warningTextColor }}>Open section →</p>}
                                     </div>
-                                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? 'rgba(22,101,52,0.10)' : 'rgba(154,52,18,0.10)', color: ok ? '#166534' : '#9a3412' }}>
+                                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: ok ? (dm ? 'rgba(16,185,129,0.16)' : 'rgba(22,101,52,0.10)') : warningBgColor, color: ok ? (dm ? '#8ef0d7' : '#166534') : warningTextColor }}>
                                       {ok ? 'Done' : 'Needed'}
                                     </span>
                                   </div>
@@ -3813,12 +4017,38 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                       <div>
                         <label className="text-xs font-semibold mb-1 block" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Duration (min)</label>
-                        <input type="number" min="5" step="5" value={svcDuration} onChange={e => setSvcDuration(e.target.value)} placeholder="60" className="w-full rounded-2xl px-4 py-3 text-sm outline-none" style={{ background: dm ? '#2c2c2e' : '#ffffff', color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + (dm ? '#3c3c3e' : '#e5e7eb') }} />
+                        <div className="flex items-center overflow-hidden rounded-2xl border" style={{ background: dashboardFieldBg, color: dm ? '#f2f2f7' : '#111', border: '1px solid ' + dashboardFieldBorder }}>
+                          <button
+                            type="button"
+                            onClick={() => setSvcDuration((prev) => String(Math.max(5, Number(prev || 60) - 5)))}
+                            className="flex h-[50px] w-11 items-center justify-center text-lg font-bold transition-colors"
+                            style={{ color: dm ? '#d4d4d8' : '#4b5563', background: dm ? '#1b1b1d' : '#f9fafb' }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={svcDuration}
+                            onChange={e => setSvcDuration(String(Math.max(5, Number((e.target.value || '').replace(/[^\d]/g, '') || 0) || 5)))}
+                            placeholder="60"
+                            className="h-[50px] flex-1 bg-transparent px-3 text-center text-sm outline-none"
+                            style={{ color: dm ? '#f2f2f7' : '#111' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setSvcDuration((prev) => String(Math.max(5, Number(prev || 0) + 5)))}
+                            className="flex h-[50px] w-11 items-center justify-center text-lg font-bold transition-colors"
+                            style={{ color: dm ? '#d4d4d8' : '#4b5563', background: dm ? '#1b1b1d' : '#f9fafb' }}
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
                       Requires exact time
-                      <input type="checkbox" checked={svcRequiresTime} onChange={e => setSvcRequiresTime(e.target.checked)} className="h-5 w-5 rounded-full accent-[#007e6d]" />
+                      <ProviderSwitch checked={svcRequiresTime} onChange={setSvcRequiresTime} dm={dm} />
                     </label>
                     {svcError && <p className="text-red-500 text-sm">{svcError}</p>}
                     <button onClick={handleAddService} disabled={svcSaving} className="w-full py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: svcSaving ? '#9ca3af' : '#007e6d' }}>{svcSaving ? 'Adding...' : '+ Add Service'}</button>
@@ -3863,8 +4093,8 @@ const BusinessDashboard: NextPage = () => {
                   <div className="grid grid-cols-3 gap-2 mb-5">
                     {[
                       { key: 'open', label: 'Open', activeBg: '#007e6d', activeColor: '#fff', border: '#bfe5db', color: '#0f766e' },
-                      { key: 'busy', label: 'Busy', activeBg: '#fff7ed', activeColor: '#b45309', border: '#f4d9c7', color: '#b45309' },
-                      { key: 'closed', label: 'Closed', activeBg: '#fff7f7', activeColor: '#b42318', border: '#f3d0d0', color: '#b42318' },
+                      { key: 'busy', label: 'Busy', activeBg: dm ? 'rgba(217,119,6,0.16)' : '#fff7ed', activeColor: dm ? '#e8b468' : '#b45309', border: dm ? 'rgba(217,119,6,0.32)' : '#f4d9c7', color: dm ? '#e8b468' : '#b45309' },
+                      { key: 'closed', label: 'Closed', activeBg: dm ? 'rgba(239,68,68,0.16)' : '#fff7f7', activeColor: dm ? '#fca5a5' : '#b42318', border: dm ? 'rgba(248,113,113,0.30)' : '#f3d0d0', color: dm ? '#fca5a5' : '#b42318' },
                     ].map((option) => (
                       <button
                         key={option.key}
@@ -3873,7 +4103,7 @@ const BusinessDashboard: NextPage = () => {
                         className="rounded-full border px-3 py-2 text-sm font-semibold transition-colors"
                         style={editAvailability === option.key
                           ? { background: option.activeBg, borderColor: option.border, color: option.activeColor }
-                          : { background: '#fff', borderColor: '#e5e7eb', color: '#4b5563' }}
+                          : { background: dm ? '#17181a' : '#fff', borderColor: dm ? '#303236' : '#e5e7eb', color: dm ? '#d4d4d8' : '#4b5563' }}
                       >
                         {option.label}
                       </button>
@@ -3882,20 +4112,60 @@ const BusinessDashboard: NextPage = () => {
                   <h4 className="font-semibold text-sm mb-3" style={{ color: dm ? '#f2f2f7' : '#111' }}>Business Hours</h4>
                   <div className="space-y-2">
                     {HOURS_DAYS.map((day) => {
-                      const current = editHours[day] || '';
-                      const open = !!current && current.toLowerCase() !== 'closed';
+                      const config = parseDayHoursConfig(editHours[day] || '');
+                      const availableEndTimes = PROVIDER_TIME_OPTIONS.filter((option) => option.value > getTimeIndex(config.start));
                       return (
-                        <div key={day} className="flex items-center gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#fff' }}>
-                          <div className="min-w-[96px] text-sm font-medium" style={{ color: dm ? '#f2f2f7' : '#111' }}>{day}</div>
-                          <div className="flex-1 text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                            {open ? 'Open' : 'Closed'}
+                        <div key={day} className="rounded-[22px] border px-4 py-3" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#111' : '#fff' }}>
+                          <div className="flex items-center gap-3">
+                            <div className="min-w-[96px] text-sm font-medium" style={{ color: dm ? '#f2f2f7' : '#111' }}>{day}</div>
+                            <div className="flex-1 text-xs" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                              {config.enabled ? (config.useSpecificHours ? `${config.start} - ${config.end}` : 'Available all day') : 'Closed'}
+                            </div>
+                            <ProviderSwitch checked={config.enabled} onChange={(next) => toggleDayOpen(day, next)} dm={dm} />
                           </div>
-                          <input
-                            type="checkbox"
-                            checked={open}
-                            onChange={(e) => setEditHours((prev) => ({ ...prev, [day]: e.target.checked ? (prev[day] && prev[day].toLowerCase() !== 'closed' ? prev[day] : '9 AM - 5 PM') : 'Closed' }))}
-                            className="h-5 w-5 rounded-full accent-[#007e6d]"
-                          />
+                          {config.enabled && (
+                            <div className="mt-4 rounded-2xl border px-4 py-4" style={{ borderColor: dm ? '#2c2c2e' : '#ebedf0', background: dm ? '#17181a' : '#f9fafb' }}>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-xs font-semibold" style={{ color: dm ? '#f2f2f7' : '#111' }}>Use specific availability hours</p>
+                                  <p className="text-[11px] mt-1" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                                    Turn this on if you only want bookings during set hours.
+                                  </p>
+                                </div>
+                                <ProviderSwitch checked={config.useSpecificHours} onChange={(next) => toggleDaySpecificHours(day, next)} dm={dm} size="sm" />
+                              </div>
+                              {config.useSpecificHours && (
+                                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-semibold" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Start</label>
+                                    <select
+                                      value={config.start}
+                                      onChange={(e) => setDayTime(day, 'start', e.target.value)}
+                                      className="w-full rounded-2xl px-3 py-3 text-sm outline-none"
+                                      style={{ background: dashboardFieldBg, color: dm ? '#f2f2f7' : '#111', border: `1px solid ${dashboardFieldBorder}` }}
+                                    >
+                                      {PROVIDER_TIME_OPTIONS.slice(0, -1).map((option) => (
+                                        <option key={`${day}-start-${option.value}`} value={option.label}>{option.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-semibold" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>End</label>
+                                    <select
+                                      value={config.end}
+                                      onChange={(e) => setDayTime(day, 'end', e.target.value)}
+                                      className="w-full rounded-2xl px-3 py-3 text-sm outline-none"
+                                      style={{ background: dashboardFieldBg, color: dm ? '#f2f2f7' : '#111', border: `1px solid ${dashboardFieldBorder}` }}
+                                    >
+                                      {availableEndTimes.map((option) => (
+                                        <option key={`${day}-end-${option.value}`} value={option.label}>{option.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -3915,7 +4185,7 @@ const BusinessDashboard: NextPage = () => {
                   <p className="text-xs mb-3" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>Choose whether custom requests need an exact time or just a due date.</p>
                   <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-semibold" style={{ borderColor: dm ? '#2c2c2e' : '#cfe7de', color: dm ? '#e5e7eb' : '#0f766e', background: dm ? '#111' : '#f5fbf8' }}>
                     Requires exact time
-                    <input type="checkbox" checked={business?.custom_requires_time !== false} onChange={e => handleCustomRequiresTime(e.target.checked)} className="h-5 w-5 rounded-full accent-[#007e6d]" />
+                    <ProviderSwitch checked={business?.custom_requires_time !== false} onChange={handleCustomRequiresTime} dm={dm} />
                   </label>
                 </div>
               </div>
@@ -4011,67 +4281,56 @@ const BusinessDashboard: NextPage = () => {
                   </div>
 
                   <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
-                        checked={campusShowName}
-                        onChange={e => persistVisibility(publicVisibility, publicShowName, publicShowPhotos, e.target.checked)}
-                        disabled={visibilitySaving}
-                      />
+                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
                       <div>
                         <p className="font-semibold text-neutral-900">Show my personal name to students</p>
                         <p className="text-xs text-neutral-500">Turn this off if you want students to see only your business name.</p>
                       </div>
+                      <ProviderSwitch
+                        checked={campusShowName}
+                        onChange={(next) => persistVisibility(publicVisibility, publicShowName, publicShowPhotos, next)}
+                        disabled={visibilitySaving}
+                        dm={dm}
+                      />
                     </label>
 
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
-                        checked={publicVisibility}
-                        onChange={e => {
-                          const nextVis = e.target.checked;
-                          persistVisibility(nextVis, publicShowName, publicShowPhotos, campusShowName);
-                        }}
-                        disabled={visibilitySaving}
-                      />
+                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
                       <div>
                         <p className="font-semibold text-neutral-900">List my provider card on ScheduleMe</p>
                         <p className="text-xs text-neutral-500">Controls whether your card appears on home, browse, and search surfaces.</p>
                       </div>
+                      <ProviderSwitch
+                        checked={publicVisibility}
+                        onChange={(nextVis) => persistVisibility(nextVis, publicShowName, publicShowPhotos, campusShowName)}
+                        disabled={visibilitySaving}
+                        dm={dm}
+                      />
                     </label>
 
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
-                        checked={publicShowName}
-                        onChange={e => persistVisibility(publicVisibility, e.target.checked, publicShowPhotos, campusShowName)}
-                        disabled={!publicVisibility || visibilitySaving}
-                      />
+                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
                         <p className="font-semibold text-neutral-900">Show my personal name to non-students</p>
                         <p className="text-xs text-neutral-500">Keep this off if you only want your personal name visible inside campus contexts.</p>
                       </div>
+                      <ProviderSwitch
+                        checked={publicShowName}
+                        onChange={(next) => persistVisibility(publicVisibility, next, publicShowPhotos, campusShowName)}
+                        disabled={!publicVisibility || visibilitySaving}
+                        dm={dm}
+                      />
                     </label>
 
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 border-neutral-300 text-accent focus:ring-accent"
-                        style={{ accentColor: '#007e6d', borderRadius: 6 }}
-                        checked={publicShowPhotos}
-                        onChange={e => persistVisibility(publicVisibility, publicShowName, e.target.checked, campusShowName)}
-                        disabled={!publicVisibility || visibilitySaving}
-                      />
+                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
                       <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
                         <p className="font-semibold text-neutral-900">Show my photos on public cards</p>
                         <p className="text-xs text-neutral-500">If this is off, ScheduleMe will use a simpler card presentation instead.</p>
                       </div>
+                      <ProviderSwitch
+                        checked={publicShowPhotos}
+                        onChange={(next) => persistVisibility(publicVisibility, publicShowName, next, campusShowName)}
+                        disabled={!publicVisibility || visibilitySaving}
+                        dm={dm}
+                      />
                     </label>
                   </div>
                 </div>
@@ -4082,7 +4341,8 @@ const BusinessDashboard: NextPage = () => {
                     <button
                       type="button"
                       onClick={toggleDarkMode}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors"
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border transition-colors"
+                      style={{ borderColor: dashboardFieldBorder, background: dm ? '#17181a' : '#fff' }}
                     >
                       <div className="text-left">
                         <p className="text-sm font-semibold text-neutral-900">{dm ? 'Dark mode on' : 'Light mode on'}</p>
@@ -4095,9 +4355,7 @@ const BusinessDashboard: NextPage = () => {
                             : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
                           }
                         </svg>
-                        <div className="relative h-5 w-10 rounded-full" style={{ background: dm ? '#0f766e' : '#d1d5db' }}>
-                          <div className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm" style={{ left: dm ? '21px' : '2px', transition: 'left 0.25s ease' }} />
-                        </div>
+                        <ProviderSwitch checked={dm} onChange={() => toggleDarkMode()} dm={dm} />
                       </div>
                     </button>
                   </div>
@@ -4121,13 +4379,13 @@ const BusinessDashboard: NextPage = () => {
                     <p className="text-xs font-semibold text-neutral-500 mt-4">Want to affiliate with your campus?</p>
                     <div className="mt-4 grid grid-cols-1 gap-2">
                       <button type="button" onClick={() => setShowCampusModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                        style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(0,126,109,0.12)' : '#f5fbf8' }}>
+                        style={{ borderColor: dm ? 'rgba(0,126,109,0.36)' : '#007e6d', color: dm ? '#6fe0cd' : '#007e6d', background: dm ? 'rgba(0,126,109,0.10)' : '#f5fbf8' }}>
                         {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
                       </button>
                       {Boolean((business?.school_email || '').trim() || business?.edu_verified) && (
                         <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
                           className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                          style={{ borderColor: '#ef4444', color: '#ef4444', background: dm ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
+                          style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}>
                           Disconnect .edu Email
                         </button>
                       )}
@@ -4138,7 +4396,7 @@ const BusinessDashboard: NextPage = () => {
                   <form onSubmit={handleSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Setup Payout</h2>
                     <p className="text-xs text-neutral-400 mb-4">First 3 bookings can be payed out through zelle, then stripe becomes required.</p>
-                    <div className="mb-4 rounded-2xl border px-4 py-4" style={{ borderColor: dm ? '#404040' : '#e5e7eb', background: dm ? '#171717' : '#ffffff' }}>
+                    <div className="mb-4">
                       <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-xs font-semibold text-neutral-500">Zelle payout details</span>
                         <span className="text-[12px] text-neutral-600">
@@ -4148,24 +4406,26 @@ const BusinessDashboard: NextPage = () => {
                         </span>
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <input
-                          type="text"
-                          value={editZellePayoutDetails}
-                          onChange={(e) => setEditZellePayoutDetails(e.target.value)}
-                          placeholder="Email or phone tied to your Zelle"
-                          className="min-w-0 flex-1 rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
-                        />
-                        <button
-                          type="submit"
-                          disabled={settingsSaving}
-                          className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-60"
-                          style={{ background: '#007e6d' }}
-                        >
-                          {settingsSaving ? 'Saving…' : 'Save'}
-                        </button>
+                        <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-2xl border" style={{ borderColor: dashboardFieldBorder, background: dashboardFieldBg }}>
+                          <input
+                            type="text"
+                            value={editZellePayoutDetails}
+                            onChange={(e) => setEditZellePayoutDetails(e.target.value)}
+                            placeholder="Email or phone tied to your Zelle"
+                            className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none"
+                            style={{ color: dm ? '#f3f4f6' : '#171717' }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={settingsSaving}
+                            className="m-1 shrink-0 rounded-xl px-4 py-2 text-sm font-bold text-white transition-opacity disabled:opacity-60"
+                            style={{ background: '#007e6d' }}
+                          >
+                            {settingsSaving ? 'Saving…' : 'Save'}
+                          </button>
+                        </div>
                       </div>
-                      <p className="mt-3 text-[12px] leading-5 text-amber-700">
+                      <p className="mt-3 text-[12px] leading-5" style={{ color: warningTextColor }}>
                         First 3 bookings can be payed out through zelle, then stripe becomes required.
                       </p>
                     </div>
@@ -4185,7 +4445,8 @@ const BusinessDashboard: NextPage = () => {
                         <button
                           type="button"
                           onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
-                          className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                          className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
+                          style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}>
                           Disconnect Stripe
                         </button>
                         <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts. New Stripe accounts may take up to 7 days for the first automated payout to arrive.</p>
@@ -4201,7 +4462,8 @@ const BusinessDashboard: NextPage = () => {
                           <button
                             type="button"
                             onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
-                            className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                            className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
+                            style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}>
                             Disconnect Stripe
                           </button>
                         )}
@@ -4219,11 +4481,18 @@ const BusinessDashboard: NextPage = () => {
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Session</h2>
                     <p className="text-xs text-neutral-400 mb-4">Signed in as {business?.owner_email}</p>
                     <div className="grid grid-cols-1 gap-2">
-                      <button onClick={handleSignOut} className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 transition-colors">Sign Out</button>
+                      <button
+                        onClick={handleSignOut}
+                        className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
+                        style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#525252', background: dm ? '#17181a' : '#fff' }}
+                      >
+                        Sign Out
+                      </button>
                       <button
                         type="button"
                         onClick={() => { setDeleteAccountText(''); setDeleteAccountError(''); setShowDeleteAccount(true); }}
-                        className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                        className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
+                        style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}
                       >
                         Delete Account
                       </button>
@@ -4233,13 +4502,13 @@ const BusinessDashboard: NextPage = () => {
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Legal & Support</h2>
                     <p className="text-xs text-neutral-400 mb-4">Review the latest policies and contact support.</p>
                     <div className="grid grid-cols-1 gap-2">
-                      <Link href="/privacy" className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors">
+                      <Link href="/privacy" className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors" style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#374151', background: dm ? '#17181a' : '#fff' }}>
                         Privacy Policy
                       </Link>
-                      <Link href="/terms" className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors">
+                      <Link href="/terms" className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors" style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#374151', background: dm ? '#17181a' : '#fff' }}>
                         Terms of Service
                       </Link>
-                      <Link href="/support" className="text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors">
+                      <Link href="/support" className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors" style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#374151', background: dm ? '#17181a' : '#fff' }}>
                         Support
                       </Link>
                     </div>
@@ -4846,6 +5115,63 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] .shadow-\[0_8px_24px_rgba\(15\,23\,42\,0\.04\)\],
         .provider-dashboard-shell[data-provider-theme='light'] .shadow-\[0_10px_30px_rgba\(32\,136\,122\,0\.05\)\] {
           box-shadow: 0 16px 36px rgba(40, 61, 54, 0.06) !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] {
+          background: #09090a !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] aside,
+        .provider-dashboard-shell[data-provider-theme='dark'] header {
+          background: #121214 !important;
+          border-color: #2a2c30 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .provider-premium-panel,
+        .provider-dashboard-shell[data-provider-theme='dark'] .provider-list-card {
+          background:
+            linear-gradient(180deg, rgba(28,28,30,0.98) 0%, rgba(24,24,26,0.98) 100%) !important;
+          border-color: #2f3136 !important;
+          box-shadow:
+            0 16px 32px rgba(0, 0, 0, 0.28),
+            inset 0 1px 0 rgba(255,255,255,0.02) !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .border-neutral-100,
+        .provider-dashboard-shell[data-provider-theme='dark'] .border-neutral-200 {
+          border-color: #2f3136 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .bg-white {
+          background-color: #1b1b1d !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .bg-neutral-50 {
+          background-color: #161719 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .text-neutral-900 {
+          color: #f3f4f6 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .text-neutral-700 {
+          color: #e5e7eb !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .text-neutral-500 {
+          color: #9ca3af !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] .text-neutral-400,
+        .provider-dashboard-shell[data-provider-theme='dark'] .text-neutral-300 {
+          color: #6b7280 !important;
+        }
+
+        .provider-dashboard-shell[data-provider-theme='dark'] main .shadow-\[0_8px_24px_rgba\(15\,23\,42\,0\.04\)\],
+        .provider-dashboard-shell[data-provider-theme='dark'] main .shadow-\[0_10px_30px_rgba\(32\,136\,122\,0\.05\)\] {
+          box-shadow:
+            0 18px 36px rgba(0, 0, 0, 0.34),
+            inset 0 1px 0 rgba(255,255,255,0.02) !important;
         }
       `}</style>
     </>
