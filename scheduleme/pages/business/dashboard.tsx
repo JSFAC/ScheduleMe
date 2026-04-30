@@ -2843,10 +2843,10 @@ const BusinessDashboard: NextPage = () => {
                           </div>
                           <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                             {[
-                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, provider name, and description.' },
+                              { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, provider name, description, city, and ZIP.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
-                              { key: 'stripe', label: 'Payout settings ready', hint: 'First 3 bookings can be paid out through Zelle, then Stripe becomes required.' },
+                              { key: 'stripe', label: 'Payout settings ready', hint: 'Add a Zelle email or phone now, or connect Stripe.' },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
                               return (

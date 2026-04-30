@@ -24,22 +24,27 @@ function buildChecklist(business: any, servicesCount: number): Checklist {
     business?.name
     && business?.owner_name
     && business?.description
+    && String(business?.city || '').trim()
+    && String(business?.zip || '').trim()
   );
   const hasMedia = Boolean(
     business?.cover_url
     || (Array.isArray(business?.media_urls) && business.media_urls.length > 0)
   );
   const hasServices = servicesCount > 0;
-  const hasStripe = Boolean(business?.stripe_onboarded && business?.stripe_account_id);
+  const hasPayoutSetup = Boolean(
+    (business?.stripe_onboarded && business?.stripe_account_id)
+    || String(business?.zelle_payout_details || '').trim()
+  );
   const trustState = getTrustState(business);
   const trustClear = trustState !== 'suspended' && trustState !== 'flagged';
   return {
     coreProfile: hasCoreProfile,
     services: hasServices,
     media: hasMedia,
-    stripe: hasStripe,
+    stripe: hasPayoutSetup,
     trustClear,
-    readyToPublish: hasCoreProfile && hasServices && hasMedia && trustClear,
+    readyToPublish: hasCoreProfile && hasServices && hasMedia && hasPayoutSetup && trustClear,
   };
 }
 
