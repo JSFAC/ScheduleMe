@@ -12,8 +12,14 @@ import { normalizeServiceTags, serviceTagToLabel } from '../../lib/categoryNorma
 import { formatCampusLabel, normalizeDomain } from '../../lib/providerMetadata';
 import { isProviderCampusNameVisible, isProviderPublicNameVisible, isProviderPublicPhotosVisible } from '../../lib/providerTrust';
 import BrandRouteLoader from '../../components/BrandRouteLoader';
-
 import { SkeletonBookingCard, SkeletonThread } from '../../components/SkeletonCard';
+import ProviderSwitch from '../../components/provider-dashboard/ProviderSwitch';
+import SettingsAccountInfoCard from '../../components/provider-dashboard/SettingsAccountInfoCard';
+import SettingsAppearanceCard from '../../components/provider-dashboard/SettingsAppearanceCard';
+import SettingsLegalCard from '../../components/provider-dashboard/SettingsLegalCard';
+import SettingsPayoutCard from '../../components/provider-dashboard/SettingsPayoutCard';
+import SettingsSessionCard from '../../components/provider-dashboard/SettingsSessionCard';
+import SettingsVisibilitySection from '../../components/provider-dashboard/SettingsVisibilitySection';
 
 function getSupabase() {
   return getSupabaseClient();
@@ -219,47 +225,6 @@ function buildDayHoursValue(config: { enabled: boolean; useSpecificHours: boolea
   return `${config.start} - ${config.end}`;
 }
 
-function ProviderSwitch({
-  checked,
-  onChange,
-  disabled = false,
-  dm = false,
-  size = 'md',
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  dm?: boolean;
-  size?: 'sm' | 'md';
-}) {
-  const shellSize = size === 'sm' ? 'h-6 w-11' : 'h-7 w-12';
-  const knobSize = size === 'sm' ? 'h-4 w-4 top-1' : 'h-5 w-5 top-1';
-  const knobLeft = size === 'sm' ? (checked ? '26px' : '4px') : (checked ? '27px' : '4px');
-
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => !disabled && onChange(!checked)}
-      className={`relative shrink-0 rounded-full transition-all ${shellSize} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      style={{
-        background: checked
-          ? '#007e6d'
-          : (dm ? '#2f3136' : '#d1d5db'),
-        boxShadow: checked
-          ? '0 0 0 1px rgba(0,126,109,0.24), 0 8px 18px rgba(0,126,109,0.24)'
-          : `inset 0 0 0 1px ${dm ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.08)'}`,
-      }}
-    >
-      <span
-        className={`absolute rounded-full bg-white shadow-sm transition-all ${knobSize}`}
-        style={{ left: knobLeft }}
-      />
-    </button>
-  );
-}
 
 const NAV: { id: TabId; label: string; d: string }[] = [
   { id: 'overview',  label: 'Overview',  d: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -4266,253 +4231,83 @@ const BusinessDashboard: NextPage = () => {
 
             {tab === 'settings' && (
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
-                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 xl:col-span-2">
-                  <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
-                      <p className="text-xs mt-1" style={{ color: dm ? '#6b7280' : '#6b7280' }}>
-                        Provider cards appear across ScheduleMe by default. Use these controls to fine-tune how much of your identity is shown.
-                      </p>
-                    </div>
-                    <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto max-w-[11rem] text-center sm:text-left"
-                      style={{ background: publicVisibility ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)', color: publicVisibility ? '#059669' : '#b91c1c' }}>
-                      {publicVisibility ? 'Visible on ScheduleMe' : 'Hidden from public browse'}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
-                      <div>
-                        <p className="font-semibold text-neutral-900">Show my personal name to students</p>
-                        <p className="text-xs text-neutral-500">Turn this off if you want students to see only your business name.</p>
-                      </div>
-                      <ProviderSwitch
-                        checked={campusShowName}
-                        onChange={(next) => persistVisibility(publicVisibility, publicShowName, publicShowPhotos, next)}
-                        disabled={visibilitySaving}
-                        dm={dm}
-                      />
-                    </label>
-
-                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
-                      <div>
-                        <p className="font-semibold text-neutral-900">List my provider card on ScheduleMe</p>
-                        <p className="text-xs text-neutral-500">Controls whether your card appears on home, browse, and search surfaces.</p>
-                      </div>
-                      <ProviderSwitch
-                        checked={publicVisibility}
-                        onChange={(nextVis) => persistVisibility(nextVis, publicShowName, publicShowPhotos, campusShowName)}
-                        disabled={visibilitySaving}
-                        dm={dm}
-                      />
-                    </label>
-
-                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
-                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my personal name to non-students</p>
-                        <p className="text-xs text-neutral-500">Keep this off if you only want your personal name visible inside campus contexts.</p>
-                      </div>
-                      <ProviderSwitch
-                        checked={publicShowName}
-                        onChange={(next) => persistVisibility(publicVisibility, next, publicShowPhotos, campusShowName)}
-                        disabled={!publicVisibility || visibilitySaving}
-                        dm={dm}
-                      />
-                    </label>
-
-                    <label className="flex items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: dm ? '#2c2c2e' : '#e5e7eb', background: dm ? '#17181a' : '#fff' }}>
-                      <div style={!publicVisibility ? { opacity: 0.6 } : undefined}>
-                        <p className="font-semibold text-neutral-900">Show my photos on public cards</p>
-                        <p className="text-xs text-neutral-500">If this is off, ScheduleMe will use a simpler card presentation instead.</p>
-                      </div>
-                      <ProviderSwitch
-                        checked={publicShowPhotos}
-                        onChange={(next) => persistVisibility(publicVisibility, publicShowName, next, campusShowName)}
-                        disabled={!publicVisibility || visibilitySaving}
-                        dm={dm}
-                      />
-                    </label>
-                  </div>
+                <SettingsVisibilitySection
+                  dm={dm}
+                  publicVisibility={publicVisibility}
+                  publicShowName={publicShowName}
+                  publicShowPhotos={publicShowPhotos}
+                  campusShowName={campusShowName}
+                  visibilitySaving={visibilitySaving}
+                  persistVisibility={persistVisibility}
+                />
+                <div className="space-y-5">
+                  <SettingsAppearanceCard
+                    dm={dm}
+                    dashboardFieldBorder={dashboardFieldBorder}
+                    toggleDarkMode={toggleDarkMode}
+                  />
+                  <SettingsAccountInfoCard
+                    dm={dm}
+                    business={business}
+                    campusLabel={campusLabel}
+                    dangerBgColor={dangerBgColor}
+                    dangerBorderColor={dangerBorderColor}
+                    dangerTextColor={dangerTextColor}
+                    onVerifyEdu={() => setShowCampusModal(true)}
+                    onDisconnectEdu={() => {
+                      setDisconnectText('');
+                      setDisconnectError('');
+                      setShowDisconnectEdu(true);
+                    }}
+                  />
                 </div>
                 <div className="space-y-5">
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
-                    <h2 className="text-sm font-bold text-neutral-900 mb-2">Appearance</h2>
-                    <p className="text-xs text-neutral-500 mb-4">Choose how the provider dashboard looks on this device.</p>
-                    <button
-                      type="button"
-                      onClick={toggleDarkMode}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border transition-colors"
-                      style={{ borderColor: dashboardFieldBorder, background: dm ? '#17181a' : '#fff' }}
-                    >
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-neutral-900">{dm ? 'Dark mode on' : 'Light mode on'}</p>
-                        <p className="text-[11px] text-neutral-500 mt-1">You can change this anytime from Settings.</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: dm ? '#0f766e' : '#525252' }}>
-                          {dm
-                            ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                            : <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                          }
-                        </svg>
-                        <ProviderSwitch checked={dm} onChange={() => toggleDarkMode()} dm={dm} />
-                      </div>
-                    </button>
-                  </div>
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
-                    <h2 className="text-sm font-bold text-neutral-900 mb-4">Account Info</h2>
-                    <div className="space-y-3">
-                      {[
-                        { label: 'Owner', value: business?.owner_name },
-                        { label: 'Email', value: business?.owner_email },
-                        { label: 'Provider type', value: business?.campus_provider ? `Campus provider${business?.campus_school_name || business?.school_domain ? ` · ${business?.campus_school_name || formatCampusLabel(business?.school_domain) || business?.school_domain}` : ''}` : 'Independent provider' },
-                        { label: 'Manual payout', value: business?.zelle_payout_details || 'Not set' },
-                        { label: 'Status', value: business?.public_visibility ? '✓ Live on ScheduleMe' : 'Incomplete' },
-                        { label: 'Rating', value: business?.rating ? business.rating + ' ★' : 'No ratings yet' },
-                      ].map(r => (
-                        <div key={r.label} className="flex items-start justify-between gap-4 py-2 border-b border-neutral-50 last:border-0">
-                          <span className="text-xs text-neutral-400 font-medium shrink-0">{r.label}</span>
-                          <span className="text-sm text-neutral-700 text-right">{r.value || '—'}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs font-semibold text-neutral-500 mt-4">Want to affiliate with your campus?</p>
-                    <div className="mt-4 grid grid-cols-1 gap-2">
-                      <button type="button" onClick={() => setShowCampusModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                        style={{ borderColor: dm ? 'rgba(0,126,109,0.36)' : '#007e6d', color: dm ? '#6fe0cd' : '#007e6d', background: dm ? 'rgba(0,126,109,0.10)' : '#f5fbf8' }}>
-                        {business?.edu_verified ? 'View EDU Verification' : 'Verify .edu Email'}
-                      </button>
-                      {Boolean((business?.school_email || '').trim() || business?.edu_verified) && (
-                        <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}
-                          className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                          style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}>
-                          Disconnect .edu Email
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-5">
-                  <form onSubmit={handleSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
-                    <h2 className="text-sm font-bold text-neutral-900 mb-2">Setup Payout</h2>
-                    <p className="text-xs text-neutral-400 mb-4">First 3 bookings can be payed out through zelle, then stripe becomes required.</p>
-                    <div className="mb-4">
-                      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-xs font-semibold text-neutral-500">Zelle payout details</span>
-                        <span className="text-[12px] text-neutral-600">
-                          {manualPayoutsRemaining > 0
-                            ? `${manualPayoutsRemaining} of ${manualPayoutLimit} Zelle payouts remaining.`
-                            : `All ${manualPayoutLimit} Zelle payouts have been used.`}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-2xl border" style={{ borderColor: dashboardFieldBorder, background: dashboardFieldBg }}>
-                          <input
-                            type="text"
-                            value={editZellePayoutDetails}
-                            onChange={(e) => setEditZellePayoutDetails(e.target.value)}
-                            placeholder="Email or phone tied to your Zelle"
-                            className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none"
-                            style={{ color: dm ? '#f3f4f6' : '#171717' }}
-                          />
-                          <button
-                            type="submit"
-                            disabled={settingsSaving}
-                            className="m-1 shrink-0 rounded-xl px-4 py-2 text-sm font-bold text-white transition-opacity disabled:opacity-60"
-                            style={{ background: '#007e6d' }}
-                          >
-                            {settingsSaving ? 'Saving…' : 'Save'}
-                          </button>
-                        </div>
-                      </div>
-                      <p className="mt-3 text-[12px] leading-5" style={{ color: warningTextColor }}>
-                        First 3 bookings can be payed out through zelle, then stripe becomes required.
-                      </p>
-                    </div>
-                    {business?.stripe_onboarded ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          Automated payouts active
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleStripeConnect('update')}
-                          disabled={stripeLoading}
-                          className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
-                          Manage Stripe payout settings
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
-                          className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
-                          style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}>
-                          Disconnect Stripe
-                        </button>
-                        <p className="text-[11px] text-neutral-400">Add a debit card in Stripe to enable instant payouts. New Stripe accounts may take up to 7 days for the first automated payout to arrive.</p>
-                        {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
-                        {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
-                          {stripeLoading ? 'Loading…' : stripeCta}
-                        </button>
-                        {business?.stripe_account_id && (
-                          <button
-                            type="button"
-                            onClick={() => { setDisconnectStripeText(''); setDisconnectStripeError(''); setShowDisconnectStripe(true); }}
-                            className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
-                            style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}>
-                            Disconnect Stripe
-                          </button>
-                        )}
-                        {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
-                        {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
-                      </div>
-                    )}
-                    <div className="mt-4 min-h-[18px] text-xs">
-                      {settingsError ? <span className="text-red-500">{settingsError}</span> : null}
-                      {!settingsError && settingsNotice ? <span style={{ color: '#007e6d' }}>{settingsNotice}</span> : null}
-                      {!settingsError && !settingsNotice && settingsSaved ? <span style={{ color: '#007e6d' }}>Saved.</span> : null}
-                    </div>
-                  </form>
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
-                    <h2 className="text-sm font-bold text-neutral-900 mb-2">Session</h2>
-                    <p className="text-xs text-neutral-400 mb-4">Signed in as {business?.owner_email}</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      <button
-                        onClick={handleSignOut}
-                        className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
-                        style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#525252', background: dm ? '#17181a' : '#fff' }}
-                      >
-                        Sign Out
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setDeleteAccountText(''); setDeleteAccountError(''); setShowDeleteAccount(true); }}
-                        className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors"
-                        style={{ borderColor: dangerBorderColor, color: dangerTextColor, background: dangerBgColor }}
-                      >
-                        Delete Account
-                      </button>
-                    </div>
-                  </div>
-                  <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
-                    <h2 className="text-sm font-bold text-neutral-900 mb-2">Legal & Support</h2>
-                    <p className="text-xs text-neutral-400 mb-4">Review the latest policies and contact support.</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      <Link href="/privacy" className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors" style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#374151', background: dm ? '#17181a' : '#fff' }}>
-                        Privacy Policy
-                      </Link>
-                      <Link href="/terms" className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors" style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#374151', background: dm ? '#17181a' : '#fff' }}>
-                        Terms of Service
-                      </Link>
-                      <Link href="/support" className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors" style={{ borderColor: dashboardFieldBorder, color: dm ? '#e5e7eb' : '#374151', background: dm ? '#17181a' : '#fff' }}>
-                        Support
-                      </Link>
-                    </div>
-                  </div>
+                  <SettingsPayoutCard
+                    business={business}
+                    dashboardFieldBg={dashboardFieldBg}
+                    dashboardFieldBorder={dashboardFieldBorder}
+                    dangerBgColor={dangerBgColor}
+                    dangerBorderColor={dangerBorderColor}
+                    dangerTextColor={dangerTextColor}
+                    editZellePayoutDetails={editZellePayoutDetails}
+                    manualPayoutLimit={manualPayoutLimit}
+                    manualPayoutsRemaining={manualPayoutsRemaining}
+                    settingsError={settingsError}
+                    settingsNotice={settingsNotice}
+                    settingsSaved={settingsSaved}
+                    settingsSaving={settingsSaving}
+                    stripeCta={stripeCta}
+                    stripeConnectError={stripeConnectError}
+                    stripeLoading={stripeLoading}
+                    stripeStatusMsg={stripeStatusMsg}
+                    dm={dm}
+                    onDisconnectStripe={() => {
+                      setDisconnectStripeText('');
+                      setDisconnectStripeError('');
+                      setShowDisconnectStripe(true);
+                    }}
+                    onSaveSettings={handleSaveSettings}
+                    onStripeConnect={handleStripeConnect}
+                    onZelleChange={setEditZellePayoutDetails}
+                  />
+                  <SettingsSessionCard
+                    dashboardFieldBorder={dashboardFieldBorder}
+                    dangerBgColor={dangerBgColor}
+                    dangerBorderColor={dangerBorderColor}
+                    dangerTextColor={dangerTextColor}
+                    email={business?.owner_email}
+                    dm={dm}
+                    onDeleteAccount={() => {
+                      setDeleteAccountText('');
+                      setDeleteAccountError('');
+                      setShowDeleteAccount(true);
+                    }}
+                    onSignOut={handleSignOut}
+                  />
+                  <SettingsLegalCard
+                    dashboardFieldBorder={dashboardFieldBorder}
+                    dm={dm}
+                  />
                 </div>
               </div>
             )}
