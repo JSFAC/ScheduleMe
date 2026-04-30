@@ -34,6 +34,17 @@ function hasValidProviderLocation(business: any) {
   return Boolean(city && city !== 'setup' && zipLooksValid);
 }
 
+function hasConfiguredBusinessHours(business: any) {
+  const hours = business?.hours;
+  if (Array.isArray(hours)) {
+    return hours.some((entry) => entry?.day && String(entry?.time || '').trim());
+  }
+  if (hours && typeof hours === 'object') {
+    return Object.values(hours).some((value) => String(value || '').trim());
+  }
+  return false;
+}
+
 function buildChecklist(business: any, servicesCount: number): Checklist {
   const hasCoreProfile = Boolean(
     business?.name
@@ -45,7 +56,7 @@ function buildChecklist(business: any, servicesCount: number): Checklist {
     business?.cover_url
     || (Array.isArray(business?.media_urls) && business.media_urls.length > 0)
   );
-  const hasServices = servicesCount > 0;
+  const hasServices = servicesCount > 0 && hasConfiguredBusinessHours(business);
   const hasPayoutSetup = Boolean(
     (business?.stripe_onboarded && business?.stripe_account_id)
     || String(business?.zelle_payout_details || '').trim()

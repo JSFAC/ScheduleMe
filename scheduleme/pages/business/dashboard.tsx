@@ -1030,7 +1030,11 @@ const BusinessDashboard: NextPage = () => {
 
   function jumpToPublishRequirement(section: 'coreProfile' | 'services' | 'media' | 'stripe') {
     if (section === 'services') {
-      activateTab('services');
+      if ((services || []).length > 0) {
+        activateTab('settings');
+      } else {
+        activateTab('services');
+      }
       return;
     }
     if (section === 'stripe') {
@@ -1396,6 +1400,7 @@ const BusinessDashboard: NextPage = () => {
     business?.zip,
     business?.phone,
     business?.website,
+    business?.hours,
     business?.zelle_payout_details,
     business?.stripe_onboarded,
     mediaImages.length,
@@ -2864,7 +2869,7 @@ const BusinessDashboard: NextPage = () => {
                           <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                             {[
                               { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, provider name, description, city, and ZIP.' },
-                              { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
+                              { key: 'services', label: 'Service and business hours', hint: 'Add your first offer and set business hours before students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
                               { key: 'stripe', label: 'Setup payout', hint: 'First 3 bookings can be payed out through zelle, then stripe becomes required.' },
                             ].map((item) => {
