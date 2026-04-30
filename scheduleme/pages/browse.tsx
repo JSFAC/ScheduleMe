@@ -259,11 +259,19 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             style={{ objectPosition: 'center 25%', opacity: imgLoaded ? 1 : 0 }} />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
-            </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+              </svg>
+            </div>
             <span className="text-[11px] font-semibold">No photos added</span>
+          </div>
+        )}
+        {!isLocked && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
+            <span className="text-[9px] font-bold text-white">{status.label}</span>
           </div>
         )}
         {isLocked && (
@@ -281,9 +289,6 @@ function BizCard({ biz, onClick, dm, index = 0, href }) {
           {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span>
           )}
-          <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: status.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
-            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${status.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{status.label}
-          </span>
         </div>
         <p className="text-[12px]" style={{ color: dm ? '#8e8e93' : '#8e8e93' }}>{biz.distance}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -855,10 +860,12 @@ const BrowsePage: NextPage = () => {
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                             style={{ objectPosition: 'center 25%' }} />
                         ) : (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
-                            </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+                              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+                              </svg>
+                            </div>
                             <span className="text-[10px] font-semibold">No photos added</span>
                           </div>
                         )}
@@ -874,9 +881,6 @@ const BrowsePage: NextPage = () => {
                           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={pillStyle}>{biz.category}</span>
                           {formatPriceTierLabel(biz.price_tier) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" data-pill style={pillStyle}>{formatPriceTierLabel(biz.price_tier)}</span> : null}
                           {shouldShowNewBadge({ createdAt: (biz as any).created_at, reviewCount: biz.reviews }) ? <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: dm ? 'rgba(251,191,36,0.18)' : '#fef3c7', color: dm ? '#f59e0b' : '#92400e' }}>New</span> : null}
-                          <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: listStatus.open ? (dm ? 'rgba(52,211,153,0.15)' : '#f0fdf4') : (dm ? 'rgba(255,255,255,0.07)' : '#f5f5f5'), color: listStatus.open ? '#16a34a' : (dm ? '#6b7280' : '#9ca3af') }}>
-                            <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${listStatus.open ? 'bg-emerald-500' : 'bg-neutral-400'}`} />{listStatus.label}
-                          </span>
                         </div>
                         <p className="text-[13px]" style={{ color: dm ? '#8e8e93' : '#6b7280' }}>{biz.distance}</p>
                         <div className="flex items-center gap-1.5">
