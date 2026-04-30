@@ -1503,7 +1503,7 @@ const BookingsPage: NextPage = () => {
             </div>
             <div
               className="flex gap-3 overflow-x-auto px-5 pb-5 pt-3"
-              style={{ scrollbarWidth: 'none', touchAction: 'pan-x pinch-zoom', WebkitOverflowScrolling: 'touch' }}
+              style={{ scrollbarWidth: 'none', touchAction: 'auto', WebkitOverflowScrolling: 'touch' }}
             >
               {nearbyLoading
                 ? Array.from({ length: 4 }).map((_, i) => (

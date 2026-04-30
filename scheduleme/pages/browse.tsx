@@ -705,7 +705,7 @@ const BrowsePage: NextPage = () => {
         </div>
 
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
-          <div className="flex justify-start sm:justify-center gap-2 overflow-x-auto px-4 sm:px-6 py-3" style={{ scrollbarWidth: 'none', touchAction: 'pan-y' }}>
+          <div className="flex justify-start sm:justify-center gap-2 overflow-x-auto px-4 sm:px-6 py-3" style={{ scrollbarWidth: 'none', touchAction: 'auto' }}>
             {dynamicCategories.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border"
@@ -719,7 +719,7 @@ const BrowsePage: NextPage = () => {
         </div>
 
         <div style={{ background: dm ? '#0f0f0f' : '#F4EFE6', borderBottom: dm ? '1px solid #1f2937' : '1px solid rgba(15,118,110,0.08)' }}>
-          <div className="flex items-center justify-start sm:justify-center gap-2 px-4 sm:px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none', touchAction: 'pan-y' }}>
+          <div className="flex items-center justify-start sm:justify-center gap-2 px-4 sm:px-6 py-2.5 overflow-x-auto" style={{ scrollbarWidth: 'none', touchAction: 'auto' }}>
             <span className="text-[11px] font-semibold shrink-0" style={{ color: dm ? '#6b7280' : '#9ca3af' }}>Within</span>
             {[5, 10, 25, 50, 100].map(r => (
               <button key={r} onClick={() => setRadius(r)} className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition-all" style={radius === r ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' } : { background: 'transparent', color: dm ? '#9ca3af' : '#6b7280', borderColor: dm ? '#2a2d3a' : '#e5e5e5' }}>{r} mi</button>
@@ -1046,7 +1046,10 @@ const BrowsePage: NextPage = () => {
               <button
                 className="flex-1 py-2 rounded-xl text-sm font-semibold"
                 style={{ background: dm ? '#262626' : '#f3f4f6', color: dm ? '#d1d5db' : '#374151' }}
-                onClick={() => setShowMapLoginPrompt(false)}
+                onClick={() => {
+                  setViewMode('grid');
+                  setShowMapLoginPrompt(false);
+                }}
               >
                 Not now
               </button>
