@@ -599,6 +599,18 @@ export default function BizPage() {
     return data;
   }
 
+  async function loadDashboardListing() {
+    const headers = await getAuthHeaders();
+    if (!headers) throw new Error('Sign in required');
+    const res = await fetch('/api/provider-live-edit', {
+      method: 'GET',
+      headers,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to reload listing');
+    return data?.business || null;
+  }
+
   function normalizeImageList(images: string[]) {
     const next: string[] = [];
     for (const url of images) {
@@ -1287,10 +1299,9 @@ export default function BizPage() {
 
       const refreshed = await fetch('/api/services?business_id=' + biz.id).then((r) => r.json()).catch(() => null);
       const nextServices = refreshed?.services || draftServices;
-      setServices(nextServices);
-      setDraftServices(nextServices.map((svc: any) => ({ ...svc })));
-      setBiz((prev: any) => prev ? {
-        ...prev,
+      const serverBusiness = isDashboardEmbed ? await loadDashboardListing().catch(() => null) : null;
+      const nextBiz = serverBusiness || {
+        ...biz,
         name: trimmedName,
         owner_name: trimmedOwnerName,
         city: trimmedCity,
@@ -1300,33 +1311,35 @@ export default function BizPage() {
         cover_url: nextImages[0] || null,
         media_urls: nextImages.slice(1),
         video_url: editVideo || null,
-      } : prev);
+      };
+      setServices(nextServices);
+      setDraftServices(nextServices.map((svc: any) => ({ ...svc })));
+      setBiz((prev: any) => prev ? { ...prev, ...nextBiz } : nextBiz);
       setEditMode(false);
       setDeletedServiceIds([]);
       setShowNewServiceComposer(false);
       setEditNotice('Listing updates saved.');
+      showToast('Listing updates saved.');
       if (isDashboardEmbed && typeof window !== 'undefined') {
         window.parent?.postMessage(
           {
             type: 'scheduleme-dashboard-preview-saved',
-            business: {
-              ...biz,
-              name: trimmedName,
-              owner_name: trimmedOwnerName,
-              city: trimmedCity,
-              zip: trimmedZip,
-              website: trimmedWebsite,
-              description: editDesc,
-              cover_url: nextImages[0] || null,
-              media_urls: nextImages.slice(1),
-              video_url: editVideo || null,
-            },
+            business: nextBiz,
           },
           window.location.origin
         );
       }
       setTimeout(() => setEditNotice(null), 2500);
     } catch (e: any) {
+      if (isDashboardEmbed && typeof window !== 'undefined') {
+        window.parent?.postMessage(
+          {
+            type: 'scheduleme-dashboard-preview-save-error',
+            message: e?.message || 'Failed to save changes',
+          },
+          window.location.origin
+        );
+      }
       setErr(e?.message || 'Failed to save changes');
     } finally {
       setSavingAllEdits(false);

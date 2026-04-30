@@ -644,11 +644,49 @@ const HomePage: NextPage = () => {
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Home — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-[calc(108px+env(safe-area-inset-bottom,0px))] md:pb-0 page-fade-in" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
-        <div className="border-b py-8" style={{ background: dm ? '#111' : '#0F766E' }}>
-          <div className="max-w-3xl mx-auto px-6"><div className="h-12 rounded-2xl shimmer" /></div>
+        <div className="border-b" style={{ background: dm ? '#111' : '#0F766E', borderColor: 'rgba(0,0,0,0.08)' }}>
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-9 pb-9">
+            <div className="flex items-start gap-10">
+              <div className="flex-1 min-w-0 max-w-lg">
+                <div className="h-4 w-32 rounded-full shimmer mb-4 opacity-70" />
+                <div className="h-14 rounded-[28px] shimmer mb-3" />
+                <div className="h-28 rounded-[28px] shimmer" />
+                <div className="mt-3 flex gap-2 overflow-hidden">
+                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-8 w-28 rounded-full shimmer flex-shrink-0" />)}
+                </div>
+              </div>
+              <div className="hidden lg:grid grid-cols-2 gap-2.5 w-[260px] shrink-0">
+                {Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-square rounded-2xl shimmer" />)}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        <div className="border-b" style={{ background: dm ? '#111111' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex gap-3 overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-10 w-36 rounded-xl shimmer flex-shrink-0" />)}
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+          <div className="rounded-[28px] border px-5 py-5 mb-6" style={{ background: dm ? '#171717' : '#edf8f6', borderColor: dm ? '#2a2d3a' : '#b8ddd6' }}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="h-4 w-40 rounded-full shimmer mb-3" />
+                <div className="h-4 w-56 rounded-full shimmer" />
+              </div>
+              <div className="h-11 w-28 rounded-xl shimmer flex-shrink-0" />
+            </div>
+          </div>
+          {['Quick response', 'Top-rated near you'].map((title) => (
+            <div key={title} className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-8 w-52 rounded-full shimmer" />
+                <div className="h-5 w-20 rounded-full shimmer" />
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={`${title}-${i}`} />)}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </>

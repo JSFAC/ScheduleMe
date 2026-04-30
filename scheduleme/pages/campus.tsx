@@ -510,7 +510,20 @@ const CampusPage: NextPage = () => {
       </Head>
       <Nav />
       <div className="min-h-screen pb-[calc(92px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
-        <div className="h-[88px] border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }} />
+        <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+          <div className="max-w-7xl mx-auto px-6 py-5">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <div>
+                <div className="h-3 w-28 rounded-full shimmer mb-3 opacity-70" />
+                <div className="h-10 w-56 rounded-2xl shimmer" />
+              </div>
+              <div className="h-10 w-40 rounded-xl shimmer" />
+            </div>
+            <div className="flex gap-3 overflow-hidden">
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 w-32 rounded-xl shimmer flex-shrink-0" />)}
+            </div>
+          </div>
+        </div>
         <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>

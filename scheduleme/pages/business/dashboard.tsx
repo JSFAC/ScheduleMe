@@ -1378,16 +1378,27 @@ const BusinessDashboard: NextPage = () => {
       if (typeof event.data !== 'object' || event.data === null) return;
       if (event.data?.type !== 'scheduleme-dashboard-preview-saved') return;
       const saved = normalizeBusiness(event.data.business);
-      if (saved) {
-        setBusiness((prev) => prev ? { ...prev, ...saved } : saved);
-      }
+      if (saved) setBusiness((prev) => prev ? { ...prev, ...saved } : saved);
       setPreviewEditMode(false);
+      showToast('Listing updates saved.', true);
       setPreviewKey(Date.now());
+      await loadData();
       await refreshPublishStatus();
     }
     window.addEventListener('message', onPreviewSaved);
     return () => window.removeEventListener('message', onPreviewSaved);
-  }, [refreshPublishStatus]);
+  }, [loadData, refreshPublishStatus]);
+
+  useEffect(() => {
+    function onPreviewSaveError(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (typeof event.data !== 'object' || event.data === null) return;
+      if (event.data?.type !== 'scheduleme-dashboard-preview-save-error') return;
+      showToast(event.data?.message || 'Failed to save listing changes.', false);
+    }
+    window.addEventListener('message', onPreviewSaveError);
+    return () => window.removeEventListener('message', onPreviewSaveError);
+  }, []);
 
   useEffect(() => {
     if (!business?.id) return;
@@ -2869,10 +2880,10 @@ const BusinessDashboard: NextPage = () => {
                           <div className="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                             {[
                               { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, provider name, description, city, and ZIP.' },
-                              { key: 'services', label: 'Service and business hours', hint: 'Add your first offer and set business hours before students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
+                              { key: 'services', label: 'Service and business hours', hint: 'Add your first offer and set business hours before students can book.' },
                               { key: 'stripe', label: 'Setup payout', hint: 'First 3 bookings can be payed out through zelle, then stripe becomes required.' },
-                            ].map((item) => {
+                            ].map((item, index) => {
                               const ok = !!publishChecklist?.[item.key];
                               return (
                                 <button
@@ -2882,6 +2893,7 @@ const BusinessDashboard: NextPage = () => {
                                   className="rounded-[24px] border px-4 py-4 text-left transition-transform hover:-translate-y-0.5 disabled:cursor-default"
                                   disabled={ok}
                                   style={{ borderColor: ok ? '#b7e5ce' : '#f2d39a', background: ok ? '#eef9f3' : '#fff6e7' }}
+                                  data-checklist-order={index}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
@@ -4126,28 +4138,35 @@ const BusinessDashboard: NextPage = () => {
                   <form onSubmit={handleSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Setup Payout</h2>
                     <p className="text-xs text-neutral-400 mb-4">First 3 bookings can be payed out through zelle, then stripe becomes required.</p>
-                    <div
-                      className="rounded-2xl border px-4 py-4 mb-4 space-y-3"
-                      style={{ borderColor: '#f59e0b', background: dm ? 'rgba(245,158,11,0.08)' : '#fff7ed' }}
-                    >
-                      <label className="block text-sm">
-                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Zelle payout details</span>
+                    <div className="mb-4 rounded-2xl border px-4 py-4" style={{ borderColor: dm ? '#404040' : '#e5e7eb', background: dm ? '#171717' : '#ffffff' }}>
+                      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="text-xs font-semibold text-neutral-500">Zelle payout details</span>
+                        <span className="text-[12px] text-neutral-600">
+                          {manualPayoutsRemaining > 0
+                            ? `${manualPayoutsRemaining} of ${manualPayoutLimit} Zelle payouts remaining.`
+                            : `All ${manualPayoutLimit} Zelle payouts have been used.`}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <input
                           type="text"
                           value={editZellePayoutDetails}
                           onChange={(e) => setEditZellePayoutDetails(e.target.value)}
                           placeholder="Email or phone tied to your Zelle"
-                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                          className="min-w-0 flex-1 rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                           style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
                         />
-                      </label>
-                      <p className="text-[12px] leading-5 text-amber-900">
+                        <button
+                          type="submit"
+                          disabled={settingsSaving}
+                          className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-60"
+                          style={{ background: '#007e6d' }}
+                        >
+                          {settingsSaving ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                      <p className="mt-3 text-[12px] leading-5 text-amber-700">
                         First 3 bookings can be payed out through zelle, then stripe becomes required.
-                      </p>
-                      <p className="text-[12px] leading-5 text-neutral-700">
-                        {manualPayoutsRemaining > 0
-                          ? `${manualPayoutsRemaining} of ${manualPayoutLimit} Zelle payouts remaining.`
-                          : `All ${manualPayoutLimit} Zelle payouts have been used. Connect Stripe to keep getting paid.`}
                       </p>
                     </div>
                     {business?.stripe_onboarded ? (
@@ -4190,20 +4209,10 @@ const BusinessDashboard: NextPage = () => {
                         {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
                       </div>
                     )}
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <div className="min-h-[18px] text-xs">
-                        {settingsError ? <span className="text-red-500">{settingsError}</span> : null}
-                        {!settingsError && settingsNotice ? <span style={{ color: '#007e6d' }}>{settingsNotice}</span> : null}
-                        {!settingsError && !settingsNotice && settingsSaved ? <span style={{ color: '#007e6d' }}>Saved.</span> : null}
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={settingsSaving}
-                        className="rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-60"
-                        style={{ background: '#007e6d' }}
-                      >
-                        {settingsSaving ? 'Saving…' : 'Save Settings'}
-                      </button>
+                    <div className="mt-4 min-h-[18px] text-xs">
+                      {settingsError ? <span className="text-red-500">{settingsError}</span> : null}
+                      {!settingsError && settingsNotice ? <span style={{ color: '#007e6d' }}>{settingsNotice}</span> : null}
+                      {!settingsError && !settingsNotice && settingsSaved ? <span style={{ color: '#007e6d' }}>Saved.</span> : null}
                     </div>
                   </form>
                   <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">

@@ -72,10 +72,10 @@ const ICONS: Record<string, JSX.Element> = {
 };
 
 const STATS = [
-  { value: '2,400+', label: 'Local businesses' },
-  { value: '98%', label: 'Match accuracy' },
-  { value: '<60s', label: 'Avg. booking time' },
-  { value: '4.9★', label: 'Customer rating' },
+  { value: 'Free', label: 'To request help' },
+  { value: 'Local', label: 'Campus and nearby pros' },
+  { value: 'Direct', label: 'Message providers yourself' },
+  { value: 'Simple', label: 'Book in one place' },
 ];
 
 const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
@@ -163,8 +163,8 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
             </div>
             <ul className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
               {[
-                { quote: "Described a leaking pipe, got three plumbers within 2 minutes. Booked in 45 seconds. Incredible.", name: "Noah F.", location: "Berkeley, CA", service: "Plumbing" },
-                { quote: "My AC died on the hottest day of summer. ScheduleMe found me an emergency tech in under a minute.", name: "Andrew C.", location: "Tempe, AZ", service: "HVAC" },
+                { quote: "Wanted a photographer for my girlfriend and I's date. Was Incredibly easy to find a campus photographer. He did Incredible.", name: "Noah F.", location: "Berkeley, CA", service: "Plumbing" },
+                { quote: "My fan broke on one of the hottest days. Found a techy dude on my campus page, booked a custom requrest. He saved me so much money.", name: "Andrew C.", location: "Tempe, AZ", service: "HVAC" },
                 { quote: "Finally a booking tool that doesn't make me call five places. I just typed what I needed.", name: "Misty V.", location: "Fresno, CA", service: "Home Repair" },
               ].map((t, cardIdx) => (
                 <li key={t.name} className="js-testimonial p-7 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #262626' : '1px solid rgba(0,0,0,0.07)' }}>
@@ -255,7 +255,7 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
                 ))}
               </ul>
               <div className="mt-8">
-                <Link href="/signin?mode=signup" className="btn-primary text-base px-8 py-3.5 shadow-lg shadow-accent/20">Find a Pro Now — Free →</Link>
+                <Link href="/signin?mode=signup" className="btn-primary text-base px-8 py-3.5 shadow-lg shadow-accent/20">Browse local help — Free →</Link>
               </div>
             </div>
 
@@ -278,23 +278,23 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
               <div className="max-w-lg js-section js-biz-copy">
                 <span className="section-eyebrow mb-4 block">For Service Providers</span>
                 <h2 id="biz-teaser-heading" className="text-3xl md:text-4xl font-bold text-white mb-5">
-                  Get pre-qualified leads delivered directly to you.
+                  Show up where students already look for help.
                 </h2>
                 <p className="text-neutral-400 leading-relaxed mb-8">
-                  Join 2,400+ local pros on ScheduleMe. No cold calls, no ad spend — just customers who need exactly what you offer, right now.
+                  Build a clean provider page, set your hours, and respond to real campus demand without cold calls or bloated ad tools.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <Link href="/provider" className="btn-primary px-7 py-3">Learn More</Link>
-                  <Link href="/provider/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Join for Free</Link>
+                  <Link href="/provider" className="btn-primary px-7 py-3">See provider setup</Link>
+                  <Link href="/provider/signup" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Create provider account</Link>
                   <Link href="/provider/dashboard" className="inline-flex items-center justify-center px-7 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm font-semibold hover:bg-neutral-700 transition-colors">Provider Dashboard →</Link>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-4 w-full md:w-auto md:flex-shrink-0" role="list">
                 {[
-                  { label: 'Instant lead alerts' },
-                  { label: 'Pre-qualified matches' },
-                  { label: 'Provider dashboard' },
-                  { label: 'Pay per lead' },
+                  { label: 'Custom provider page' },
+                  { label: 'Business hours controls' },
+                  { label: 'Messaging and bookings' },
+                  { label: 'Stripe or Zelle payouts' },
                 ].map((item) => (
                   <li key={item.label} className="js-biz-item bg-neutral-900 border border-neutral-800 rounded-2xl px-5 py-4 flex items-center gap-3">
                     <span className="text-2xl" aria-hidden="true"></span>
@@ -321,8 +321,8 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
         {/* Final CTA */}
         <section className="py-24" style={{ background: dm ? '#0a0a0a' : 'white' }} aria-labelledby="final-cta-heading">
           <div className="mx-auto max-w-3xl px-6 text-center js-section">
-            <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold mb-4" style={{ color: dm ? 'white' : '#171717' }}>Ready to find your pro?</h2>
-            <p className="mb-8 text-lg" style={{ color: dm ? '#737373' : '#737373' }}>Free for users. Always. Describe your issue and get matched in seconds.</p>
+            <h2 id="final-cta-heading" className="text-3xl md:text-4xl font-bold mb-4" style={{ color: dm ? 'white' : '#171717' }}>Ready to book local help?</h2>
+            <p className="mb-8 text-lg" style={{ color: dm ? '#737373' : '#737373' }}>Describe what you need, compare real providers, and book without the usual back-and-forth.</p>
             <Link href="/signin?mode=signup" className="btn-primary text-base px-10 py-4 shadow-lg shadow-accent/20">Get Started Free →</Link>
           </div>
         </section>
@@ -334,24 +334,25 @@ const Home: NextPage<HomeProps> = ({ features, demoSteps }) => {
           <div className="flex flex-col md:flex-row items-start justify-between gap-10 mb-10">
             <div>
               <div className="flex items-center gap-2.5 mb-3">
-                <span className="h-8 w-8 rounded-xl bg-accent flex items-center justify-center text-white font-black">S</span>
-                <span className="text-xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>ScheduleMe</span>
+                <span className="text-xl font-black text-white" style={{ letterSpacing: '-0.03em' }}>
+                  Schedule<span className="text-accent">Me</span>
+                </span>
               </div>
               <p className="text-sm text-neutral-500 max-w-xs">{cms.footer.tagline}</p>
             </div>
             <div className="grid grid-cols-2 gap-x-16 gap-y-2">
               <div>
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Product</p>
+                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Explore</p>
                 <ul className="space-y-2" role="list">
-                  {[{ label: 'Find a Pro', href: '/demo' }, { label: 'Pricing', href: '/#pricing' }, { label: 'How It Works', href: '/#how-it-works' }].map((l) => (
+                  {[{ label: 'Browse services', href: '/browse' }, { label: 'How it works', href: '/#how-it-works' }, { label: 'Campus marketplace', href: '/campus' }].map((l) => (
                     <li key={l.href}><Link href={l.href} className="text-sm text-neutral-500 hover:text-neutral-200 transition-colors">{l.label}</Link></li>
                   ))}
                 </ul>
               </div>
               <div>
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Business</p>
+                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-3">Providers</p>
                 <ul className="space-y-2" role="list">
-                  {[{ label: 'Join as a Pro', href: '/provider' }, { label: 'Sign Up', href: '/provider/signup' }, { label: 'Dashboard', href: '/provider/dashboard' }].map((l) => (
+                  {[{ label: 'Become a provider', href: '/provider' }, { label: 'Create account', href: '/provider/signup' }, { label: 'Provider dashboard', href: '/provider/dashboard' }].map((l) => (
                     <li key={l.href}><Link href={l.href} className="text-sm text-neutral-500 hover:text-neutral-200 transition-colors">{l.label}</Link></li>
                   ))}
                 </ul>

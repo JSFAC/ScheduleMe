@@ -1027,13 +1027,8 @@ const BookingsPage: NextPage = () => {
       try {
         const { fetchAllBusinesses, fetchNearbyBusinesses } = await import('../lib/realBusinesses');
 
-        // Fast seed load so "Available near you" renders quickly before geo/IP lookup completes.
         const seeded = await fetchAllBusinesses({ limit: 6 });
         if (!alive) return;
-        if (seeded.length > 0) {
-          setNearbyBizList(seeded.slice(0, 6));
-          setNearbyLoading(false);
-        }
 
         const loadFromCoords = async (lat: number, lng: number) => {
           const nearby = await fetchNearbyBusinesses(lat, lng, { limit: 6, radius: 25 });
@@ -1075,9 +1070,12 @@ const BookingsPage: NextPage = () => {
           }
         }
 
-        if (alive && (nearby || []).length > 0) {
-          setNearbyBizList((prev) => mergeBusinessesPreferPrimary(nearby || [], prev, 6));
-        } else if (alive && seeded.length === 0) {
+        if (!alive) return;
+        if ((nearby || []).length > 0) {
+          setNearbyBizList(mergeBusinessesPreferPrimary(nearby || [], seeded || [], 6));
+        } else if (seeded.length > 0) {
+          setNearbyBizList(seeded.slice(0, 6));
+        } else {
           setNearbyBizList([]);
         }
       } catch {
@@ -1212,6 +1210,32 @@ const BookingsPage: NextPage = () => {
       <Nav />
 
       <div className="min-h-screen pb-[calc(68px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+        {loadingBookings ? (
+          <>
+            <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
+              <div className="relative mx-auto max-w-3xl px-4 sm:px-6 pt-8 pb-7">
+                <div className="flex items-start justify-between gap-4 mb-6">
+                  <div>
+                    <div className="h-3 w-24 rounded-full shimmer mb-3 opacity-70" />
+                    <div className="h-12 w-56 rounded-2xl shimmer mb-2" />
+                    <div className="h-4 w-52 rounded-full shimmer" />
+                  </div>
+                  <div className="h-11 w-36 rounded-xl shimmer" />
+                </div>
+                <div className="flex gap-3 mb-6">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex-1 h-24 rounded-xl shimmer" />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 sm:py-8">
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => <SkeletonBookingCard key={i} dm={dm} />)}
+              </div>
+            </div>
+          </>
+        ) : (
         <div className="border-b" style={{
           background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)',
           borderColor: 'rgba(0,0,0,0.08)'
@@ -1249,6 +1273,7 @@ const BookingsPage: NextPage = () => {
 
           </div>
         </div>
+        )}
 
         {actionToast && (
           <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-4">
@@ -1261,11 +1286,7 @@ const BookingsPage: NextPage = () => {
 
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 sm:py-8">
           <div className="space-y-3.5">
-              {loadingBookings ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => <SkeletonBookingCard key={i} dm={dm} />)}
-            </div>
-          ) : bookings.length === 0 ? (
+              {loadingBookings ? null : bookings.length === 0 ? (
                 <div className="rounded-2xl border text-center py-16 px-6" style={{ background: dm ? '#171717' : 'white', border: dm ? '1px solid #2a2d3a' : '1px solid rgba(15,118,110,0.08)' }}>
                   <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

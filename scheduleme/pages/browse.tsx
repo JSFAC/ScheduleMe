@@ -471,14 +471,12 @@ const BrowsePage: NextPage = () => {
         const { data: { session } } = await supabase.auth.getSession();
         setIsLoggedIn(!!session);
         if (!alive) return;
-        setLoading(false);
 
         // Fast seed load so UI can render quickly before location resolves.
         const seeded = await fetchAllBusinesses({ limit: 40 });
         if (!alive) return;
         setBizList(seeded);
         if (seeded.length > 0) setUsingRealData(true);
-        setBizLoading(false);
 
         // Then refine in background with geolocation/IP-based nearby fetch.
         let loaded = false;
@@ -506,7 +504,10 @@ const BrowsePage: NextPage = () => {
           setGeoError(false);
         }
       } finally {
-        if (alive) setBizLoading(false);
+        if (alive) {
+          setBizLoading(false);
+          setLoading(false);
+        }
       }
     };
     init();
@@ -599,8 +600,28 @@ const BrowsePage: NextPage = () => {
       <Head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" /><title>Browse — ScheduleMe</title></Head>
       <Nav />
       <div className="min-h-screen pb-[calc(68px+env(safe-area-inset-bottom,0px))] md:pb-0" style={{ paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))', background: dm ? '#0a0a0a' : '#F4EFE6' }}>
+        <div className="border-b" style={{ background: 'linear-gradient(145deg,#0F766E 0%, #156F68 100%)', borderColor: 'rgba(0,0,0,0.08)' }}>
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-7 pb-6">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <div>
+                <div className="h-4 w-24 rounded-full shimmer mb-2 opacity-70" />
+                <div className="h-12 w-52 rounded-2xl shimmer" />
+              </div>
+              <div className="h-12 w-28 rounded-xl shimmer" />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="h-12 flex-1 rounded-xl shimmer" />
+              <div className="h-12 w-full sm:w-36 rounded-xl shimmer" />
+            </div>
+          </div>
+        </div>
+        <div className="border-b" style={{ background: dm ? '#111111' : 'white', borderColor: dm ? '#262626' : '#e5e7eb' }}>
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex gap-3 overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-10 w-32 rounded-xl shimmer flex-shrink-0" />)}
+          </div>
+        </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {Array.from({ length: 9 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
+          {Array.from({ length: 8 }).map((_, i) => <SkeletonBrowseCard key={i} />)}
         </div>
       </div>
     </>
