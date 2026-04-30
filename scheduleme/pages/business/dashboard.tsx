@@ -1268,12 +1268,12 @@ const BusinessDashboard: NextPage = () => {
   const dashboardFieldBg = dm ? '#232326' : '#ffffff';
   const dashboardFieldBorder = dm ? '#3a3a3f' : '#e5e7eb';
   const dashboardMutedBg = dm ? '#141416' : '#f5fbf8';
-  const warningTextColor = dm ? '#e8b468' : '#b45309';
-  const warningBorderColor = dm ? 'rgba(217,119,6,0.35)' : '#f4d9c7';
-  const warningBgColor = dm ? 'rgba(217,119,6,0.10)' : '#fff7ed';
-  const dangerBgColor = dm ? 'rgba(127,29,29,0.18)' : '#fef2f2';
-  const dangerBorderColor = dm ? 'rgba(248,113,113,0.28)' : '#fecaca';
-  const dangerTextColor = dm ? '#fca5a5' : '#dc2626';
+  const warningTextColor = dm ? '#f3ba63' : '#b45309';
+  const warningBorderColor = dm ? 'rgba(217,119,6,0.42)' : '#f4d9c7';
+  const warningBgColor = dm ? 'rgba(180,83,9,0.24)' : '#fff7ed';
+  const dangerBgColor = dm ? 'rgba(104,23,31,0.42)' : '#fef2f2';
+  const dangerBorderColor = dm ? 'rgba(190,60,80,0.42)' : '#fecaca';
+  const dangerTextColor = dm ? '#ffb6c1' : '#dc2626';
 
   function activateTab(next: TabId) {
     setTab(next);
@@ -3018,7 +3018,7 @@ const BusinessDashboard: NextPage = () => {
                       </div>
 
                       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.95fr]">
-                        <div className="rounded-[28px] border bg-white p-4 sm:p-5 overflow-hidden">
+                        <div className="rounded-[28px] border bg-white p-4 sm:p-5 overflow-hidden" style={{ borderColor: dm ? '#2f3034' : '#ebe1d3' }}>
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <h2 className="text-base font-bold text-neutral-900">Revenue</h2>
@@ -3038,7 +3038,13 @@ const BusinessDashboard: NextPage = () => {
                             </div>
                             <span
                               className="rounded-full px-3 py-1.5 text-[11px] font-semibold"
-                              style={{ background: publishReady ? '#ecfdf5' : '#fff7ed', color: publishReady ? '#047857' : '#9a3412' }}
+                              style={{
+                                background: publishReady
+                                  ? (dm ? 'rgba(16,185,129,0.14)' : '#ecfdf5')
+                                  : (dm ? 'rgba(180,83,9,0.24)' : '#fff7ed'),
+                                color: publishReady ? '#047857' : (dm ? '#f3ba63' : '#9a3412'),
+                                border: `1px solid ${publishReady ? (dm ? 'rgba(16,185,129,0.18)' : 'transparent') : (dm ? 'rgba(217,119,6,0.28)' : 'transparent')}`,
+                              }}
                             >
                               {publishReady ? 'Ready to Publish' : 'Incomplete'}
                             </span>
@@ -3100,8 +3106,8 @@ const BusinessDashboard: NextPage = () => {
                   );
                 })()}
 
-                <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
+                <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden" style={{ borderColor: dm ? '#2f3034' : '#f5f5f5' }}>
+                  <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between" style={{ borderColor: dm ? '#2f3034' : '#f5f5f5' }}>
                     <h2 className="text-sm font-bold text-neutral-900">Recent Bookings</h2>
                     <button onClick={() => activateTab('bookings')} className="text-xs font-semibold text-accent hover:opacity-70 transition-opacity">View all →</button>
                   </div>
@@ -3124,14 +3130,23 @@ const BusinessDashboard: NextPage = () => {
                   }
                 </div>
 
-                <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex items-center justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white' }}>
+                <div className="rounded-2xl border border-neutral-100 px-5 py-4 flex items-center justify-between gap-4" style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2f3034' : '#f5f5f5' }}>
                   <div>
                     <p className="text-sm font-bold text-neutral-900">Payments and payouts</p>
                     <p className="text-xs mt-0.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
                       Manage automated Stripe payouts or save Zelle details for manual payouts in Settings.
                     </p>
                   </div>
-                  <button type="button" onClick={() => activateTab('settings')} className="text-xs font-semibold px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
+                  <button
+                    type="button"
+                    onClick={() => activateTab('settings')}
+                    className="text-xs font-semibold px-3 py-2 rounded-lg border transition-colors"
+                    style={{
+                      borderColor: dm ? '#434349' : '#d4d4d8',
+                      color: dm ? '#f3f4f6' : '#374151',
+                      background: dm ? 'rgba(255,255,255,0.02)' : '#ffffff',
+                    }}
+                  >
                     Open Settings
                   </button>
                 </div>
@@ -4815,7 +4830,7 @@ const BusinessDashboard: NextPage = () => {
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-2xl,
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-\[28px\],
         .provider-dashboard-shell[data-provider-theme='light'] main .bg-white.rounded-\[24px\] {
-          box-shadow: 0 14px 34px rgba(60, 79, 72, 0.05), 0 2px 6px rgba(60, 79, 72, 0.04);
+          box-shadow: 0 8px 20px rgba(60, 79, 72, 0.035), 0 1px 4px rgba(60, 79, 72, 0.025);
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .provider-premium-panel,
@@ -4825,8 +4840,8 @@ const BusinessDashboard: NextPage = () => {
             linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,252,251,0.98) 100%) !important;
           border-color: #e5ebe7 !important;
           box-shadow:
-            0 18px 46px rgba(63, 83, 74, 0.07),
-            0 2px 10px rgba(63, 83, 74, 0.04) !important;
+            0 10px 24px rgba(63, 83, 74, 0.04),
+            0 1px 5px rgba(63, 83, 74, 0.03) !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='light'] .provider-segment-shell {
@@ -4909,7 +4924,7 @@ const BusinessDashboard: NextPage = () => {
 
         .provider-dashboard-shell[data-provider-theme='light'] .shadow-\[0_8px_24px_rgba\(15\,23\,42\,0\.04\)\],
         .provider-dashboard-shell[data-provider-theme='light'] .shadow-\[0_10px_30px_rgba\(32\,136\,122\,0\.05\)\] {
-          box-shadow: 0 16px 36px rgba(40, 61, 54, 0.06) !important;
+          box-shadow: 0 8px 18px rgba(40, 61, 54, 0.04) !important;
         }
 
         .provider-dashboard-shell[data-provider-theme='dark'] {
@@ -4928,7 +4943,7 @@ const BusinessDashboard: NextPage = () => {
             linear-gradient(180deg, rgba(28,28,30,0.98) 0%, rgba(24,24,26,0.98) 100%) !important;
           border-color: #2f3136 !important;
           box-shadow:
-            0 16px 32px rgba(0, 0, 0, 0.28),
+            0 8px 20px rgba(0, 0, 0, 0.22),
             inset 0 1px 0 rgba(255,255,255,0.02) !important;
         }
 

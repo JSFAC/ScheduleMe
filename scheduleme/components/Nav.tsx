@@ -350,7 +350,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const navLinks = user ? appLinks : (isGuestAppShell ? guestAppLinks : marketingLinks);
   const logoHref = (user || isGuestAppShell || isLandingGuest) ? '/home' : '/';
   const useSolidChrome = user || isGuestAppShell;
-  const navBg = (isDark || darkMode) ? '#0a0a0a' : '#ffffff';
+  const navBg = (isDark || darkMode) ? '#121316' : '#ffffff';
   const navBlur = useSolidChrome ? 'none' : 'blur(12px)';
   const useProviderLoader = router.pathname.startsWith('/provider') || router.pathname.startsWith('/business');
 

@@ -707,26 +707,6 @@ const Account: NextPage = () => {
 
         <div className="mx-auto max-w-5xl px-6 py-7 space-y-5">
 
-          {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length, icon: 'M4.5 12.75l6 6 9-13.5', color: '#16a34a', bg: dm ? 'rgba(22,163,74,0.15)' : '#f0fdf4' },
-              { label: 'Saved Addresses', value: addresses.length, icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z', color: '#007e6d', bg: dm ? 'rgba(10,132,255,0.15)' : '#eff6ff' },
-            ].map(s => (
-              <div key={s.label} className="rounded-2xl border p-4 flex items-center gap-3" style={{ background: cardBg, borderColor: cardBorder }}>
-                <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: s.bg }}>
-                  <svg className="h-4 w-4" style={{ color: s.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xl font-black" style={{ letterSpacing: '-0.02em', color: textPrimary }}>{s.value}</p>
-                  <p className="text-xs" style={{ color: textMuted }}>{s.label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Draft restore banners */}
           {(tab === 'settings' && profileDraft) && (
             <div className="flex items-center justify-between gap-3 rounded-2xl px-5 py-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
@@ -1213,7 +1193,11 @@ const Account: NextPage = () => {
                   </button>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button type="button" onClick={() => setShowEduModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold border"
-                      style={{ borderColor: '#007e6d', color: '#007e6d', background: dm ? 'rgba(10,132,255,0.08)' : '#EBF4FF' }}>
+                      style={{
+                        borderColor: dm ? 'rgba(0,126,109,0.36)' : '#007e6d',
+                        color: dm ? '#6fe0cd' : '#007e6d',
+                        background: dm ? 'rgba(0,126,109,0.10)' : '#EBF4FF',
+                      }}>
                       {eduVerified ? 'View EDU Verification' : 'Verify .edu Email'}
                     </button>
                     <button type="button" onClick={() => { setDisconnectText(''); setDisconnectError(''); setShowDisconnectEdu(true); }}

@@ -31,12 +31,12 @@ export default function BusinessNav() {
     <>
       <div
         aria-hidden="true"
-        className="fixed left-0 right-0 z-[51] pointer-events-none bg-neutral-950"
-        style={{ top: 0, height: 'env(safe-area-inset-top, 0px)' }}
+        className="fixed left-0 right-0 z-[51] pointer-events-none"
+        style={{ top: 0, height: 'env(safe-area-inset-top, 0px)', background: '#121316' }}
       />
       <header
-        className="fixed left-0 right-0 z-50 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800"
-        style={{ top: 'env(safe-area-inset-top, 0px)' }}
+        className="fixed left-0 right-0 z-50 backdrop-blur-md border-b"
+        style={{ top: 'env(safe-area-inset-top, 0px)', background: 'rgba(18,19,22,0.95)', borderColor: '#23252b' }}
       >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 flex items-center justify-between gap-4" style={{ height: 'clamp(56px, 10vw, 72px)' }} aria-label="Provider navigation">
         <div className="flex items-center min-w-0 shrink-0">
@@ -58,7 +58,7 @@ export default function BusinessNav() {
             { label: 'FAQ', href: '/provider#faq' },
           ].map((link) => (
             <li key={link.href}>
-              <Link href={link.href} className="px-4 py-2 text-sm text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-full transition-colors">
+              <Link href={link.href} className="px-4 py-2 text-sm text-neutral-200 hover:text-white hover:bg-white/6 rounded-full transition-colors">
                 {link.label}
               </Link>
             </li>
@@ -66,7 +66,7 @@ export default function BusinessNav() {
         </ul>
 
         <div className="flex items-center justify-end gap-2.5 sm:gap-3 shrink-0 ml-auto">
-          <Link href="/" className="hidden lg:inline-flex text-sm text-neutral-400 hover:text-neutral-200 transition-colors whitespace-nowrap">
+          <Link href="/" className="hidden lg:inline-flex text-sm text-neutral-300 hover:text-white transition-colors whitespace-nowrap">
             Consumer site →
           </Link>
           {status === 'logged_out' || status === 'loading' ? (
