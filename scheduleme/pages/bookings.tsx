@@ -1539,9 +1539,11 @@ const BookingsPage: NextPage = () => {
                       <img src={biz.coverUrl} alt={biz.name || biz.category || 'Provider'} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ color: dm ? '#9ca3af' : '#6b7280' }}>
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
-                        </svg>
+                        <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: dm ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0L15 15m-1.5-1.5l1.159-1.159a2.25 2.25 0 013.182 0L21.75 16.5m-1.5-13.5h-15A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21h15a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3z" />
+                          </svg>
+                        </div>
                         <span className="text-[10px] font-semibold">No photos added</span>
                       </div>
                     )}
