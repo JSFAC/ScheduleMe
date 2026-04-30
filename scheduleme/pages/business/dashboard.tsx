@@ -2531,8 +2531,14 @@ const BusinessDashboard: NextPage = () => {
 
         <div className="flex-1 lg:ml-60 flex flex-col min-h-screen pb-20 lg:pb-0">
           {/* Mobile topbar */}
-          <header className="lg:hidden border-b px-4 py-3 flex items-center sticky top-0 z-20"
-            style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : '#f0f0f0' }}>
+          <header
+            className="lg:hidden border-b px-4 pb-3 flex items-center sticky top-0 z-20"
+            style={{
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
+              background: dm ? '#171717' : 'white',
+              borderColor: dm ? '#262626' : '#f0f0f0',
+            }}
+          >
             <div className="w-full flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <span className="block text-base font-black truncate" style={{ letterSpacing: '-0.02em', color: dm ? '#f3f4f6' : '#171717' }}>{business?.name || 'Dashboard'}</span>
