@@ -1179,12 +1179,14 @@ export default function BizPage() {
       const trimmedCity = editCity.trim();
       const trimmedZip = editZip.trim();
       const trimmedWebsite = editWebsite.trim();
+      const existingCity = sanitizeEditableLocationField(biz.city, 'city');
+      const existingZip = sanitizeEditableLocationField(biz.zip, 'zip');
 
       const coreProfileChanged =
         trimmedName !== String(biz.name || '').trim() ||
         trimmedOwnerName !== String(biz.owner_name || '').trim() ||
-        trimmedCity !== String(biz.city || '').trim() ||
-        trimmedZip !== String(biz.zip || '').trim() ||
+        trimmedCity !== existingCity ||
+        trimmedZip !== existingZip ||
         trimmedWebsite !== String(biz.website || '').trim();
 
       if (coreProfileChanged) {
@@ -1303,6 +1305,26 @@ export default function BizPage() {
       setDeletedServiceIds([]);
       setShowNewServiceComposer(false);
       setEditNotice('Listing updates saved.');
+      if (isDashboardEmbed && typeof window !== 'undefined') {
+        window.parent?.postMessage(
+          {
+            type: 'scheduleme-dashboard-preview-saved',
+            business: {
+              ...biz,
+              name: trimmedName,
+              owner_name: trimmedOwnerName,
+              city: trimmedCity,
+              zip: trimmedZip,
+              website: trimmedWebsite,
+              description: editDesc,
+              cover_url: nextImages[0] || null,
+              media_urls: nextImages.slice(1),
+              video_url: editVideo || null,
+            },
+          },
+          window.location.origin
+        );
+      }
       setTimeout(() => setEditNotice(null), 2500);
     } catch (e: any) {
       setErr(e?.message || 'Failed to save changes');

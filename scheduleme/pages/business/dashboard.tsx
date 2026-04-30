@@ -1369,14 +1369,34 @@ const BusinessDashboard: NextPage = () => {
   }, [tab, business]);
 
   useEffect(() => {
+    async function onPreviewSaved(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (typeof event.data !== 'object' || event.data === null) return;
+      if (event.data?.type !== 'scheduleme-dashboard-preview-saved') return;
+      const saved = normalizeBusiness(event.data.business);
+      if (saved) {
+        setBusiness((prev) => prev ? { ...prev, ...saved } : saved);
+      }
+      setPreviewEditMode(false);
+      setPreviewKey(Date.now());
+      await refreshPublishStatus();
+    }
+    window.addEventListener('message', onPreviewSaved);
+    return () => window.removeEventListener('message', onPreviewSaved);
+  }, [refreshPublishStatus]);
+
+  useEffect(() => {
     if (!business?.id) return;
     refreshPublishStatus();
   }, [
     business?.id,
     business?.description,
     business?.address,
+    business?.city,
+    business?.zip,
     business?.phone,
     business?.website,
+    business?.zelle_payout_details,
     business?.stripe_onboarded,
     mediaImages.length,
     mediaVideo,
