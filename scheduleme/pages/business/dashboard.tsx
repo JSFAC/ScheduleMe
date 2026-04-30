@@ -4101,17 +4101,30 @@ const BusinessDashboard: NextPage = () => {
                   <form onSubmit={handleSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Setup Payout</h2>
                     <p className="text-xs text-neutral-400 mb-4">First 3 bookings can be payed out through zelle, then stripe becomes required.</p>
-                    <label className="block text-sm mb-4">
-                      <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Zelle payout details</span>
-                      <input
-                        type="text"
-                        value={editZellePayoutDetails}
-                        onChange={(e) => setEditZellePayoutDetails(e.target.value)}
-                        placeholder="Email or phone tied to your Zelle"
-                        className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
-                      />
-                    </label>
+                    <div
+                      className="rounded-2xl border px-4 py-4 mb-4 space-y-3"
+                      style={{ borderColor: '#f59e0b', background: dm ? 'rgba(245,158,11,0.08)' : '#fff7ed' }}
+                    >
+                      <label className="block text-sm">
+                        <span className="block text-xs font-semibold text-neutral-500 mb-1.5">Zelle payout details</span>
+                        <input
+                          type="text"
+                          value={editZellePayoutDetails}
+                          onChange={(e) => setEditZellePayoutDetails(e.target.value)}
+                          placeholder="Email or phone tied to your Zelle"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                          style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
+                        />
+                      </label>
+                      <p className="text-[12px] leading-5 text-amber-900">
+                        First 3 bookings can be payed out through zelle, then stripe becomes required.
+                      </p>
+                      <p className="text-[12px] leading-5 text-neutral-700">
+                        {manualPayoutsRemaining > 0
+                          ? `${manualPayoutsRemaining} of ${manualPayoutLimit} Zelle payouts remaining.`
+                          : `All ${manualPayoutLimit} Zelle payouts have been used. Connect Stripe to keep getting paid.`}
+                      </p>
+                    </div>
                     {business?.stripe_onboarded ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
@@ -4137,14 +4150,6 @@ const BusinessDashboard: NextPage = () => {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] leading-5 text-amber-900">
-                          First {manualPayoutLimit} bookings can be payed out through zelle, then stripe becomes required.
-                        </div>
-                        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-[12px] leading-5 text-neutral-700">
-                          {manualPayoutsRemaining > 0
-                            ? `${manualPayoutsRemaining} of ${manualPayoutLimit} Zelle payouts remaining.`
-                            : `All ${manualPayoutLimit} Zelle payouts have been used. Connect Stripe to keep getting paid.`}
-                        </div>
                         <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
                           {stripeLoading ? 'Loading…' : stripeCta}
                         </button>
@@ -4156,9 +4161,6 @@ const BusinessDashboard: NextPage = () => {
                             Disconnect Stripe
                           </button>
                         )}
-                        <p className="text-[11px] text-neutral-500">
-                          Current manual payout destination: <strong>{business?.zelle_payout_details || 'not set yet'}</strong>
-                        </p>
                         {stripeConnectError && <p className="text-[11px] text-amber-700">{stripeConnectError}</p>}
                         {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
                       </div>

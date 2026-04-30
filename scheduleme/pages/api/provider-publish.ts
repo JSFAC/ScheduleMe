@@ -19,13 +19,27 @@ type Checklist = {
   readyToPublish: boolean;
 };
 
+function normalizeProviderCity(value: any) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeProviderZip(value: any) {
+  return String(value || '').trim();
+}
+
+function hasValidProviderLocation(business: any) {
+  const city = normalizeProviderCity(business?.city);
+  const zip = normalizeProviderZip(business?.zip);
+  const zipLooksValid = /^\d{5}(?:-\d{4})?$/.test(zip) && zip !== '00000';
+  return Boolean(city && city !== 'setup' && zipLooksValid);
+}
+
 function buildChecklist(business: any, servicesCount: number): Checklist {
   const hasCoreProfile = Boolean(
     business?.name
     && business?.owner_name
     && business?.description
-    && String(business?.city || '').trim()
-    && String(business?.zip || '').trim()
+    && hasValidProviderLocation(business)
   );
   const hasMedia = Boolean(
     business?.cover_url

@@ -337,6 +337,14 @@ export default function BizPage() {
   const galleryTouchStart = useRef<{ x: number; y: number } | null>(null);
   const lightboxTouchStart = useRef<{ x: number; y: number } | null>(null);
 
+  function sanitizeEditableLocationField(value: any, kind: 'city' | 'zip') {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (kind === 'city' && raw.toLowerCase() === 'setup') return '';
+    if (kind === 'zip' && raw === '00000') return '';
+    return raw;
+  }
+
   const bizSchoolDomain = biz?.school_domain ? String(biz.school_domain).toLowerCase() : null;
   const bizCampusKey = biz?.campus_key ? String(biz.campus_key).toLowerCase() : null;
   const normalizeDomain = (v?: string | null) => v ? String(v).toLowerCase().trim() : null;
@@ -397,8 +405,8 @@ export default function BizPage() {
 
         setBiz(data);
         setEditDesc(data.description || '');
-        setEditCity(data.city || '');
-        setEditZip(data.zip || '');
+        setEditCity(sanitizeEditableLocationField(data.city, 'city'));
+        setEditZip(sanitizeEditableLocationField(data.zip, 'zip'));
         const initialImages = [data.cover_url, ...(data.media_urls || [])].filter(Boolean) as string[];
         setEditImages(normalizeImageList(initialImages));
         setEditVideo(data.video_url || null);
@@ -604,8 +612,8 @@ export default function BizPage() {
     if (!nextBiz) return;
     setEditBizName(nextBiz.name || '');
     setEditOwnerName(nextBiz.owner_name || '');
-    setEditCity(nextBiz.city || '');
-    setEditZip(nextBiz.zip || '');
+    setEditCity(sanitizeEditableLocationField(nextBiz.city, 'city'));
+    setEditZip(sanitizeEditableLocationField(nextBiz.zip, 'zip'));
     setEditWebsite(nextBiz.website || '');
     setEditDesc(nextBiz.description || '');
     const initialImages = [nextBiz.cover_url, ...(nextBiz.media_urls || [])].filter(Boolean) as string[];
