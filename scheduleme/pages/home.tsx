@@ -189,7 +189,7 @@ function AISearchBar({ userName, onSubmit }: { userName: string; onSubmit: (q: s
           onMouseUp={onChipsMouseUp}
           onMouseLeave={onChipsMouseUp}
           className="flex gap-2 overflow-x-auto pb-0.5 select-none"
-          style={{ scrollbarWidth: 'none', cursor: 'grab', touchAction: 'pan-y' }}
+          style={{ scrollbarWidth: 'none', cursor: 'grab', touchAction: 'pan-x' }}
         >
           <span className="shrink-0 w-1 block" />
           {AI_SUGGESTIONS.map(({ label, prompt }) => (
@@ -371,7 +371,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
             paddingLeft: edgePad,
             paddingRight: edgePad,
             cursor: 'grab',
-            touchAction: 'pan-y',
+            touchAction: 'pan-x',
           } as React.CSSProperties}
         >
           {isLoading
@@ -715,7 +715,7 @@ const HomePage: NextPage = () => {
 
         {/* Category quick-links */}
         <div className="border-b" style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#262626' : 'rgba(0,0,0,0.06)' }}>
-          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center', touchAction: 'pan-y' }}>
+          <div className="flex gap-1.5 overflow-x-auto px-6 py-3" style={{ scrollbarWidth: 'none', justifyContent: 'safe center', touchAction: 'pan-x' }}>
             {categoryQuickLinks.map(cat => (
               <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all group border"

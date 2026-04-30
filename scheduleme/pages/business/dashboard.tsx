@@ -2846,7 +2846,7 @@ const BusinessDashboard: NextPage = () => {
                               { key: 'coreProfile', label: 'Core profile fields', hint: 'Business name, provider name, and description.' },
                               { key: 'services', label: 'At least one service', hint: 'Add your first offer so students can book.' },
                               { key: 'media', label: 'Photo or media uploaded', hint: 'Use real photos so the profile feels trustworthy.' },
-                              { key: 'stripe', label: 'Payout settings ready', hint: 'Optional for launch. Your first 3 paid bookings can be released manually to your saved Zelle details, then Stripe becomes required.' },
+                              { key: 'stripe', label: 'Payout settings ready', hint: 'First 3 bookings can be paid out through Zelle, then Stripe becomes required.' },
                             ].map((item) => {
                               const ok = !!publishChecklist?.[item.key];
                               return (
@@ -3958,8 +3958,8 @@ const BusinessDashboard: NextPage = () => {
             )}
 
             {tab === 'settings' && (
-              <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
-                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6 lg:col-span-2">
+              <div className="grid grid-cols-1 gap-5">
+                <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                   <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                     <div>
                       <h2 className="text-sm font-bold text-neutral-900">Visibility & Discovery</h2>
@@ -4113,7 +4113,7 @@ const BusinessDashboard: NextPage = () => {
                           style={{ background: dm ? '#171717' : 'white', borderColor: dm ? '#404040' : '#d1d5db', color: dm ? '#f3f4f6' : '#171717' }}
                         />
                         <p className="mt-1 text-[11px] text-neutral-500">
-                          If Stripe is not connected yet, ScheduleMe will use this to pay you manually after the booking is completed and cleared. Manual payouts only cover your first 3 paid bookings, then Stripe is required.
+                          First 3 bookings can be paid out through Zelle, then Stripe becomes required.
                         </p>
                       </label>
                     </div>
@@ -4169,7 +4169,7 @@ const BusinessDashboard: NextPage = () => {
                 <div className="space-y-5">
                   <div className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
                     <h2 className="text-sm font-bold text-neutral-900 mb-2">Payout settings</h2>
-                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Stripe is connected, so ScheduleMe can release payouts automatically.' : 'Accept paid bookings now. For your first 3 paid bookings, ScheduleMe can release payouts manually to the Zelle details saved in Settings.'}</p>
+                    <p className="text-xs text-neutral-400 mb-4">{business?.stripe_onboarded ? 'Stripe is connected, so ScheduleMe can release payouts automatically.' : 'First 3 bookings can be paid out through Zelle, then Stripe becomes required.'}</p>
                     {business?.stripe_onboarded ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
@@ -4196,12 +4196,12 @@ const BusinessDashboard: NextPage = () => {
                     ) : (
                       <div className="space-y-3">
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] leading-5 text-amber-900">
-                          Customers can still pay now. ScheduleMe will hold the funds securely, then release your first {manualPayoutLimit} payouts manually after the booking is completed and the dispute window clears.
+                          First {manualPayoutLimit} bookings can be paid out through Zelle, then Stripe becomes required.
                         </div>
                         <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-[12px] leading-5 text-neutral-700">
                           {manualPayoutsRemaining > 0
-                            ? `${manualPayoutsRemaining} of ${manualPayoutLimit} manual payout slots remaining before Stripe becomes required.`
-                            : `You have used all ${manualPayoutLimit} manual payout slots. Connect Stripe now so future payouts can be released.`}
+                            ? `${manualPayoutsRemaining} of ${manualPayoutLimit} Zelle payouts remaining.`
+                            : `All ${manualPayoutLimit} Zelle payouts have been used. Connect Stripe to keep getting paid.`}
                         </div>
                         <button onClick={() => handleStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
                           {stripeLoading ? 'Loading…' : stripeCta}
