@@ -1,3 +1,7 @@
+import type { FormEvent } from 'react';
+
+import StripeEmbeddedOnboarding from './StripeEmbeddedOnboarding';
+
 type BusinessLike = {
   stripe_onboarded?: boolean;
   stripe_account_id?: string | null;
@@ -21,11 +25,17 @@ type SettingsPayoutCardProps = {
   stripeConnectError: string;
   stripeLoading: boolean;
   stripeStatusMsg: string;
+  stripeEmbeddedOpen: boolean;
+  stripeEmbeddedMode: 'onboarding' | 'update';
   dm: boolean;
+  onCloseStripeEmbedded: () => void;
   onDisconnectStripe: () => void;
+  onOpenStripeFallback: (mode: 'onboarding' | 'update') => void;
+  onRefreshStripeStatus: () => Promise<boolean>;
   onSaveSettings: (event: FormEvent<HTMLFormElement>) => void;
   onStripeConnect: (mode: 'onboarding' | 'update') => void;
   onZelleChange: (value: string) => void;
+  requestStripeClientSecret: (mode: 'onboarding' | 'update') => Promise<string>;
 };
 
 export default function SettingsPayoutCard({
@@ -46,11 +56,17 @@ export default function SettingsPayoutCard({
   stripeConnectError,
   stripeLoading,
   stripeStatusMsg,
+  stripeEmbeddedOpen,
+  stripeEmbeddedMode,
   dm,
+  onCloseStripeEmbedded,
   onDisconnectStripe,
+  onOpenStripeFallback,
+  onRefreshStripeStatus,
   onSaveSettings,
   onStripeConnect,
   onZelleChange,
+  requestStripeClientSecret,
 }: SettingsPayoutCardProps) {
   return (
     <form onSubmit={onSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
@@ -103,7 +119,7 @@ export default function SettingsPayoutCard({
             disabled={stripeLoading}
             className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
           >
-            Manage Stripe payout settings
+            {stripeEmbeddedOpen && stripeEmbeddedMode === 'update' ? 'Stripe setup is open below' : 'Manage Stripe payout settings'}
           </button>
           <button
             type="button"
@@ -120,7 +136,7 @@ export default function SettingsPayoutCard({
       ) : (
         <div className="space-y-3">
           <button type="button" onClick={() => onStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
-            {stripeLoading ? 'Loading…' : stripeCta}
+            {stripeLoading ? 'Loading…' : stripeEmbeddedOpen && stripeEmbeddedMode === 'onboarding' ? 'Stripe setup is open below' : stripeCta}
           </button>
           {business?.stripe_account_id && (
             <button
@@ -136,6 +152,16 @@ export default function SettingsPayoutCard({
           {stripeStatusMsg && <p className="text-[11px] text-neutral-500">{stripeStatusMsg}</p>}
         </div>
       )}
+      {stripeEmbeddedOpen ? (
+        <StripeEmbeddedOnboarding
+          dm={dm}
+          mode={stripeEmbeddedMode}
+          onClose={onCloseStripeEmbedded}
+          onOpenHostedFallback={() => onOpenStripeFallback(stripeEmbeddedMode)}
+          onRefreshStatus={onRefreshStripeStatus}
+          requestClientSecret={requestStripeClientSecret}
+        />
+      ) : null}
       <div className="mt-4 min-h-[18px] text-xs">
         {settingsError ? <span className="text-red-500">{settingsError}</span> : null}
         {!settingsError && settingsNotice ? <span style={{ color: '#007e6d' }}>{settingsNotice}</span> : null}
@@ -144,4 +170,3 @@ export default function SettingsPayoutCard({
     </form>
   );
 }
-import type { FormEvent } from 'react';

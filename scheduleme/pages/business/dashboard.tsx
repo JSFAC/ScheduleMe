@@ -1130,6 +1130,8 @@ const BusinessDashboard: NextPage = () => {
     }
     if (section === 'stripe') {
       activateTab('settings');
+      setStripeEmbeddedMode('onboarding');
+      setStripeEmbeddedOpen(true);
       return;
     }
     activateTab('edit');
@@ -1145,6 +1147,8 @@ const BusinessDashboard: NextPage = () => {
   const [stripeStatusMsg, setStripeStatusMsg] = useState('');
   const [stripePolling, setStripePolling] = useState(false);
   const [stripeFallbackUrl, setStripeFallbackUrl] = useState('');
+  const [stripeEmbeddedOpen, setStripeEmbeddedOpen] = useState(false);
+  const [stripeEmbeddedMode, setStripeEmbeddedMode] = useState<'onboarding' | 'update'>('onboarding');
   const [showDisconnectStripe, setShowDisconnectStripe] = useState(false);
   const [disconnectStripeText, setDisconnectStripeText] = useState('');
   const [disconnectStripeLoading, setDisconnectStripeLoading] = useState(false);
@@ -1980,8 +1984,9 @@ const BusinessDashboard: NextPage = () => {
     setMsgSending(false);
   }
 
-  async function handleStripeConnect(mode: 'onboarding' | 'update' = 'onboarding') {
+  async function handleHostedStripeConnect(mode: 'onboarding' | 'update' = 'onboarding') {
     if (!business) return;
+    setStripeEmbeddedOpen(false);
     setStripeLoading(true);
     setStripeConnectError('');
     setStripeFallbackUrl('');
@@ -2002,6 +2007,39 @@ const BusinessDashboard: NextPage = () => {
     }
   }
 
+  async function requestStripeClientSecret(mode: 'onboarding' | 'update' = 'onboarding'): Promise<string> {
+    if (!business?.id) throw new Error('Missing business context.');
+    const headers = await getAuthHeaders();
+    const res = await fetch('/api/stripe-connect-session', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ businessId: business.id, mode }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.client_secret) {
+      throw new Error(data?.error || 'Failed to start embedded Stripe onboarding.');
+    }
+    return String(data.client_secret);
+  }
+
+  async function handleStripeConnect(mode: 'onboarding' | 'update' = 'onboarding') {
+    if (!business) return;
+    setStripeConnectError('');
+    setStripeFallbackUrl('');
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      await handleHostedStripeConnect(mode);
+      return;
+    }
+    activateTab('settings');
+    setStripeEmbeddedMode(mode);
+    setStripeEmbeddedOpen(true);
+    setStripeStatusMsg(
+      mode === 'update'
+        ? 'Stripe setup opened below so you can update payouts without leaving ScheduleMe.'
+        : 'Stripe setup opened below so you can finish payouts without leaving ScheduleMe.'
+    );
+  }
+
   async function refreshStripeStatus(): Promise<boolean> {
     if (!business?.id) return false;
     setStripeLoading(true);
@@ -2020,6 +2058,9 @@ const BusinessDashboard: NextPage = () => {
         return false;
       }
       setBusiness(b => b ? { ...b, stripe_onboarded: !!data?.onboarded } : b);
+      if (data?.onboarded) {
+        setStripeEmbeddedOpen(false);
+      }
       try {
         const balRes = await fetch('/api/stripe-balance', { method: 'POST', headers });
         if (balRes.ok) {
@@ -2028,7 +2069,7 @@ const BusinessDashboard: NextPage = () => {
         }
       } catch {}
       if (!data?.onboarded) {
-        setStripeStatusMsg('Stripe setup isn’t finished yet. Click the Stripe button again to finish automated payouts.');
+        setStripeStatusMsg('Stripe setup isn’t finished yet. Keep going below or reopen Stripe to finish automated payouts.');
       }
       if (router.query?.stripe) {
         const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -3833,15 +3874,21 @@ const BusinessDashboard: NextPage = () => {
                     stripeConnectError={stripeConnectError}
                     stripeLoading={stripeLoading}
                     stripeStatusMsg={stripeStatusMsg}
+                    stripeEmbeddedOpen={stripeEmbeddedOpen}
+                    stripeEmbeddedMode={stripeEmbeddedMode}
                     dm={dm}
+                    onCloseStripeEmbedded={() => setStripeEmbeddedOpen(false)}
                     onDisconnectStripe={() => {
                       setDisconnectStripeText('');
                       setDisconnectStripeError('');
                       setShowDisconnectStripe(true);
                     }}
+                    onOpenStripeFallback={handleHostedStripeConnect}
+                    onRefreshStripeStatus={refreshStripeStatus}
                     onSaveSettings={handleSaveSettings}
                     onStripeConnect={handleStripeConnect}
                     onZelleChange={setEditZellePayoutDetails}
+                    requestStripeClientSecret={requestStripeClientSecret}
                   />
                   <SettingsSessionCard
                     dashboardFieldBorder={dashboardFieldBorder}
