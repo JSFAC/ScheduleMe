@@ -34,8 +34,8 @@ const BUDGET_OPTIONS = [
 
 const HONEST_NOTES = [
   'I’m doing the matching myself right now, so this is more personal than polished.',
-  'If I think someone is a good fit, I’ll send them your request and follow up fast.',
-  'Haircuts are the main thing right now, but you can still send other campus service requests too.',
+  'If you need help finding the right person, I’ll do the hard work for you. Make a request, and I’ll follow up fast.',
+  'Haircuts are the main focus right now, but you can still send other campus service requests and I’ll try to find someone.',
 ];
 
 const PRODUCT_INTEREST_OPTIONS = [
@@ -127,7 +127,7 @@ const ConciergePage: NextPage = () => {
   return (
     <>
       <SeoHead
-        title="ScheduleMe Concierge — Need a Better Campus Barber?"
+        title="ScheduleMe Concierge — Need a Better Match?"
         description="Tell ScheduleMe what kind of haircut or campus service you need, and we’ll manually help match you for free."
         path="/concierge"
       />
@@ -160,9 +160,9 @@ const ConciergePage: NextPage = () => {
             <div className="pt-4">
               <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-4">Campus Concierge Beta</p>
               <h1 className="text-5xl md:text-6xl font-black leading-[0.95]" style={{ letterSpacing: '-0.04em', color: strong }}>
-                Need help finding a
+                Need a better
                 <br />
-                better campus barber?
+                match?
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: muted }}>
                 I&apos;m trying to make it easier for students to find the right person without the usual random DMs and bad guesses. Tell me what you need, your budget, and your timing, and I&apos;ll try to help match you.
