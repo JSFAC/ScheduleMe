@@ -337,13 +337,13 @@ const FormPage: NextPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.95fr_1.05fr] md:gap-4">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-[0.95fr_1.05fr] md:gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Name</span>
                     <input
                       value={form.name}
                       onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                      className="mt-1.5 form-input px-3.5 text-[0.95rem] md:px-4 md:text-base"
+                      className="mt-1.5 form-input px-3 text-[0.9rem] tracking-[-0.01em] md:px-4 md:text-base md:tracking-normal"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                       placeholder="Your name"
                     />
@@ -353,7 +353,7 @@ const FormPage: NextPage = () => {
                     <input
                       value={form.contact}
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
-                      className="mt-1.5 form-input px-3 text-[0.84rem] tracking-[-0.01em] placeholder:tracking-[-0.02em] md:px-4 md:text-base md:tracking-normal md:placeholder:tracking-normal"
+                      className="mt-1.5 form-input px-2.5 text-[0.78rem] tracking-[-0.02em] placeholder:tracking-[-0.02em] md:px-4 md:text-base md:tracking-normal md:placeholder:tracking-normal"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                       placeholder="number, insta, etc"
                     />
@@ -421,7 +421,7 @@ const FormPage: NextPage = () => {
                     rows={2}
                     value={form.details}
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
-                    className="mt-1.5 form-input resize-none min-h-[74px] md:min-h-[108px]"
+                    className="mt-1.5 form-input resize-none min-h-[74px] py-3.5 leading-snug md:min-h-[108px] md:py-4"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
                     placeholder="Example: need a cut before Friday 5/1, I’m at Crown dorms and don’t wanna spend more than like $20"
                   />

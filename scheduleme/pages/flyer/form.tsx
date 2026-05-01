@@ -68,15 +68,6 @@ const FormFlyerPage: NextPage = () => {
         }
 
         @media print {
-          body * {
-            visibility: hidden !important;
-          }
-
-          .flyer-card,
-          .flyer-card * {
-            visibility: visible !important;
-          }
-
           html,
           body {
             background: white !important;
@@ -98,12 +89,17 @@ const FormFlyerPage: NextPage = () => {
             margin: 0 !important;
             background: white !important;
             overflow: hidden !important;
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: flex-start !important;
           }
 
           .flyer-card {
-            position: absolute !important;
-            left: 0.12in !important;
-            top: 0.16in !important;
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            margin-left: 0.12in !important;
+            margin-top: 0.18in !important;
             width: 4.01in !important;
             height: 5.16in !important;
             min-height: 5.16in !important;
