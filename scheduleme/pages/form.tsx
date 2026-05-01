@@ -154,13 +154,13 @@ const FormPage: NextPage = () => {
             <div className="flex items-center gap-3">
               <Link
                 href="/flyer/form"
-                className="btn-primary px-6 py-2.5 text-sm"
+                className="btn-primary min-w-[6.75rem] px-6 py-2.5 text-sm"
               >
                 Flyer
               </Link>
               <Link
                 href="/"
-                className="btn-secondary px-6 py-2.5 text-sm"
+                className="btn-secondary min-w-[6.75rem] px-6 py-2.5 text-sm"
               >
                 Main site
               </Link>
