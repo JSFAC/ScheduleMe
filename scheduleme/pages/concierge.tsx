@@ -39,9 +39,10 @@ const HONEST_NOTES = [
 ];
 
 const PRODUCT_INTEREST_OPTIONS = [
+  'Choose an option',
   'Text me manually for now',
-  'A simple website like this',
-  'A real mobile app',
+  'A website',
+  'An app',
   'Both website and app',
   'Not sure yet',
 ];
@@ -57,7 +58,7 @@ const ConciergePage: NextPage = () => {
     campus: '',
     details: '',
     reference: '',
-    productInterest: 'A real mobile app',
+    productInterest: 'Choose an option',
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -76,7 +77,9 @@ const ConciergePage: NextPage = () => {
       form.contact.trim() &&
       form.service.trim() &&
       form.timing.trim() &&
-      form.details.trim()
+      form.details.trim() &&
+      form.productInterest.trim() &&
+      form.productInterest !== 'Choose an option'
     );
   }, [form]);
 
@@ -112,7 +115,7 @@ const ConciergePage: NextPage = () => {
         campus: '',
         details: '',
         reference: '',
-        productInterest: 'A real mobile app',
+        productInterest: 'Choose an option',
       });
     } catch (err: any) {
       setError(err?.message || 'Could not submit request.');
@@ -131,11 +134,11 @@ const ConciergePage: NextPage = () => {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
-      <main className="min-h-screen pt-8 pb-16" style={{ background: dm ? '#0a0a0a' : '#fcfaf6' }}>
+      <main className="min-h-screen pt-5 pb-12 md:pt-8 md:pb-16" style={{ background: dm ? '#0a0a0a' : '#fcfaf6' }}>
         <section className="px-6 pb-6">
           <div className="mx-auto max-w-6xl flex items-center justify-between gap-4">
             <Link href="/" className="inline-flex items-center gap-3">
-              <span className="text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
+              <span className="text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
                 Schedule<span style={{ color: '#0f766e' }}>Me</span>
               </span>
               <span className="hidden sm:inline text-[11px] font-black uppercase tracking-[0.14em] text-accent">
@@ -182,7 +185,7 @@ const ConciergePage: NextPage = () => {
             </div>
 
             <div
-              className="rounded-[32px] border p-6 md:p-7 sticky top-28"
+              className="rounded-[28px] md:rounded-[32px] border p-5 md:p-7 lg:sticky lg:top-28"
               style={{
                 background: surface,
                 borderColor: border,
@@ -309,8 +312,10 @@ const ConciergePage: NextPage = () => {
                     className="mt-1.5 form-input"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
                   >
-                    {PRODUCT_INTEREST_OPTIONS.map((option) => (
-                      <option key={option} value={option}>{option}</option>
+                    {PRODUCT_INTEREST_OPTIONS.map((option, index) => (
+                      <option key={option} value={option} disabled={index === 0}>
+                        {option}
+                      </option>
                     ))}
                   </select>
                 </label>
