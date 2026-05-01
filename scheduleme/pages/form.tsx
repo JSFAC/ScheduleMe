@@ -353,7 +353,7 @@ const FormPage: NextPage = () => {
                     <input
                       value={form.contact}
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
-                      className="mt-1.5 form-input px-2 text-[0.94rem] tracking-[-0.03em] placeholder:text-[0.94rem] placeholder:tracking-[-0.03em] md:px-4 md:text-base md:tracking-normal md:placeholder:text-base md:placeholder:tracking-normal"
+                      className="mt-1.5 form-input px-2 text-[0.9rem] tracking-[-0.02em] placeholder:text-[0.9rem] placeholder:tracking-[-0.02em] md:px-4 md:text-base md:tracking-normal md:placeholder:text-base md:placeholder:tracking-normal"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                       placeholder="number, insta, etc"
                     />
