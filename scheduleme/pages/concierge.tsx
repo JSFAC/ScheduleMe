@@ -17,6 +17,7 @@ const SERVICE_OPTIONS = [
 ];
 
 const TIMING_OPTIONS = [
+  'Choose an option',
   'ASAP / today',
   'This week',
   'This weekend',
@@ -25,6 +26,7 @@ const TIMING_OPTIONS = [
 ];
 
 const BUDGET_OPTIONS = [
+  'Choose an option',
   'Under $10',
   '$10-$20',
   '$20-$35',
@@ -35,7 +37,7 @@ const BUDGET_OPTIONS = [
 const HONEST_NOTES = [
   'This goes straight to me, not some big support inbox.',
   'If you need help finding the right person, I’ll do the hard work for you. Make a request and I’ll follow up fast.',
-  'Haircuts are the main focus right now, but you can still send other campus service requests and I’ll try to find someone.',
+  'Haircuts are the main focus right now, but I’m open to other campus service requests too.',
 ];
 
 const PRODUCT_INTEREST_OPTIONS = [
@@ -53,8 +55,8 @@ const ConciergePage: NextPage = () => {
     name: '',
     contact: '',
     service: 'Haircut / fade',
-    timing: 'This week',
-    budget: '$20-$35',
+    timing: 'Choose an option',
+    budget: 'Choose an option',
     campus: '',
     details: '',
     reference: '',
@@ -77,6 +79,9 @@ const ConciergePage: NextPage = () => {
       form.contact.trim() &&
       form.service.trim() &&
       form.timing.trim() &&
+      form.timing !== 'Choose an option' &&
+      form.budget.trim() &&
+      form.budget !== 'Choose an option' &&
       form.details.trim() &&
       form.productInterest.trim() &&
       form.productInterest !== 'Choose an option'
@@ -110,8 +115,8 @@ const ConciergePage: NextPage = () => {
         name: '',
         contact: '',
         service: 'Haircut / fade',
-        timing: 'This week',
-        budget: '$20-$35',
+        timing: 'Choose an option',
+        budget: 'Choose an option',
         campus: '',
         details: '',
         reference: '',
@@ -154,27 +159,24 @@ const ConciergePage: NextPage = () => {
 
         <section className="px-6">
           <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-8 items-start">
-            <div className="pt-4">
-              <h1 className="text-5xl md:text-6xl font-black leading-[0.95]" style={{ letterSpacing: '-0.04em', color: strong }}>
-                Need help
-                <br />
-                finding
-                <br />
-                the right person?
+            <div className="order-2 lg:order-1 pt-1 md:pt-4">
+              <h1 className="text-[3.35rem] sm:text-6xl font-black leading-[0.93]" style={{ letterSpacing: '-0.04em', color: strong }}>
+                <span className="block whitespace-nowrap">Need help finding</span>
+                <span className="block">the right person?</span>
               </h1>
-              <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: muted }}>
-                I&apos;m testing a simpler way for students to find the right person without random group chats, bad referrals, or guessing. Send me what you need, your budget, and your timing, and I&apos;ll try to help.
+              <p className="mt-4 max-w-xl text-base md:text-lg leading-relaxed" style={{ color: muted }}>
+                Tell me what you need, your budget, and your timing. If I think I can help, I&apos;ll follow up fast.
               </p>
 
               <div
-                className="mt-8 rounded-[28px] border p-6"
+                className="mt-6 rounded-[28px] border p-5 md:p-6"
                 style={{
                   background: dm ? 'linear-gradient(180deg,#111111,#0d0d0d)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)',
                   borderColor: border,
                 }}
               >
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">Quick note</p>
-                <ul className="space-y-3 text-sm leading-relaxed" style={{ color: muted }}>
+                <ul className="space-y-2.5 text-sm leading-relaxed" style={{ color: muted }}>
                   {HONEST_NOTES.map((note) => (
                     <li key={note}>{note}</li>
                   ))}
@@ -183,7 +185,7 @@ const ConciergePage: NextPage = () => {
             </div>
 
             <div
-              className="rounded-[28px] md:rounded-[32px] border p-5 md:p-7 lg:sticky lg:top-28"
+              className="order-1 lg:order-2 rounded-[28px] md:rounded-[32px] border p-5 md:p-7 lg:sticky lg:top-28"
               style={{
                 background: surface,
                 borderColor: border,
@@ -198,6 +200,15 @@ const ConciergePage: NextPage = () => {
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: muted }}>
                   This comes straight to me. If I think I can help, I&apos;ll follow up as fast as I can.
                 </p>
+                <div className="mt-3">
+                  <Link
+                    href="/flyer/concierge"
+                    className="inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold"
+                    style={{ color: muted, borderColor: border, background: fieldBg }}
+                  >
+                    Open flyer
+                  </Link>
+                </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -246,8 +257,10 @@ const ConciergePage: NextPage = () => {
                       className="mt-1.5 form-input"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                     >
-                      {TIMING_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                      {TIMING_OPTIONS.map((option, index) => (
+                        <option key={option} value={option} disabled={index === 0}>
+                          {option}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -262,13 +275,15 @@ const ConciergePage: NextPage = () => {
                       className="mt-1.5 form-input"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                     >
-                      {BUDGET_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                      {BUDGET_OPTIONS.map((option, index) => (
+                        <option key={option} value={option} disabled={index === 0}>
+                          {option}
+                        </option>
                       ))}
                     </select>
                   </label>
                   <label className="block">
-                    <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Campus / area</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Campus / area (optional)</span>
                     <input
                       value={form.campus}
                       onChange={(e) => setForm((prev) => ({ ...prev, campus: e.target.value }))}
@@ -282,12 +297,12 @@ const ConciergePage: NextPage = () => {
                 <label className="block">
                   <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>What do you want?</span>
                   <textarea
-                    rows={5}
+                    rows={4}
                     value={form.details}
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
                     className="mt-1.5 form-input resize-y"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Example: Need a clean fade before Friday night. Near campus, preferably under $20, and I care more about consistency than hype."
+                    placeholder="Example: Need a clean fade before Friday. Near campus, under $20 if possible."
                   />
                 </label>
 

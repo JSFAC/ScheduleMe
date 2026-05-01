@@ -105,31 +105,20 @@ const ConciergeFlyerPage: NextPage = () => {
         >
           <div className="bg-[#0f766e] px-6 py-5 text-white">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">ScheduleMe</p>
-            <h1 className="mt-3 text-[2.2rem] font-black leading-[0.92]" style={{ letterSpacing: '-0.06em' }}>
-              Need help
+            <h1 className="mt-3 text-[2rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
+              Need help finding
               <br />
-              finding the
-              <br />
-              right person?
+              the right person?
             </h1>
-            <p className="mt-3 max-w-[15rem] text-[0.98rem] leading-snug text-white/88">
-              Haircuts first, but I can also try to help with other campus services too.
+            <p className="mt-3 max-w-[14.5rem] text-[0.92rem] leading-snug text-white/88">
+              Haircuts first. I can also try to help with other campus services.
             </p>
           </div>
 
           <div className="px-6 py-5">
-            <div className="rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] p-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">How it works</p>
-              <ul className="mt-3 space-y-2 text-[0.96rem] leading-snug text-[#1f2937]">
-                <li>1. Tell me what you need.</li>
-                <li>2. I&apos;ll try to find a good fit.</li>
-                <li>3. I&apos;ll follow up fast if I can help.</li>
-              </ul>
-            </div>
-
-            <div className="mt-5 flex items-center gap-4">
+            <div className="flex items-center gap-4">
               <div className="rounded-[20px] border border-[#d9d3c8] bg-white p-2 shadow-sm">
-                <img src={qrSrc} alt="QR code for ScheduleMe concierge page" className="h-[118px] w-[118px]" />
+                <img src={qrSrc} alt="QR code for ScheduleMe concierge page" className="h-[124px] w-[124px]" />
               </div>
 
               <div className="flex-1">
@@ -138,14 +127,15 @@ const ConciergeFlyerPage: NextPage = () => {
                   usescheduleme.com/concierge
                 </p>
                 <p className="mt-2 text-[0.92rem] leading-snug text-neutral-600">
-                  Send your budget, timing, and what you&apos;re looking for.
+                  Tell me what you need, your budget, and your timing.
                 </p>
               </div>
             </div>
 
-            <div className="mt-5 rounded-[22px] bg-[#eef8f5] px-4 py-4">
-              <p className="text-[0.98rem] font-semibold leading-snug text-[#0f172a]">
-                Better than asking around and hoping the referral is good.
+            <div className="mt-5 rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] p-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">What happens next</p>
+              <p className="mt-2 text-[0.96rem] leading-snug text-[#1f2937]">
+                If I think I can help, I&apos;ll follow up fast.
               </p>
             </div>
           </div>
