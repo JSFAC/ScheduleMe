@@ -65,6 +65,7 @@ export default function Nav({ variant = 'light' }: NavProps) {
   const isDark = variant === 'dark';
   const router = useRouter();
   const { dm: darkMode, toggle: toggleDark } = useDm();
+  const isLandingPage = router.pathname === '/';
 
   // Update theme-color meta instantly when dark mode toggles
   useEffect(() => {
@@ -424,13 +425,19 @@ export default function Nav({ variant = 'light' }: NavProps) {
 
         {/* Right */}
         <div className="flex-1 flex items-center justify-end gap-2">
-          {!user && !isGuestAppShell && (
-            <Link href="/provider" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
-              For Providers
+          {isLandingPage ? (
+            <Link href="/form" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
+              Form →
             </Link>
+          ) : (
+            !user && !isGuestAppShell && (
+              <Link href="/provider" scroll={false} className={`hidden sm:block text-sm font-medium transition-colors ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}>
+                For Providers
+              </Link>
+            )
           )}
-          {/* Dark mode toggle — only shown when signed in */}
-          {user && (
+          {/* Dark mode toggle — only shown when signed in and not on landing */}
+          {user && !isLandingPage && (
             <button onClick={toggleDark} aria-label="Toggle dark mode"
               className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full h-[34px] shrink-0"
               style={{ background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', transition: 'background 0.25s ease' }}>
@@ -475,6 +482,13 @@ export default function Nav({ variant = 'light' }: NavProps) {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                         </svg>
                         My Account
+                      </Link>
+                      <Link href="/form" scroll={false} onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
+                        <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h9.75" />
+                        </svg>
+                        Form
                       </Link>
                       {isBiz && <Link href="/provider/dashboard" scroll={false} onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
                         <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -529,6 +543,13 @@ export default function Nav({ variant = 'light' }: NavProps) {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                         </svg>
                         Sign in
+                      </Link>
+                      <Link href="/form" scroll={false} onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
+                        <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h9.75" />
+                        </svg>
+                        Form
                       </Link>
                       <Link href="/signin?mode=signup" scroll={false} onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
