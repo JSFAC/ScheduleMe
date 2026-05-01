@@ -97,11 +97,11 @@ const FormFlyerPage: NextPage = () => {
           .flyer-card {
             position: absolute !important;
             left: 0 !important;
-            top: 0 !important;
+            top: 0.12in !important;
             width: 4.25in !important;
-            height: 5.22in !important;
-            min-height: 5.22in !important;
-            max-height: 5.22in !important;
+            height: 5.26in !important;
+            min-height: 5.26in !important;
+            max-height: 5.26in !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
@@ -122,13 +122,13 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .print-tight {
-            padding-top: 0.5rem !important;
-            padding-bottom: 0.55rem !important;
+            padding-top: 0.65rem !important;
+            padding-bottom: 0.6rem !important;
           }
 
           .print-headline {
             margin-top: 0 !important;
-            font-size: 1.4rem !important;
+            font-size: 1.28rem !important;
             line-height: 0.92 !important;
           }
 
@@ -138,8 +138,8 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .print-box {
-            padding-top: 0.8rem !important;
-            padding-bottom: 0.8rem !important;
+            padding-top: 0.7rem !important;
+            padding-bottom: 0.7rem !important;
           }
 
           .print-steps {
@@ -189,12 +189,12 @@ const FormFlyerPage: NextPage = () => {
         >
           <div className="print-tight bg-[#0f766e] px-6 py-5 text-center text-white">
             <h1 className="print-headline text-[1.62rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
-              Need help finding
+              Need help booking
               <br />
               the right person?
             </h1>
             <p className="print-hide mx-auto mt-3 max-w-[14.75rem] text-[0.92rem] leading-snug text-white/88">
-              Haircuts first. I can also try to help with other campus services.
+              Haircuts, photography, 3D prints, and other campus services.
             </p>
           </div>
 
@@ -208,9 +208,9 @@ const FormFlyerPage: NextPage = () => {
                 <p className="text-[1.02rem] font-black leading-none">usescheduleme.com/form</p>
               </div>
               <p className="mt-3 mx-auto max-w-[13rem] text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
-                Better than asking around
+                Tell me what you need
                 <br />
-                for a recommendation.
+                and I&apos;ll try to match you.
               </p>
             </div>
 
