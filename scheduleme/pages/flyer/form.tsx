@@ -321,7 +321,7 @@ const FormFlyerPage: NextPage = () => {
               <p className="mt-3 mx-auto max-w-[13rem] text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
                 Better than asking around
                 <br />
-                and hoping for the best.
+                for good recommendations.
               </p>
             </div>
 
