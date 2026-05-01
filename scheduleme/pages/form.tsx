@@ -142,13 +142,13 @@ const FormPage: NextPage = () => {
       </Head>
       <main className="min-h-screen pt-5 pb-12 md:pt-8 md:pb-16" style={{ background: dm ? '#0a0a0a' : '#fcfaf6' }}>
         <section className="px-6 pb-6">
-          <div className="mx-auto max-w-5xl flex items-center justify-between gap-4">
+          <div className="mx-auto max-w-4xl flex items-center justify-between gap-3">
             <Link href="/" className="inline-flex items-center gap-3">
               <span className="text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
                 Schedule<span style={{ color: '#0f766e' }}>Me</span>
               </span>
             </Link>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-3">
               <Link
                 href="/flyer/form"
                 className="btn-primary px-6 py-2.5 text-sm"
@@ -166,18 +166,18 @@ const FormPage: NextPage = () => {
         </section>
 
         <section className="px-6">
-          <div className="mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-[0.9fr_1.02fr] gap-6 md:gap-8 items-start">
+          <div className="mx-auto max-w-4xl grid grid-cols-1 lg:grid-cols-[0.88fr_1fr] gap-6 md:gap-8 items-start">
             <div className="order-1 lg:order-1 pt-1 md:pt-4">
-              <h1 className="max-w-[32rem] text-[2.7rem] sm:text-[3.35rem] md:text-[4.5rem] font-black leading-[0.93]" style={{ letterSpacing: '-0.04em', color: strong }}>
-                <span className="block whitespace-nowrap">Need help finding</span>
+              <h1 className="max-w-[24rem] text-[2.7rem] sm:text-[3.1rem] md:text-[3.7rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.04em', color: strong }}>
+                <span className="block">Need help finding</span>
                 <span className="block">the right person?</span>
               </h1>
-              <p className="mt-4 max-w-[31rem] text-base md:text-lg leading-relaxed" style={{ color: muted }}>
+              <p className="mt-4 max-w-[24rem] text-base md:text-[1.05rem] leading-relaxed" style={{ color: muted }}>
                 I&apos;m testing a simpler way for students to find the right person without random group chats, bad referrals, or guessing.
               </p>
 
               <div
-                className="mt-6 hidden lg:block max-w-[31rem] rounded-[28px] border p-5 md:p-6"
+                className="mt-6 hidden lg:block max-w-[24rem] rounded-[28px] border p-5 md:p-6"
                 style={{
                   background: dm ? 'linear-gradient(180deg,#111111,#0d0d0d)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)',
                   borderColor: border,
