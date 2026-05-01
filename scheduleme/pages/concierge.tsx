@@ -286,7 +286,7 @@ const ConciergePage: NextPage = () => {
                     onChange={(e) => setForm((prev) => ({ ...prev, campus: e.target.value }))}
                     className="mt-1.5 form-input"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Dorm, neighborhood, or where to meet"
+                    placeholder="Dorm, neighborhood, or meet with provider"
                   />
                 </label>
 
@@ -298,7 +298,7 @@ const ConciergePage: NextPage = () => {
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
                     className="mt-1.5 form-input resize-y"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Example: Need a clean fade before Friday. Near campus, under $20 if possible."
+                    placeholder="Example: Need a clean fade before Friday. At Crown dorms, under $20 if possible."
                   />
                 </label>
 
