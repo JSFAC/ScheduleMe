@@ -85,6 +85,10 @@ function CustomSelect({
     };
   }, []);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [value]);
+
   const isPlaceholder = placeholderValue ? value === placeholderValue : false;
 
   const visibleOptions = options.filter((option) => option !== placeholderValue);
@@ -122,6 +126,11 @@ function CustomSelect({
                 <button
                   key={option}
                   type="button"
+                  onPointerUp={(event) => {
+                    event.preventDefault();
+                    onChange(option);
+                    setOpen(false);
+                  }}
                   onClick={() => {
                     onChange(option);
                     setOpen(false);
@@ -162,7 +171,6 @@ const FormPage: NextPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [requestId, setRequestId] = useState('');
   const [error, setError] = useState('');
   const [isLeaving, setIsLeaving] = useState(false);
 
@@ -214,17 +222,13 @@ const FormPage: NextPage = () => {
       const res = await fetch('/api/concierge-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          source: 'ScheduleMe Concierge Page',
-        }),
+        body: JSON.stringify(form),
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Could not submit request.');
 
       setSuccess(true);
-      setRequestId(data?.requestId || '');
       setForm({
         name: '',
         contact: '',
@@ -454,7 +458,7 @@ const FormPage: NextPage = () => {
 
                 {success && (
                   <div className="rounded-2xl border px-4 py-3 text-sm" style={{ background: dm ? 'rgba(15,118,110,0.12)' : '#ecfdf5', borderColor: dm ? 'rgba(15,118,110,0.25)' : '#a7f3d0', color: dm ? '#d1fae5' : '#065f46' }}>
-                    Request sent. I&apos;ll take a look and follow up if I think I can help. {requestId ? `Reference: ${requestId}` : ''}
+                    Request sent. I&apos;ll take a look and follow up if I think I can help.
                   </div>
                 )}
 

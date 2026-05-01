@@ -38,7 +38,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const details = clean(req.body?.details, 2500);
   const reference = clean(req.body?.reference, 600);
   const productInterest = clean(req.body?.productInterest, 120);
-  const source = clean(req.body?.source, 120) || 'Concierge page';
 
   if (!name || !contact || !service || !timing || !details) {
     return res.status(400).json({
@@ -69,7 +68,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const safeDetails = escapeHtml(details);
   const safeReference = escapeHtml(reference || 'None included');
   const safeProductInterest = escapeHtml(productInterest || 'No preference given');
-  const safeSource = escapeHtml(source);
   const safeRequestId = escapeHtml(requestId);
   const safeSubmittedAt = escapeHtml(submittedAt);
 
@@ -82,27 +80,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           <p style="margin:10px 0 0;font-size:14px;opacity:0.82;">${safeName} wants help finding a better provider.</p>
         </div>
         <div style="padding:24px 28px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:18px;">
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Request ID:</strong> ${safeRequestId}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Submitted:</strong> ${safeSubmittedAt}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Name:</strong> ${safeName}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Contact:</strong> ${safeContact}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Requested service:</strong> ${safeService}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Budget:</strong> ${safeBudget}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Timing:</strong> ${safeTiming}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Campus / area:</strong> ${safeCampus}</td></tr>
-            <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Preferred future product:</strong> ${safeProductInterest}</td></tr>
-            <tr><td style="padding:12px 16px;"><strong>Source:</strong> ${safeSource}</td></tr>
-          </table>
-          <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fcfcfd;margin-bottom:18px;">
-            <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#0f766e;">What they want</p>
-            <p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.65;color:#0f172a;">${safeDetails}</p>
+          <div style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;background:#ffffff;margin-bottom:14px;">
+            <p style="margin:0;padding:12px 16px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#0f766e;background:#f8fafc;border-bottom:1px solid #e2e8f0;">Request</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Request ID:</strong> ${safeRequestId}</td></tr>
+              <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Submitted:</strong> ${safeSubmittedAt}</td></tr>
+              <tr><td style="padding:12px 16px;"><strong>Preferred product:</strong> ${safeProductInterest}</td></tr>
+            </table>
           </div>
-          <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fcfcfd;">
-            <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#0f766e;">Reference link</p>
-            <p style="margin:0;font-size:14px;line-height:1.6;color:#334155;">
-              ${reference ? `<a href="${reference}" style="color:#0f766e;text-decoration:underline;">${safeReference}</a>` : safeReference}
-            </p>
+
+          <div style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;background:#ffffff;margin-bottom:14px;">
+            <p style="margin:0;padding:12px 16px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#0f766e;background:#f8fafc;border-bottom:1px solid #e2e8f0;">Student</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Name:</strong> ${safeName}</td></tr>
+              <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Contact:</strong> ${safeContact}</td></tr>
+              <tr><td style="padding:12px 16px;"><strong>Campus / area:</strong> ${safeCampus}</td></tr>
+            </table>
+          </div>
+
+          <div style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;background:#ffffff;">
+            <p style="margin:0;padding:12px 16px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#0f766e;background:#f8fafc;border-bottom:1px solid #e2e8f0;">Need</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Requested service:</strong> ${safeService}</td></tr>
+              <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Timing:</strong> ${safeTiming}</td></tr>
+              <tr><td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;"><strong>Budget:</strong> ${safeBudget}</td></tr>
+              <tr>
+                <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;">
+                  <p style="margin:0 0 6px;font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;color:#64748b;">What they want</p>
+                  <p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.6;color:#0f172a;">${safeDetails}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px;">
+                  <p style="margin:0 0 6px;font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;color:#64748b;">Reference link</p>
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#334155;">
+                    ${reference ? `<a href="${reference}" style="color:#0f766e;text-decoration:underline;word-break:break-word;">${safeReference}</a>` : safeReference}
+                  </p>
+                </td>
+              </tr>
+            </table>
           </div>
         </div>
       </div>
