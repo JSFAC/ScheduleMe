@@ -169,7 +169,7 @@ const FormPage: NextPage = () => {
         <section className="px-6">
           <div className="mx-auto max-w-4xl grid grid-cols-1 lg:grid-cols-[0.88fr_1fr] gap-6 md:gap-8 items-start">
             <div className="order-1 lg:order-1 pt-1 md:pt-4">
-              <h1 className="max-w-[23rem] text-[2.55rem] sm:text-[2.85rem] md:text-[3.15rem] font-black leading-[0.96]" style={{ letterSpacing: '-0.045em', color: strong }}>
+              <h1 className="max-w-[23rem] text-[2.4rem] sm:text-[2.65rem] md:text-[2.8rem] font-black leading-[0.98]" style={{ letterSpacing: '-0.045em', color: strong }}>
                 <span className="block whitespace-nowrap">Need help finding</span>
                 <span className="block whitespace-nowrap">the right person?</span>
               </h1>
