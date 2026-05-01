@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import SeoHead from '../components/SeoHead';
 import { useDm } from '../lib/DarkModeContext';
 
@@ -34,7 +35,7 @@ const BUDGET_OPTIONS = [
 ];
 
 const HONEST_NOTES = [
-  'This goes straight to me, not some big support inbox.',
+  'This is all run by me, so there may be delays sometimes. I’m a UCSC student trying to help other students.',
   'If you need help finding the right person, I’ll do the hard work for you. Make a request and I’ll follow up fast.',
   'Haircuts are the main focus right now, but I’m open to other campus service requests too.',
 ];
@@ -86,6 +87,8 @@ function CustomSelect({
 
   const isPlaceholder = placeholderValue ? value === placeholderValue : false;
 
+  const visibleOptions = options.filter((option) => option !== placeholderValue);
+
   return (
     <div ref={rootRef} className="relative mt-1.5">
       <button
@@ -112,8 +115,8 @@ function CustomSelect({
           style={{ background: fieldBg, borderColor: border }}
           role="listbox"
         >
-          <div className="max-h-72 overflow-y-auto py-2">
-            {options.map((option) => {
+            <div className="max-h-72 overflow-y-auto py-2">
+            {visibleOptions.map((option) => {
               const selected = option === value;
               return (
                 <button
@@ -144,6 +147,7 @@ function CustomSelect({
 
 const FormPage: NextPage = () => {
   const { dm } = useDm();
+  const router = useRouter();
   const [form, setForm] = useState({
     name: '',
     contact: '',
@@ -159,6 +163,7 @@ const FormPage: NextPage = () => {
   const [success, setSuccess] = useState(false);
   const [requestId, setRequestId] = useState('');
   const [error, setError] = useState('');
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const surface = dm ? '#111111' : '#ffffff';
   const border = dm ? '#262626' : '#e5e7eb';
@@ -166,6 +171,14 @@ const FormPage: NextPage = () => {
   const strong = dm ? '#f5f5f5' : '#111827';
   const fieldBg = dm ? '#0d0d0d' : '#ffffff';
   const placeholderSelect = dm ? '#737373' : '#9ca3af';
+
+  function softNavigate(href: string) {
+    if (isLeaving) return;
+    setIsLeaving(true);
+    window.setTimeout(() => {
+      router.push(href);
+    }, 120);
+  }
 
   const canSubmit = useMemo(() => {
     return Boolean(
@@ -234,29 +247,39 @@ const FormPage: NextPage = () => {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
-      <main className="min-h-screen pt-5 pb-12 md:pt-8 md:pb-16" style={{ background: dm ? '#0a0a0a' : '#f6f1e8' }}>
+      <main
+        className="min-h-screen pt-5 pb-12 transition-all duration-150 md:pt-8 md:pb-16"
+        style={{
+          background: dm ? '#0a0a0a' : '#f6f1e8',
+          opacity: isLeaving ? 0.74 : 1,
+          transform: isLeaving ? 'translateY(6px)' : 'translateY(0)',
+        }}
+      >
         <section className="px-6 pb-6">
           <div className="mx-auto max-w-4xl flex min-h-[64px] items-center justify-between gap-3 overflow-hidden">
             <div className="flex min-h-[64px] min-w-0 items-center">
-              <Link href="/" className="inline-flex items-center gap-3">
+              <button type="button" onClick={() => softNavigate('/')} className="inline-flex items-center gap-3">
                 <span className="truncate text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
                   Schedule<span style={{ color: '#0f766e' }}>Me</span>
                 </span>
-              </Link>
+              </button>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <Link
-                href="/flyer/form"
+              <button
+                type="button"
+                onClick={() => softNavigate('/flyer/form')}
                 className="btn-primary min-w-[6.75rem] px-5 py-2.5 text-sm"
+                style={{ boxShadow: dm ? '0 10px 22px rgba(15,118,110,0.18)' : '0 8px 18px rgba(15,118,110,0.15)' }}
               >
                 Flyer
-              </Link>
-              <Link
-                href="/"
+              </button>
+              <button
+                type="button"
+                onClick={() => softNavigate('/')}
                 className="btn-secondary hidden min-w-[6.75rem] px-5 py-2.5 text-sm md:inline-flex"
               >
                 Main site
-              </Link>
+              </button>
             </div>
           </div>
         </section>

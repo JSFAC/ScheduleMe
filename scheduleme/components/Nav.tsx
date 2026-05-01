@@ -426,7 +426,11 @@ export default function Nav({ variant = 'light' }: NavProps) {
         {/* Right */}
         <div className="flex-1 flex items-center justify-end gap-2">
           {isLandingPage ? (
-            <Link href="/form" scroll={false} className="btn-primary text-sm px-4 py-1 md:py-2 text-center whitespace-nowrap rounded-full">
+            <Link
+              href="/form"
+              scroll={false}
+              className={`text-sm font-medium transition-colors whitespace-nowrap ${isDark ? 'text-neutral-300 hover:text-white' : 'text-neutral-500 hover:text-neutral-800'}`}
+            >
               Form →
             </Link>
           ) : (

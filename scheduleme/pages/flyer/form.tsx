@@ -1,15 +1,24 @@
 // @ts-nocheck
 import { useState } from 'react';
 import type { NextPage } from 'next';
-import Link from 'next/link';
+import { useRouter } from 'next/router';
 import SeoHead from '../../components/SeoHead';
 import { absoluteUrl } from '../../lib/siteMeta';
 
 const FormFlyerPage: NextPage = () => {
+  const router = useRouter();
   const formUrl = absoluteUrl('/form');
-  const flyerUrl = absoluteUrl('/flyer/form');
   const qrSrc = `https://quickchart.io/qr?text=${encodeURIComponent(formUrl)}&size=520&margin=1`;
   const [shareState, setShareState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  function softNavigate(href: string) {
+    if (isLeaving) return;
+    setIsLeaving(true);
+    window.setTimeout(() => {
+      router.push(href);
+    }, 120);
+  }
 
   async function handleShare() {
     try {
@@ -22,13 +31,13 @@ const FormFlyerPage: NextPage = () => {
         await navigator.share({
           title: 'ScheduleMe flyer',
           text: 'Need help finding the right person? Start here.',
-          url: flyerUrl,
+          url: formUrl,
         });
         setShareState('idle');
         return;
       }
 
-      await navigator.clipboard.writeText(flyerUrl);
+      await navigator.clipboard.writeText(formUrl);
       setShareState('copied');
       window.setTimeout(() => setShareState('idle'), 2200);
     } catch {
@@ -141,7 +150,13 @@ const FormFlyerPage: NextPage = () => {
         }
       `}</style>
 
-      <main className="flyer-stage min-h-screen bg-[#f6f1e8] px-6 pt-5 pb-6 md:pt-8">
+      <main
+        className="flyer-stage min-h-screen bg-[#f6f1e8] px-6 pt-5 pb-6 transition-all duration-150 md:pt-8"
+        style={{
+          opacity: isLeaving ? 0.74 : 1,
+          transform: isLeaving ? 'translateY(6px)' : 'translateY(0)',
+        }}
+      >
         <div className="flyer-toolbar mx-auto mb-6 w-full max-w-4xl">
           <div className="flex min-h-[64px] items-center justify-between gap-3 overflow-hidden">
             <div className="min-h-[64px] min-w-0 flex-1 flex-col justify-center md:flex">
@@ -149,13 +164,21 @@ const FormFlyerPage: NextPage = () => {
               <p className="text-sm text-neutral-600">Use this page for screenshots, AirDrop, or printing.</p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <button onClick={handleShare} className="btn-primary min-w-[6.75rem] px-6 py-2.5 text-sm hidden md:inline-flex">
+              <button
+                onClick={handleShare}
+                className="btn-primary hidden min-w-[6.75rem] px-6 py-2.5 text-sm md:inline-flex"
+                style={{ boxShadow: '0 8px 18px rgba(15,118,110,0.15)' }}
+              >
                 {shareState === 'copied' ? 'Link copied' : shareState === 'error' ? 'Could not share' : 'Share'}
               </button>
-              <Link href="/form" className="btn-secondary min-w-[6.75rem] px-5 py-2.5 text-sm">
+              <button
+                type="button"
+                onClick={() => softNavigate('/form')}
+                className="btn-secondary min-w-[6.75rem] px-5 py-2.5 text-sm"
+              >
                 <span className="hidden md:inline">Back to form</span>
                 <span className="md:hidden">Form</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
