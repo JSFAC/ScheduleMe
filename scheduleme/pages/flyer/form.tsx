@@ -278,17 +278,22 @@ const FormFlyerPage: NextPage = () => {
       <main className="flyer-stage min-h-screen bg-[#f6f1e8] px-4 pt-5 pb-6 sm:px-6">
         <div className="flyer-toolbar mx-auto mb-6 w-full max-w-4xl">
           <div className="flex items-start justify-between gap-3 min-h-[48px]">
-            <div aria-hidden="true" className="w-[11rem]" />
+            <Link href="/" className="inline-flex items-center md:opacity-0 md:pointer-events-none">
+              <span className="text-[2rem] font-black text-[#111827]" style={{ letterSpacing: '-0.04em' }}>
+                Schedule<span style={{ color: '#0f766e' }}>Me</span>
+              </span>
+            </Link>
             <div className="flex items-center gap-3">
-              <button onClick={handleShare} className="btn-primary min-w-[6.75rem] px-6 py-2.5 text-sm">
+              <button onClick={handleShare} className="btn-primary min-w-[6.75rem] px-6 py-2.5 text-sm hidden md:inline-flex">
                 {shareState === 'error' ? 'Could not share' : 'Share'}
               </button>
               <Link href="/form" className="btn-secondary min-w-[6.75rem] px-6 py-2.5 text-sm">
-                Open form
+                <span className="hidden md:inline">Back to form</span>
+                <span className="md:hidden">Form</span>
               </Link>
             </div>
           </div>
-          <div className="mt-1">
+          <div className="mt-1 hidden md:block">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">ScheduleMe flyer</p>
             <p className="text-sm text-neutral-600">Use this page for screenshots, AirDrop, or printing.</p>
           </div>

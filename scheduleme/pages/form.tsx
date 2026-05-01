@@ -17,7 +17,7 @@ const SERVICE_OPTIONS = [
 ];
 
 const TIMING_OPTIONS = [
-  'Choose an option',
+  'Choose',
   'ASAP / today',
   'This week',
   'This weekend',
@@ -26,7 +26,7 @@ const TIMING_OPTIONS = [
 ];
 
 const BUDGET_OPTIONS = [
-  'Choose an option',
+  'Choose',
   'Under $10',
   '$10-$20',
   '$20-$35',
@@ -55,8 +55,8 @@ const FormPage: NextPage = () => {
     name: '',
     contact: '',
     service: 'Haircut / fade',
-    timing: 'Choose an option',
-    budget: 'Choose an option',
+    timing: 'Choose',
+    budget: 'Choose',
     campus: '',
     details: '',
     reference: '',
@@ -80,9 +80,9 @@ const FormPage: NextPage = () => {
       form.contact.trim() &&
       form.service.trim() &&
       form.timing.trim() &&
-      form.timing !== 'Choose an option' &&
+      form.timing !== 'Choose' &&
       form.budget.trim() &&
-      form.budget !== 'Choose an option' &&
+      form.budget !== 'Choose' &&
       form.campus.trim() &&
       form.details.trim() &&
       form.productInterest.trim() &&
@@ -117,8 +117,8 @@ const FormPage: NextPage = () => {
         name: '',
         contact: '',
         service: 'Haircut / fade',
-        timing: 'Choose an option',
-        budget: 'Choose an option',
+        timing: 'Choose',
+        budget: 'Choose',
         campus: '',
         details: '',
         reference: '',
@@ -160,7 +160,7 @@ const FormPage: NextPage = () => {
               </Link>
               <Link
                 href="/"
-                className="btn-secondary min-w-[6.75rem] px-6 py-2.5 text-sm"
+                className="btn-secondary min-w-[6.75rem] px-6 py-2.5 text-sm hidden md:inline-flex"
               >
                 Main site
               </Link>
@@ -208,7 +208,7 @@ const FormPage: NextPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Name</span>
                     <input
@@ -254,7 +254,7 @@ const FormPage: NextPage = () => {
                       value={form.timing}
                       onChange={(e) => setForm((prev) => ({ ...prev, timing: e.target.value }))}
                       className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: form.timing === 'Choose an option' ? placeholderSelect : strong }}
+                      style={{ background: fieldBg, borderColor: border, color: form.timing === 'Choose' ? placeholderSelect : strong }}
                     >
                       {TIMING_OPTIONS.map((option, index) => (
                         <option key={option} value={option} disabled={index === 0}>
@@ -269,7 +269,7 @@ const FormPage: NextPage = () => {
                       value={form.budget}
                       onChange={(e) => setForm((prev) => ({ ...prev, budget: e.target.value }))}
                       className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: form.budget === 'Choose an option' ? placeholderSelect : strong }}
+                      style={{ background: fieldBg, borderColor: border, color: form.budget === 'Choose' ? placeholderSelect : strong }}
                     >
                       {BUDGET_OPTIONS.map((option, index) => (
                         <option key={option} value={option} disabled={index === 0}>
@@ -294,10 +294,10 @@ const FormPage: NextPage = () => {
                 <label className="block">
                   <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>What do you want?</span>
                   <textarea
-                    rows={4}
+                    rows={3}
                     value={form.details}
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
-                    className="mt-1.5 form-input resize-y"
+                    className="mt-1.5 form-input resize-none min-h-[98px] md:min-h-[124px]"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
                     placeholder="Example: need a cut sometime before Friday, I’m at Crown dorms and don’t wanna spend more than like $20"
                   />
@@ -310,7 +310,7 @@ const FormPage: NextPage = () => {
                     onChange={(e) => setForm((prev) => ({ ...prev, reference: e.target.value }))}
                     className="mt-1.5 form-input"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Instagram post, style photo link, or Pinterest board"
+                    placeholder="Instagram post, pinterest, etc."
                   />
                 </label>
 
