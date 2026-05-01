@@ -82,6 +82,7 @@ const ConciergePage: NextPage = () => {
       form.timing !== 'Choose an option' &&
       form.budget.trim() &&
       form.budget !== 'Choose an option' &&
+      form.campus.trim() &&
       form.details.trim() &&
       form.productInterest.trim() &&
       form.productInterest !== 'Choose an option'
@@ -147,68 +148,47 @@ const ConciergePage: NextPage = () => {
                 Schedule<span style={{ color: '#0f766e' }}>Me</span>
               </span>
             </Link>
-            <Link
-              href="/"
-              className="text-sm font-semibold px-4 py-2 rounded-full border"
-              style={{ color: muted, borderColor: border, background: surface }}
-            >
-              Main site
-            </Link>
+            <div className="flex items-center gap-2.5">
+              <Link
+                href="/flyer/concierge"
+                className="text-sm font-semibold px-4 py-2 rounded-full border"
+                style={{ color: muted, borderColor: border, background: surface }}
+              >
+                Flyer
+              </Link>
+              <Link
+                href="/"
+                className="text-sm font-semibold px-4 py-2 rounded-full border"
+                style={{ color: muted, borderColor: border, background: surface }}
+              >
+                Main site
+              </Link>
+            </div>
           </div>
         </section>
 
         <section className="px-6">
-          <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-8 items-start">
-            <div className="order-2 lg:order-1 pt-1 md:pt-4">
-              <h1 className="text-[3.35rem] sm:text-6xl font-black leading-[0.93]" style={{ letterSpacing: '-0.04em', color: strong }}>
+          <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-6 md:gap-8 items-start">
+            <div className="order-1 lg:order-1 pt-1 md:pt-4">
+              <h1 className="text-[2.7rem] sm:text-[3.35rem] md:text-6xl font-black leading-[0.93]" style={{ letterSpacing: '-0.04em', color: strong }}>
                 <span className="block whitespace-nowrap">Need help finding</span>
                 <span className="block">the right person?</span>
               </h1>
               <p className="mt-4 max-w-xl text-base md:text-lg leading-relaxed" style={{ color: muted }}>
                 Tell me what you need, your budget, and your timing. If I think I can help, I&apos;ll follow up fast.
               </p>
-
-              <div
-                className="mt-6 rounded-[28px] border p-5 md:p-6"
-                style={{
-                  background: dm ? 'linear-gradient(180deg,#111111,#0d0d0d)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)',
-                  borderColor: border,
-                }}
-              >
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">Quick note</p>
-                <ul className="space-y-2.5 text-sm leading-relaxed" style={{ color: muted }}>
-                  {HONEST_NOTES.map((note) => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
-              </div>
             </div>
 
             <div
-              className="order-1 lg:order-2 rounded-[28px] md:rounded-[32px] border p-5 md:p-7 lg:sticky lg:top-28"
+              className="order-2 lg:order-2 rounded-[28px] md:rounded-[32px] border p-5 md:p-7 lg:sticky lg:top-28"
               style={{
                 background: surface,
                 borderColor: border,
                 boxShadow: dm ? '0 22px 60px rgba(0,0,0,0.42)' : '0 20px 64px rgba(15,23,42,0.10)',
               }}
             >
-              <div className="mb-5">
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-2">Request a match</p>
-                <h2 className="text-2xl font-black" style={{ letterSpacing: '-0.03em', color: strong }}>
-                  Start here.
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: muted }}>
-                  This comes straight to me. If I think I can help, I&apos;ll follow up as fast as I can.
-                </p>
-                <div className="mt-3">
-                  <Link
-                    href="/flyer/concierge"
-                    className="inline-flex items-center rounded-full px-4 py-2.5 text-sm font-black"
-                    style={{ color: '#ffffff', background: '#0f766e' }}
-                  >
-                    View flyer
-                  </Link>
-                </div>
+              <div className="mb-4 md:mb-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent">Request a match</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -235,7 +215,7 @@ const ConciergePage: NextPage = () => {
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Service</span>
                     <select
@@ -249,6 +229,9 @@ const ConciergePage: NextPage = () => {
                       ))}
                     </select>
                   </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Timing</span>
                     <select
@@ -264,9 +247,6 @@ const ConciergePage: NextPage = () => {
                       ))}
                     </select>
                   </label>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Budget</span>
                     <select
@@ -282,17 +262,18 @@ const ConciergePage: NextPage = () => {
                       ))}
                     </select>
                   </label>
-                  <label className="block">
-                    <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Campus / area (optional)</span>
-                    <input
-                      value={form.campus}
-                      onChange={(e) => setForm((prev) => ({ ...prev, campus: e.target.value }))}
-                      className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: strong }}
-                      placeholder="Dorm, campus, or neighborhood"
-                    />
-                  </label>
                 </div>
+
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Campus / area</span>
+                  <input
+                    value={form.campus}
+                    onChange={(e) => setForm((prev) => ({ ...prev, campus: e.target.value }))}
+                    className="mt-1.5 form-input"
+                    style={{ background: fieldBg, borderColor: border, color: strong }}
+                    placeholder="Dorm, neighborhood, or where to meet"
+                  />
+                </label>
 
                 <label className="block">
                   <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>What do you want?</span>
@@ -357,6 +338,21 @@ const ConciergePage: NextPage = () => {
                   I&apos;ll follow up through the contact method you enter.
                 </p>
               </form>
+            </div>
+
+            <div
+              className="order-3 lg:order-3 rounded-[28px] border p-5 md:p-6 lg:max-w-[calc(52.5%-1rem)]"
+              style={{
+                background: dm ? 'linear-gradient(180deg,#111111,#0d0d0d)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)',
+                borderColor: border,
+              }}
+            >
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">Quick note</p>
+              <ul className="space-y-2.5 text-sm leading-relaxed" style={{ color: muted }}>
+                {HONEST_NOTES.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>
