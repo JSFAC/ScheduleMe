@@ -148,6 +148,7 @@ function CustomSelect({
 const FormPage: NextPage = () => {
   const { dm } = useDm();
   const router = useRouter();
+  const [isReady, setIsReady] = useState(false);
   const [form, setForm] = useState({
     name: '',
     contact: '',
@@ -172,12 +173,17 @@ const FormPage: NextPage = () => {
   const fieldBg = dm ? '#0d0d0d' : '#ffffff';
   const placeholderSelect = dm ? '#737373' : '#9ca3af';
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   function softNavigate(href: string) {
     if (isLeaving) return;
     setIsLeaving(true);
     window.setTimeout(() => {
       router.push(href);
-    }, 120);
+    }, 190);
   }
 
   const canSubmit = useMemo(() => {
@@ -248,12 +254,20 @@ const FormPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
       <main
-        className="min-h-screen pt-5 pb-12 transition-opacity duration-150 md:pt-8 md:pb-16"
+        className="min-h-screen pt-5 pb-12 transition-[opacity,filter] duration-200 md:pt-8 md:pb-16"
         style={{
           background: dm ? '#0a0a0a' : '#f6f1e8',
-          opacity: isLeaving ? 0.82 : 1,
+          opacity: isLeaving ? 0.72 : isReady ? 1 : 0,
+          filter: isLeaving ? 'blur(1px)' : 'blur(0px)',
         }}
       >
+        <div
+          className="pointer-events-none fixed inset-0 z-[60] transition-opacity duration-200"
+          style={{
+            opacity: isLeaving ? 1 : isReady ? 0 : 1,
+            background: dm ? 'rgba(10,10,10,0.18)' : 'rgba(246,241,232,0.32)',
+          }}
+        />
         <section className="px-6 pb-6">
           <div className="mx-auto max-w-4xl flex min-h-[64px] items-center justify-between gap-3 overflow-hidden">
             <div className="flex min-h-[64px] min-w-0 items-center">
@@ -323,13 +337,13 @@ const FormPage: NextPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.95fr_1.05fr] md:gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Name</span>
                     <input
                       value={form.name}
                       onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                      className="mt-1.5 form-input text-[0.95rem] md:text-base"
+                      className="mt-1.5 form-input px-3.5 text-[0.95rem] md:px-4 md:text-base"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                       placeholder="Your name"
                     />
@@ -339,9 +353,9 @@ const FormPage: NextPage = () => {
                     <input
                       value={form.contact}
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
-                      className="mt-1.5 form-input text-[0.9rem] md:text-base"
+                      className="mt-1.5 form-input px-3 text-[0.84rem] tracking-[-0.01em] placeholder:tracking-[-0.02em] md:px-4 md:text-base md:tracking-normal md:placeholder:tracking-normal"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="number, insta, etc"
+                      placeholder="number, insta, etc"
                     />
                   </label>
                 </div>
@@ -407,7 +421,7 @@ const FormPage: NextPage = () => {
                     rows={2}
                     value={form.details}
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
-                    className="mt-1.5 form-input resize-none min-h-[84px] md:min-h-[108px]"
+                    className="mt-1.5 form-input resize-none min-h-[74px] md:min-h-[108px]"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
                     placeholder="Example: need a cut before Friday 5/1, I’m at Crown dorms and don’t wanna spend more than like $20"
                   />

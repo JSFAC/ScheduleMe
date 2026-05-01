@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import SeoHead from '../../components/SeoHead';
@@ -11,13 +11,19 @@ const FormFlyerPage: NextPage = () => {
   const qrSrc = `https://quickchart.io/qr?text=${encodeURIComponent(formUrl)}&size=520&margin=1`;
   const [shareState, setShareState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   function softNavigate(href: string) {
     if (isLeaving) return;
     setIsLeaving(true);
     window.setTimeout(() => {
       router.push(href);
-    }, 120);
+    }, 190);
   }
 
   async function handleShare() {
@@ -96,12 +102,12 @@ const FormFlyerPage: NextPage = () => {
 
           .flyer-card {
             position: absolute !important;
-            left: 0.08in !important;
-            top: 0.07in !important;
-            width: 4.09in !important;
-            height: 5.34in !important;
-            min-height: 5.34in !important;
-            max-height: 5.34in !important;
+            left: 0.12in !important;
+            top: 0.16in !important;
+            width: 4.01in !important;
+            height: 5.16in !important;
+            min-height: 5.16in !important;
+            max-height: 5.16in !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
@@ -115,40 +121,56 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .print-tight {
-            padding-top: 0.58rem !important;
-            padding-bottom: 0.52rem !important;
+            padding-top: 0.46rem !important;
+            padding-bottom: 0.42rem !important;
           }
 
           .print-headline {
             margin-top: 0 !important;
-            font-size: 1.18rem !important;
-            line-height: 0.92 !important;
+            font-size: 1.04rem !important;
+            line-height: 0.94 !important;
+          }
+
+          .print-subhead {
+            display: block !important;
+            margin-top: 0.26rem !important;
+            font-size: 0.68rem !important;
+            line-height: 1.18 !important;
+            opacity: 0.92 !important;
           }
 
           .print-qr {
-            height: 96px !important;
-            width: 96px !important;
+            height: 92px !important;
+            width: 92px !important;
           }
 
           .print-box {
-            padding-top: 0.62rem !important;
-            padding-bottom: 0.62rem !important;
+            padding-top: 0.56rem !important;
+            padding-bottom: 0.56rem !important;
           }
 
           .print-steps {
-            margin-top: 0.3rem !important;
-            gap: 0.16rem !important;
-            font-size: 0.8rem !important;
+            margin-top: 0.24rem !important;
+            gap: 0.12rem !important;
+            font-size: 0.77rem !important;
           }
         }
       `}</style>
 
       <main
-        className="flyer-stage min-h-screen bg-[#f6f1e8] px-6 pt-5 pb-6 transition-all duration-150 md:pt-8"
+        className="flyer-stage min-h-screen bg-[#f6f1e8] px-6 pt-5 pb-6 transition-[opacity,filter] duration-200 md:pt-8"
         style={{
-          opacity: isLeaving ? 0.82 : 1,
+          opacity: isLeaving ? 0.72 : isReady ? 1 : 0,
+          filter: isLeaving ? 'blur(1px)' : 'blur(0px)',
         }}
       >
+        <div
+          className="pointer-events-none fixed inset-0 z-[60] transition-opacity duration-200"
+          style={{
+            opacity: isLeaving ? 1 : isReady ? 0 : 1,
+            background: 'rgba(246,241,232,0.32)',
+          }}
+        />
         <div className="flyer-toolbar mx-auto mb-6 w-full max-w-4xl">
           <div className="flex min-h-[64px] items-center justify-between gap-3 overflow-hidden">
             <div className="min-h-[64px] min-w-0 flex-1 flex-col justify-center md:flex">
@@ -185,7 +207,7 @@ const FormFlyerPage: NextPage = () => {
               <br />
               the right person?
             </h1>
-            <p className="mx-auto mt-3 max-w-[14.75rem] text-[0.92rem] leading-snug text-white/88 print:text-[0.82rem]">
+            <p className="print-subhead mx-auto mt-3 max-w-[14.75rem] text-[0.92rem] leading-snug text-white/88 print:text-[0.76rem]">
               Haircuts, photography, 3D prints, and other campus services.
             </p>
           </div>
@@ -193,7 +215,7 @@ const FormFlyerPage: NextPage = () => {
           <div className="px-6 py-4">
             <div className="print-box rounded-[22px] border border-[#d1d5db] bg-white px-4 py-4 text-center">
               <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">Scan here</p>
-              <div className="mx-auto mt-3 w-fit rounded-[20px] bg-white p-2 shadow-sm">
+              <div className="mx-auto mt-3 w-fit rounded-[20px] bg-white p-1.5">
                 <img src={qrSrc} alt="QR code for ScheduleMe form page" className="print-qr h-[116px] w-[116px]" />
               </div>
               <div className="mt-3 text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
