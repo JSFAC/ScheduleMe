@@ -35,7 +35,7 @@ const BUDGET_OPTIONS = [
 ];
 
 const HONEST_NOTES = [
-  'This is all run by me, so there may be delays sometimes. I’m a UCSC student trying to help other students.',
+  'This is all run by me, so there may be delays in response. I’m a UCSC student trying to help other students.',
   'If you need help finding the right person, I’ll do the hard work for you. Make a request and I’ll follow up fast.',
   'Haircuts are the main focus right now, but I’m open to other campus service requests too.',
 ];
@@ -115,7 +115,7 @@ function CustomSelect({
           style={{ background: fieldBg, borderColor: border }}
           role="listbox"
         >
-            <div className="max-h-72 overflow-y-auto py-2">
+            <div className="py-2">
             {visibleOptions.map((option) => {
               const selected = option === value;
               return (
@@ -126,7 +126,7 @@ function CustomSelect({
                     onChange(option);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left text-base transition-colors hover:bg-black/5 md:text-sm"
+                  className="flex w-full items-center justify-between px-4 py-2.5 text-left text-base transition-colors hover:bg-black/5 md:text-sm"
                   style={{ color: option === placeholderValue ? muted : strong }}
                 >
                   <span className="truncate">{option}</span>
@@ -248,11 +248,10 @@ const FormPage: NextPage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
       <main
-        className="min-h-screen pt-5 pb-12 transition-all duration-150 md:pt-8 md:pb-16"
+        className="min-h-screen pt-5 pb-12 transition-opacity duration-150 md:pt-8 md:pb-16"
         style={{
           background: dm ? '#0a0a0a' : '#f6f1e8',
-          opacity: isLeaving ? 0.74 : 1,
-          transform: isLeaving ? 'translateY(6px)' : 'translateY(0)',
+          opacity: isLeaving ? 0.82 : 1,
         }}
       >
         <section className="px-6 pb-6">
@@ -269,7 +268,7 @@ const FormPage: NextPage = () => {
                 type="button"
                 onClick={() => softNavigate('/flyer/form')}
                 className="btn-primary min-w-[6.75rem] px-5 py-2.5 text-sm"
-                style={{ boxShadow: dm ? '0 10px 22px rgba(15,118,110,0.18)' : '0 8px 18px rgba(15,118,110,0.15)' }}
+                style={{ boxShadow: dm ? '0 7px 16px rgba(15,118,110,0.12)' : '0 6px 14px rgba(15,118,110,0.10)' }}
               >
                 Flyer
               </button>
@@ -324,13 +323,13 @@ const FormPage: NextPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Name</span>
                     <input
                       value={form.name}
                       onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                      className="mt-1.5 form-input"
+                      className="mt-1.5 form-input text-[0.95rem] md:text-base"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                       placeholder="Your name"
                     />
@@ -340,7 +339,7 @@ const FormPage: NextPage = () => {
                     <input
                       value={form.contact}
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
-                      className="mt-1.5 form-input"
+                      className="mt-1.5 form-input text-[0.9rem] md:text-base"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                     placeholder="number, insta, etc"
                     />
@@ -405,10 +404,10 @@ const FormPage: NextPage = () => {
                 <label className="block">
                   <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>What do you want?</span>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={form.details}
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
-                    className="mt-1.5 form-input resize-none min-h-[72px] md:min-h-[108px]"
+                    className="mt-1.5 form-input resize-none min-h-[84px] md:min-h-[108px]"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
                     placeholder="Example: need a cut before Friday 5/1, I’m at Crown dorms and don’t wanna spend more than like $20"
                   />

@@ -96,56 +96,49 @@ const FormFlyerPage: NextPage = () => {
 
           .flyer-card {
             position: absolute !important;
-            left: 0 !important;
-            top: 0.12in !important;
-            width: 4.25in !important;
-            height: 5.26in !important;
-            min-height: 5.26in !important;
-            max-height: 5.26in !important;
+            left: 0.08in !important;
+            top: 0.07in !important;
+            width: 4.09in !important;
+            height: 5.34in !important;
+            min-height: 5.34in !important;
+            max-height: 5.34in !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             margin: 0 !important;
             overflow: hidden !important;
+            box-sizing: border-box !important;
             break-inside: avoid !important;
             break-after: avoid-page !important;
             page-break-inside: avoid !important;
             page-break-after: avoid !important;
           }
 
-          .print-hide {
-            display: none !important;
-          }
-
-          .print-wordmark-hide {
-            display: none !important;
-          }
-
           .print-tight {
-            padding-top: 0.65rem !important;
-            padding-bottom: 0.6rem !important;
+            padding-top: 0.58rem !important;
+            padding-bottom: 0.52rem !important;
           }
 
           .print-headline {
             margin-top: 0 !important;
-            font-size: 1.28rem !important;
+            font-size: 1.18rem !important;
             line-height: 0.92 !important;
           }
 
           .print-qr {
-            height: 104px !important;
-            width: 104px !important;
+            height: 96px !important;
+            width: 96px !important;
           }
 
           .print-box {
-            padding-top: 0.7rem !important;
-            padding-bottom: 0.7rem !important;
+            padding-top: 0.62rem !important;
+            padding-bottom: 0.62rem !important;
           }
 
           .print-steps {
-            margin-top: 0.35rem !important;
-            gap: 0.2rem !important;
-            font-size: 0.84rem !important;
+            margin-top: 0.3rem !important;
+            gap: 0.16rem !important;
+            font-size: 0.8rem !important;
           }
         }
       `}</style>
@@ -153,8 +146,7 @@ const FormFlyerPage: NextPage = () => {
       <main
         className="flyer-stage min-h-screen bg-[#f6f1e8] px-6 pt-5 pb-6 transition-all duration-150 md:pt-8"
         style={{
-          opacity: isLeaving ? 0.74 : 1,
-          transform: isLeaving ? 'translateY(6px)' : 'translateY(0)',
+          opacity: isLeaving ? 0.82 : 1,
         }}
       >
         <div className="flyer-toolbar mx-auto mb-6 w-full max-w-4xl">
@@ -167,7 +159,7 @@ const FormFlyerPage: NextPage = () => {
               <button
                 onClick={handleShare}
                 className="btn-primary hidden min-w-[6.75rem] px-6 py-2.5 text-sm md:inline-flex"
-                style={{ boxShadow: '0 8px 18px rgba(15,118,110,0.15)' }}
+                style={{ boxShadow: '0 6px 14px rgba(15,118,110,0.10)' }}
               >
                 {shareState === 'copied' ? 'Link copied' : shareState === 'error' ? 'Could not share' : 'Share'}
               </button>
@@ -193,7 +185,7 @@ const FormFlyerPage: NextPage = () => {
               <br />
               the right person?
             </h1>
-            <p className="print-hide mx-auto mt-3 max-w-[14.75rem] text-[0.92rem] leading-snug text-white/88">
+            <p className="mx-auto mt-3 max-w-[14.75rem] text-[0.92rem] leading-snug text-white/88 print:text-[0.82rem]">
               Haircuts, photography, 3D prints, and other campus services.
             </p>
           </div>
@@ -201,16 +193,16 @@ const FormFlyerPage: NextPage = () => {
           <div className="px-6 py-4">
             <div className="print-box rounded-[22px] border border-[#d1d5db] bg-white px-4 py-4 text-center">
               <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">Scan here</p>
-              <div className="mx-auto mt-3 w-fit rounded-[20px] border border-[#d9d3c8] bg-white p-2 shadow-sm">
+              <div className="mx-auto mt-3 w-fit rounded-[20px] bg-white p-2 shadow-sm">
                 <img src={qrSrc} alt="QR code for ScheduleMe form page" className="print-qr h-[116px] w-[116px]" />
               </div>
               <div className="mt-3 text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
                 <p className="text-[1.02rem] font-black leading-none">usescheduleme.com/form</p>
               </div>
               <p className="mt-3 mx-auto max-w-[13rem] text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
-                Tell me what you need
+                Better than asking around
                 <br />
-                and I&apos;ll try to match you.
+                for a recommendation.
               </p>
             </div>
 
