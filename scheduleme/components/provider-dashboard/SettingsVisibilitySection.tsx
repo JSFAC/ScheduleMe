@@ -2,6 +2,9 @@ import ProviderSwitch from './ProviderSwitch';
 
 type SettingsVisibilitySectionProps = {
   dm: boolean;
+  dangerBgColor: string;
+  dangerBorderColor: string;
+  dangerTextColor: string;
   publicVisibility: boolean;
   publicShowName: boolean;
   publicShowPhotos: boolean;
@@ -46,6 +49,9 @@ function ToggleCard({
 
 export default function SettingsVisibilitySection({
   dm,
+  dangerBgColor,
+  dangerBorderColor,
+  dangerTextColor,
   publicVisibility,
   publicShowName,
   publicShowPhotos,
@@ -65,8 +71,9 @@ export default function SettingsVisibilitySection({
         <div
           className="text-[11px] font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto max-w-[11rem] text-center sm:text-left"
           style={{
-            background: publicVisibility ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)',
-            color: publicVisibility ? '#059669' : '#b91c1c',
+            background: publicVisibility ? 'rgba(16,185,129,0.12)' : dangerBgColor,
+            border: publicVisibility ? '1px solid rgba(16,185,129,0.14)' : `1px solid ${dangerBorderColor}`,
+            color: publicVisibility ? '#059669' : dangerTextColor,
           }}
         >
           {publicVisibility ? 'Visible on ScheduleMe' : 'Hidden from public browse'}

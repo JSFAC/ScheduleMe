@@ -1534,7 +1534,10 @@ const BookingsPage: NextPage = () => {
                 <Link key={biz.id} href={`/browse?biz=${biz.id}`} scroll={false}
                   className="group block rounded-xl overflow-hidden flex-shrink-0 transition-all hover:-translate-y-0.5"
                   style={{ width: 200, border: dm ? '1px solid #404040' : '1px solid rgba(15,118,110,0.12)', background: dm ? '#171717' : 'white' }}>
-                  <div className="relative overflow-hidden bg-neutral-100" style={{ height: 140 }}>
+                  <div
+                    className="relative overflow-hidden"
+                    style={{ height: 140, background: dm ? '#2c2c2e' : '#e5e7eb' }}
+                  >
                     {biz.coverUrl && biz.coverUrl !== 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' ? (
                       <img src={biz.coverUrl} alt={biz.name || biz.category || 'Provider'} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
                     ) : (

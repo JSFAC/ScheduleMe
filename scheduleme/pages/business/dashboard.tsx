@@ -2029,11 +2029,7 @@ const BusinessDashboard: NextPage = () => {
     activateTab('settings');
     setStripeEmbeddedMode(mode);
     setStripeEmbeddedOpen(true);
-    setStripeStatusMsg(
-      mode === 'update'
-        ? 'Stripe setup opened below so you can update payouts without leaving ScheduleMe.'
-        : 'Stripe setup opened below so you can finish payouts without leaving ScheduleMe.'
-    );
+    setStripeStatusMsg('');
   }
 
   async function refreshStripeStatus(): Promise<boolean> {
@@ -3857,6 +3853,9 @@ const BusinessDashboard: NextPage = () => {
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
                 <SettingsVisibilitySection
                   dm={dm}
+                  dangerBgColor={dangerBgColor}
+                  dangerBorderColor={dangerBorderColor}
+                  dangerTextColor={dangerTextColor}
                   publicVisibility={publicVisibility}
                   publicShowName={publicShowName}
                   publicShowPhotos={publicShowPhotos}

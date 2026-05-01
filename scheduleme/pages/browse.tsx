@@ -850,7 +850,10 @@ const BrowsePage: NextPage = () => {
                     <button key={biz.id} onClick={() => { if (biz.preview_locked) return; if(biz.slug||biz.realId||biz.id) window.location.href='/biz/'+(biz.slug||biz.realId||biz.id); else setActiveBiz(biz); }}
                       className="group w-full text-left flex gap-4 p-3.5 rounded-2xl border transition-all hover:-translate-y-0.5 animate-fade-up"
                       style={{ background: dm ? '#1c1c1e' : 'white', borderColor: dm ? '#2c2c2e' : 'rgba(0,0,0,0.06)', boxShadow: dm ? 'none' : '0 1px 6px rgba(0,0,0,0.05)', animationDelay: `${paginated.indexOf(biz) * 0.04}s`, cursor: biz.preview_locked ? 'not-allowed' : 'pointer' }}>
-                      <div className="relative flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100" style={{ width: 120, height: 140 }}>
+                      <div
+                        className="relative flex-shrink-0 overflow-hidden rounded-xl"
+                        style={{ width: 120, height: 140, background: dm ? '#2c2c2e' : '#e5e7eb' }}
+                      >
                         {biz.preview_locked ? (
                           <div className="absolute inset-0 flex items-center justify-center" style={{ background: dm ? '#30333f' : '#d1d5db' }}>
                             <span className="text-xl font-black" style={{ color: dm ? '#d1d5db' : '#6b7280', letterSpacing: '-0.03em' }}>ST</span>

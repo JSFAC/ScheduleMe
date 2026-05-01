@@ -28,8 +28,15 @@ function loadStripeConnectScript(): Promise<void> {
   stripeConnectLoader = new Promise((resolve, reject) => {
     const existing = document.querySelector('script[data-stripe-connect-script="true"]') as HTMLScriptElement | null;
     if (existing) {
+      if (window.StripeConnect?.init || existing.dataset.loaded === 'true') {
+        resolve();
+        return;
+      }
       existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error('Failed to load Stripe Connect.')), { once: true });
+      existing.addEventListener('error', () => {
+        stripeConnectLoader = null;
+        reject(new Error('Failed to load Stripe Connect.'));
+      }, { once: true });
       return;
     }
 
@@ -37,8 +44,14 @@ function loadStripeConnectScript(): Promise<void> {
     script.src = 'https://connect-js.stripe.com/v1.0/connect.js';
     script.async = true;
     script.dataset.stripeConnectScript = 'true';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Stripe Connect.'));
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    };
+    script.onerror = () => {
+      stripeConnectLoader = null;
+      reject(new Error('Failed to load Stripe Connect.'));
+    };
     document.head.appendChild(script);
   });
 
@@ -158,12 +171,12 @@ export default function StripeEmbeddedOnboarding({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold" style={{ color: dm ? '#f5f5f5' : '#171717' }}>
-            Finish Stripe inside ScheduleMe
+            Stripe payout setup
           </h3>
           <p className="mt-1 text-xs" style={{ color: dm ? '#a3a3a3' : '#6b7280' }}>
             {mode === 'update'
               ? 'Update your payout setup without leaving the dashboard.'
-              : 'Complete Stripe onboarding here so payouts can turn on faster.'}
+              : 'Complete your Stripe onboarding here so automated payouts can turn on.'}
           </p>
         </div>
         <button
@@ -226,7 +239,7 @@ export default function StripeEmbeddedOnboarding({
             className="mt-3 rounded-xl px-3 py-2 text-xs font-semibold text-white"
             style={{ background: '#007e6d' }}
           >
-            Open Stripe instead
+            Open hosted Stripe setup
           </button>
         </div>
       )}

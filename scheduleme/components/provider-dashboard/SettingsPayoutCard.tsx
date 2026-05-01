@@ -68,10 +68,12 @@ export default function SettingsPayoutCard({
   onZelleChange,
   requestStripeClientSecret,
 }: SettingsPayoutCardProps) {
+  const showStripeLauncher = !stripeEmbeddedOpen;
+
   return (
     <form onSubmit={onSaveSettings} className="provider-premium-panel bg-white rounded-[30px] border border-neutral-100 p-6">
       <h2 className="text-sm font-bold text-neutral-900 mb-2">Setup Payout</h2>
-      <p className="text-xs text-neutral-400 mb-4">First 3 bookings can be payed out through zelle, then stripe becomes required.</p>
+      <p className="text-xs text-neutral-400 mb-4">First 3 bookings can be paid out through Zelle, then Stripe becomes required.</p>
       <div className="mb-4">
         <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs font-semibold text-neutral-500">Zelle payout details</span>
@@ -102,7 +104,7 @@ export default function SettingsPayoutCard({
           </div>
         </div>
         <p className="mt-3 text-[12px] leading-5 text-amber-700">
-          First 3 bookings can be payed out through zelle, then stripe becomes required.
+          First 3 bookings can be paid out through Zelle, then Stripe becomes required.
         </p>
       </div>
       {business?.stripe_onboarded ? (
@@ -113,14 +115,16 @@ export default function SettingsPayoutCard({
             </svg>
             Automated payouts active
           </div>
-          <button
-            type="button"
-            onClick={() => onStripeConnect('update')}
-            disabled={stripeLoading}
-            className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-          >
-            {stripeEmbeddedOpen && stripeEmbeddedMode === 'update' ? 'Stripe setup is open below' : 'Manage Stripe payout settings'}
-          </button>
+          {showStripeLauncher ? (
+            <button
+              type="button"
+              onClick={() => onStripeConnect('update')}
+              disabled={stripeLoading}
+              className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+            >
+              Manage Stripe payout setup
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onDisconnectStripe}
@@ -135,9 +139,11 @@ export default function SettingsPayoutCard({
         </div>
       ) : (
         <div className="space-y-3">
-          <button type="button" onClick={() => onStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
-            {stripeLoading ? 'Loading…' : stripeEmbeddedOpen && stripeEmbeddedMode === 'onboarding' ? 'Stripe setup is open below' : stripeCta}
-          </button>
+          {showStripeLauncher ? (
+            <button type="button" onClick={() => onStripeConnect('onboarding')} disabled={stripeLoading} className="btn-primary text-sm px-5 py-2.5 w-full">
+              {stripeLoading ? 'Loading…' : stripeCta}
+            </button>
+          ) : null}
           {business?.stripe_account_id && (
             <button
               type="button"

@@ -405,7 +405,7 @@ function ScrollSection({ title, subtitle, href, businesses, onBizClick, dm, isLo
   );
 }
 
-function ReferCard() {
+function ReferCard({ cardRef }: { cardRef?: React.RefObject<HTMLDivElement | null> }) {
   const [open, setOpen] = useState(false);
   const [bizName, setBizName] = useState('');
   const [sent, setSent] = useState(false);
@@ -423,12 +423,12 @@ function ReferCard() {
   }
 
   if (sent) return (
-    <div className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+    <div ref={cardRef} className="rounded-2xl border border-green-100 bg-green-50 px-5 py-4 text-center" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <p className="text-sm font-semibold text-green-800">Referral received — we'll reach out to {bizName}.</p>
     </div>
   );
   if (!open) return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+    <div ref={cardRef} className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 flex items-center gap-3.5" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
         <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -445,7 +445,7 @@ function ReferCard() {
     </div>
   );
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
+    <div ref={cardRef} className="rounded-2xl border border-neutral-200 bg-white px-5 py-4 space-y-3" style={{ marginLeft: 'max(24px, calc((100vw - 1400px) / 2))', marginRight: 'max(24px, calc((100vw - 1400px) / 2))' }}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-neutral-900">Who should we reach out to?</p>
         <button onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
@@ -489,10 +489,12 @@ const HomePage: NextPage = () => {
   const [eduError, setEduError] = useState('');
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackLifted, setFeedbackLifted] = useState(false);
   const [showReferModal, setShowReferModal] = useState(false);
   const [referName, setReferName] = useState('');
   const [referSent, setReferSent] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const referCardRef = useRef<HTMLDivElement | null>(null);
   const categoryCounts = realBizList.reduce((acc, biz) => {
     const key = (biz.category || '').trim();
     if (!key) return acc;
@@ -546,6 +548,25 @@ const HomePage: NextPage = () => {
     const dismissed = localStorage.getItem('sm_home_edu_banner_dismissed');
     if (dismissed === '1') setShowEduBanner(false);
   }, []);
+
+  useEffect(() => {
+    const card = referCardRef.current;
+    if (!card || typeof window === 'undefined') return;
+
+    const desktopQuery = window.matchMedia('(min-width: 768px)');
+    if (!desktopQuery.matches) {
+      setFeedbackLifted(false);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setFeedbackLifted(entry.isIntersecting),
+      { threshold: 0.2, rootMargin: '0px 0px -32px 0px' }
+    );
+
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [realBizList.length, showEduBanner]);
 
   useEffect(() => {
     let alive = true;
@@ -958,7 +979,7 @@ const HomePage: NextPage = () => {
               </>
             );
           })()}
-          <ReferCard />
+          <ReferCard cardRef={referCardRef} />
         </div>
 
         {showEduModal && (
@@ -1247,7 +1268,11 @@ const HomePage: NextPage = () => {
       {/* Floating feedback button */}
       <button onClick={() => setShowFeedback(true)}
         className="fixed right-4 md:right-6 bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] md:bottom-24 z-30 flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
-        style={{ background: '#0F766E', color: 'white' }}>
+        style={{
+          background: '#0F766E',
+          color: 'white',
+          transform: feedbackLifted ? 'translateY(-88px)' : undefined,
+        }}>
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
         </svg>
