@@ -56,6 +56,9 @@ const ConciergeFlyerPage: NextPage = () => {
             background: white !important;
             width: 4.25in;
             height: 5.5in;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
           }
 
           .flyer-toolbar {
@@ -70,11 +73,18 @@ const ConciergeFlyerPage: NextPage = () => {
 
           .flyer-card {
             width: 4.25in !important;
-            min-height: 5.5in !important;
+            height: 5.35in !important;
+            min-height: 5.35in !important;
+            max-height: 5.35in !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             margin: 0 !important;
+            overflow: hidden !important;
+            break-inside: avoid !important;
+            break-after: avoid-page !important;
+            page-break-inside: avoid !important;
+            page-break-after: avoid !important;
           }
         }
       `}</style>
@@ -103,7 +113,7 @@ const ConciergeFlyerPage: NextPage = () => {
           className="flyer-card mx-auto flex w-full max-w-[4.25in] flex-col overflow-hidden rounded-[28px] border border-[#d9d3c8] bg-white"
           style={{ boxShadow: '0 20px 60px rgba(15,23,42,0.12)' }}
         >
-          <div className="bg-[#0f766e] px-6 py-5 text-white">
+          <div className="bg-[#0f766e] px-6 py-4 text-white">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">ScheduleMe</p>
             <h1 className="mt-3 text-[2rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
               Need help finding
@@ -115,10 +125,10 @@ const ConciergeFlyerPage: NextPage = () => {
             </p>
           </div>
 
-          <div className="px-6 py-5">
+          <div className="px-6 py-4">
             <div className="flex items-center gap-4">
               <div className="rounded-[20px] border border-[#d9d3c8] bg-white p-2 shadow-sm">
-                <img src={qrSrc} alt="QR code for ScheduleMe concierge page" className="h-[124px] w-[124px]" />
+                <img src={qrSrc} alt="QR code for ScheduleMe concierge page" className="h-[116px] w-[116px]" />
               </div>
 
               <div className="flex-1">
@@ -132,7 +142,7 @@ const ConciergeFlyerPage: NextPage = () => {
               </div>
             </div>
 
-            <div className="mt-5 rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] p-4">
+            <div className="mt-4 rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] p-4">
               <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">How it works</p>
               <ol className="mt-2 space-y-1.5 text-[0.92rem] leading-snug text-[#1f2937]">
                 <li>1. Tell me what you need.</li>

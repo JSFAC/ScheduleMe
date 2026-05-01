@@ -175,8 +175,23 @@ const ConciergePage: NextPage = () => {
                 <span className="block">the right person?</span>
               </h1>
               <p className="mt-4 max-w-xl text-base md:text-lg leading-relaxed" style={{ color: muted }}>
-                Tell me what you need, your budget, and your timing. If I think I can help, I&apos;ll follow up fast.
+                I&apos;m testing a simpler way for students to find the right person without random group chats, bad referrals, or guessing.
               </p>
+
+              <div
+                className="mt-6 hidden lg:block rounded-[28px] border p-5 md:p-6"
+                style={{
+                  background: dm ? 'linear-gradient(180deg,#111111,#0d0d0d)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)',
+                  borderColor: border,
+                }}
+              >
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">Quick note</p>
+                <ul className="space-y-2.5 text-sm leading-relaxed" style={{ color: muted }}>
+                  {HONEST_NOTES.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
 
             <div
@@ -341,7 +356,7 @@ const ConciergePage: NextPage = () => {
             </div>
 
             <div
-              className="order-3 lg:order-3 rounded-[28px] border p-5 md:p-6 lg:max-w-[calc(52.5%-1rem)]"
+              className="order-3 lg:hidden rounded-[28px] border p-5 md:p-6"
               style={{
                 background: dm ? 'linear-gradient(180deg,#111111,#0d0d0d)' : 'linear-gradient(180deg,#ffffff,#f9fbfb)',
                 borderColor: border,
