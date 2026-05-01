@@ -60,8 +60,8 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .flyer-stage {
-            min-height: 5.25in !important;
-            height: 5.25in !important;
+            min-height: 5in !important;
+            height: 5in !important;
             padding: 0 !important;
             background: white !important;
             overflow: hidden !important;
@@ -69,9 +69,9 @@ const FormFlyerPage: NextPage = () => {
 
           .flyer-card {
             width: 4.25in !important;
-            height: 5.2in !important;
-            min-height: 5.2in !important;
-            max-height: 5.2in !important;
+            height: 4.95in !important;
+            min-height: 4.95in !important;
+            max-height: 4.95in !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
@@ -88,14 +88,14 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .print-tight {
-            padding-top: 0.9rem !important;
-            padding-bottom: 0.9rem !important;
+            padding-top: 0.7rem !important;
+            padding-bottom: 0.7rem !important;
           }
         }
       `}</style>
 
       <main className="flyer-stage min-h-screen bg-[#f6f1e8] px-4 pt-5 pb-6 sm:px-6">
-        <div className="flyer-toolbar mx-auto mb-6 flex w-full max-w-4xl flex-wrap items-center justify-between gap-3">
+        <div className="flyer-toolbar mx-auto mb-6 flex w-full max-w-4xl flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">ScheduleMe flyer</p>
             <p className="text-sm text-neutral-600">Use this page for screenshots, AirDrop, or printing.</p>
@@ -116,10 +116,10 @@ const FormFlyerPage: NextPage = () => {
           style={{ boxShadow: '0 20px 60px rgba(15,23,42,0.12)' }}
         >
           <div className="print-tight bg-[#0f766e] px-6 py-5 text-center text-white">
-            <p className="text-[2rem] font-black leading-none" style={{ letterSpacing: '-0.04em', color: '#ffffff' }}>
+            <p className="text-[1.5rem] font-black leading-none" style={{ letterSpacing: '-0.04em', color: '#ffffff' }}>
               Schedule<span style={{ color: 'rgba(255,255,255,0.88)' }}>Me</span>
             </p>
-            <h1 className="mt-3 text-[2rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
+            <h1 className="mt-3 text-[1.8rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
               Need help finding
               <br />
               the right person?
@@ -130,7 +130,7 @@ const FormFlyerPage: NextPage = () => {
           </div>
 
           <div className="px-6 py-4">
-            <div className="rounded-[22px] border border-[#e5e7eb] bg-white px-4 py-4 text-center">
+            <div className="rounded-[22px] border border-[#d1d5db] bg-white px-4 py-4 text-center">
               <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">Scan here</p>
               <div className="mx-auto mt-3 w-fit rounded-[20px] border border-[#d9d3c8] bg-white p-2 shadow-sm">
                 <img src={qrSrc} alt="QR code for ScheduleMe form page" className="h-[116px] w-[116px]" />
@@ -138,14 +138,14 @@ const FormFlyerPage: NextPage = () => {
               <div className="mt-3 text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
                 <p className="text-[1.02rem] font-black leading-none">usescheduleme.com/form</p>
               </div>
-              <p className="mt-3 mx-auto max-w-[14rem] text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
+              <p className="mt-3 mx-auto max-w-[13rem] text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
                 Better than asking around
                 <br />
                 and hoping for the best.
               </p>
             </div>
 
-            <div className="mt-4 rounded-[22px] border border-[#e5e7eb] bg-white p-4">
+            <div className="mt-4 rounded-[22px] border border-[#d1d5db] bg-white p-4">
               <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">How it works</p>
               <ol className="mt-2 space-y-1.5 text-[0.92rem] leading-snug text-[#1f2937]">
                 <li>1. Tell me what you need.</li>

@@ -143,12 +143,14 @@ const FormPage: NextPage = () => {
       </Head>
       <main className="min-h-screen pt-5 pb-12 md:pt-8 md:pb-16" style={{ background: dm ? '#0a0a0a' : '#f6f1e8' }}>
         <section className="px-6 pb-6">
-          <div className="mx-auto max-w-4xl flex items-center justify-between gap-3">
-            <Link href="/" className="inline-flex items-center gap-3">
-              <span className="text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
-                Schedule<span style={{ color: '#0f766e' }}>Me</span>
-              </span>
-            </Link>
+          <div className="mx-auto max-w-4xl flex items-start justify-between gap-3">
+            <div>
+              <Link href="/" className="inline-flex items-center gap-3">
+                <span className="text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
+                  Schedule<span style={{ color: '#0f766e' }}>Me</span>
+                </span>
+              </Link>
+            </div>
             <div className="flex items-center gap-3">
               <Link
                 href="/flyer/form"
@@ -169,7 +171,7 @@ const FormPage: NextPage = () => {
         <section className="px-6">
           <div className="mx-auto max-w-4xl grid grid-cols-1 lg:grid-cols-[0.88fr_1fr] gap-6 md:gap-8 items-start">
             <div className="order-1 lg:order-1 pt-1 md:pt-4">
-              <h1 className="max-w-[23rem] text-[2.4rem] sm:text-[2.65rem] md:text-[2.8rem] font-black leading-[0.98]" style={{ letterSpacing: '-0.045em', color: strong }}>
+              <h1 className="max-w-[22rem] text-[2.25rem] sm:text-[2.45rem] md:text-[2.55rem] font-black leading-[0.98]" style={{ letterSpacing: '-0.045em', color: strong }}>
                 <span className="block whitespace-nowrap">Need help finding</span>
                 <span className="block whitespace-nowrap">the right person?</span>
               </h1>
