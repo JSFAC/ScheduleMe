@@ -73,9 +73,28 @@ const FormFlyerPage: NextPage = () => {
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
-            width: auto !important;
-            height: auto !important;
-            overflow: visible !important;
+            width: 4.25in !important;
+            height: 5.5in !important;
+            overflow: hidden !important;
+          }
+
+          #__next {
+            width: 4.25in !important;
+            height: 5.5in !important;
+            overflow: hidden !important;
+          }
+
+          body > * {
+            visibility: hidden !important;
+          }
+
+          .flyer-stage,
+          .flyer-stage * {
+            visibility: visible !important;
+          }
+
+          .print-overlay {
+            display: none !important;
           }
 
           .flyer-toolbar {
@@ -83,21 +102,31 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .flyer-stage {
+            position: relative !important;
+            width: 4.25in !important;
+            height: 5.5in !important;
+            max-height: 5.5in !important;
             min-height: 0 !important;
-            padding: 0 !important;
+            padding: 0.18in 0.14in 0.08in !important;
             margin: 0 !important;
             background: white !important;
-            overflow: visible !important;
+            overflow: hidden !important;
             display: block !important;
+            box-sizing: border-box !important;
+            page-break-after: avoid !important;
+            break-after: avoid-page !important;
           }
 
           .flyer-card {
-            width: 4.01in !important;
+            width: 100% !important;
             max-width: none !important;
-            margin: 0.18in 0 0 0.12in !important;
+            height: 100% !important;
+            margin: 0 !important;
             box-shadow: none !important;
             overflow: hidden !important;
             box-sizing: border-box !important;
+            border: none !important;
+            border-radius: 0 !important;
             break-inside: avoid !important;
             break-after: avoid-page !important;
             page-break-inside: avoid !important;
@@ -113,6 +142,7 @@ const FormFlyerPage: NextPage = () => {
             margin-top: 0 !important;
             font-size: 1.04rem !important;
             line-height: 0.94 !important;
+            color: #111827 !important;
           }
 
           .print-subhead {
@@ -120,7 +150,8 @@ const FormFlyerPage: NextPage = () => {
             margin-top: 0.26rem !important;
             font-size: 0.68rem !important;
             line-height: 1.18 !important;
-            opacity: 0.92 !important;
+            opacity: 1 !important;
+            color: #111827 !important;
           }
 
           .print-qr {
@@ -138,6 +169,10 @@ const FormFlyerPage: NextPage = () => {
             gap: 0.12rem !important;
             font-size: 0.77rem !important;
           }
+
+          .print-qr-copy {
+            color: #111827 !important;
+          }
         }
       `}</style>
 
@@ -149,7 +184,7 @@ const FormFlyerPage: NextPage = () => {
         }}
       >
         <div
-          className="pointer-events-none fixed inset-0 z-[60] transition-opacity duration-200"
+          className="print-overlay pointer-events-none fixed inset-0 z-[60] transition-opacity duration-200"
           style={{
             opacity: isLeaving ? 1 : isReady ? 0 : 1,
             background: 'rgba(246,241,232,0.32)',
@@ -205,7 +240,7 @@ const FormFlyerPage: NextPage = () => {
               <div className="mt-3 text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
                 <p className="text-[1.02rem] font-black leading-none">usescheduleme.com/form</p>
               </div>
-              <p className="mt-3 mx-auto max-w-[13rem] text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
+              <p className="print-qr-copy mt-3 mx-auto max-w-[13rem] text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
                 Better than asking around
                 <br />
                 for a recommendation.

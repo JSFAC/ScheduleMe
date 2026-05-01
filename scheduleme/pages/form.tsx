@@ -353,7 +353,7 @@ const FormPage: NextPage = () => {
                     <input
                       value={form.contact}
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
-                      className="mt-1.5 form-input px-2.5 text-[0.82rem] tracking-[-0.015em] placeholder:tracking-[-0.015em] md:px-4 md:text-base md:tracking-normal md:placeholder:tracking-normal"
+                      className="mt-1.5 form-input px-2 text-[0.94rem] tracking-[-0.03em] placeholder:text-[0.94rem] placeholder:tracking-[-0.03em] md:px-4 md:text-base md:tracking-normal md:placeholder:text-base md:placeholder:tracking-normal"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
                       placeholder="number, insta, etc"
                     />
@@ -421,7 +421,7 @@ const FormPage: NextPage = () => {
                     rows={2}
                     value={form.details}
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
-                    className="mt-1.5 form-input resize-none min-h-[82px] pt-3.5 pb-[1.05rem] leading-snug md:min-h-[108px] md:pt-4 md:pb-[1.15rem]"
+                    className="mt-1.5 form-input resize-none min-h-[90px] pt-3.5 pb-[1.55rem] leading-snug md:min-h-[108px] md:pt-4 md:pb-[1.15rem]"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
                     placeholder="Example: need a cut before Friday 5/1, I’m at Crown dorms and don’t wanna spend more than like $20"
                   />
