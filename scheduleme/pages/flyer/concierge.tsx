@@ -93,7 +93,7 @@ const ConciergeFlyerPage: NextPage = () => {
         <div className="flyer-toolbar mx-auto mb-5 flex w-full max-w-4xl flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#0f766e]">ScheduleMe flyer</p>
-            <p className="text-sm text-neutral-600">Print this as a quarter-sheet or save it as a PDF.</p>
+            <p className="text-sm text-neutral-600">Use this page for screenshots, AirDrop, or printing.</p>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -126,20 +126,18 @@ const ConciergeFlyerPage: NextPage = () => {
           </div>
 
           <div className="px-6 py-4">
-            <div className="flex items-center gap-4">
-              <div className="rounded-[20px] border border-[#d9d3c8] bg-white p-2 shadow-sm">
+            <div className="rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] px-4 py-4 text-center">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">Scan here</p>
+              <div className="mx-auto mt-3 w-fit rounded-[20px] border border-[#d9d3c8] bg-white p-2 shadow-sm">
                 <img src={qrSrc} alt="QR code for ScheduleMe concierge page" className="h-[116px] w-[116px]" />
               </div>
-
-              <div className="flex-1">
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">Scan here</p>
-                <p className="mt-2 text-[1.2rem] font-black leading-[1.02] text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
-                  usescheduleme.com/concierge
-                </p>
-                <p className="mt-2 text-[0.92rem] leading-snug text-neutral-600">
-                  Tell me what you need, your budget, and your timing.
-                </p>
+              <div className="mt-3 text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
+                <p className="text-[1.05rem] font-black leading-none">usescheduleme.com</p>
+                <p className="mt-1 text-[1.45rem] font-black leading-none">/concierge</p>
               </div>
+              <p className="mt-3 text-[0.96rem] font-semibold leading-snug text-[#0f172a]">
+                Better than asking around and hoping the referral is good.
+              </p>
             </div>
 
             <div className="mt-4 rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] p-4">
