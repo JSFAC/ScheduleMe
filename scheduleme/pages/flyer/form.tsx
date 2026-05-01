@@ -107,7 +107,7 @@ const FormFlyerPage: NextPage = () => {
             height: 5.5in !important;
             max-height: 5.5in !important;
             min-height: 0 !important;
-            padding: 0.18in 0.14in 0.08in !important;
+            padding: 0.28in 0.16in 0.06in !important;
             margin: 0 !important;
             background: white !important;
             overflow: hidden !important;
@@ -134,44 +134,51 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .print-tight {
-            padding-top: 0.46rem !important;
-            padding-bottom: 0.42rem !important;
+            padding-top: 0.2rem !important;
+            padding-bottom: 0.34rem !important;
+          }
+
+          .print-hero {
+            background: white !important;
           }
 
           .print-headline {
             margin-top: 0 !important;
-            font-size: 1.04rem !important;
-            line-height: 0.94 !important;
+            font-size: 1.28rem !important;
+            line-height: 0.9 !important;
             color: #111827 !important;
           }
 
           .print-subhead {
             display: block !important;
-            margin-top: 0.26rem !important;
-            font-size: 0.68rem !important;
-            line-height: 1.18 !important;
+            margin-top: 0.34rem !important;
+            max-width: 15.4rem !important;
+            font-size: 0.82rem !important;
+            line-height: 1.2 !important;
             opacity: 1 !important;
             color: #111827 !important;
           }
 
           .print-qr {
-            height: 92px !important;
-            width: 92px !important;
+            height: 86px !important;
+            width: 86px !important;
           }
 
           .print-box {
-            padding-top: 0.56rem !important;
-            padding-bottom: 0.56rem !important;
+            padding-top: 0.44rem !important;
+            padding-bottom: 0.44rem !important;
           }
 
           .print-steps {
-            margin-top: 0.24rem !important;
+            margin-top: 0.18rem !important;
             gap: 0.12rem !important;
-            font-size: 0.77rem !important;
+            font-size: 0.73rem !important;
           }
 
           .print-qr-copy {
             color: #111827 !important;
+            font-size: 0.86rem !important;
+            line-height: 1.18 !important;
           }
         }
       `}</style>
@@ -220,7 +227,7 @@ const FormFlyerPage: NextPage = () => {
           className="flyer-card mx-auto flex w-full max-w-[4.25in] flex-col overflow-hidden rounded-[28px] border border-[#d9d3c8] bg-white"
           style={{ boxShadow: '0 20px 60px rgba(15,23,42,0.12)' }}
         >
-          <div className="print-tight bg-[#0f766e] px-6 py-5 text-center text-white">
+          <div className="print-tight print-hero bg-[#0f766e] px-6 py-5 text-center text-white">
             <h1 className="print-headline text-[1.62rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
               Need help booking
               <br />
