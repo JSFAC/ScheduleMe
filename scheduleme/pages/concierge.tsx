@@ -33,8 +33,8 @@ const BUDGET_OPTIONS = [
 ];
 
 const HONEST_NOTES = [
-  'I’m doing the matching myself right now, so this is more personal than polished.',
-  'If you need help finding the right person, I’ll do the hard work for you. Make a request, and I’ll follow up fast.',
+  'This goes straight to me, not some big support inbox.',
+  'If you need help finding the right person, I’ll do the hard work for you. Make a request and I’ll follow up fast.',
   'Haircuts are the main focus right now, but you can still send other campus service requests and I’ll try to find someone.',
 ];
 
@@ -127,8 +127,8 @@ const ConciergePage: NextPage = () => {
   return (
     <>
       <SeoHead
-        title="ScheduleMe Concierge — Need a Better Match?"
-        description="Tell ScheduleMe what kind of haircut or campus service you need, and we’ll manually help match you for free."
+        title="ScheduleMe Concierge — Need Help Finding the Right Person?"
+        description="Tell me what kind of haircut or campus service you need, and I’ll try to help match you."
         path="/concierge"
       />
       <Head>
@@ -140,9 +140,6 @@ const ConciergePage: NextPage = () => {
             <Link href="/" className="inline-flex items-center gap-3">
               <span className="text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
                 Schedule<span style={{ color: '#0f766e' }}>Me</span>
-              </span>
-              <span className="hidden sm:inline text-[11px] font-black uppercase tracking-[0.14em] text-accent">
-                Concierge Beta
               </span>
             </Link>
             <Link
@@ -158,14 +155,15 @@ const ConciergePage: NextPage = () => {
         <section className="px-6">
           <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-8 items-start">
             <div className="pt-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-4">Campus Concierge Beta</p>
               <h1 className="text-5xl md:text-6xl font-black leading-[0.95]" style={{ letterSpacing: '-0.04em', color: strong }}>
-                Need a better
+                Need help
                 <br />
-                match?
+                finding
+                <br />
+                the right person?
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: muted }}>
-                I&apos;m trying to make it easier for students to find the right person without the usual random DMs and bad guesses. Tell me what you need, your budget, and your timing, and I&apos;ll try to help match you.
+                I&apos;m testing a simpler way for students to find the right person without random group chats, bad referrals, or guessing. Send me what you need, your budget, and your timing, and I&apos;ll try to help.
               </p>
 
               <div
