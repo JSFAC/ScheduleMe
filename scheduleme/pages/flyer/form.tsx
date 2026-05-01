@@ -71,11 +71,11 @@ const FormFlyerPage: NextPage = () => {
           html,
           body {
             background: white !important;
-            width: 4.25in;
-            height: 5.5in;
             margin: 0 !important;
             padding: 0 !important;
-            overflow: hidden !important;
+            width: auto !important;
+            height: auto !important;
+            overflow: visible !important;
           }
 
           .flyer-toolbar {
@@ -83,31 +83,19 @@ const FormFlyerPage: NextPage = () => {
           }
 
           .flyer-stage {
-            min-height: 5.5in !important;
-            height: 5.5in !important;
+            min-height: 0 !important;
             padding: 0 !important;
             margin: 0 !important;
             background: white !important;
-            overflow: hidden !important;
-            display: flex !important;
-            align-items: flex-start !important;
-            justify-content: flex-start !important;
+            overflow: visible !important;
+            display: block !important;
           }
 
           .flyer-card {
-            position: relative !important;
-            left: auto !important;
-            top: auto !important;
-            margin-left: 0.12in !important;
-            margin-top: 0.18in !important;
             width: 4.01in !important;
-            height: 5.16in !important;
-            min-height: 5.16in !important;
-            max-height: 5.16in !important;
-            border: none !important;
-            border-radius: 0 !important;
+            max-width: none !important;
+            margin: 0.18in 0 0 0.12in !important;
             box-shadow: none !important;
-            margin: 0 !important;
             overflow: hidden !important;
             box-sizing: border-box !important;
             break-inside: avoid !important;
