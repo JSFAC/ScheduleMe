@@ -133,10 +133,12 @@ const ConciergeFlyerPage: NextPage = () => {
             </div>
 
             <div className="mt-5 rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] p-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">What happens next</p>
-              <p className="mt-2 text-[0.96rem] leading-snug text-[#1f2937]">
-                If I think I can help, I&apos;ll follow up fast.
-              </p>
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">How it works</p>
+              <ol className="mt-2 space-y-1.5 text-[0.92rem] leading-snug text-[#1f2937]">
+                <li>1. Tell me what you need.</li>
+                <li>2. I&apos;ll try to find a good fit.</li>
+                <li>3. I&apos;ll follow up fast if I can help.</li>
+              </ol>
             </div>
           </div>
         </section>

@@ -203,10 +203,10 @@ const ConciergePage: NextPage = () => {
                 <div className="mt-3">
                   <Link
                     href="/flyer/concierge"
-                    className="inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold"
-                    style={{ color: muted, borderColor: border, background: fieldBg }}
+                    className="inline-flex items-center rounded-full px-4 py-2.5 text-sm font-black"
+                    style={{ color: '#ffffff', background: '#0f766e' }}
                   >
-                    Open flyer
+                    View flyer
                   </Link>
                 </div>
               </div>
