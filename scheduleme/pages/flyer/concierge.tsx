@@ -2,8 +2,12 @@
 import type { NextPage } from 'next';
 import Link from 'next/link';
 import SeoHead from '../../components/SeoHead';
+import { absoluteUrl } from '../../lib/siteMeta';
 
 const ConciergeFlyerPage: NextPage = () => {
+  const conciergeUrl = absoluteUrl('/concierge');
+  const qrSrc = `https://quickchart.io/qr?text=${encodeURIComponent(conciergeUrl)}&size=240`;
+
   return (
     <>
       <SeoHead
@@ -55,7 +59,7 @@ const ConciergeFlyerPage: NextPage = () => {
           className="flyer-card mx-auto max-w-5xl rounded-[40px] border border-neutral-200 bg-white overflow-hidden"
           style={{ boxShadow: '0 28px 70px rgba(15,23,42,0.14)' }}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] min-h-[960px]">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] min-h-[920px]">
             <div className="relative px-8 py-10 md:px-12 md:py-12 bg-[#0d1312] text-white overflow-hidden">
               <div
                 aria-hidden="true"
@@ -75,22 +79,22 @@ const ConciergeFlyerPage: NextPage = () => {
 
               <div className="relative z-[1]">
                 <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#78d4c2] mb-4">ScheduleMe Concierge</p>
-                <h1 className="text-[3.2rem] md:text-[4.4rem] font-black leading-[0.9]" style={{ letterSpacing: '-0.06em' }}>
-                  Need a
-                  <br />
-                  better
+                <h1 className="text-[3.1rem] md:text-[4.2rem] font-black leading-[0.9]" style={{ letterSpacing: '-0.06em' }}>
+                  Better
                   <br />
                   campus
                   <br />
-                  barber?
+                  service
+                  <br />
+                  matches.
                 </h1>
                 <p className="mt-5 max-w-md text-base md:text-lg leading-relaxed text-white/78">
-                  Tell ScheduleMe what kind of cut you want, your budget, and when you need it. We&apos;ll help match you for free while we build the campus network.
+                  Need a barber, photographer, tutor, or another trusted campus service? Tell ScheduleMe what you need and we&apos;ll help route the request.
                 </p>
 
                 <div className="mt-8 space-y-3">
                   {[
-                    'No empty marketplace to browse',
+                    'Start with a request, not an empty marketplace',
                     'We handle the matching manually',
                     'Free for students in the beta',
                   ].map((line) => (
@@ -102,66 +106,46 @@ const ConciergeFlyerPage: NextPage = () => {
                 </div>
 
                 <div className="mt-10 rounded-[28px] border border-white/12 bg-white/6 p-5 backdrop-blur-sm">
-                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#78d4c2] mb-3">How it works</p>
-                  <ol className="space-y-2.5 text-sm text-white/82">
-                    <li>1. Submit what cut or service you want.</li>
-                    <li>2. We find the best fit we can behind the scenes.</li>
-                    <li>3. We follow up and help get the booking done.</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-
-            <div className="px-8 py-10 md:px-12 md:py-12 bg-[#f8f5ee] flex flex-col">
-              <div className="rounded-[28px] border border-[#d8d1c4] bg-white p-6">
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#0f766e] mb-3">Start here</p>
-                <h2 className="text-3xl md:text-4xl font-black text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
-                  usescheduleme.com/concierge
-                </h2>
-                <p className="mt-4 text-base leading-relaxed text-neutral-600">
-                  Submit your request with:
-                </p>
-                <ul className="mt-4 space-y-2 text-sm text-neutral-700">
-                  <li>• style or service you want</li>
-                  <li>• budget</li>
-                  <li>• timing</li>
-                  <li>• best contact info</li>
-                </ul>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 gap-4">
-                {[
-                  {
-                    title: 'Bad cut before?',
-                    body: 'Tell us what went wrong and what you want instead. That helps us make a better match.',
-                  },
-                  {
-                    title: 'Need it this week?',
-                    body: 'Put your timing in the request and we’ll prioritize around real availability.',
-                  },
-                  {
-                    title: 'Want to compare options?',
-                    body: 'If we can find more than one fit, we can help you narrow it down faster.',
-                  },
-                ].map((card) => (
-                  <div key={card.title} className="rounded-[24px] border border-[#d8d1c4] bg-white p-5">
-                    <p className="text-sm font-black text-[#111827] mb-1.5">{card.title}</p>
-                    <p className="text-sm leading-relaxed text-neutral-600">{card.body}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-auto pt-8">
-                <div className="rounded-[28px] border border-dashed border-[#0f766e] bg-[#e9f7f3] px-5 py-6">
-                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#0f766e] mb-2">Pitch</p>
-                  <p className="text-2xl md:text-3xl font-black leading-tight text-[#0f172a]" style={{ letterSpacing: '-0.04em' }}>
-                    “When I need a barber,
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#78d4c2] mb-3">Slogan</p>
+                  <p className="text-2xl md:text-3xl font-black leading-tight text-white" style={{ letterSpacing: '-0.04em' }}>
+                    “When I need help finding someone,
                     <br />
                     I go to ScheduleMe.”
                   </p>
                 </div>
-                <p className="mt-4 text-xs text-neutral-500">
-                  Tip: print this, post it in high-traffic student areas, and pair it with IG story outreach using the same message.
+              </div>
+            </div>
+
+            <div className="px-8 py-10 md:px-12 md:py-12 bg-[#f8f5ee] flex flex-col justify-center">
+              <div className="rounded-[28px] border border-[#d8d1c4] bg-white p-7 text-center">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#0f766e] mb-3">Scan to request</p>
+                <div className="mx-auto mb-5 h-[240px] w-[240px] rounded-[24px] border border-[#d8d1c4] bg-white p-3">
+                  <img src={qrSrc} alt="QR code for ScheduleMe concierge page" className="h-full w-full object-contain" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
+                  usescheduleme.com/concierge
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-neutral-600">
+                  Tell us what you need, your budget, and your timing. We&apos;ll help from there.
+                </p>
+              </div>
+
+              <div className="mt-6 rounded-[24px] border border-[#d8d1c4] bg-white p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#0f766e] mb-3">Keep it simple</p>
+                <ul className="space-y-2 text-sm leading-relaxed text-neutral-700">
+                  <li>• barber</li>
+                  <li>• photography</li>
+                  <li>• tutoring</li>
+                  <li>• other trusted campus services</li>
+                </ul>
+              </div>
+
+              <div className="mt-6 rounded-[28px] border border-dashed border-[#0f766e] bg-[#e9f7f3] px-5 py-6">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#0f766e] mb-2">Beta</p>
+                <p className="text-xl md:text-2xl font-black leading-tight text-[#0f172a]" style={{ letterSpacing: '-0.04em' }}>
+                  Manual matching now.
+                  <br />
+                  Better marketplace later.
                 </p>
               </div>
             </div>

@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import Nav from '../components/Nav';
 import SeoHead from '../components/SeoHead';
 import { useDm } from '../lib/DarkModeContext';
 
@@ -126,8 +125,27 @@ const ConciergePage: NextPage = () => {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
-      <Nav />
-      <main className="min-h-screen pt-24 pb-16" style={{ background: dm ? '#0a0a0a' : '#fcfaf6' }}>
+      <main className="min-h-screen pt-8 pb-16" style={{ background: dm ? '#0a0a0a' : '#fcfaf6' }}>
+        <section className="px-6 pb-6">
+          <div className="mx-auto max-w-6xl flex items-center justify-between gap-4">
+            <Link href="/" className="inline-flex items-center gap-3">
+              <span className="text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
+                Schedule<span style={{ color: '#0f766e' }}>Me</span>
+              </span>
+              <span className="hidden sm:inline text-[11px] font-black uppercase tracking-[0.14em] text-accent">
+                Concierge Beta
+              </span>
+            </Link>
+            <Link
+              href="/"
+              className="text-sm font-semibold px-4 py-2 rounded-full border"
+              style={{ color: muted, borderColor: border, background: surface }}
+            >
+              Main site
+            </Link>
+          </div>
+        </section>
+
         <section className="px-6">
           <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-8 items-start">
             <div className="pt-4">
@@ -135,37 +153,11 @@ const ConciergePage: NextPage = () => {
               <h1 className="text-5xl md:text-6xl font-black leading-[0.95]" style={{ letterSpacing: '-0.04em', color: strong }}>
                 Need a better
                 <br />
-                campus barber?
+                campus match?
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: muted }}>
-                Tell us what kind of cut you want, your budget, and your timing. ScheduleMe will manually help match you with a better fit for free while we build the campus network.
+                Haircuts first, but not just haircuts. Tell ScheduleMe what you need, your budget, and your timing, and we&apos;ll manually help match you while we build the network.
               </p>
-
-              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  {
-                    title: 'Tell us what you want',
-                    body: 'Fade, lineup, taper, braids, photos, tutoring, or another campus service.',
-                  },
-                  {
-                    title: 'We do the matching',
-                    body: 'No empty marketplace. We route your request manually behind the scenes.',
-                  },
-                  {
-                    title: 'Free while we test',
-                    body: 'No extra charge to students. We just want to get the right match done fast.',
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.title}
-                    className="rounded-3xl border p-5"
-                    style={{ background: surface, borderColor: border, boxShadow: dm ? 'none' : '0 8px 28px rgba(15,23,42,0.05)' }}
-                  >
-                    <p className="text-sm font-black mb-2" style={{ color: strong }}>{item.title}</p>
-                    <p className="text-sm leading-relaxed" style={{ color: muted }}>{item.body}</p>
-                  </div>
-                ))}
-              </div>
 
               <div
                 className="mt-8 rounded-[28px] border p-6"
@@ -174,15 +166,12 @@ const ConciergePage: NextPage = () => {
                   borderColor: border,
                 }}
               >
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">What to expect</p>
-                <ol className="space-y-3 text-sm leading-relaxed" style={{ color: muted }}>
-                  <li><span className="font-bold" style={{ color: strong }}>1.</span> Submit your request with enough detail that we can make a strong match.</li>
-                  <li><span className="font-bold" style={{ color: strong }}>2.</span> We follow up manually with a recommendation or next step.</li>
-                  <li><span className="font-bold" style={{ color: strong }}>3.</span> If we find a fit, we help you get the booking done quickly.</li>
-                </ol>
-                <p className="mt-4 text-xs" style={{ color: muted }}>
-                  Have a provider in mind already? We can still help route or compare options.
-                </p>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">Why this works better</p>
+                <ul className="space-y-3 text-sm leading-relaxed" style={{ color: muted }}>
+                  <li><span className="font-bold" style={{ color: strong }}>No empty marketplace.</span> You start with a real request, not a dead browse page.</li>
+                  <li><span className="font-bold" style={{ color: strong }}>We handle the routing.</span> Manual matching now, stronger software later.</li>
+                  <li><span className="font-bold" style={{ color: strong }}>Haircuts are the wedge.</span> But you can request other campus services too.</li>
+                </ul>
               </div>
             </div>
 
@@ -200,7 +189,7 @@ const ConciergePage: NextPage = () => {
                   Start with the request.
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: muted }}>
-                  This is the quickest way to get help right now. We’re manually handling requests instead of sending you into a thin marketplace.
+                  This is the fastest way to get help right now. We&apos;re manually handling requests instead of pretending the marketplace is already full.
                 </p>
               </div>
 
@@ -341,30 +330,10 @@ const ConciergePage: NextPage = () => {
                 </button>
 
                 <p className="text-xs text-center leading-relaxed" style={{ color: muted }}>
-                  Prefer to DM first? Start here, then we can follow up through your best contact method.
+                  We&apos;ll follow up through the contact method you enter.
                 </p>
               </form>
             </div>
-          </div>
-        </section>
-
-        <section className="px-6 mt-14">
-          <div
-            className="mx-auto max-w-6xl rounded-[30px] border p-6 md:p-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-            style={{ background: surface, borderColor: border }}
-          >
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-2">Need something to post?</p>
-              <h3 className="text-xl font-black" style={{ letterSpacing: '-0.03em', color: strong }}>
-                Use the flyer page for posters, stories, and screenshots.
-              </h3>
-              <p className="mt-2 text-sm" style={{ color: muted }}>
-                We built a simple print-friendly flyer route specifically for this concierge test.
-              </p>
-            </div>
-            <Link href="/flyer/concierge" className="btn-secondary whitespace-nowrap">
-              Open concierge flyer
-            </Link>
           </div>
         </section>
       </main>
