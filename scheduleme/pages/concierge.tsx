@@ -25,11 +25,17 @@ const TIMING_OPTIONS = [
 ];
 
 const BUDGET_OPTIONS = [
-  'Under $25',
-  '$25-$35',
-  '$35-$45',
-  '$45+',
+  'Under $10',
+  '$10-$20',
+  '$20-$35',
+  '$35+',
   'Flexible / depends on quality',
+];
+
+const HONEST_NOTES = [
+  'I’m doing the matching myself right now, so this is more personal than polished.',
+  'If I think someone is a good fit, I’ll send them your request and follow up fast.',
+  'Haircuts are the main thing right now, but you can still send other campus service requests too.',
 ];
 
 const PRODUCT_INTEREST_OPTIONS = [
@@ -47,7 +53,7 @@ const ConciergePage: NextPage = () => {
     contact: '',
     service: 'Haircut / fade',
     timing: 'This week',
-    budget: '$25-$35',
+    budget: '$20-$35',
     campus: '',
     details: '',
     reference: '',
@@ -102,7 +108,7 @@ const ConciergePage: NextPage = () => {
         contact: '',
         service: 'Haircut / fade',
         timing: 'This week',
-        budget: '$25-$35',
+        budget: '$20-$35',
         campus: '',
         details: '',
         reference: '',
@@ -151,12 +157,12 @@ const ConciergePage: NextPage = () => {
             <div className="pt-4">
               <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-4">Campus Concierge Beta</p>
               <h1 className="text-5xl md:text-6xl font-black leading-[0.95]" style={{ letterSpacing: '-0.04em', color: strong }}>
-                Need a better
+                Need help finding a
                 <br />
-                campus match?
+                better campus barber?
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: muted }}>
-                Haircuts first, but not just haircuts. Tell ScheduleMe what you need, your budget, and your timing, and we&apos;ll manually help match you while we build the network.
+                I&apos;m trying to make it easier for students to find the right person without the usual random DMs and bad guesses. Tell me what you need, your budget, and your timing, and I&apos;ll try to help match you.
               </p>
 
               <div
@@ -166,11 +172,11 @@ const ConciergePage: NextPage = () => {
                   borderColor: border,
                 }}
               >
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">Why this works better</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-3">Quick note</p>
                 <ul className="space-y-3 text-sm leading-relaxed" style={{ color: muted }}>
-                  <li><span className="font-bold" style={{ color: strong }}>No empty marketplace.</span> You start with a real request, not a dead browse page.</li>
-                  <li><span className="font-bold" style={{ color: strong }}>We handle the routing.</span> Manual matching now, stronger software later.</li>
-                  <li><span className="font-bold" style={{ color: strong }}>Haircuts are the wedge.</span> But you can request other campus services too.</li>
+                  {HONEST_NOTES.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -186,10 +192,10 @@ const ConciergePage: NextPage = () => {
               <div className="mb-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-accent mb-2">Request a match</p>
                 <h2 className="text-2xl font-black" style={{ letterSpacing: '-0.03em', color: strong }}>
-                  Start with the request.
+                  Start here.
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: muted }}>
-                  This is the fastest way to get help right now. We&apos;re manually handling requests instead of pretending the marketplace is already full.
+                  This comes straight to me. If I think I can help, I&apos;ll follow up as fast as I can.
                 </p>
               </div>
 
@@ -280,7 +286,7 @@ const ConciergePage: NextPage = () => {
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
                     className="mt-1.5 form-input resize-y"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Example: Need a clean mid fade before Friday night. Looking for someone near campus who can do textured top well. Prefer under $35."
+                    placeholder="Example: Need a clean fade before Friday night. Near campus, preferably under $20, and I care more about consistency than hype."
                   />
                 </label>
 
@@ -311,7 +317,7 @@ const ConciergePage: NextPage = () => {
 
                 {success && (
                   <div className="rounded-2xl border px-4 py-3 text-sm" style={{ background: dm ? 'rgba(15,118,110,0.12)' : '#ecfdf5', borderColor: dm ? 'rgba(15,118,110,0.25)' : '#a7f3d0', color: dm ? '#d1fae5' : '#065f46' }}>
-                    Request sent. We&apos;ll review it manually and follow up. {requestId ? `Reference: ${requestId}` : ''}
+                    Request sent. I&apos;ll take a look and follow up if I think I can help. {requestId ? `Reference: ${requestId}` : ''}
                   </div>
                 )}
 
@@ -330,7 +336,7 @@ const ConciergePage: NextPage = () => {
                 </button>
 
                 <p className="text-xs text-center leading-relaxed" style={{ color: muted }}>
-                  We&apos;ll follow up through the contact method you enter.
+                  I&apos;ll follow up through the contact method you enter.
                 </p>
               </form>
             </div>
