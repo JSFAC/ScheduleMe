@@ -72,6 +72,7 @@ const FormPage: NextPage = () => {
   const muted = dm ? '#a3a3a3' : '#6b7280';
   const strong = dm ? '#f5f5f5' : '#111827';
   const fieldBg = dm ? '#0d0d0d' : '#ffffff';
+  const placeholderSelect = dm ? '#737373' : '#9ca3af';
 
   const canSubmit = useMemo(() => {
     return Boolean(
@@ -140,7 +141,7 @@ const FormPage: NextPage = () => {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
-      <main className="min-h-screen pt-5 pb-12 md:pt-8 md:pb-16" style={{ background: dm ? '#0a0a0a' : '#fcfaf6' }}>
+      <main className="min-h-screen pt-5 pb-12 md:pt-8 md:pb-16" style={{ background: dm ? '#0a0a0a' : '#f6f1e8' }}>
         <section className="px-6 pb-6">
           <div className="mx-auto max-w-4xl flex items-center justify-between gap-3">
             <Link href="/" className="inline-flex items-center gap-3">
@@ -168,9 +169,9 @@ const FormPage: NextPage = () => {
         <section className="px-6">
           <div className="mx-auto max-w-4xl grid grid-cols-1 lg:grid-cols-[0.88fr_1fr] gap-6 md:gap-8 items-start">
             <div className="order-1 lg:order-1 pt-1 md:pt-4">
-              <h1 className="max-w-[24rem] text-[2.7rem] sm:text-[3.1rem] md:text-[3.7rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.04em', color: strong }}>
-                <span className="block">Need help finding</span>
-                <span className="block">the right person?</span>
+              <h1 className="max-w-[23rem] text-[2.55rem] sm:text-[2.85rem] md:text-[3.15rem] font-black leading-[0.96]" style={{ letterSpacing: '-0.045em', color: strong }}>
+                <span className="block whitespace-nowrap">Need help finding</span>
+                <span className="block whitespace-nowrap">the right person?</span>
               </h1>
               <p className="mt-4 max-w-[24rem] text-base md:text-[1.05rem] leading-relaxed" style={{ color: muted }}>
                 I&apos;m testing a simpler way for students to find the right person without random group chats, bad referrals, or guessing.
@@ -223,7 +224,7 @@ const FormPage: NextPage = () => {
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
                       className="mt-1.5 form-input"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
-                      placeholder="Phone, IG handle, or email"
+                      placeholder="Number, Insta, or email"
                     />
                   </label>
                 </div>
@@ -251,7 +252,7 @@ const FormPage: NextPage = () => {
                       value={form.timing}
                       onChange={(e) => setForm((prev) => ({ ...prev, timing: e.target.value }))}
                       className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: strong }}
+                      style={{ background: fieldBg, borderColor: border, color: form.timing === 'Choose an option' ? placeholderSelect : strong }}
                     >
                       {TIMING_OPTIONS.map((option, index) => (
                         <option key={option} value={option} disabled={index === 0}>
@@ -266,7 +267,7 @@ const FormPage: NextPage = () => {
                       value={form.budget}
                       onChange={(e) => setForm((prev) => ({ ...prev, budget: e.target.value }))}
                       className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: strong }}
+                      style={{ background: fieldBg, borderColor: border, color: form.budget === 'Choose an option' ? placeholderSelect : strong }}
                     >
                       {BUDGET_OPTIONS.map((option, index) => (
                         <option key={option} value={option} disabled={index === 0}>
@@ -317,7 +318,7 @@ const FormPage: NextPage = () => {
                     value={form.productInterest}
                     onChange={(e) => setForm((prev) => ({ ...prev, productInterest: e.target.value }))}
                     className="mt-1.5 form-input"
-                    style={{ background: fieldBg, borderColor: border, color: strong }}
+                    style={{ background: fieldBg, borderColor: border, color: form.productInterest === 'Choose an option' ? placeholderSelect : strong }}
                   >
                     {PRODUCT_INTEREST_OPTIONS.map((option, index) => (
                       <option key={option} value={option} disabled={index === 0}>

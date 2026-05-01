@@ -93,10 +93,10 @@ const FormFlyerPage: NextPage = () => {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={handleShare} className="btn-primary">
+            <button onClick={handleShare} className="btn-primary px-6 py-2.5 text-sm">
               {shareState === 'error' ? 'Could not share' : 'Share'}
             </button>
-            <Link href="/form" className="btn-secondary">
+            <Link href="/form" className="btn-secondary px-6 py-2.5 text-sm">
               Open form
             </Link>
           </div>
@@ -107,7 +107,9 @@ const FormFlyerPage: NextPage = () => {
           style={{ boxShadow: '0 20px 60px rgba(15,23,42,0.12)' }}
         >
           <div className="bg-[#0f766e] px-6 py-5 text-center text-white">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">ScheduleMe</p>
+            <p className="text-[2rem] font-black leading-none" style={{ letterSpacing: '-0.04em', color: '#ffffff' }}>
+              Schedule<span style={{ color: '#b8f1e8' }}>Me</span>
+            </p>
             <h1 className="mt-3 text-[2rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
               Need help finding
               <br />
@@ -119,7 +121,7 @@ const FormFlyerPage: NextPage = () => {
           </div>
 
           <div className="px-6 py-4">
-            <div className="rounded-[22px] border border-[#d9d3c8] bg-[#fcfaf5] px-4 py-4 text-center">
+            <div className="rounded-[22px] border border-[#d9d3c8] bg-white px-4 py-4 text-center">
               <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#0f766e]">Scan here</p>
               <div className="mx-auto mt-3 w-fit rounded-[20px] border border-[#d9d3c8] bg-white p-2 shadow-sm">
                 <img src={qrSrc} alt="QR code for ScheduleMe form page" className="h-[116px] w-[116px]" />
@@ -127,7 +129,7 @@ const FormFlyerPage: NextPage = () => {
               <div className="mt-3 text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
                 <p className="text-[1.02rem] font-black leading-none">usescheduleme.com/form</p>
               </div>
-              <p className="mt-3 text-[0.96rem] font-semibold leading-snug text-[#0f172a]">
+              <p className="mt-3 text-[0.96rem] font-semibold leading-snug text-[#0f766e]">
                 Better than asking around and hoping it works out.
               </p>
             </div>
