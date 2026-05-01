@@ -314,7 +314,7 @@ const ConciergePage: NextPage = () => {
                 </label>
 
                 <label className="block">
-                  <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>If this worked well, how would you want to use ScheduleMe again?</span>
+                  <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>How would you want to use this again?</span>
                   <select
                     value={form.productInterest}
                     onChange={(e) => setForm((prev) => ({ ...prev, productInterest: e.target.value }))}

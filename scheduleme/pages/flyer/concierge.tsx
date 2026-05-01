@@ -6,7 +6,7 @@ import SeoHead from '../../components/SeoHead';
 import { absoluteUrl } from '../../lib/siteMeta';
 
 const ConciergeFlyerPage: NextPage = () => {
-  const conciergeUrl = absoluteUrl('/concierge');
+  const conciergeUrl = absoluteUrl('/form');
   const qrSrc = `https://quickchart.io/qr?text=${encodeURIComponent(conciergeUrl)}&size=520&margin=1`;
   const [shareState, setShareState] = useState<'idle' | 'copied' | 'error'>('idle');
 
@@ -14,7 +14,7 @@ const ConciergeFlyerPage: NextPage = () => {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'ScheduleMe concierge flyer',
+          title: 'ScheduleMe form',
           text: 'Need help finding the right person? Start here.',
           url: conciergeUrl,
         });
@@ -22,17 +22,11 @@ const ConciergeFlyerPage: NextPage = () => {
         return;
       }
 
-      await navigator.clipboard.writeText(conciergeUrl);
-      setShareState('copied');
-      window.setTimeout(() => setShareState('idle'), 2200);
+      window.print();
     } catch {
       setShareState('error');
       window.setTimeout(() => setShareState('idle'), 2200);
     }
-  }
-
-  function handleDownloadPdf() {
-    window.print();
   }
 
   return (
@@ -66,16 +60,18 @@ const ConciergeFlyerPage: NextPage = () => {
           }
 
           .flyer-stage {
-            min-height: auto !important;
+            min-height: 5.5in !important;
+            height: 5.5in !important;
             padding: 0 !important;
             background: white !important;
+            overflow: hidden !important;
           }
 
           .flyer-card {
             width: 4.25in !important;
-            height: 5.35in !important;
-            min-height: 5.35in !important;
-            max-height: 5.35in !important;
+            height: 5.5in !important;
+            min-height: 5.5in !important;
+            max-height: 5.5in !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
@@ -98,13 +94,10 @@ const ConciergeFlyerPage: NextPage = () => {
 
           <div className="flex flex-wrap gap-3">
             <button onClick={handleShare} className="btn-secondary">
-              {shareState === 'copied' ? 'Link copied' : shareState === 'error' ? 'Could not share' : 'Share flyer'}
+              {shareState === 'error' ? 'Could not share' : 'Share / save'}
             </button>
-            <button onClick={handleDownloadPdf} className="btn-primary">
-              Download PDF
-            </button>
-            <Link href="/concierge" className="btn-secondary">
-              Open page
+            <Link href="/form" className="btn-primary">
+              Open form
             </Link>
           </div>
         </div>
@@ -113,14 +106,14 @@ const ConciergeFlyerPage: NextPage = () => {
           className="flyer-card mx-auto flex w-full max-w-[4.25in] flex-col overflow-hidden rounded-[28px] border border-[#d9d3c8] bg-white"
           style={{ boxShadow: '0 20px 60px rgba(15,23,42,0.12)' }}
         >
-          <div className="bg-[#0f766e] px-6 py-4 text-white">
+          <div className="bg-[#0f766e] px-6 py-5 text-center text-white">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">ScheduleMe</p>
             <h1 className="mt-3 text-[2rem] font-black leading-[0.94]" style={{ letterSpacing: '-0.06em' }}>
               Need help finding
               <br />
               the right person?
             </h1>
-            <p className="mt-3 max-w-[14.5rem] text-[0.92rem] leading-snug text-white/88">
+            <p className="mx-auto mt-3 max-w-[14.75rem] text-[0.92rem] leading-snug text-white/88">
               Haircuts first. I can also try to help with other campus services.
             </p>
           </div>
@@ -132,11 +125,10 @@ const ConciergeFlyerPage: NextPage = () => {
                 <img src={qrSrc} alt="QR code for ScheduleMe concierge page" className="h-[116px] w-[116px]" />
               </div>
               <div className="mt-3 text-[#111827]" style={{ letterSpacing: '-0.05em' }}>
-                <p className="text-[1.05rem] font-black leading-none">usescheduleme.com</p>
-                <p className="mt-1 text-[1.45rem] font-black leading-none">/concierge</p>
+                <p className="text-[1.02rem] font-black leading-none">usescheduleme.com/form</p>
               </div>
               <p className="mt-3 text-[0.96rem] font-semibold leading-snug text-[#0f172a]">
-                Better than asking around and hoping the referral is good.
+                Better than asking around and hoping it works out.
               </p>
             </div>
 
