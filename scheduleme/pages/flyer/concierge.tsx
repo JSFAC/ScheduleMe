@@ -93,10 +93,10 @@ const ConciergeFlyerPage: NextPage = () => {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={handleShare} className="btn-secondary">
-              {shareState === 'error' ? 'Could not share' : 'Share / save'}
+            <button onClick={handleShare} className="btn-primary">
+              {shareState === 'error' ? 'Could not share' : 'Share'}
             </button>
-            <Link href="/form" className="btn-primary">
+            <Link href="/form" className="btn-secondary">
               Open form
             </Link>
           </div>
