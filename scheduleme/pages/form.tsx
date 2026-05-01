@@ -216,7 +216,7 @@ const FormPage: NextPage = () => {
                       onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                       className="mt-1.5 form-input"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
-                      placeholder="Your first name"
+                      placeholder="Your name"
                     />
                   </label>
                   <label className="block">
@@ -226,7 +226,7 @@ const FormPage: NextPage = () => {
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
                       className="mt-1.5 form-input"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
-                      placeholder="Number, Insta, or email"
+                      placeholder="Number, Insta, email, etc."
                     />
                   </label>
                 </div>
@@ -299,7 +299,7 @@ const FormPage: NextPage = () => {
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
                     className="mt-1.5 form-input resize-y"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Example: Need a clean fade before Friday. At Crown dorms, under $20 if possible."
+                    placeholder="Example: need a cut sometime before Friday, I’m at Crown dorms and don’t wanna spend more than like $20"
                   />
                 </label>
 
