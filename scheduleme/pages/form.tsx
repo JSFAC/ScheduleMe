@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -7,12 +7,11 @@ import SeoHead from '../components/SeoHead';
 import { useDm } from '../lib/DarkModeContext';
 
 const SERVICE_OPTIONS = [
-  'Haircut / fade',
-  'Lineup / cleanup',
-  'Taper / burst fade',
-  'Braids / twists',
+  'Haircut',
+  'Hair coloring',
   'Photography',
-  'Tutoring',
+  '3D prints',
+  'Clothing repair',
   'Other campus service',
 ];
 
@@ -41,26 +40,120 @@ const HONEST_NOTES = [
 ];
 
 const PRODUCT_INTEREST_OPTIONS = [
-  'Choose an option',
-  'Text me manually for now',
+  'Choose',
+  'Current form',
   'A website',
   'An app',
   'Both website and app',
   'Not sure yet',
 ];
 
+function CustomSelect({
+  value,
+  options,
+  onChange,
+  placeholderValue,
+  strong,
+  muted,
+  border,
+  fieldBg,
+}: {
+  value: string;
+  options: string[];
+  onChange: (next: string) => void;
+  placeholderValue?: string;
+  strong: string;
+  muted: string;
+  border: string;
+  fieldBg: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, []);
+
+  const isPlaceholder = placeholderValue ? value === placeholderValue : false;
+
+  return (
+    <div ref={rootRef} className="relative mt-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="form-input flex items-center justify-between text-left"
+        style={{
+          background: fieldBg,
+          borderColor: border,
+          color: isPlaceholder ? muted : strong,
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="truncate">{value}</span>
+        <svg className={`ml-3 h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} style={{ color: strong }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 right-0 top-[calc(100%+0.45rem)] z-50 overflow-hidden rounded-[24px] border shadow-2xl"
+          style={{ background: fieldBg, borderColor: border }}
+          role="listbox"
+        >
+          <div className="max-h-72 overflow-y-auto py-2">
+            {options.map((option) => {
+              const selected = option === value;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    onChange(option);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left text-base transition-colors hover:bg-black/5 md:text-sm"
+                  style={{ color: option === placeholderValue ? muted : strong }}
+                >
+                  <span className="truncate">{option}</span>
+                  {selected ? (
+                    <svg className="ml-3 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: strong }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FormPage: NextPage = () => {
   const { dm } = useDm();
   const [form, setForm] = useState({
     name: '',
     contact: '',
-    service: 'Haircut / fade',
+    service: 'Haircut',
     timing: 'Choose',
     budget: 'Choose',
     campus: '',
     details: '',
     reference: '',
-    productInterest: 'Choose an option',
+    productInterest: 'Choose',
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -86,7 +179,7 @@ const FormPage: NextPage = () => {
       form.campus.trim() &&
       form.details.trim() &&
       form.productInterest.trim() &&
-      form.productInterest !== 'Choose an option'
+      form.productInterest !== 'Choose'
     );
   }, [form]);
 
@@ -116,13 +209,13 @@ const FormPage: NextPage = () => {
       setForm({
         name: '',
         contact: '',
-        service: 'Haircut / fade',
+        service: 'Haircut',
         timing: 'Choose',
         budget: 'Choose',
         campus: '',
         details: '',
         reference: '',
-        productInterest: 'Choose an option',
+        productInterest: 'Choose',
       });
     } catch (err: any) {
       setError(err?.message || 'Could not submit request.');
@@ -143,24 +236,24 @@ const FormPage: NextPage = () => {
       </Head>
       <main className="min-h-screen pt-5 pb-12 md:pt-8 md:pb-16" style={{ background: dm ? '#0a0a0a' : '#f6f1e8' }}>
         <section className="px-6 pb-6">
-          <div className="mx-auto max-w-4xl flex items-start justify-between gap-3">
-            <div>
+          <div className="mx-auto max-w-4xl flex min-h-[64px] items-center justify-between gap-3 overflow-hidden">
+            <div className="flex min-h-[64px] min-w-0 items-center">
               <Link href="/" className="inline-flex items-center gap-3">
-                <span className="text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
+                <span className="truncate text-[2rem] md:text-3xl font-black" style={{ letterSpacing: '-0.04em', color: strong }}>
                   Schedule<span style={{ color: '#0f766e' }}>Me</span>
                 </span>
               </Link>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3">
               <Link
                 href="/flyer/form"
-                className="btn-primary min-w-[6.75rem] px-6 py-2.5 text-sm"
+                className="btn-primary min-w-[6.75rem] px-5 py-2.5 text-sm"
               >
                 Flyer
               </Link>
               <Link
                 href="/"
-                className="btn-secondary min-w-[6.75rem] px-6 py-2.5 text-sm hidden md:inline-flex"
+                className="btn-secondary hidden min-w-[6.75rem] px-5 py-2.5 text-sm md:inline-flex"
               >
                 Main site
               </Link>
@@ -208,7 +301,7 @@ const FormPage: NextPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Name</span>
                     <input
@@ -220,13 +313,13 @@ const FormPage: NextPage = () => {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Best contact</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Contact</span>
                     <input
                       value={form.contact}
                       onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))}
                       className="mt-1.5 form-input"
                       style={{ background: fieldBg, borderColor: border, color: strong }}
-                      placeholder="Number, Insta, email, etc."
+                    placeholder="number, insta, etc"
                     />
                   </label>
                 </div>
@@ -234,49 +327,44 @@ const FormPage: NextPage = () => {
                 <div className="grid grid-cols-1 gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Service</span>
-                    <select
+                    <CustomSelect
                       value={form.service}
-                      onChange={(e) => setForm((prev) => ({ ...prev, service: e.target.value }))}
-                      className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: strong }}
-                    >
-                      {SERVICE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
+                      onChange={(next) => setForm((prev) => ({ ...prev, service: next }))}
+                      options={SERVICE_OPTIONS}
+                      strong={strong}
+                      muted={muted}
+                      border={border}
+                      fieldBg={fieldBg}
+                    />
                   </label>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Timing</span>
-                    <select
+                    <CustomSelect
                       value={form.timing}
-                      onChange={(e) => setForm((prev) => ({ ...prev, timing: e.target.value }))}
-                      className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: form.timing === 'Choose' ? placeholderSelect : strong }}
-                    >
-                      {TIMING_OPTIONS.map((option, index) => (
-                        <option key={option} value={option} disabled={index === 0}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(next) => setForm((prev) => ({ ...prev, timing: next }))}
+                      options={TIMING_OPTIONS}
+                      placeholderValue="Choose"
+                      strong={strong}
+                      muted={placeholderSelect}
+                      border={border}
+                      fieldBg={fieldBg}
+                    />
                   </label>
                   <label className="block">
                     <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>Budget</span>
-                    <select
+                    <CustomSelect
                       value={form.budget}
-                      onChange={(e) => setForm((prev) => ({ ...prev, budget: e.target.value }))}
-                      className="mt-1.5 form-input"
-                      style={{ background: fieldBg, borderColor: border, color: form.budget === 'Choose' ? placeholderSelect : strong }}
-                    >
-                      {BUDGET_OPTIONS.map((option, index) => (
-                        <option key={option} value={option} disabled={index === 0}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(next) => setForm((prev) => ({ ...prev, budget: next }))}
+                      options={BUDGET_OPTIONS}
+                      placeholderValue="Choose"
+                      strong={strong}
+                      muted={placeholderSelect}
+                      border={border}
+                      fieldBg={fieldBg}
+                    />
                   </label>
                 </div>
 
@@ -287,7 +375,7 @@ const FormPage: NextPage = () => {
                     onChange={(e) => setForm((prev) => ({ ...prev, campus: e.target.value }))}
                     className="mt-1.5 form-input"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Dorm, neighborhood, or meet with provider"
+                    placeholder="Dorm, neighborhood, meet provider"
                   />
                 </label>
 
@@ -297,9 +385,9 @@ const FormPage: NextPage = () => {
                     rows={3}
                     value={form.details}
                     onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
-                    className="mt-1.5 form-input resize-none min-h-[98px] md:min-h-[124px]"
+                    className="mt-1.5 form-input resize-none min-h-[72px] md:min-h-[108px]"
                     style={{ background: fieldBg, borderColor: border, color: strong }}
-                    placeholder="Example: need a cut sometime before Friday, I’m at Crown dorms and don’t wanna spend more than like $20"
+                    placeholder="Example: need a cut before Friday 5/1, I’m at Crown dorms and don’t wanna spend more than like $20"
                   />
                 </label>
 
@@ -316,18 +404,16 @@ const FormPage: NextPage = () => {
 
                 <label className="block">
                   <span className="text-xs font-bold uppercase tracking-[0.08em]" style={{ color: muted }}>How would you want to use this again?</span>
-                  <select
+                  <CustomSelect
                     value={form.productInterest}
-                    onChange={(e) => setForm((prev) => ({ ...prev, productInterest: e.target.value }))}
-                    className="mt-1.5 form-input"
-                    style={{ background: fieldBg, borderColor: border, color: form.productInterest === 'Choose an option' ? placeholderSelect : strong }}
-                  >
-                    {PRODUCT_INTEREST_OPTIONS.map((option, index) => (
-                      <option key={option} value={option} disabled={index === 0}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(next) => setForm((prev) => ({ ...prev, productInterest: next }))}
+                    options={PRODUCT_INTEREST_OPTIONS}
+                    placeholderValue="Choose"
+                    strong={strong}
+                    muted={placeholderSelect}
+                    border={border}
+                    fieldBg={fieldBg}
+                  />
                 </label>
 
                 {success && (
